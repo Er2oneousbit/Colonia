@@ -214,7 +214,7 @@ const FLAG_SPECS = {
     { u: 0.4, v: S - 0.4, z: 36, h: 14, w: 6.5, ch: 4.5, color: '#6b3fa0' },
     { u: S - 0.4, v: 0.4, z: 36, h: 14, w: 6.5, ch: 4.5, color: '#6b3fa0' },
   ],
-  colosseum: (S) => [-40, 0, 40].map((dx) => ({ x: dx, y: (S * TH) / 2 - 48, h: 12, w: 6.5, ch: 4, color: '#a8322b' })),
+  colosseum: (S) => [-40, 0, 40].map((dx) => ({ x: dx, y: (S * TH) / 2 - 74, h: 12, w: 6.5, ch: 4, color: '#a8322b' })),
   // The governor's banners (GOV.banner): at his gate, on his roof, on every wing of the palace.
   governor_house: (S) => [S * 0.42 - 0.12, S * 0.42 + 1.02].map((u) => ({ u, v: S - 0.32, z: 7, h: 13, w: 5.5, ch: 7, color: GOV.banner })),
   governor_villa: (S) => [1.1, S - 0.3].map((u) => ({ u, v: 0.85, z: 36, h: 14, w: 6.5, ch: 4.5, color: GOV.banner, swallow: true })),
@@ -1298,9 +1298,13 @@ function arenaArt(ctx, S, levels, rxF, ryF) {
   }
 }
 
-function amphitheaterArt(ctx, S) { arenaArt(ctx, S, 2, 0.9, 0.9); }
+// An ellipse fits the footprint's diamond only up to about 0.81 of these
+// sizes (it touches the diamond's edges on the diagonals at 1 / sqrt 2 of
+// its half-axes): at 0.9 and 0.92 the arenas spilled past their square
+// (playtest). 0.78 leaves a rim of ground inside it.
+function amphitheaterArt(ctx, S) { arenaArt(ctx, S, 2, 0.78, 0.78); }
 function colosseumArt(ctx, S, variant, state, key) {
-  arenaArt(ctx, S, 3, 0.92, 0.92);
+  arenaArt(ctx, S, 3, 0.78, 0.78);
   flagPoles(ctx, key, S); // flags on top
 }
 
