@@ -664,7 +664,9 @@ test('unlocks: shipyard and wharf from mission 4; missions 5 and 6 have all but 
     // (mission 6's desert has no water a ship can sail, so no fleet there:
     // tests/navy.test.mjs).
     const navy = id === 'c6' ? [...NAVY_KEYS] : [];
-    const lost = [...Object.keys(BUILDINGS)].filter((k) => !['hippodrome', 'hippodrome_part', 'chariot_maker', ...navy].includes(k) && !byId[id].unlocks.includes(k));
+    // (The monuments and their camp are on no mission's list: a rule of the
+    // map offers them from step 6, sim/monuments.js monumentAllowed.)
+    const lost = [...Object.keys(BUILDINGS)].filter((k) => !['hippodrome', 'hippodrome_part', 'chariot_maker', ...navy].includes(k) && !['monument', 'work_camp'].includes(BUILDINGS[k].kind) && !byId[id].unlocks.includes(k));
     assert.deepEqual(lost, [], `${id}: every other building`);
     for (const t of ['road', 'plaza', 'bridge', 'roadblock', 'aqueduct', 'wall', 'clear']) assert.ok(byId[id].unlocks.includes(t), `${id}: ${t}`);
   }

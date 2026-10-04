@@ -69,7 +69,9 @@ import {
   BAD_WATER_MIN_POP, QUAKE_SIZES, QUAKE_JITTER, missionEvents, eventMonth,
 } from '../data/events.js';
 import { MONTH_NAMES, formatYear } from './time.js';
-import { removeBuilding, linkedGroup, groupTiles, mainOf, killWalker } from './entities.js';
+import { openOf } from './monumentEffects.js';
+import { HALT_SHARE, PHARUS_NEPTUNE_DAYS } from '../data/monuments.js';
+import { removeBuilding, linkedGroup, groupTiles, mainOf, killWalker, footprintTiles } from './entities.js';
 import { recordRuin, clearRuin } from './ruins.js';
 import { buildingLabel, withArticle } from './risk.js';
 import { foulWater, diseaseEnabled } from './disease.js';
@@ -226,13 +228,13 @@ export function applyEvent(game, key, step = 2) {
       break;
     }
     case 'land': {
-      haltTrade(game, 'land', TRADE_HALT_DAYS);
+      haltTrade(game, 'land', haltDays(game, 'land'));
       const desert = game.scenario.map?.type === 'desert';
       game.message(`${desert ? 'Sandstorms close the caravan roads' : 'Landslides close the mountain roads'}: no caravan will set out for your city until ${haltEndLabel(game, 'land')}.`, 'warn');
       break;
     }
     case 'sea':
-      haltTrade(game, 'sea', TRADE_HALT_DAYS);
+      haltTrade(game, 'sea', haltDays(game, 'sea'));
       game.message(`Storms keep the merchant ships in port: none will sail for your city until ${haltEndLabel(game, 'sea')}.`, 'warn');
       break;
     case 'water': {
@@ -279,6 +281,15 @@ function ruinBuilding(game, b, cause, spare = -1) {
 // ---------------------------------------------------------------------------
 // Trade disruptions
 // ---------------------------------------------------------------------------
+
+/**
+ * Days a trade disruption of this kind lasts: TRADE_HALT_DAYS, half as long
+ * by sea while the Pharus is lit, by land while the Mansio Magna works.
+ */
+export function haltDays(game, kind) {
+  const mon = openOf(game, kind === 'sea' ? 'pharus' : 'mansio_magna');
+  return mon ? Math.round(TRADE_HALT_DAYS * HALT_SHARE) : TRADE_HALT_DAYS;
+}
 
 /** No trader of this kind ('land' or 'sea') sets out for `days` days from today (never shortening one under way). */
 export function haltTrade(game, kind, days) {
@@ -331,7 +342,8 @@ export function neptuneStorms(game) {
     killWalker(game, w);
     sunk++;
   }
-  haltTrade(game, 'sea', NEPTUNE_HALT_DAYS);
+  // A lit Pharus guides the ships in through the god's storms sooner.
+  haltTrade(game, 'sea', openOf(game, 'pharus') ? PHARUS_NEPTUNE_DAYS : NEPTUNE_HALT_DAYS);
   return { sunk, halted: true };
 }
 
@@ -444,7 +456,8 @@ export function startQuake(game, size = 'small') {
   // strikes there first.
   // A native village holds too (sim/natives.js): a lost meeting place would
   // leave its huts with no village.
-  const keep = [...imperialRoad(game), ...denTiles(game), ...villageTiles(game)];
+  // A monument holds as well (built or building): the quake never strikes there first.
+  const keep = [...imperialRoad(game), ...denTiles(game), ...villageTiles(game), ...monumentTiles(game)];
   const p = quakePoint(game, rng, new Set(keep));
   if (!p) return null;
   const tries = rng.range(def.tries[0], def.tries[1]);
@@ -470,6 +483,13 @@ function imperialRoad(game) {
   const from = map.idx(map.entry.x, map.entry.y);
   const to = map.idx(map.exit.x, map.exit.y);
   return game.pf.roadPath(from, to) || (map.road[from] ? [from] : []);
+}
+
+/** Every tile a monument (a site or a finished one) stands on: an earthquake's cracks pass under them. */
+function monumentTiles(game) {
+  const out = [];
+  for (const b of game.buildings.values()) if (b.def.kind === 'monument') out.push(...footprintTiles(game.map, b.x, b.y, b.size));
+  return out;
 }
 
 /** The tiles of the wolf packs' dens (none on a map without wolves). */
@@ -517,6 +537,9 @@ function crackTry(game, q) {
   arm.x = nx;
   arm.y = ny;
   if (map.fixedRoad[i] || keepSet(q).has(i)) return;
+  // Under a monument placed since the quake began, too (keepSet holds the
+  // ones standing at its start).
+  if (map.building[i] && game.buildings.get(map.building[i])?.def.kind === 'monument') return;
   strike(game, q, i);
 }
 

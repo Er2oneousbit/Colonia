@@ -11,6 +11,8 @@ import { CONFIG } from '../config.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { trainsNow, trainedOf, academyFor, portusFor, inTraining } from '../sim/training.js';
 import { waterOf } from '../sim/navy.js';
+import { openMonument } from '../sim/monumentEffects.js';
+import { FANUM_TEMPLES, PANTHEUM_TEMPLES } from '../data/monuments.js';
 
 /**
  * Who is in training for a fort or station, or at an academy or Portus, and
@@ -93,6 +95,13 @@ export function templeCount(game, god) {
     if (w > 1) large++;
     else small++;
   }
-  const text = large ? `${weight} (${small} small, ${large} large: a large temple counts as two)` : `${weight}`;
+  let text = large ? `${weight} (${small} small, ${large} large: a large temple counts as two)` : `${weight}`;
+  // A working monument's temples (sim/religion.js templeCounts).
+  const m = openMonument(game);
+  const extra = m && m.def.mon === 'fanum' && m.def.deity === god ? FANUM_TEMPLES : m && m.def.mon === 'pantheum' ? PANTHEUM_TEMPLES : 0;
+  if (extra) {
+    weight += extra;
+    text = `${weight} (${m.def.mon === 'fanum' ? 'its Great Sanctuary counts as six' : 'the Pantheum counts as two'}${text === '0' ? '' : `, temples ${text}`})`;
+  }
   return { weight, small, large, text };
 }

@@ -13,6 +13,8 @@
 
 import { CONFIG } from '../config.js';
 import { HOUSE_TIERS } from '../data/housing.js';
+import { openOf } from './monumentEffects.js';
+import { BASILICA } from '../data/monuments.js';
 
 // 'loans' and 'repayments' (sim/loans.js) are shown but stay out of ledgerNet:
 // borrowed money is not profit. 'donations' (the governor's savings given to
@@ -20,7 +22,9 @@ import { HOUSE_TIERS } from '../data/housing.js';
 // 'salary' (the governor's, paid into his savings) is spending like any other.
 // 'gifts' is money sent for the Emperor's requests (the key is kept from when
 // gifts to him were paid from the treasury, so older ledgers read the same).
-export const LEDGER_KEYS = ['taxes', 'exports', 'other', 'loans', 'donations', 'wages', 'imports', 'construction', 'tribute', 'festivals', 'gifts', 'salary', 'military', 'plunder', 'stolen', 'repayments'];
+// 'monuments' is a finished monument's monthly upkeep (sim/monuments.js); its
+// stages' money goes under 'construction'.
+export const LEDGER_KEYS = ['taxes', 'exports', 'other', 'loans', 'donations', 'wages', 'imports', 'construction', 'tribute', 'festivals', 'gifts', 'salary', 'military', 'monuments', 'plunder', 'stolen', 'repayments'];
 
 export function newLedger() {
   const l = {};
@@ -62,7 +66,8 @@ export function canAfford(game, cost) {
  */
 export function houseMonthlyTax(game, h) {
   const t = HOUSE_TIERS[h.tier];
-  return (h.pop * t.tax * CONFIG.TAX_K * (game.city.taxRate / CONFIG.DEFAULT_TAX_RATE)) / 12;
+  const tax = (h.pop * t.tax * CONFIG.TAX_K * (game.city.taxRate / CONFIG.DEFAULT_TAX_RATE)) / 12;
+  return openOf(game, 'basilica') ? tax * BASILICA.taxes : tax; // the Basilica's courts collect a fifth more
 }
 
 /** Monthly finances. */
@@ -125,5 +130,5 @@ export function yearlyEconomy(game) {
 export function ledgerNet(l) {
   if (!l) return 0;
   // `|| 0`: ledgers from older saves have no military/plunder/stolen/salary rows.
-  return (l.taxes + l.exports + l.other) - (l.wages + l.imports + l.construction + l.tribute + l.festivals + l.gifts + (l.salary || 0) + (l.military || 0) + (l.plunder || 0) + (l.stolen || 0));
+  return (l.taxes + l.exports + l.other) - (l.wages + l.imports + l.construction + l.tribute + l.festivals + l.gifts + (l.salary || 0) + (l.military || 0) + (l.monuments || 0) + (l.plunder || 0) + (l.stolen || 0));
 }

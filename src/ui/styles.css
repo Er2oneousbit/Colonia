@@ -284,6 +284,9 @@ button, input, select { font: inherit; color: inherit; }
 .bar { height: 8px; border-radius: 4px; background: var(--panel-3); overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--good); }
 .bar.risk > i { background: linear-gradient(90deg, #6aa84f, #e0a84a 60%, #d9534f); }
+/* A monument's work bar: the mark is the most work its delivered goods allow (ui/monumentInfo.js). */
+.bar.mon { position: relative; }
+.bar.mon > b.cap { position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: var(--warn, #f0ad4e); }
 
 .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--panel-3); font-size: 12px; margin: 1px; }
 /* A route card's good: the switch for trading it with that partner, then its amounts and price. */

@@ -224,6 +224,13 @@
  *      version moves so that a game from before the rule refuses a newer
  *      save rather than loading buildings on water it would let ships sail
  *      through.
+ *  31  monuments (sim/monuments.js): a monument's building holds `mon` (its
+ *      stage, work done, goods delivered and on their way, paid, halted,
+ *      store, sacked), a work camp's `camp` (larder, water, food, supply
+ *      factor, its crew's state), a camp's cart its `campClaim` and a
+ *      reservation marked `mon` at the site; the finance ledger has a
+ *      'monuments' row (upkeep). An older save has none of them: its
+ *      ledgers get the row at 0, see upgradeMonumentsV30().
  *
  * Typed-array map layers are base64 encoded, run-length compressed first
  * when that is smaller (encodeLayer). Derived data (building tile layer,
@@ -264,6 +271,7 @@ import { log } from './debug.js';
 import { NATIVE_ID_BASE } from '../data/natives.js';
 import { isFort, numberForts } from '../sim/fortNumbers.js';
 import { endDrill } from '../sim/training.js';
+import { newSiteState, newCampState } from '../sim/monumentEffects.js';
 
 /** Oldest save version this game can load (4: the 20-level housing ladder). */
 export const MIN_SAVE_VERSION = 4;
@@ -611,6 +619,13 @@ export function deserializeGame(data, flags = {}) {
   if (data.version < 27) upgradeFestivalsV26(game);
   if (data.version < 28) upgradeFireGroupsV27(game);
   if (data.version < 29) upgradeSoldierTripsV28(game);
+  if (data.version < 31) upgradeMonumentsV30(game);
+  // A monument's or camp's record missing a part (a hand-edited file) gets a
+  // fresh one rather than stopping the game's daily update on it.
+  for (const b of game.buildings.values()) {
+    if (b.def.kind === 'monument' && (!b.mon || typeof b.mon.got !== 'object' || typeof b.mon.way !== 'object' || !Number.isInteger(b.mon.stage))) b.mon = newSiteState();
+    if (b.def.kind === 'work_camp' && (!b.camp || !b.camp.crew)) b.camp = newCampState();
+  }
   addNewPartners(game);
   // A salary above the governor's rank, which saves made before the rate was
   // held to the rank may draw, comes down to the rank now (sim/governor.js).
@@ -1049,6 +1064,16 @@ export function upgradeFireGroupsV27(game) {
  */
 export function upgradeSoldierTripsV28(game) {
   for (const u of game.units.values()) if (u.side === 'rome' && !UNIT_TYPES[u.type].naval && u.drill) endDrill(u);
+}
+
+/**
+ * Version 31 brought monuments. A save from before has no monument, camp or
+ * cart of theirs, so only the finance ledgers change: each gets its
+ * 'monuments' row (upkeep paid), at 0, as a new game's has.
+ */
+export function upgradeMonumentsV30(game) {
+  const f = game.city.finance;
+  for (const l of [f?.thisYear, f?.lastYear]) if (l && l.monuments === undefined) l.monuments = 0;
 }
 
 /**

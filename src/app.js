@@ -32,6 +32,7 @@ import { Sfx } from './audio/sfx.js';
 import { Music, renderMood, encodeWav, measure } from './audio/music.js';
 import { MOODS } from './audio/composer.js';
 import { applyPlan as applyConstruction, canUndo as canUndoConstruction, undoLast } from './sim/construction.js';
+import { demolishWarning } from './sim/monuments.js';
 import { findScenario, sandboxScenario, withDifficulty, SCENARIOS } from './data/scenarios.js';
 import { DIFFICULTY, DIFFICULTY_ORDER } from './data/difficulty.js';
 import { farmSeasonNotice } from './sim/production.js';
@@ -695,8 +696,15 @@ export class App {
   // The Advisors and the Empire map let the game run and keep the keyboard shortcuts.
   blockingModal() { return this.ui.mainMenuOpen || (this.ui.hasModal() && this.ui.modalKind !== 'advisors' && this.ui.modalKind !== 'empire'); }
 
-  applyPlan(plan) {
+  applyPlan(plan, confirmed = false) {
     if (!this.game || !plan) return;
+    // Clearing a monument asks first, saying what goes with it (sim/monuments.js demolishWarning).
+    const mon = !confirmed && plan.tool === 'clear' ? plan.items.find((it) => it.ok && it.monument) : null;
+    if (mon) {
+      const b = this.game.buildings.get(mon.building);
+      this.ui.confirm(`Demolish the ${b ? b.def.name : 'monument'}? ${demolishWarning(b) || ''}`, () => this.applyPlan(plan, true), { title: 'Demolish', yes: 'Demolish', danger: true });
+      return;
+    }
     const res = applyConstruction(this.game, plan);
     if (!res.ok) {
       this.ui.toastError(res.reason || plan.reason || 'Cannot build there.');

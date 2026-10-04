@@ -35,6 +35,8 @@
 import { CONFIG } from '../config.js';
 import { HOUSE_TIERS } from '../data/housing.js';
 import { FOOD_TYPES } from '../data/goods.js';
+import { fanumOf } from './monumentEffects.js';
+import { GIFTS } from '../data/monuments.js';
 
 /** Clamp to 0..100. */
 const clamp100 = (v) => Math.max(0, Math.min(100, v));
@@ -109,6 +111,9 @@ export function updateHomeMood(game, b, envy, cityCause) {
     sum += terms[k];
     if (terms[k] < 0 && (worst === null || terms[k] < terms[worst])) worst = k;
   }
+  // Venus's Great Sanctuary at work lifts every home (not one of its own
+  // terms: it never names a home's worst trouble).
+  if (fanumOf(game, 'venus')) sum += GIFTS.venus.homeMood;
   const target = clamp100(s + sum);
   const step = Math.max(-CONFIG.MOOD_STEP, Math.min(CONFIG.MOOD_STEP, target - h.mood));
   h.mood = clamp100(h.mood + step);

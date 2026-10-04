@@ -19,6 +19,8 @@ import { GOD_KEYS } from '../data/gods.js';
 import { ledgerNet, romeWage } from './economy.js';
 import { entertainmentScore } from './housing.js';
 import { racesRunning } from './entertainment.js';
+import { monumentStands, openOf, fanumOf } from './monumentEffects.js';
+import { MONUMENT_CULTURE, BASILICA, GIFTS } from '../data/monuments.js';
 
 /** Coverage shares (0..1) of the population for culture services. */
 export function computeCoverage(game) {
@@ -67,7 +69,8 @@ export function updateRatings(game) {
   const tiny = c.population < 100;
 
   // Culture
-  const culture = tiny ? 0 : cov.religion * 25 + Math.min(1, cov.entertainment / 40) * 25 + cov.school * 15 + cov.library * 15 + cov.academy * 12 + (hasSenate ? 8 : 0);
+  // A finished monument adds to culture while it stands, open or not (sim/monumentEffects.js).
+  const culture = tiny ? 0 : cov.religion * 25 + Math.min(1, cov.entertainment / 40) * 25 + cov.school * 15 + cov.library * 15 + cov.academy * 12 + (hasSenate ? 8 : 0) + (monumentStands(game) ? MONUMENT_CULTURE : 0);
   r.culture = approach(r.culture, culture, CONFIG.CULTURE_STEP);
 
   // Prosperity
@@ -79,6 +82,7 @@ export function updateRatings(game) {
   prosperity += c.unemploymentRate < 0.05 ? 10 : c.unemploymentRate < 0.12 ? 5 : 0;
   prosperity += c.wage >= romeWage(game) ? 8 : 0;
   prosperity += hasSenate ? 10 : 0;
+  prosperity += openOf(game, 'basilica') ? BASILICA.prosperity : 0; // the courts and the hall for business
   // The original gave +1 a year while the hippodrome had races; Colonia's
   // prosperity moves toward a target, so the races lift the target instead.
   prosperity += racesRunning(game) ? CONFIG.HIPPODROME_PROSPERITY : 0;
@@ -94,6 +98,8 @@ export function updateRatings(game) {
   if (c.raidMonth) r.peace = Math.max(0, r.peace - CONFIG.PEACE_RAID_MONTH);
   else if (c.sentiment >= CONFIG.PEACE_MOOD && !crimeThisMonth) r.peace = Math.min(100, r.peace + CONFIG.PEACE_PER_MONTH);
   else if (c.sentiment < 30) r.peace = Math.max(0, r.peace - 2);
+  // Mars's Great Sanctuary at work: a point of peace every month, whatever the month brought.
+  if (fanumOf(game, 'mars')) r.peace = Math.min(100, r.peace + GIFTS.mars.peace);
 
   // Favor: gently returns toward 50.
   if (r.favor < 50) r.favor = Math.min(50, r.favor + 0.5);

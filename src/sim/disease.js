@@ -45,6 +45,8 @@
  */
 
 import { CONFIG } from '../config.js';
+import { openOf, fanumOf } from './monumentEffects.js';
+import { THERMAE, GIFTS } from '../data/monuments.js';
 import { HOUSE_TIERS } from '../data/housing.js';
 import { FOOD_TYPES, LAND_FOODS } from '../data/goods.js';
 import { WaterBits } from '../world/map.js';
@@ -229,6 +231,7 @@ export function updateDiseaseRisk(game, b) {
   const inp = healthInputs(game, b);
   let add = dailyRisk(healthScore(inp), h.pop, game.difficulty.disease ?? 1) * (0.6 + game.rng.next() * 0.8);
   if (inp.hospital) add *= 0.5;
+  if (openOf(game, 'thermae')) add *= THERMAE.disease; // the Great Baths keep the city cleaner
   h.diseaseRisk = (h.diseaseRisk || 0) + add;
   if (h.diseaseRisk >= CONFIG.DISEASE_THRESHOLD && game.rng.chance(CONFIG.DISEASE_OUTBREAK_CHANCE)) outbreak(game, b);
 }
@@ -492,8 +495,16 @@ export function updateCityHealth(game) {
     sum += houseHealth(game, b) * h.pop;
   }
   hc.target = people > 0 ? Math.round(sum / people) : CONFIG.HEALTH_START;
+  // The Thermae or Neptune's Great Sanctuary at work: the homes' average still pulls, ten higher.
+  hc.target = Math.min(100, hc.target + monumentHealth(game));
   const step = Math.max(-CONFIG.HEALTH_STEP, Math.min(CONFIG.HEALTH_STEP, hc.target - hc.value));
   hc.value = Math.max(0, Math.min(100, hc.value + step));
+}
+
+/** City health a working monument adds to its target: the Thermae's, or Neptune's Great Sanctuary's (0 without). */
+export function monumentHealth(game) {
+  if (openOf(game, 'thermae')) return THERMAE.health;
+  return fanumOf(game, 'neptune') ? GIFTS.neptune.health : 0;
 }
 
 /**

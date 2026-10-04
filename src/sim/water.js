@@ -19,6 +19,8 @@
 import { CONFIG } from '../config.js';
 import { Terrain, WaterBits } from '../world/map.js';
 import { perimeterTiles } from './entities.js';
+import { fanumOf } from './monumentEffects.js';
+import { GIFTS } from '../data/monuments.js';
 
 /** Set a bit on every tile within `r` (Chebyshev) of a footprint. */
 function markArea(map, x, y, size, r, bit) {
@@ -69,17 +71,18 @@ export function updateWater(game) {
     if (r && !r.hasWater) { r.hasWater = true; pushAqueductsAround(r); }
   }
 
-  // Coverage bits.
+  // Coverage bits. Neptune's Great Sanctuary at work: wells and fountains reach further.
+  const reach = fanumOf(game, 'neptune') ? GIFTS.neptune.waterReach : 0;
   map.water.fill(0);
   for (const r of reservoirs) if (r.hasWater) markArea(map, r.x, r.y, r.size, CONFIG.RESERVOIR_RADIUS, WaterBits.PIPED);
   for (const b of buildings.values()) {
     const kind = b.def.kind;
     if (kind === 'well') {
-      markArea(map, b.x, b.y, b.size, CONFIG.WELL_RADIUS, WaterBits.WELL);
+      markArea(map, b.x, b.y, b.size, CONFIG.WELL_RADIUS + reach, WaterBits.WELL);
     } else if (kind === 'fountain' || b.def.needsPiped) {
       b.hasWater = (map.water[map.idx(b.x, b.y)] & WaterBits.PIPED) !== 0;
       if (kind === 'fountain' && b.hasWater && b.efficiency > 0) {
-        markArea(map, b.x, b.y, b.size, CONFIG.FOUNTAIN_RADIUS, WaterBits.FOUNTAIN);
+        markArea(map, b.x, b.y, b.size, CONFIG.FOUNTAIN_RADIUS + reach, WaterBits.FOUNTAIN);
       }
     } else if (kind === 'hospital' && b.efficiency > 0) {
       markArea(map, b.x, b.y, b.size, CONFIG.HOSPITAL_RADIUS, WaterBits.HOSPITAL);

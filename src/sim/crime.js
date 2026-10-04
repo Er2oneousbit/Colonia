@@ -66,6 +66,8 @@ import { followPath, goHome, startRoaming } from './movement.js';
 import { igniteBuilding, buildingLabel, withArticle } from './risk.js';
 import { transact } from './economy.js';
 import { liftAllMoods, cityMoodCause } from './mood.js';
+import { openOf } from './monumentEffects.js';
+import { BASILICA } from '../data/monuments.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -313,7 +315,8 @@ export function updateCrime(game) {
   const pick = pickCrimeHouse(game);
   if (!pick) return;
   const h = pick.b.house;
-  const p = crimeChance(game.city.sentiment) * (game.difficulty.crime ?? 1) * (h.police > 0 ? 0.5 : 1);
+  // Halved by police cover; the Basilica's courts at work cut it by BASILICA.crime.
+  const p = crimeChance(game.city.sentiment) * (game.difficulty.crime ?? 1) * (h.police > 0 ? 0.5 : 1) * (openOf(game, 'basilica') ? BASILICA.crime : 1);
   if (!game.rng.chance(p)) return;
   commitCrime(game, pick.b, pick.outcome);
 }

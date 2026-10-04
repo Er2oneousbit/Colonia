@@ -39,6 +39,8 @@
  *                    fountain | well | decor | hospital | house | dock |
  *                    barracks | fort | tower | shipyard | wharf | part |
  *                    navalia | station | military_academy | portus |
+ *                    monument (a great work built in stages: sim/monuments.js) |
+ *                    work_camp (the monuments' builders and carts) |
  *                    residence (the governor's) | arch (a triumphal arch,
  *                    built across a road) | village (a native village's
  *                    hut, meeting place or crops: sim/natives.js; never
@@ -64,11 +66,17 @@
  *                  (barracks: weapons, arrows, horses; navalia: timber, iron,
  *                  linen; shipyard: timber), with inputCap units each
  *   unit           soldier type a fort garrisons (see data/units.js)
+ *   mon            a monument (kind 'monument'): its key in data/monuments.js
+ *                  MONUMENT_TYPES, whose stages, staff and upkeep it follows
+ *   deity          a Fanum's god (not `god`: a site is no temple until it is
+ *                  finished, and sim/religion.js counts it on its own terms)
  *   hp             hit points against raiders (default: by size)
  *                  Forts never burn or decay (fire/damage 0): only raiders
  *                  can destroy them, and then their garrison disbands.
  * ----------------------------------------------------------------------------
  */
+
+import { MONUMENT_TYPES, FANUM_GODS, SITE_DES } from './monuments.js';
 
 /** Build menu categories, in display order. */
 export const CATEGORIES = Object.freeze([
@@ -86,6 +94,7 @@ export const CATEGORIES = Object.freeze([
   { key: 'industry', name: 'Industry', icon: '⚒' },
   { key: 'commerce', name: 'Storage & Markets', icon: '📦' },
   { key: 'military', name: 'Military', icon: '⚔' },
+  { key: 'monuments', name: 'Monuments', icon: '🏗' },
 ]);
 
 /** Labor categories (used by the labor advisor and priorities). */
@@ -161,6 +170,39 @@ function largeTemples() {
       name: `Templum ${of}`, en: `Grand Temple of ${name}`, category: 'religion', cost: 150, size: 3, workers: 5, labor: 'govReligion',
       des: [14, 2, -2, 5], walker: 'priest', god, spawnDays: 4, fire: 0.6, templeWeight: 2,
       desc: `A grand temple to ${what}. Its priests walk the same rounds as a small temple's, but ${name} counts it as two temples, and it is a fine neighbor.`,
+    });
+  }
+  return out;
+}
+
+/**
+ * A monument's building: placed whole as a construction site, built in
+ * stages from goods by a work camp (sim/monuments.js), one per city. What
+ * placing costs is the site's own price and its first stage's money, both
+ * paid at once, so the build menu says what the player pays (and an undo
+ * gives it all back). Its workers and labor are the finished monument's
+ * (an unfinished site employs nobody: sim/labor.js). Never burns or
+ * collapses (fire and damage 0); raiders set a site back instead of
+ * breaking it (sim/monuments.js siteStruck).
+ */
+function M(mon, def) {
+  const t = MONUMENT_TYPES[mon];
+  return B({
+    category: 'monuments', kind: 'monument', mon, size: 5, cost: t.place + t.stages[0].money,
+    workers: t.workers, labor: t.labor, fire: 0, damage: 0,
+    needsPiped: t.needs === 'piped',
+    ...def,
+  });
+}
+
+/** The five gods' Great Sanctuaries (`fanum_<god>`), in the gods' order. */
+function sanctuaries() {
+  const out = {};
+  for (const f of FANUM_GODS) {
+    out[`fanum_${f.god}`] = M('fanum', {
+      name: `Fanum ${f.of}`, en: `Great Sanctuary of ${f.name}`, deity: f.god,
+      des: [30, 2, -4, 7],
+      desc: `A terraced sanctuary to ${f.name}, built in 4 stages by a Castra Operarum (Work Camp). Finished and staffed, it counts as six temples of ${f.name}, keeps the god's mood from ever falling low enough to strike, brings blessings sooner, and: ${f.gift} One monument per city.`,
     });
   }
   return out;
@@ -626,6 +668,36 @@ export const BUILDINGS = Object.freeze({
     des: [-6, 1, 1, 3], fire: 0, damage: 0, hp: 800, placement: 'shore',
     desc: 'A stone quay with berths for a squadron of 4 liburnians, which fight raider ships near it. Click it and press Deploy to send its squadron anywhere on its water. Build it on the bank of a river or sea that ships can sail.',
   }),
+  // --- Monuments (sim/monuments.js, data/monuments.js) -----------------------
+  // The work camp hauls each stage's goods from the warehouses and its crew
+  // builds; one monument per city. Timber sheds: they burn, and stand well.
+  work_camp: B({
+    name: 'Castra Operarum', en: 'Work Camp', category: 'monuments', kind: 'work_camp', cost: 300, size: 3, workers: 40, labor: 'engineering',
+    des: [...SITE_DES], fire: 1, damage: 0.5,
+    desc: 'Builds the city\'s monument. Its ox carts (3 at full staff) bring each stage\'s goods from the warehouses on its roads, 400 a trip, and its crew works on the site in shifts of 16 days. It needs food (its buyer fetches it from a granary) and a well or fountain in reach: lacking one it works at half pace, lacking both it stops. Up to 3 camps work on one site.',
+  }),
+  ...sanctuaries(),
+  pantheum: M('pantheum', {
+    name: 'Pantheum', en: 'Pantheon', des: [30, 2, -4, 7],
+    desc: 'A temple to every god under one great dome, built in 5 stages by a Castra Operarum (Work Camp). Finished and staffed, it counts as two temples of every god, lifts every god\'s mood, and no god is ever jealous or minds a year without a festival. One monument per city.',
+  }),
+  pharus: M('pharus', {
+    name: 'Pharus', en: 'Lighthouse', size: 3, placement: 'shore', des: [-2, 1, 1, 2],
+    desc: 'A lighthouse on the shore, out over water ships can sail, built in 4 stages by a Castra Operarum (Work Camp). Finished, staffed and lit (it burns 400 timber a year, fetched by its own cart), every sea partner buys and sells a quarter more a year, storms at sea last half as long, Neptune\'s anger keeps ships away 2 months instead of 5, and fishing boats sail a quarter faster. One monument per city.',
+  }),
+  mansio_magna: M('mansio_magna', {
+    name: 'Mansio Magna', en: 'Caravanserai', des: [...SITE_DES],
+    desc: 'A great road station with stables, stores and rooms, built in 3 stages by a Castra Operarum (Work Camp). Finished, staffed and fed (100 food a month, fetched by its own cart), every land partner buys and sells a quarter more a year, each caravan carries 1,200 each way instead of 800, and landslides and sandstorms last half as long. One monument per city.',
+  }),
+  thermae: M('thermae', {
+    name: 'Thermae', en: 'Great Baths', des: [16, 2, -2, 6],
+    desc: 'Great public baths on piped water, built in 4 stages by a Castra Operarum (Work Camp). Finished, staffed and heated (300 timber a year, fetched by its own cart), every home within 24 tiles has the baths, city health rises by 10, disease spreads 30% slower and the city\'s mood rises by 3. One monument per city.',
+  }),
+  basilica: M('basilica', {
+    name: 'Basilica', en: 'Hall of Justice', des: [20, 2, -3, 6],
+    desc: 'The law courts and a great hall for business, built in 4 stages by a Castra Operarum (Work Camp). Finished and staffed, every registered home pays a fifth more tax, a tax collector\'s visit lasts twice as long, unhappy homes breed trouble 30% less often and prosperity rises by 8. One monument per city.',
+  }),
+
   // --- Native villages (sim/natives.js) ------------------------------------
   // Placed with the map (world/natives.js), never by the player: no
   // category, no road, no staff, and nothing burns or falls down.
@@ -693,7 +765,12 @@ const PLURALS = Object.freeze({
   horse_ranch: 'Equariae', barracks: 'Tirocinia', military_academy: 'Campi', fort_legion: 'Castra', fort_archer: 'Praesidia', fort_cavalry: 'Castra Equitum',
   tower: 'Turres', navalia: 'Navalia', portus: 'Portus', naval_station: 'Stationes',
   mission_post: 'Sacella Pacis', native_hut: 'Tuguria', native_meeting: 'Concilia', native_crops: 'Arva',
+  work_camp: 'Castra Operarum', fanum_ceres: 'Fana Cereris', fanum_neptune: 'Fana Neptuni', fanum_mercury: 'Fana Mercurii', fanum_mars: 'Fana Martis', fanum_venus: 'Fana Veneris',
+  pantheum: 'Panthea', pharus: 'Phari', mansio_magna: 'Mansiones Magnae', thermae: 'Thermae', basilica: 'Basilicae',
 });
+
+/** Every monument's building key (kind 'monument'), in the build menu's order. */
+export const MONUMENT_KEYS = Object.freeze(Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].kind === 'monument'));
 
 /** A building type's Latin plural ("Horrea"); its name with an "s" for one missing from the table. */
 export function pluralName(type) {

@@ -53,6 +53,9 @@ import { awayOf } from '../sim/battle.js';
 import { careText, careNote } from './gardenInfo.js';
 import { serviceButton, serviceNote, recallControls, newMenNote } from './empireInfo.js';
 import { fortTitle, fortKey } from '../sim/fortNumbers.js';
+import { monumentStatus, monumentSections, campSections } from './monumentInfo.js';
+import { isSite } from '../sim/monumentEffects.js';
+import { demolishWarning } from '../sim/monuments.js';
 
 /** "in about 12 days", counting the winter rest on Insane. */
 function nextMareText(game, b) {
@@ -158,6 +161,8 @@ export function timberAdvice(game, full = true) {
 export function buildingStatus(game, b) {
   const def = b.def;
   if (lacksRoad(b)) return { level: 'bad', text: 'No road touches this building, so it gets no workers and does nothing. Build a road along any of its edges (any side works; a corner does not).' };
+  // A monument's site employs nobody: its own words come before the staff's (ui/monumentInfo.js).
+  if (isSite(b)) return monumentStatus(game, b);
   if (def.workers && b.laborAccess <= 0) return { level: 'bad', text: `Cannot find workers: no occupied housing within ${CONFIG.LABOR_RANGE} tiles along the roads.` };
   if (def.workers && b.efficiency <= 0) return { level: 'bad', text: 'No workers available. The city needs more people, or change labor priorities.' };
   if (def.needsPiped && !b.hasWater) return { level: 'bad', text: 'No piped water. It must sit inside a full reservoir\'s area.' };
@@ -246,6 +251,13 @@ export function buildingStatus(game, b) {
         return { level: 'warn', text: `No shows booked. It needs ${need} from a training building connected by road.` };
       }
       break;
+    case 'monument': // a finished one: open, or why it is closed (ui/monumentInfo.js)
+      return monumentStatus(game, b);
+    case 'work_camp': {
+      const st = monumentStatus(game, b);
+      if (st.level !== 'good') return st;
+      break;
+    }
     case 'market': {
       const any = [...FOOD_TYPES, ...HOUSE_GOODS].some((k) => b.stock[k] > 0);
       if (!any) return { level: 'warn', text: 'The stalls are empty. The buyer needs a stocked granary or warehouse nearby.' };
@@ -513,7 +525,8 @@ export class InfoPanel {
           const why = demolishBlocked(g, b);
           if (why) { this.app.ui.toastError(why); return; }
           const people = b.house ? b.house.pop : 0;
-          const msg = people > 0 ? `Demolish this home? ${people} residents will become homeless.` : `Demolish this ${b.house ? 'home' : b.def.name}?`;
+          const lost = demolishWarning(b); // a monument: what goes with it
+          const msg = people > 0 ? `Demolish this home? ${people} residents will become homeless.` : lost ? `Demolish the ${b.def.name}? ${lost}` : `Demolish this ${b.house ? 'home' : b.def.name}?`;
           this.app.ui.confirm(msg, () => {
             if (!g.buildings.has(b.id)) return;
             const late = demolishBlocked(g, b); // (sent off while the question was up)
@@ -627,7 +640,10 @@ export class InfoPanel {
     const r = footprintRect(b); // (a hippodrome turned north-south: 5x15)
     // A fort's title carries its number (Castra III, sim/fortNumbers.js).
     const parts = [this.head(fortTitle(b), `${r.w}×${r.h}`, def.en), h('div', { class: `status ${st.level}` }, st.text), this.cycleRow(b)];
-    if (def.workers) {
+    if (def.workers && isSite(b)) {
+      parts.push(h('div', { class: 'panel-sec' }, h('h5', {}, 'Employment'), kv('Staff once finished', `${def.workers} (${LABOR_CATEGORIES[def.labor] || 'Industry'})`),
+        h('div', { class: 'muted' }, 'A site employs nobody: the work camp\'s own workers build it.')));
+    } else if (def.workers) {
       parts.push(h('div', { class: 'panel-sec' },
         h('h5', {}, 'Employment'),
         kv('Workers', `${b.workers} / ${def.workers}`), bar(b.workers, def.workers),
@@ -636,6 +652,8 @@ export class InfoPanel {
     const sec = (title, ...kids) => h('div', { class: 'panel-sec' }, h('h5', {}, title), kids);
     if (def.kind === 'village') parts.push(sec('Native village', villageRows(g, b).map(([k, v]) => kv(k, v)), h('div', { class: 'muted' }, def.desc)));
     if (b.type === 'mission_post') parts.push(sec('Native villages', missionRows(g).map(([k, v]) => kv(k, v)), h('div', { class: 'muted' }, def.desc)));
+    if (def.kind === 'monument') parts.push(...monumentSections(g, b, sec, () => this.render()));
+    if (def.kind === 'work_camp') parts.push(...campSections(g, b, sec));
     switch (def.kind) {
       case 'farm':
         if (b.herd !== undefined) {

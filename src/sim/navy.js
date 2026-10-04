@@ -839,7 +839,7 @@ function updateLiburnian(game, u, pirates) {
       // The ram: a heavy blow to a ship it reaches (harder from a trained crew).
       u.ramCooldown = RAM_COOLDOWN;
       u.strikeTick = game.time.totalTicks;
-      hurt(game, target, ramOf(u, def) * (0.8 + game.rng.next() * 0.4));
+      hurt(game, target, ramOf(u, def) * enemyPower(game, u) * (0.8 + game.rng.next() * 0.4)); // (Mars's gift for Rome's; 1 otherwise)
       game.events.emit('sound', { name: 'clash' });
     }
     if (game.units.has(target.id) && d <= def.range && u.cooldown <= 0) shoot(game, u, def, target);

@@ -84,6 +84,7 @@ import { turnUV, turnDir } from './turn.js';
 import { toView, viewTileOf, viewSize, tileAxes, viewFoot, viewDir, rotMask, rotNibbles, rotBlend, viewAxis, mapRectOfView } from './view.js';
 import { spanOrigin } from '../sim/entities.js';
 import { overlayByKey, columnColor } from './overlays.js';
+import { THERMAE_REACH } from '../data/monuments.js';
 
 /** A fort's or naval station's color: its rally standard and the ghost one while deploying. */
 function forceColor(b) {
@@ -2185,7 +2186,8 @@ export class Renderer {
       return;
     }
     // Other area-of-effect buildings keep a simple single-color hint.
-    const radius = { hospital: CONFIG.HOSPITAL_RADIUS, tower: TOWER_RANGE }[plan.tool];
+    // (The Thermae's baths reach every home within THERMAE_REACH: sim/monuments.js.)
+    const radius = { hospital: CONFIG.HOSPITAL_RADIUS, tower: TOWER_RANGE, thermae: THERMAE_REACH }[plan.tool];
     if (water) {
       this.drawCoverage(strong, (i) => (map.water[i] & water.bit) !== 0, water.colors);
     } else if (radius && plan.items.length === 1) {

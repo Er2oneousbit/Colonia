@@ -13,6 +13,9 @@ import { buildingSpec } from '../render/buildingArt.js';
 import { roadSpec, plazaSpec, aqueductSpec, bridgeSpec, lowBridgeSpec, waterTileSpec, groundTileSpec, roadblockSpec, BRIDGE_DECK_Z } from '../render/terrainArt.js';
 import { Terrain } from '../world/map.js';
 import { wallSpec } from '../render/militaryArt.js';
+import { MONUMENT_TYPES } from '../data/monuments.js';
+import { monumentLook } from '../sim/monumentEffects.js';
+import { isWaterside } from '../sim/entities.js';
 
 const cache = new Map();
 const ART_SCALE = 2; // render the source art at 2x for crisp downscaling
@@ -46,6 +49,8 @@ function specsFor(key) {
     default: {
       const def = BUILDINGS[key];
       if (!def) return null;
+      // (A monument as it stands finished; the Pharus with its water to the lower right, as the docks.)
+      if (def.kind === 'monument') return [buildingSpec(key, def.size, 0, monumentLook(MONUMENT_TYPES[def.mon].stages.length, isWaterside(def) ? 1 : 0))];
       const state = def.kind === 'farm' ? 4 : def.kind === 'reservoir' || def.kind === 'fountain' || def.needsPiped ? 1 : 0;
       return [buildingSpec(key, def.size, 0, state)];
     }

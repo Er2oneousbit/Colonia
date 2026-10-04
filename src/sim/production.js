@@ -34,7 +34,7 @@
 
 import { CONFIG } from '../config.js';
 import { MONTH_NAMES, seasonOf } from './time.js';
-import { RAW_TYPES, FOOD_TYPES } from '../data/goods.js';
+import { RAW_TYPES, FOOD_TYPES, LAND_FOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
 import { HERD_MAX, HERD_GROWTH_DAYS, STABLE_CAPACITY } from '../data/units.js';
@@ -45,6 +45,8 @@ import { findDeliveryTarget, findDeliveryFit, takeGoods, rawHasRoom, isStable, s
 import { militaryNeed, barracksHasRoom } from './military.js';
 import { navalNeed, navaliaHasRoom } from './navy.js';
 import { logGoods } from './goodsLedger.js';
+import { fanumOf } from './monumentEffects.js';
+import { GIFTS } from '../data/monuments.js';
 
 /** Number of cart pushers this building has out. */
 export function cartsOut(game, b) {
@@ -148,6 +150,8 @@ export function updateProducer(game, b) {
     let rate = (b.efficiency * 100 * season) / def.productionDays;
     if (def.kind === 'farm') rate *= 0.25 + 0.75 * b.fertility;
     if (b.herd !== undefined) rate *= b.herd / HERD_MAX; // young ranches foal slowly
+    // Ceres's Great Sanctuary at work: the food farms (wheat, vegetables, fruit, pigs) grow faster.
+    if (def.kind === 'farm' && LAND_FOODS.includes(good) && fanumOf(game, 'ceres')) rate *= GIFTS.ceres.farmSpeed;
     b.progress += rate * game.difficulty.production;
     if (b.progress >= 100) {
       b.progress -= 100;

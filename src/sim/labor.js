@@ -17,6 +17,7 @@
 
 import { CONFIG } from '../config.js';
 import { HOUSE_TIERS } from '../data/housing.js';
+import { isSite } from './monumentEffects.js';
 
 export function updateLabor(game) {
   const c = game.city;
@@ -33,6 +34,9 @@ export function updateLabor(game) {
   for (const b of game.buildings.values()) {
     const def = b.def;
     if (!def.workers) continue;
+    // A monument under construction employs nobody: its staff comes once it
+    // is finished (the camp's builders are the work camp's own workers).
+    if (isSite(b)) { b.workers = 0; b.efficiency = 0; continue; }
     if (b.laborAccess > 0) b.laborAccess--;
     const roadOk = !def.needsRoad || b.accessRoad >= 0;
     if (!roadOk || b.laborAccess <= 0) {

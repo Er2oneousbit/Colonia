@@ -20,7 +20,12 @@ const FIRMUM = { ratings: { culture: 45, prosperity: 30, peace: 50, favor: 40 },
 
 test('fame: the worked example scores 452 (Firmum on Normal)', () => {
   const s = winScore(FIRMUM);
-  assert.deepEqual(s, { ratings: 165, population: 112, pace: 75, mult: 1, base: 352, battles: 50, raids: 50, score: 452 });
+  assert.deepEqual(s, { ratings: 165, population: 112, pace: 75, mult: 1, base: 352, battles: 50, raids: 50, monument: 0, score: 452 });
+});
+
+test('fame: a finished monument adds 150, not multiplied by the difficulty', () => {
+  assert.equal(winScore({ ...FIRMUM, monument: 1 }).score, 452 + 150);
+  assert.equal(winScore({ ...FIRMUM, monument: 1, difficulty: 'insane' }).monument, 150);
 });
 
 test('fame: the population part stops at 200 and the pace part at 150; the difficulty multiplies the base, not the battles and raids', () => {

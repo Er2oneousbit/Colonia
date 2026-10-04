@@ -42,6 +42,9 @@ import { archesToBuild, postsAway } from './battle.js';
 import { boatTiles, lowBridgeCuts, refreshWaterways } from './bridges.js';
 import { nativeLandWarning } from './natives.js';
 import { makeRoom } from './makeRoom.js';
+import { monumentRefused, monumentWarnings, siteStarted, demolishWarning } from './monuments.js';
+import { monumentLook } from './monumentEffects.js';
+import { MONUMENT_TYPES } from '../data/monuments.js';
 
 const UNDO_WINDOW_DAYS = 10;
 const MAX_BRIDGE = 16;
@@ -248,6 +251,10 @@ export function checkBuilding(game, type, x, y, turn = 0) {
   if (!def) return fail('Unknown building');
   if (def.kind === 'arch') return checkArch(game, type, x, y);
   if (!game.isUnlocked(type) || !def.category) return fail('Not available in this scenario');
+  // One monument per city, and only one whose every stage's goods the
+  // province can make or buy (sim/monuments.js).
+  const refused = monumentRefused(game, type);
+  if (refused) return fail(refused);
   const { map } = game;
   const S = def.size;
   // A hippodrome: three sections in a row, along x or (turned) along y.
@@ -355,6 +362,7 @@ export function checkBuilding(game, type, x, y, turn = 0) {
   if (def.venue === 'hippodrome' && def.kind === 'venue' && !countOf(game, 'chariot_maker')) {
     out.warnings.push('No Factio (Chariot Stable) yet: build one, connected by road, to start the races');
   }
+  out.warnings.push(...monumentWarnings(game, type)); // no work camp yet
   return out;
 }
 
@@ -481,6 +489,8 @@ export function anchorFor(type, cx, cy, turn = 0) {
  */
 function ghostState(game, def, x, y) {
   const side = isWaterside(def) && game.map.inBounds(x, y) ? waterRowsSide(game.map, x, y, def.size) : -1;
+  // A monument's ghost is the finished building (its last stage), facing its water.
+  if (def.kind === 'monument') return monumentLook(MONUMENT_TYPES[def.mon].stages.length, side);
   return side >= 0 ? side + OVER_WATER_ART : 0;
 }
 
@@ -899,6 +909,11 @@ function planClear(game, x0, y0, x1, y1) {
     }
   }
   if (evicted > 0) warnings.push(`${evicted} residents will lose their homes`);
+  // A monument: what would be lost with it (the app asks before it goes).
+  for (const it of items) {
+    const w = it.building ? demolishWarning(buildings.get(it.building)) : null;
+    if (w) { warnings.push(w); it.monument = true; }
+  }
   // A fort or station left standing says why, even beside things that are
   // cleared; with nothing to clear, so does whatever here may not be cleared.
   const away = items.find((it) => it.away);
@@ -1098,6 +1113,7 @@ export function canUndo(game) {
     if (!b) return false;
     if (b.house && (b.house.pop > 0 || b.house.incoming > 0)) return false;
     if (demolishBlocked(game, b)) return false; // (an undo takes it down too: not with its men away)
+    if (b.def.kind === 'monument' && siteStarted(b)) return false; // goods or work in it: no refund now (sim/monuments.js)
   }
   return true;
 }

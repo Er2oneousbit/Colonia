@@ -48,6 +48,9 @@ export const WALKER_TYPES = Object.freeze({
 
   cart: { name: 'Cart Pusher', kind: 'carrier', tunic: '#9a7b4f', item: 'cart', desc: 'Moves goods between buildings.' },
   buyer: { name: 'Market Buyer', kind: 'carrier', tunic: '#b86b2a', item: 'basket', desc: 'Buys supplies for the market.' },
+  // A work camp's crew on its way to the site or home (sim/monuments.js): one
+  // walker stands for them all, and on the site he goes in to work.
+  builders: { name: 'Builders', kind: 'carrier', tunic: '#9c7a4c', item: 'hammer', desc: 'A work camp\'s crew of masons and carpenters, walking to the monument\'s site for a shift of 16 days, or home to rest.' },
 
   immigrant: { name: 'Immigrant', kind: 'traveler', tunic: '#8c7b63', item: 'bundle', desc: 'Newcomers looking for a home.' },
   emigrant: { name: 'Emigrant', kind: 'traveler', tunic: '#6b6358', item: 'bundle', desc: 'Unhappy citizens leaving the city.' },

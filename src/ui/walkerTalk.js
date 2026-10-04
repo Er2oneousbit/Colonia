@@ -103,7 +103,9 @@ function workLines(game, w) {
       if (market && food <= 0) return ['Nothing to sell today. The granary sent us nothing.'];
       return ['Bread! Olives! Pots and bowls!', 'Fresh from the granary, good people!'];
     }
+    case 'builders': return w.state === 'return' ? ['Sixteen days of hauling stone. A day off, then back at it.', 'My hands are more mortar than skin.'] : ['Another course of bricks today, gods willing.', 'They will talk about this building in Rome.'];
     case 'cart':
+      if (w.state === 'campFetch') return ['The monument eats clay like a legion eats bread.', 'Ox, step lively: the builders are waiting.'];
       if (w.state === 'collect') return ['Off to fetch more. They want it kept in stock here.', 'Empty there, full on the way back.'];
       if (w.state === 'dockFetch') return [`The ship will not wait for ever. Off to the ${w.want === 'horses' ? 'ranch' : 'warehouse'}!`, 'Load the ship, then home for a cup of wine.'];
       // Horses are led on a rope, not carted (render/walkerArt.js).
@@ -288,6 +290,12 @@ export function walkerDoing(game, w) {
       if (w.wants && Object.values(w.wants).some((n) => n > 0)) return w.wantsStuck ? 'Waiting for goods' : 'Loading at the dock';
       return 'Casting off';
     case 'dockFetch': return `Fetching ${w.want ? GOODS[w.want].name.toLowerCase() : 'goods'} for ${shipName(game, w)}`;
+    // A work camp's carts, buyer and crew, and a monument's own cart (sim/monuments.js).
+    case 'campFetch': return `Fetching ${w.campClaim ? `${w.campClaim.amount} ${GOODS[w.campClaim.good].name.toLowerCase()}` : 'goods'} from ${the(target)} for the monument`;
+    case 'campHaul': return `Bringing ${w.cargo ? amountText(w.cargo.good, w.cargo.amount) : 'goods'} to ${the(target)}`;
+    case 'campFood': return `Going to ${the(target)} for the work camp's food`;
+    case 'crewOut': return `Walking to ${the(target)} for a shift of building`;
+    case 'monSupply': return `Going to ${the(target)} for the ${the(game.buildings.get(w.origin)).replace(/^the /, '')}'s ${w.want === 'food' ? 'food' : GOODS[w.want]?.name.toLowerCase() || 'goods'}`;
     case 'protest': return 'Protesting in the street';
     case 'steal': return target ? `Sneaking toward ${the(target)}` : 'Up to no good';
     case 'riot': return w.waitTicks > 0 ? 'Setting the street alight' : `Rioting${target ? `, heading for ${the(target)}` : ''}`;

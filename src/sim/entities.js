@@ -19,6 +19,7 @@ import { HERD_START } from '../data/units.js';
 import { clearRuin } from './ruins.js';
 import { freeFortNumber } from './fortNumbers.js';
 import { Terrain } from '../world/map.js';
+import { newSiteState, newCampState } from './monumentEffects.js';
 
 // ---------------------------------------------------------------------------
 // Buildings
@@ -186,6 +187,12 @@ function initKind(b, def) {
       break;
     case 'venue':
       b.shows = Object.fromEntries(SHOW_KINDS.map((k) => [k, 0]));
+      break;
+    case 'monument': // a construction site in its first stage (sim/monuments.js)
+      b.mon = newSiteState();
+      break;
+    case 'work_camp': // its larder, water and crew (sim/monuments.js)
+      b.camp = newCampState();
       break;
     default:
       break;
@@ -617,7 +624,8 @@ export function removeBuilding(game, b, reason = 'demolish') {
   // Walkers that belong to this building vanish with it (their cargo is
   // lost), except a dock worker with a load: imports the city paid for, or an
   // export fetched for a ship. It takes its load to storage instead
-  // (sim/walkers.js deliverElsewhere).
+  // (sim/walkers.js deliverElsewhere). A work camp's loaded ox cart drives
+  // on to its site the same way (sim/monuments.js campHaulArrive).
   for (const wid of [...b.walkers]) {
     const w = game.walkers.get(wid);
     if (!w || w.kind === 'traveler') continue;
@@ -625,6 +633,7 @@ export function removeBuilding(game, b, reason = 'demolish') {
       w.claim = null;
       continue;
     }
+    if (b.def.kind === 'work_camp' && w.type === 'cart' && w.cargo && w.cargo.amount > 0) continue;
     killWalker(game, w);
   }
   // Residents of a destroyed home become homeless and look for a new one.
@@ -753,7 +762,10 @@ export function releaseReservation(game, w) {
   if (!w.reserve) return;
   const b = game.buildings.get(w.reserve.id);
   if (b) {
-    if (w.reserve.good && b.incoming && b.incoming[w.reserve.good] !== undefined) {
+    if (w.reserve.mon) {
+      // A work camp's cart's load on its way to a monument's site (sim/monuments.js).
+      if (b.mon) b.mon.way[w.reserve.good] = Math.max(0, (b.mon.way[w.reserve.good] || 0) - w.reserve.amount);
+    } else if (w.reserve.good && b.incoming && b.incoming[w.reserve.good] !== undefined) {
       b.incoming[w.reserve.good] = Math.max(0, b.incoming[w.reserve.good] - w.reserve.amount);
     } else if (w.reserve.people && b.house) {
       b.house.incoming = Math.max(0, b.house.incoming - w.reserve.people);
