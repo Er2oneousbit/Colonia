@@ -455,15 +455,22 @@ function domeBuildingRaw(ctx, u, v, r, z0, h, upTo, color) {
 // The building site
 // ---------------------------------------------------------------------------
 
-/** Trampled earth over the whole site, with churned patches and spilt mortar. */
+/**
+ * Trampled earth over the whole site, with churned patches and spilt
+ * mortar. Flat marks on the ground are drawn as one piece each (here, a
+ * trench, a staked plan, a scaffold's side): a turned drawing then sorts a
+ * handful of pieces, not dozens of specks that tie it in knots.
+ */
 function siteGround(ctx, S, seed = 1) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, C.earth);
-  for (let k = 0; k < S * 4; k++) {
-    const u = 0.15 + hash01(seed, k, 1) * (S - 0.5);
-    const v = 0.15 + hash01(seed, k, 2) * (S - 0.5);
-    const s = 0.08 + hash01(seed, k, 3) * 0.2;
-    quad(ctx, u, v, u + s, v + s * 0.7, 0, k % 3 ? 'rgba(92,68,42,0.2)' : 'rgba(238,230,212,0.4)');
-  }
+  solid(ctx, [0, S, 0, S, 0, 0], () => {
+    quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, C.earth);
+    for (let k = 0; k < S * 4; k++) {
+      const u = 0.15 + hash01(seed, k, 1) * (S - 0.5);
+      const v = 0.15 + hash01(seed, k, 2) * (S - 0.5);
+      const s = 0.08 + hash01(seed, k, 3) * 0.2;
+      quad(ctx, u, v, u + s, v + s * 0.7, 0, k % 3 ? 'rgba(92,68,42,0.2)' : 'rgba(238,230,212,0.4)');
+    }
+  });
 }
 
 /** The four sides of a rectangle's frame, w wide: [u0, v0, u1, v1] each. */
@@ -473,11 +480,13 @@ function frame(u0, v0, u1, v1, w) {
 
 /** Foundation trenches dug round a rectangle, the spoil heaped along their outer edge. */
 function trenchRect(ctx, u0, v0, u1, v1, w = 0.2) {
-  for (const [a, b, c, d] of frame(u0 - 0.08, v0 - 0.08, u1 + 0.08, v1 + 0.08, 0.1)) quad(ctx, a, b, c, d, 0, C.spoil);
-  for (const [a, b, c, d] of frame(u0, v0, u1, v1, w)) {
-    quad(ctx, a, b, c, d, 0, C.trench);
-    quad(ctx, a, b, a + (c - a) * (c - a < w + 0.01 ? 0.45 : 1), b + (d - b) * (d - b < w + 0.01 ? 0.45 : 1), 0, C.trenchDeep);
-  }
+  solid(ctx, [u0 - 0.08, u1 + 0.08, v0 - 0.08, v1 + 0.08, 0, 0], () => {
+    for (const [a, b, c, d] of frame(u0 - 0.08, v0 - 0.08, u1 + 0.08, v1 + 0.08, 0.1)) quad(ctx, a, b, c, d, 0, C.spoil);
+    for (const [a, b, c, d] of frame(u0, v0, u1, v1, w)) {
+      quad(ctx, a, b, c, d, 0, C.trench);
+      quad(ctx, a, b, a + (c - a) * (c - a < w + 0.01 ? 0.45 : 1), b + (d - b) * (d - b < w + 0.01 ? 0.45 : 1), 0, C.trenchDeep);
+    }
+  });
 }
 
 /** A ring of foundation trench (a rotunda's), the spoil round its outer edge. */
@@ -499,43 +508,60 @@ function trenchRing(ctx, u, v, r, w = 0.22) {
 
 /** A plan staked out: a stake at each corner and a line from one to the next. */
 function stakeOut(ctx, pts, z = 4) {
-  for (let k = 0; k < pts.length; k++) {
-    const [u, v] = pts[k];
-    const [u2, v2] = pts[(k + 1) % pts.length];
-    beam(ctx, [u, v, z], [u2, v2, z], C.string, 0.5);
-  }
-  for (const [u, v] of pts) pole(ctx, u, v, 0, z + 2.5, C.stake, 1.3);
+  const us = pts.map((p) => p[0]);
+  const vs = pts.map((p) => p[1]);
+  solid(ctx, [Math.min(...us), Math.max(...us), Math.min(...vs), Math.max(...vs), 0, z + 2.5], () => {
+    for (let k = 0; k < pts.length; k++) {
+      const [u, v] = pts[k];
+      const [u2, v2] = pts[(k + 1) % pts.length];
+      beam(ctx, [u, v, z], [u2, v2, z], C.string, 0.5);
+    }
+    for (const [u, v] of pts) pole(ctx, u, v, 0, z + 2.5, C.stake, 1.3);
+  });
 }
 
-/** Timber scaffolding round a box: the two far sides ('back') or the two near ones with a ladder ('front'). */
-function scaffold(ctx, u0, v0, du, dv, z0, z1, part) {
+/**
+ * Timber scaffolding round a box: the two far sides ('back') or the two
+ * near ones with a ladder ('front'). `skip` names sides left out where the
+ * box stands against other work ('b' -v, 'l' -u, 'r' +u, 'f' +v). Each side
+ * is one piece, and the four never share a corner's box (the back owns its
+ * two corners, the left and right the front ones), so a turned drawing
+ * always knows which is in front.
+ */
+function scaffold(ctx, u0, v0, du, dv, z0, z1, part, skip = '') {
   const g = 0.09;
   const a = u0 - g;
   const b = v0 - g;
   const c = u0 + du + g;
   const d = v0 + dv + g;
+  const e = 0.03; // a side's half thickness
   const nu = Math.max(1, Math.round((c - a) / 0.5));
   const nv = Math.max(1, Math.round((d - b) / 0.5));
   const h = z1 - z0;
   const lifts = [];
   for (let z = z0 + 9; z <= z1 - 1; z += 9) lifts.push(z);
   const plank = (pu, pv, lu, lv, z) => box(ctx, pu, pv, lu, lv, z, 1.1, C.woodPale, { plain: true });
+  const side = (which, u0s, u1s, v0s, v1s, fn) => { if (!skip.includes(which)) solid(ctx, [u0s, u1s, v0s, v1s, z0, z1 + 1.1], fn); };
   if (part === 'back') {
-    for (let k = 0; k <= nu; k++) pole(ctx, a + ((c - a) * k) / nu, b, z0, h);
-    for (let k = 1; k <= nv; k++) pole(ctx, a, b + ((d - b) * k) / nv, z0, h);
-    for (const z of lifts) {
-      plank(a, b - 0.03, c - a, 0.06, z);
-      plank(a - 0.03, b, 0.06, d - b, z);
-    }
+    side('b', a - e, c + e, b - e, b + e, () => {
+      for (let k = 0; k <= nu; k++) pole(ctx, a + ((c - a) * k) / nu, b, z0, h);
+      for (const z of lifts) plank(a, b - e, c - a, 2 * e, z);
+    });
+    side('l', a - e, a + e, b + e, d + e, () => {
+      for (let k = 1; k <= nv; k++) pole(ctx, a, b + ((d - b) * k) / nv, z0, h);
+      for (const z of lifts) plank(a - e, b + e, 2 * e, d - b, z);
+    });
     return;
   }
-  for (let k = 1; k <= nv; k++) pole(ctx, c, b + ((d - b) * k) / nv, z0, h);
-  for (let k = 1; k < nu; k++) pole(ctx, a + ((c - a) * k) / nu, d, z0, h);
-  for (const z of lifts) {
-    plank(c - 0.03, b, 0.06, d - b, z);
-    plank(a, d - 0.03, c - a, 0.06, z);
-  }
-  ladder(ctx, a + (c - a) * 0.28, d + 0.03, z0, Math.min(z1, z0 + 30));
+  side('r', c - e, c + e, b + e, d + e, () => {
+    for (let k = 1; k <= nv; k++) pole(ctx, c, b + ((d - b) * k) / nv, z0, h);
+    for (const z of lifts) plank(c - e, b + e, 2 * e, d - b, z);
+  });
+  side('f', a + e, c - e, d - e, d + 0.05, () => {
+    for (let k = 1; k < nu; k++) pole(ctx, a + ((c - a) * k) / nu, d, z0, h);
+    for (const z of lifts) plank(a + e, d - e, c - a - 2 * e, 2 * e, z);
+    ladder(ctx, a + (c - a) * 0.28, d + 0.03, z0, Math.min(z1, z0 + 30));
+  });
 }
 
 /** A ladder against the front of a scaffold (on the plane v = v), from z0 up to z1. */
@@ -654,12 +680,19 @@ function jars(ctx, u, v) {
  * Kept beside the work rather than over it, so it sorts behind or before it
  * whole at every turn.
  */
-function crane(ctx, u, v, z0, du, dv, h, loadZ, wheel = true) {
+function crane(ctx, u, v, z0, du, dv, h, loadZ, wheel = true, stay = 0.42) {
   const L = Math.hypot(du, dv) || 1;
   const ux = du / L;
   const vx = dv / L;
+  // (One piece: its timbers cross, sorted one by one they would knot.)
+  const us = [u - ux * stay, u + ux * 0.32 + 0.07, u + ux * 0.32 - 0.07, u - 0.2, u + 0.2];
+  const vs = [v - vx * stay, v + vx * 0.32 + 0.07, v + vx * 0.32 - 0.07, v - 0.2, v + 0.2];
+  solid(ctx, [Math.min(...us), Math.max(...us), Math.min(...vs), Math.max(...vs), z0, z0 + h], () => craneRaw(ctx, u, v, z0, ux, vx, h, loadZ, wheel, stay));
+}
+
+function craneRaw(ctx, u, v, z0, ux, vx, h, loadZ, wheel, stay) {
   const head = [u + ux * 0.32, v + vx * 0.32, z0 + h];
-  beam(ctx, [u - ux * 0.42, v - vx * 0.42, z0], head, C.rope, 0.6); // the stay
+  if (stay) beam(ctx, [u - ux * stay, v - vx * stay, z0], head, C.rope, 0.6); // the stay
   if (wheel) {
     // The treadwheel, standing in the plane of the legs' lean.
     const R = 7;
@@ -756,12 +789,15 @@ function trusses(ctx, u0, u1, v0, v1, z, rh, step = 0.42, axis = 'u') {
   const at = axis === 'u' ? (a, b, zz) => [a, b, zz] : (a, b, zz) => [b, a, zz];
   const [a0, a1, b0, b1] = axis === 'u' ? [u0, u1, v0, v1] : [v0, v1, u0, u1];
   const bm = (b0 + b1) / 2;
-  for (let a = a0 + 0.05; a <= a1; a += step) {
-    beam(ctx, at(a, b0, z), at(a, bm, z + rh), C.wood, 1.1);
-    beam(ctx, at(a, b1, z), at(a, bm, z + rh), C.wood, 1.1);
-    beam(ctx, at(a, b0, z + 0.5), at(a, b1, z + 0.5), C.woodDark, 0.9);
-  }
-  beam(ctx, at(a0, bm, z + rh), at(a1, bm, z + rh), C.woodDark, 1.2);
+  // (One piece: the timbers cross each other, sorted one by one they would knot.)
+  solid(ctx, [u0, u1, v0, v1, z, z + rh], () => {
+    for (let a = a0 + 0.05; a <= a1; a += step) {
+      beam(ctx, at(a, b0, z), at(a, bm, z + rh), C.wood, 1.1);
+      beam(ctx, at(a, b1, z), at(a, bm, z + rh), C.wood, 1.1);
+      beam(ctx, at(a, b0, z + 0.5), at(a, b1, z + 0.5), C.woodDark, 0.9);
+    }
+    beam(ctx, at(a0, bm, z + rh), at(a1, bm, z + rh), C.woodDark, 1.2);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -834,7 +870,7 @@ function godEmblem(ctx, kind, x, y, s = 1) {
 
 /** A rose bush in flower at (u, v). */
 function roseBush(ctx, u, v) {
-  piece(ctx, u, v, 0, 12, 0.14, (x, y) => {
+  piece(ctx, u, v, 0, 12, 0.12, (x, y) => {
     ctx.fillStyle = '#466f34';
     ctx.beginPath(); ctx.arc(x, y - 5, 5.4, 0, TAU); ctx.fill();
     ctx.fillStyle = '#5f8f46';
@@ -875,7 +911,7 @@ function godPiece(ctx, god, u, v, which) {
         ctx.fillStyle = C.gold;
         ctx.fillRect(x - 2.2, y - 8, 4.4, 1.6); // the band that ties it
       });
-      piece(ctx, u + 0.2, v + 0.18, 0, 6, 0.08, (x, y) => {
+      piece(ctx, u + 0.24, v + 0.22, 0, 6, 0.08, (x, y) => {
         ctx.fillStyle = '#8a6030';
         ctx.fillRect(x - 2.5, y - 4, 5, 4);
         ctx.fillStyle = '#e8c25a';
@@ -949,11 +985,11 @@ function godPiece(ctx, god, u, v, which) {
       });
       break;
     case 'venus': // rose bushes about a pedestal with doves on it
-      for (const [du, dv] of [[-0.2, -0.12], [0.2, -0.16]]) roseBush(ctx, u + du, v + dv);
+      for (const [du, dv] of [[-0.27, -0.1], [0.27, -0.12]]) roseBush(ctx, u + du, v + dv);
       box(ctx, u - 0.1, v - 0.08, 0.2, 0.2, 0, 13, C.marble);
       piece(ctx, u, v + 0.02, 13, 6, 0.08, (x, y) => { dove(ctx, x - 2, y, 1); dove(ctx, x + 2.4, y + 0.6, -1); });
-      roseBush(ctx, u - 0.18, v + 0.2);
-      roseBush(ctx, u + 0.22, v + 0.16);
+      roseBush(ctx, u - 0.25, v + 0.22);
+      roseBush(ctx, u + 0.27, v + 0.2);
       break;
     default:
       break;
@@ -1020,17 +1056,16 @@ function fanumArt(ctx, S, variant, state, key) {
     }
   }
 
-  // --- the temple at the top: podium and cella (1), the curved colonnade, columns and roof (2), gilding (3)
+  // --- the temple at the top: podium and cella (1), the colonnades flanking it, its columns and roof (2), gilding (3)
   if (f(2) > 0) {
-    // The curved colonnade behind the temple.
-    for (let k = 0; k <= 6; k++) {
-      const a = Math.PI + (k * Math.PI) / 6;
-      const h = f(2) === 1 || k % 2 ? 15 : 6;
-      column(ctx, 2.5 + Math.cos(a) * 1.45, 1.5 + Math.sin(a) * 0.82, 48, h, C.marble, 1.6);
+    // The colonnades on either side of the temple (clear of its podium, so they sort beside it).
+    for (const cu of [1.08, 3.92]) {
+      for (let k = 0; k < 4; k++) column(ctx, cu, 0.8 + k * 0.4, 48, f(2) === 1 || k % 2 ? 15 : 6, C.marble, 1.6);
     }
   }
   if (f(1) === 1) {
-    if (f(2) === 0.5) scaffold(ctx, 1.5, 0.72, 2.0, 1.5, 48, 90, 'back');
+    // (The scaffold stops under the roof being framed, so the roof sorts over it.)
+    if (f(2) === 0.5) scaffold(ctx, 1.5, 0.72, 2.0, 1.5, 48, 78, 'back');
     box(ctx, 1.5, 0.72, 2.0, 1.5, 48, 5, C.stone);
     stairs(ctx, 2.05, 2.95, 2.22, 2.32, 48, 53, 2, C.stone);
     box(ctx, 1.72, 0.82, 1.56, 1.0, 53, 24, wall);
@@ -1050,7 +1085,7 @@ function fanumArt(ctx, S, variant, state, key) {
       }
     } else {
       trusses(ctx, 1.6, 3.45, 0.76, 2.16, 79.5, 14, 0.36, 'v');
-      scaffold(ctx, 1.5, 0.72, 2.0, 1.5, 48, 90, 'front');
+      scaffold(ctx, 1.5, 0.72, 2.0, 1.5, 48, 78, 'front');
       worker(ctx, 2.1, 2.31, 66, 3);
     }
   }
@@ -1065,7 +1100,8 @@ function fanumArt(ctx, S, variant, state, key) {
   const stoa = (vCol, vBack, z, groups, cols) => {
     for (const [u0, u1] of groups) {
       // the walk behind the columns, in shade under the colonnade's roof
-      if (f(2) === 1) band(ctx, 'left', u0 - 0.1, vBack - 0.4, u1 + 0.1, vBack, z, 16, 'rgba(40,28,18,0.42)');
+      // (On that wall only: turned away, it goes behind it with the wall.)
+      if (f(2) === 1) decal(0, 1, () => poly(ctx, [P(u0 - 0.1, vBack, z), P(u1 + 0.1, vBack, z), P(u1 + 0.1, vBack, z + 16), P(u0 - 0.1, vBack, z + 16)], 'rgba(40,28,18,0.42)'));
       if (f(2) === 1 && deco) {
         // Swags of the god's cloth hung between the columns.
         decal(0, 1, () => {
@@ -1115,7 +1151,8 @@ function fanumArt(ctx, S, variant, state, key) {
     if (stage >= 1) marbleBlocks(ctx, 3.2, 4.42); else planks(ctx, 3.25, 4.45);
     // the crane on the ground while the lowest terrace rises, then up on the second
     if (stage === 0) crane(ctx, 4.62, 4.55, 0, -1, -1, 24, 8);
-    else crane(ctx, 4.42, 2.88, 32, -0.3, -1, stage === 1 ? 30 : 46, stage === 1 ? 42 : 62);
+    // then up on the second terrace, hoisting from the ground over its edge
+    else crane(ctx, 4.47, 1.5, 32, 1, 0, stage === 1 ? 30 : 46, 20, false, 0);
   }
 }
 
@@ -1204,7 +1241,6 @@ function pantheumArt(ctx, S, variant, state, key) {
 
   // --- the block that joins the portico to the rotunda (1), its gable (2)
   if (f(1) > 0) {
-    if (f(1) === 0.5) scaffold(ctx, 1.45, 3.45, 2.1, 0.45, 0, 30, 'back');
     riseBox(ctx, 1.45, 3.45, 2.1, 0.45, 0, f(1) === 1 ? 50 : 22, drumColor, 1);
     if (f(1) === 1) {
       band(ctx, 'left', 1.45, 3.45, 3.55, 3.9, 36, 1.4, shade(drumColor, -0.18));
@@ -1213,7 +1249,7 @@ function pantheumArt(ctx, S, variant, state, key) {
     if (f(2) === 1) {
       gableRoof(ctx, 1.45, 3.45, 2.1, 0.45, 50, 11, '#9ba1a4', 'v', 0.04);
     }
-    if (f(1) === 0.5) scaffold(ctx, 1.45, 3.45, 2.1, 0.45, 0, 30, 'front');
+    if (f(1) === 0.5) scaffold(ctx, 1.45, 3.45, 2.1, 0.45, 4, 30, 'front'); // (standing on the portico's podium)
   }
 
   // --- the portico: podium and steps (0), columns, entablature and roof (2)
@@ -1223,7 +1259,7 @@ function pantheumArt(ctx, S, variant, state, key) {
   }
   if (f(2) > 0) {
     const granite = '#cfc6bb';
-    if (f(2) === 0.5) scaffold(ctx, 1.15, 3.9, 2.7, 0.85, 4, 44, 'back');
+    if (f(2) === 0.5) scaffold(ctx, 1.15, 3.9, 2.7, 0.85, 4, 36.8, 'back', 'b');
     colonnade(ctx, 1.3, 4.2, 3.7, 4.2, 4, 4, 32, granite, 2.3);
     colonnade(ctx, 3.7, 3.98, 3.7, 4.4, 2, 4, 32, granite, 2.3);
     for (let k = 0; k < 8; k++) {
@@ -1254,7 +1290,7 @@ function pantheumArt(ctx, S, variant, state, key) {
       } : null);
     } else {
       trusses(ctx, 1.2, 3.8, 3.9, 4.75, 38, 10, 0.5);
-      scaffold(ctx, 1.15, 3.9, 2.7, 0.85, 4, 44, 'front');
+      scaffold(ctx, 1.15, 3.9, 2.7, 0.85, 4, 36.8, 'front');
       worker(ctx, 2.3, 4.84, 22, 0);
     }
   }
@@ -1541,8 +1577,8 @@ function cart(ctx, u, v) {
   box(ctx, u, v, 0.46, 0.26, 4, 2.4, C.wood, { plain: true });
   box(ctx, u + 0.05, v + 0.03, 0.16, 0.2, 6.4, 4, '#d8c7a0', { plain: true });
   box(ctx, u + 0.24, v + 0.04, 0.14, 0.18, 6.4, 3, '#b89a6a', { plain: true });
-  beam(ctx, [u + 0.46, v + 0.06, 5], [u + 0.8, v + 0.06, 4], C.woodDark, 0.8);
-  beam(ctx, [u + 0.46, v + 0.2, 5], [u + 0.8, v + 0.2, 4], C.woodDark, 0.8);
+  beam(ctx, [u + 0.46, v + 0.06, 5], [u + 0.72, v + 0.06, 4], C.woodDark, 0.8);
+  beam(ctx, [u + 0.46, v + 0.2, 5], [u + 0.72, v + 0.2, 4], C.woodDark, 0.8);
   for (const vv of [v + 0.27, v - 0.01]) {
     piece(ctx, u + 0.22, vv, 0, 9, 0.02, (x, y) => {
       ctx.strokeStyle = '#4a3422';
@@ -1585,7 +1621,6 @@ function mansioArt(ctx, S, variant, state, key) {
 
   // --- 2: the inn along the back
   if (f(2) > 0) {
-    if (f(2) === 0.5) scaffold(ctx, 0.24, 0.24, 4.52, 1.1, 0, 26, 'back');
     riseBox(ctx, 0.24, 0.24, 4.52, 1.1, 0, 30, PLASTER, f(2));
     windows(ctx, 'left', 0.24, 0.24, 4.76, 1.34, 0, f(2) === 1 ? 2 : 1, 9, C.glass, { z: 6, h: 5, w: 0.11, gap: 12, shutters: f(2) === 1 ? '#6a7f5a' : null });
     windows(ctx, 'right', 0.24, 0.24, 4.76, 1.34, 0, f(2) === 1 ? 2 : 1, 2, C.glass, { z: 6, h: 5, w: 0.1, gap: 12 });
@@ -1594,7 +1629,7 @@ function mansioArt(ctx, S, variant, state, key) {
       box(ctx, 1.1, 0.5, 0.16, 0.16, 36, 10, '#c9b48e');
       smoke(ctx, 1.18, 0.58, 46);
     } else {
-      scaffold(ctx, 0.24, 0.24, 4.52, 1.1, 0, 26, 'front');
+      scaffold(ctx, 0.36, 0.24, 4.28, 1.1, 0, 26, 'front', 'r'); // (its ends and back against the outer wall)
       worker(ctx, 1.6, 1.43, 18, 1);
       worker(ctx, 3.4, 1.43, 9, 2);
     }
@@ -1605,7 +1640,6 @@ function mansioArt(ctx, S, variant, state, key) {
     const full = f(1) === 1;
     for (let k = 0; k < 6; k++) column(ctx, 1.5 + k * 0.42, 1.62, 0, full || k % 2 ? 13 : 4, '#efe6d2', 1.5);
     if (full) box(ctx, 1.34, 1.34, 2.42, 0.36, 13, 2, '#efe6d2', { top: C.terraDark });
-    if (!full) scaffold(ctx, 0.24, 1.34, 1.05, 3.42, 0, 20, 'back');
     riseBox(ctx, 0.24, 1.34, 1.05, 3.42, 0, 15, '#cdb48a', f(1));
     if (full) {
       // the stalls open on the yard, a mule looking out of one
@@ -1619,7 +1653,7 @@ function mansioArt(ctx, S, variant, state, key) {
       box(ctx, 1.34, 3.9, 0.3, 0.3, 0, 4, '#d6bd6a', { top: '#e4cc78' }); // bales of hay
       box(ctx, 1.36, 4.25, 0.28, 0.3, 0, 4, '#ccb25e', { top: '#dcc46e' });
     } else {
-      scaffold(ctx, 0.24, 1.34, 1.05, 3.42, 0, 20, 'front');
+      scaffold(ctx, 0.24, 1.34, 1.05, 3.42, 0, 20, 'front', 'f');
     }
     // the storerooms down the right, their doors on the yard (the far side from here)
     riseBox(ctx, 3.96, 1.34, 0.8, 3.42, 0, 15, PLASTER, full ? 1 : 0.5);
@@ -1663,7 +1697,7 @@ function mansioArt(ctx, S, variant, state, key) {
     logs(ctx, 3.4, 4.3);
     if (stage === 2) jars(ctx, 1.0, 4.35); else planks(ctx, 1.0, 4.4);
     const top = [6, 18, 28][stage];
-    crane(ctx, 4.5, 2.6, 0, -1, 0, top + 14, Math.max(3, top - 6));
+    crane(ctx, 2.0, 2.6, 0, -1, -0.6, top + 14, Math.max(3, top - 6)); // in the courtyard
   }
 }
 
@@ -1744,16 +1778,16 @@ function thermaeArt(ctx, S, variant, state, key) {
   // --- 2: the left wing (the cold hall), behind the hot hall from here
   const wing = (u0, full) => {
     const h = full ? 26 : 12;
-    if (!full) scaffold(ctx, u0, 0.45, 1.35, 2.15, 5, 5 + h + 8, 'back');
+    if (!full) scaffold(ctx, u0, 0.45, 1.35, 2.15, 5, 5 + h + 8, 'back', u0 > 2 ? 'l' : 'r');
     riseBox(ctx, u0, 0.45, 1.35, 2.15, 5, h, stucco, full ? 1 : 0.5);
     if (full) {
       windows(ctx, 'right', u0, 0.45, u0 + 1.35, 2.6, 5, 1, 3, C.glass, { z: 10, h: 9, w: 0.14 });
       arcade(ctx, 'left', u0, 0.45, u0 + 1.35, 2.6, 5, 15, 3, 'rgba(58,46,36,0.75)', { open: 0.5 });
-      box(ctx, u0 - 0.03, 0.42, 1.41, 2.21, 31, 2, '#f2eadb', { plain: true });
+      box(ctx, u0, 0.45, 1.35, 2.15, 31, 2, '#f2eadb', { plain: true });
       gableRoof(ctx, u0, 0.45, 1.35, 2.15, 33, 12, C.terra, 'v', 0.04);
       thermalWindow(ctx, u0 + 0.2, u0 + 1.15, 2.6, 33, 9);
     } else {
-      scaffold(ctx, u0, 0.45, 1.35, 2.15, 5, 5 + h + 8, 'front');
+      scaffold(ctx, u0, 0.45, 1.35, 2.15, 5, 5 + h + 8, 'front', u0 > 2 ? 'l' : 'r');
     }
   };
   if (f(2) > 0) wing(0.35, f(2) === 1);
@@ -1761,11 +1795,12 @@ function thermaeArt(ctx, S, variant, state, key) {
   // --- 1: the hot hall and its dome, the warm hall before it
   if (f(1) > 0) {
     const full = f(1) === 1;
-    if (!full) scaffold(ctx, 1.7, 0.4, 1.6, 1.6, 5, 30, 'back');
-    riseBox(ctx, 1.7, 0.4, 1.6, 1.6, 5, full ? 32 : 16, stucco, full ? 1 : 0.5);
+    // (A little narrower than the gap between the wings, their eaves clear of it.)
+    if (!full) scaffold(ctx, 1.75, 0.4, 1.5, 1.6, 5, 30, 'back');
+    riseBox(ctx, 1.75, 0.4, 1.5, 1.6, 5, full ? 32 : 16, stucco, full ? 1 : 0.5);
     if (full) {
-      windows(ctx, 'right', 1.7, 0.4, 3.3, 2.0, 5, 1, 3, C.glass, { z: 22, h: 11, w: 0.12 });
-      box(ctx, 1.66, 0.36, 1.68, 1.68, 37, 2, '#f2eadb', { plain: true });
+      windows(ctx, 'right', 1.75, 0.4, 3.25, 2.0, 5, 1, 3, C.glass, { z: 22, h: 11, w: 0.12 });
+      box(ctx, 1.75, 0.4, 1.5, 1.6, 37, 2, '#f2eadb', { plain: true });
       solid(ctx, arcBounds(2.5, 1.2, 0.72, 39, 72), () => {
         revolveRaw(ctx, 2.5, 1.2, [[0.7, 39], [0.7, 47]], stucco, { seg: 28 });
         drumMarks(ctx, 2.5, 1.2, 0.7, 10, 40.5, 4, 0.14, C.glass, 0.1);
@@ -1773,12 +1808,13 @@ function thermaeArt(ctx, S, variant, state, key) {
         poly(ctx, circlePts(2.5, 1.2, 0.68 * 0.14, 48.5 + 22 * Math.sin(Math.acos(0.14)), 12), '#3a3230');
       });
       // the warm hall in front, lower, its vault's end facing the court
-      box(ctx, 1.75, 2.0, 1.5, 0.6, 5, 20, stucco);
-      arcade(ctx, 'left', 1.75, 2.0, 3.25, 2.6, 5, 14, 3, 'rgba(58,46,36,0.75)', { open: 0.5 });
-      gableRoof(ctx, 1.75, 2.0, 1.5, 0.6, 25, 9, C.terra, 'v', 0.04);
+      // (narrower again, its eaves clear of the wings' roofs)
+      box(ctx, 1.8, 2.0, 1.4, 0.6, 5, 20, stucco);
+      arcade(ctx, 'left', 1.8, 2.0, 3.2, 2.6, 5, 14, 3, 'rgba(58,46,36,0.75)', { open: 0.5 });
+      gableRoof(ctx, 1.8, 2.0, 1.4, 0.6, 25, 9, C.terra, 'v', 0.04);
       thermalWindow(ctx, 1.95, 3.05, 2.64, 25, 7);
     } else {
-      scaffold(ctx, 1.7, 0.4, 1.6, 1.6, 5, 30, 'front');
+      scaffold(ctx, 1.75, 0.4, 1.5, 1.6, 5, 30, 'front');
       worker(ctx, 2.2, 2.09, 14, 1);
       worker(ctx, 3.39, 1.2, 23, 3);
     }
@@ -1828,9 +1864,11 @@ function thermaeArt(ctx, S, variant, state, key) {
   else {
     if (stage === 3) jars(ctx, 3.2, 4.4); else bricks(ctx, 3.3, 4.35);
     logs(ctx, 3.8, 4.3);
-    if (stage >= 2) marbleBlocks(ctx, 2.75, 3.6); else planks(ctx, 2.85, 3.7);
+    if (stage >= 2) marbleBlocks(ctx, 3.7, 3.7); else planks(ctx, 2.85, 3.7);
     const top = [8, 36, 38, 18][stage];
-    crane(ctx, 4.55, 3.0, 0, -0.4, -1, top + 14, Math.max(4, top - 8));
+    // the crane where the stage's work is: by the halls, then before the warm hall, then by the court
+    const [cu, cv, du, dv] = [[4.55, 3.0, -0.4, -1], [4.55, 3.0, -0.4, -1], [2.6, 3.4, 0, -1], [4.72, 2.75, -1, 0]][stage];
+    crane(ctx, cu, cv, 0, du, dv, top + 14, Math.max(4, top - 8), true, stage === 3 ? 0 : 0.42);
   }
 }
 
@@ -1904,10 +1942,10 @@ function basilicaArt(ctx, S, variant, state, key) {
     if (f(2) === 1) {
       gableRoof(ctx, u0 - 0.04, nv0 - 0.05, u1 - u0 + 0.08, nv1 - nv0 + 0.1, zr, 13, C.terra, 'u', 0.06);
     } else {
-      scaffold(ctx, u0, nv0, u1 - u0, nv1 - nv0, zc, zr + 6, 'back');
+      scaffold(ctx, u0, nv0, u1 - u0, nv1 - nv0, zc, zr - 1.2, 'back');
       trusses(ctx, u0, u1, nv0 - 0.04, nv1 + 0.04, zr, 13, 0.4);
       gableRoof(ctx, u0 - 0.04, nv0 - 0.05, 1.5, nv1 - nv0 + 0.1, zr, 13, C.terra, 'u', 0.06);
-      scaffold(ctx, u0, nv0, u1 - u0, nv1 - nv0, zc, zr + 6, 'front');
+      scaffold(ctx, u0, nv0, u1 - u0, nv1 - nv0, zc, zr - 1.2, 'front');
       worker(ctx, 2.6, nv1 + 0.1, zr + 2, 1);
     }
   }
@@ -1947,8 +1985,9 @@ function basilicaArt(ctx, S, variant, state, key) {
     const full = f(1) === 1;
     for (let k = 0; k < 10; k++) column(ctx, u0 + 0.12 + k * 0.38, v1 + 0.42, base, full || k % 3 === 0 ? 24 : 8, C.marble, 1.8);
     if (full) {
-      box(ctx, u0, v1, u1 - u0, 0.5, base + 24, 4, C.marble);
-      if (f(2) === 1) box(ctx, u0, v1, u1 - u0, 0.5, base + 28, 0.8, C.terraDark, { plain: true });
+      // (its back clear of the aisle roof's eaves)
+      box(ctx, u0, v1 + 0.06, u1 - u0, 0.44, base + 24, 4, C.marble);
+      if (f(2) === 1) box(ctx, u0, v1 + 0.06, u1 - u0, 0.44, base + 28, 0.8, C.terraDark, { plain: true });
       if (done) for (let k = 0; k < 6; k++) giltFigure(ctx, u0 + 0.3 + k * 0.62, v1 + 0.3, base + 28.8, 0.8);
     }
     if (!full) scaffold(ctx, u0, v0, u1 - u0, v1 - v0, base, base + 22, 'front');
@@ -2058,24 +2097,24 @@ function workCampArt(ctx, S) {
   // the ox pen: a rail fence round the oxen and their hay
   const pen = [1.45, 1.05, 2.9, 2.1];
   box(ctx, 2.45, 1.15, 0.3, 0.26, 0, 4, '#d6bd6a', { top: '#e4cc78' });
-  const rail = (a, b) => {
+  // Each run of fence is one piece: its posts and two rails.
+  const rail = (a, b) => solid(ctx, [Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[1], b[1]), 0, 7.5], () => {
+    for (const t of [0, 0.5, 1]) pole(ctx, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 0, 7.5, C.woodDark, 1.2);
     beam(ctx, [a[0], a[1], 3], [b[0], b[1], 3], C.wood, 0.9);
     beam(ctx, [a[0], a[1], 6], [b[0], b[1], 6], C.wood, 0.9);
-  };
+  });
   rail([pen[0], pen[1]], [pen[2], pen[1]]);
   rail([pen[0], pen[1]], [pen[0], pen[3]]);
-  for (const [u, v] of [[pen[0], pen[1]], [pen[2], pen[1]], [pen[0], pen[3]], [(pen[0] + pen[2]) / 2, pen[1]]]) pole(ctx, u, v, 0, 7.5, C.woodDark, 1.2);
   ox(ctx, 1.95, 1.55, 1);
   ox(ctx, 2.35, 1.85, -1);
   rail([pen[2], pen[1]], [pen[2], pen[3]]);
   rail([pen[0], pen[3]], [pen[2], pen[3]]);
-  for (const [u, v] of [[pen[2], pen[3]], [pen[2], (pen[1] + pen[3]) / 2], [(pen[0] + pen[2]) / 2, pen[3]]]) pole(ctx, u, v, 0, 7.5, C.woodDark, 1.2);
   // the stacks by the road
   bricks(ctx, 0.15, 2.3);
   bricks(ctx, 0.52, 2.42, 2);
   logs(ctx, 0.95, 2.3, 0.6);
-  marbleBlocks(ctx, 1.75, 2.4);
-  cart(ctx, 2.25, 2.55);
+  marbleBlocks(ctx, 1.62, 2.4);
+  cart(ctx, 2.24, 2.58);
 }
 
 // ---------------------------------------------------------------------------
