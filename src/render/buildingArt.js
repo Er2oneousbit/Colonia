@@ -28,8 +28,10 @@ import { drawTurned, drawTurnedOver, withOrigin, turnUV, unit, decal, TS } from 
 import { shipyardArt, wharfArt, turner, turnedRect, paint, overWater, pierDeck } from './waterArt.js';
 import { navaliaArt, stationArt, portusArt } from './navyArt.js';
 import { OVER_WATER_ART } from '../sim/entities.js';
+import { monumentLook } from '../sim/monumentEffects.js';
 import { hippodromeArt, chariotMakerArt } from './hippodromeArt.js';
 import { nativeHutArt, nativeMeetingArt, nativeCropsArt, missionPostArt } from './nativeArt.js';
+import { MONUMENT_ART, MONUMENT_HEIGHT, MONUMENT_SHADOW } from './monumentArt.js';
 
 const TH = CONFIG.TILE_H;
 
@@ -74,6 +76,7 @@ const HEIGHT = {
   shipyard: 36, wharf: 30, hippodrome: 46, hippodrome_part: 46, chariot_maker: 34, navalia: 42, naval_station: 58,
   portus: 40, military_academy: 48,
   native_hut: 34, native_meeting: 34, native_crops: 18, mission_post: 44,
+  ...MONUMENT_HEIGHT, // the monuments and their work camp (monumentArt.js)
 };
 
 /**
@@ -89,6 +92,7 @@ const SHADOW = {
   prefecture: 0.45, shipyard: 0.3, wharf: 0.25, hippodrome: 0.35, hippodrome_part: 0.35, chariot_maker: 0.45,
   navalia: 0.4, naval_station: 0.55, portus: 0.3, military_academy: 0.5, governor_house: 0.55, governor_villa: 0.75, governor_palace: 1.0,
   native_crops: 0.05, native_hut: 0.5, native_meeting: 0.4,
+  ...MONUMENT_SHADOW,
 };
 /** Shadow length per house level (tents are low, insulae tall, villas wide but low, palaces tall). */
 const HOUSE_SHADOW = [0, 0.18, 0.2, 0.22, 0.26, 0.3, 0.34, 0.45, 0.5, 0.5, 0.65, 0.95, 1.1, 0.5, 0.55, 0.55, 0.6, 0.65, 0.7, 0.85, 0.9];
@@ -3027,6 +3031,7 @@ const ART = {
   native_meeting: nativeMeetingArt,
   native_crops: nativeCropsArt,
   mission_post: missionPostArt,
+  ...MONUMENT_ART, // every monument at every stage, and the work camp
 };
 
 /**
@@ -3050,6 +3055,8 @@ export function artState(b, resting = false) {
   if (kind === 'shipyard') return (b.waterSide ?? 1) + 4 * (b.spareId || !(b.progress > 0) ? 0 : b.progress < 50 ? 1 : 2) + pier;
   if (kind === 'wharf') return (b.waterSide ?? 1) + 4 * ((b.stock?.fish || 0) > 0 ? 1 : 0) + pier; // baskets of fish on the deck
   if (kind === 'part') return b.section || 0; // a hippodrome's stretch of track
+  // A monument: its stage (finished = the number of stages), and the Pharus the side facing its water.
+  if (kind === 'monument') return monumentLook(b.mon?.stage || 0, b.waterRows ? b.waterSide ?? 0 : 0);
   if (kind === 'arch') return b.axis || 0; // the way the road runs under it
   // A garden or statue faded to NEGLECT_STEP or past it (sim/gardens.js)
   // looks it: 1, drawn dry or dull. One more sprite a type at most.

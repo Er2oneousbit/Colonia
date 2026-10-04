@@ -16,6 +16,8 @@ import { CONFIG } from '../config.js';
 import { HOUSE_TIERS } from '../data/housing.js';
 import { Road, Terrain } from '../world/map.js';
 import { careScale } from './gardens.js';
+import { SITE_DES, GIFTS } from '../data/monuments.js';
+import { isSite, fanumOf } from './monumentEffects.js';
 
 /** Add one source's contribution to the desirability layer, times `scale` (0..1). */
 function radiate(map, x, y, size, des, scale = 1) {
@@ -48,9 +50,20 @@ const PLAZA_DES = [4, 1, -1, 3];
  * desirability for a new pass when a residence's staffing changes
  * (sim/labor.js), and the gardens' care when a decoration's step changes.
  */
-export function desScale(b) {
+export function desScale(b, venus = false) {
   if (b.def.kind === 'residence') return b.efficiency;
-  return b.def.tended ? careScale(b) : 1;
+  // Venus's Great Sanctuary at work: gardens and statues give half again as much.
+  return b.def.tended ? careScale(b) * (venus ? GIFTS.venus.decor : 1) : 1;
+}
+
+/**
+ * A building's desirability source: a home's by its level, a monument still
+ * being built a noisy yard's (SITE_DES; the finished one's own once done),
+ * anything else its data's.
+ */
+function desOf(b) {
+  if (b.house) return HOUSE_TIERS[b.house.tier].desOut;
+  return isSite(b) ? SITE_DES : b.def.des;
 }
 const RUBBLE_DES = [-2, 1, 1, 1];
 
@@ -74,10 +87,8 @@ export function updateDesirability(game) {
     if (map.road[i] === Road.PLAZA) radiate(map, i % map.w, (i / map.w) | 0, 1, PLAZA_DES);
     if (map.rubble[i]) radiate(map, i % map.w, (i / map.w) | 0, 1, RUBBLE_DES);
   }
-  for (const b of game.buildings.values()) {
-    const src = b.house ? HOUSE_TIERS[b.house.tier].desOut : b.def.des;
-    radiate(map, b.x, b.y, b.size, src, desScale(b));
-  }
+  const venus = fanumOf(game, 'venus');
+  for (const b of game.buildings.values()) radiate(map, b.x, b.y, b.size, desOf(b), desScale(b, venus));
   for (let i = 0; i < map.size; i++) {
     if (des[i] < CONFIG.DES_MIN) des[i] = CONFIG.DES_MIN;
     else if (des[i] > CONFIG.DES_MAX) des[i] = CONFIG.DES_MAX;

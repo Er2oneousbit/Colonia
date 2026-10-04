@@ -21,7 +21,7 @@
  *                      march, the siege) and the check for a city overrun,
  *                      wolf packs (roaming, growing back), the native
  *                      villages (anger, attacks, traders)
- *   5. on a new month: consumption, finances, army pay, the governor's
+ *   5. on a new month: consumption, finances, a monument's upkeep, army pay, the governor's
  *                      salary, raid warnings, city mood, home moods,
  *                      religion, ratings, city health, Emperor, distant
  *                      battles, farm season notice, the count of recent
@@ -81,6 +81,7 @@ import { newHealthState, updateDiseaseRisk, updateSickHomes, updateCityHealth, h
 import { foundVillages, nativesDaily } from '../sim/natives.js';
 import { newEventState, eventStateOf, eventsMonthly, updateQuake } from '../sim/events.js';
 import { updateCare } from '../sim/gardens.js';
+import { updateMonument, updateWorkCamp, monumentsMonthly, monumentAllowed } from '../sim/monuments.js';
 
 // Difficulty levels live in data/difficulty.js; re-exported here for older imports.
 export { DIFFICULTY } from '../data/difficulty.js';
@@ -239,6 +240,10 @@ export class Game {
     if (BUILDINGS[key]?.kind === 'arch') return archesToBuild(this) > 0;
     // The mission post only where there are native villages (sim/natives.js).
     if (BUILDINGS[key]?.natives && !this.city.natives) return false;
+    // Monuments and the work camp by a rule of the map, not the missions'
+    // lists: from campaign step 6, by the province's partners and its gods
+    // (sim/monuments.js monumentAllowed).
+    if (BUILDINGS[key]?.kind === 'monument' || BUILDINGS[key]?.kind === 'work_camp') return monumentAllowed(this, key);
     if (this.flags.unlockall || this.scenario.unlocks === 'all') return true;
     // A tool that comes with another (the low bridge with the ship bridge):
     // the missions' lists name only the first.
@@ -355,6 +360,8 @@ export class Game {
         case 'shipyard': updateShipyard(this, b); break;
         case 'wharf': updateWharf(this, b); break;
         case 'decor': updateCare(this, b); break; // gardens and statues fade untended (sim/gardens.js)
+        case 'monument': updateMonument(this, b); break; // a site builds, a finished monument runs (sim/monuments.js)
+        case 'work_camp': updateWorkCamp(this, b); break; // its carts, crew, food and water
         default: break;
       }
       if (!this.buildings.has(b.id)) return;
@@ -404,6 +411,7 @@ export class Game {
     // sees a treasury it emptied.
     repayLoan(this);
     monthlyEconomy(this);
+    monumentsMonthly(this); // a finished monument's upkeep, with the wages (sim/monuments.js)
     militaryMonthly(this);
     paySalary(this); // last of the month's money, so it never puts the city in debt
     computeSentiment(this);

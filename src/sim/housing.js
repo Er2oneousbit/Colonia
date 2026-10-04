@@ -54,6 +54,8 @@ import { walkTo } from './movement.js';
 import { logGoods } from './goodsLedger.js';
 import { clearRuin } from './ruins.js';
 import { partnerOn } from './tradeSwitches.js';
+import { fanumOf } from './monumentEffects.js';
+import { GIFTS } from '../data/monuments.js';
 
 // ---------------------------------------------------------------------------
 // Measuring a home
@@ -199,7 +201,8 @@ export function updateHouse(game, b) {
     h.devolveDays++;
     h.blocked = cur.missing;
     h.devolving = true;
-    if (h.devolveDays >= game.difficulty.devolveDays) {
+    // Venus's Great Sanctuary at work: homes hold on a little longer.
+    if (h.devolveDays >= game.difficulty.devolveDays + (fanumOf(game, 'venus') ? GIFTS.venus.devolveDays : 0)) {
       devolve(game, b);
       refreshStatus(game, b);
     }
@@ -949,7 +952,8 @@ export function useGoods(game, b) {
   const h = b.house;
   if (h.pop <= 0) return;
   const tier = HOUSE_TIERS[h.tier];
-  const perGood = Math.max(0.25, h.pop / CONFIG.GOODS_PER_HOUSE_PEOPLE) / 2;
+  // Mercury's Great Sanctuary at work: homes make their goods last longer.
+  const perGood = (Math.max(0.25, h.pop / CONFIG.GOODS_PER_HOUSE_PEOPLE) / 2) * (fanumOf(game, 'mercury') ? GIFTS.mercury.goodsUse : 1);
   for (const g of tier.goods) {
     logGoods(game, g, 'used', Math.min(h.goods[g], perGood));
     h.goods[g] = Math.max(0, h.goods[g] - perGood);

@@ -10,8 +10,11 @@
 import { h } from './dom.js';
 import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
-import { BUILDINGS } from '../data/buildings.js';
-import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoCloth, buildDemoNavy, buildDemoAcademy, buildDemoPortus, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
+import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoCloth, buildDemoNavy, buildDemoAcademy, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
+import { cityMonument } from '../sim/monumentEffects.js';
+import { monumentSummary, monumentStatus } from './monumentInfo.js';
 import { wharfBoat, boatStatus } from '../sim/fishing.js';
 import { igniteBuilding, collapseBuilding } from '../sim/risk.js';
 import { isStorage, storageCapacity, storageUsed, isStable, stableRoom } from '../sim/storage.js';
@@ -56,6 +59,8 @@ export const CONSOLE_HELP = [
   ['event <kind>', 'An event now: wageup | wagedown | land | sea | water | mine | clay | quake [small|medium|large] | emperor'],
   ['garrison', 'Build a barracks, three forts, towers, a ranch and a wall (equipped, and military labor goes first)'],
   ['harbor', 'Build a dock + warehouse and open every sea route (river/coast maps)'],
+  ['monument <key> [stock|done]', 'Build a monument\'s site (fanum_mars, pantheum, pharus, mansio_magna, thermae, basilica...) beside the city with a work camp, a well and a warehouse; "stock" fills the warehouse with every stage\'s goods, "done" finishes it at once'],
+  ['monument', 'Report on the city\'s monument: its stage, goods, work and what holds it up'],
   ['fishing', 'Build a shipyard (stocked with timber), two fishing wharves and a granary on the nearest water with fish'],
   ['grounds', 'List the fishing grounds, and every wharf and its boat'],
   ['hippodrome', 'Build a Circus (hippodrome) and a Factio (chariot stable) beside the city'],
@@ -294,6 +299,40 @@ export class DebugConsole {
         const res = buildDemoHarbor(g, center);
         if (res.dock) app.renderer.camera.centerOnTile(res.dock.x, res.dock.y);
         return res.ok ? `Harbor built; sea routes opened: ${res.routes.join(', ') || 'none in this scenario'}.` : 'No navigable shore near the city (try a river or coast map).';
+      }
+      case 'monument': {
+        need();
+        const have = cityMonument(g);
+        if (!args[0]) return have ? `${monumentSummary(g, have)} ${monumentStatus(g, have).text}` : 'No monument in this city. Try: monument basilica';
+        const key = args[0];
+        if (BUILDINGS[key]?.kind !== 'monument') throw new Error(`usage: monument <${MONUMENT_KEYS.join('|')}> [stock|done]`);
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        let site = have && have.type === key ? have : null;
+        let camp = null;
+        let warehouse = null;
+        if (!site) {
+          if (have) return `Your city raises one monument: the ${have.def.name}.`;
+          const res = buildDemoMonument(g, center, key);
+          if (!res.ok) return res.site ? 'No room near its site for a work camp and a warehouse.' : `No room for a ${BUILDINGS[key].name} near the city${BUILDINGS[key].placement === 'shore' ? ' (it needs a shore ships can reach)' : ''}, or it is not offered here.`;
+          ({ site, camp, warehouse } = res);
+        }
+        app.renderer.camera.centerOnTile(site.x + 1, site.y + 1);
+        if (args[1] === 'done') {
+          site.mon.stage = MONUMENT_TYPES[site.def.mon].stages.length;
+          site.mon.work = 0;
+          site.mon.got = {};
+          site.mon.way = {};
+          const store = MONUMENT_TYPES[site.def.mon].store;
+          if (store) site.mon.store = store.cap;
+          g.markDirty('des');
+          g.map.touch();
+          return `The ${site.def.name} is finished (staff it to open it).`;
+        }
+        if (args[1] === 'stock' && warehouse) {
+          for (const [good, n] of Object.entries(monumentTotals(site.def.mon).goods)) warehouse.stock[good] = (warehouse.stock[good] || 0) + n;
+        }
+        return `${site.def.name} site placed${camp ? `, a work camp at ${camp.x},${camp.y}` : ''}${args[1] === 'stock' ? ', its warehouse stocked with every stage\'s goods' : ''}.`;
       }
       case 'fishing':
       case 'cloth':

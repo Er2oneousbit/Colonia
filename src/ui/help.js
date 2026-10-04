@@ -2,7 +2,7 @@
  * help.js
  * ----------------------------------------------------------------------------
  * The in-game manual. Tabs: Getting started, Controls, Housing, Production,
- * Services, Military, Building names, Debug & options, About. Tables are generated from the game data,
+ * Services, Military, Monuments, Building names, Debug & options, About. Tables are generated from the game data,
  * so the help can never drift out of date with the balance numbers.
  * ----------------------------------------------------------------------------
  */
@@ -27,6 +27,8 @@ import { RANKS, TOP_RANK } from '../data/ranks.js';
 import { GIFT_SIZES } from '../sim/emperor.js';
 import { ROME_WAGE_MIN, ROME_WAGE_MAX, TRADE_HALT_DAYS, BAD_WATER_MIN_POP } from '../data/events.js';
 import { atATime } from './trainingInfo.js';
+import { MONUMENT_TYPES, CAMP, OPEN_STAFF, DONE_FAVOR, DONE_MOOD, MONUMENT_CULTURE, FAME_MONUMENT, monumentTotals } from '../data/monuments.js';
+import { effectText } from './monumentInfo.js';
 
 /** The campaign's steps with two provinces (the manual names them from the data). */
 function branchSteps() {
@@ -58,6 +60,7 @@ const TABS = [
   ['production', 'Production'],
   ['services', 'Services'],
   ['military', 'Military'],
+  ['monuments', 'Monuments'],
   ['names', 'Building names'],
   ['debug', 'Debug & options'],
   ['about', 'About'],
@@ -100,6 +103,40 @@ function nameRows() {
     h('tr', {}, h('th', { colspan: 2 }, c.name)),
     ...buildingsInCategory(c.key).flatMap(({ key, def }) => (key === 'wall' ? [row(def), row(GATE)] : [row(def)])),
   ]);
+}
+
+/** The Monuments tab: the rules, then each monument's stages, money, goods and effects (from data/monuments.js). */
+function monumentHelp() {
+  const keyOf = (mon) => Object.keys(BUILDINGS).find((k) => BUILDINGS[k].mon === mon);
+  const upkeep = Object.values(DIFFICULTY).map((d) => `${d.name} x${d.monumentUpkeep}`).join(', ');
+  const rows = Object.entries(MONUMENT_TYPES).map(([mon, t]) => {
+    const def = BUILDINGS[keyOf(mon)];
+    const tot = monumentTotals(mon);
+    const name = mon === 'fanum' ? 'Fanum (Great Sanctuary, one god)' : `${def.name} (${def.en})`;
+    const stages = t.stages.map((st, k) => `${k + 1}. ${st.name}: ${Object.entries(st.goods).map(([g, n]) => `${GOODS[g].name.toLowerCase()} ${n}`).join(', ')}; ${st.work} camp-days, ${st.money} Dn`);
+    const where = { sea: ' Only where a sea partner trades and ships can sail in; it stands on the shore, out over the water.', land2: ' Only where at least two land partners trade.', piped: ' Needs piped water, like baths.' }[t.needs] || '';
+    const store = t.store ? ` Uses ${t.store.perYear} ${t.store.good} a year, fetched by its own cart.` : '';
+    const sample = mon === 'fanum' ? { def: BUILDINGS.fanum_mars } : { def };
+    return h('tr', {},
+      h('td', {}, h('b', {}, name), h('div', { class: 'muted' }, `${def.size}x${def.size}, from step ${t.fromStep}`)),
+      h('td', { style: { fontSize: '12.5px' } },
+        h('div', {}, `Placing ${t.place + t.stages[0].money} Dn (the site and stage 1); ${tot.money} Dn and ${tot.units.toLocaleString('en-US')} goods in all. ${t.workers} workers once finished, upkeep ${t.upkeep} Dn a month on Normal.${store}${where}`),
+        stages.map((x) => h('div', { class: 'muted' }, x)),
+        h('div', {}, mon === 'fanum' ? 'Finished: counts as six temples of its god, whose mood never sinks low enough to strike and whose blessings come after 8 months. Ceres: food farms grow a fifth faster. Neptune: 150 fish a catch, wells and fountains reach a tile further, health +10. Mercury: homes use a fifth less of their goods. Mars: warbands a fifth smaller, soldiers and liburnians strike a fifth harder, peace +1 a month (where there is no army, Caesar\'s legions come a fifth smaller). Venus: home moods +10, gardens and statues half again as desirable, homes take 2 more bad days to fall back.' : `Finished: ${effectText(sample)}`)));
+  });
+  return [
+    h('p', {}, `From the sixth step of the campaign (the Pantheum from the eighth), and in the sandbox, a city may raise one monument: pick it from the Monuments menu and place its site, which costs its placing money at once. Once a site stands, the other monuments are greyed out until it is demolished (or, on Insane, razed).`),
+    h('h4', {}, 'Building it'),
+    chain('Warehouse (its goods)', 'Castra Operarum (Work Camp) ox carts', 'Site', 'Builders: a stage at a time'),
+    h('p', {}, `A Castra Operarum (Work Camp: ${BUILDINGS.work_camp.cost} Dn, ${BUILDINGS.work_camp.workers} workers, Engineering) on the same roads does the work. Its ox carts (3 at 75% staff or more, 2 at 50%, 1 with any) fetch the stage's goods from the warehouses on its roads, ${CAMP.load} a trip, always the good the site is shortest of, from the nearest warehouse holding at least ${CAMP.minStock} of it. Producers never deliver to the site: everything passes through a warehouse, so workshops keep their raw materials first. Its crew walks to the site and works there ${CAMP.shift} days, then walks home to rest a day: build the camp near the site.`),
+    h('p', {}, `A day's work is the camp's staffing, halved without food or water and stopped without both (its buyer brings food from a granary; a well or fountain must reach it). Up to ${CAMP.perSite} camps work one site. The builders lay only what has arrived: the work done can never pass the stage's work times the share of its least-delivered good. A stage is finished when every good is in and its work is done; the next stage's money is then paid (if the treasury holds it, else the site waits while the carts already haul its goods).`),
+    h('p', {}, `Halt construction (the site's panel) keeps the carts and crews home, for when the city needs its marble elsewhere. An unfinished site employs nobody and costs nothing a month. Undo works only before any goods or work went into it; demolishing it refunds nothing (loads on the road go back to storage).`),
+    h('h4', {}, 'Finished'),
+    h('p', {}, `Rome hears of it (favor +${DONE_FAVOR}), the people celebrate (mood +${DONE_MOOD}, fading like a festival's), and culture rises by ${MONUMENT_CULTURE} for as long as it stands; a finished monument at a campaign win adds ${FAME_MONUMENT} to its Hall of Fame score. It works while ${Math.round(OPEN_STAFF * 100)}% of its staff is at work (and, for those that use a good, while its store holds some). Upkeep is paid monthly with the wages: ${upkeep}. It never burns, collapses or falls to an earthquake.`),
+    h('h4', {}, 'Raids'),
+    h('p', {}, `Raiders (and Caesar's legions, and rebel gladiators) who break into a site undo half the work on the stage under way and smash a quarter of its delivered goods; a finished stage is never lost, but they may strike again. A finished monument they bring down is sacked: closed until it is repaired once the fighting stops. On Insane they raze it instead, site or finished: everything built and delivered is lost, and another may be started.`),
+    h('table', { class: 'tbl' }, h('tr', {}, h('th', {}, 'Monument'), h('th', {}, 'Cost, stages and effects')), rows),
+  ];
 }
 
 function content(tab) {
@@ -269,6 +306,8 @@ function content(tab) {
         h('h4', {}, 'Triumphal arches'),
         h('p', {}, `Each distant battle won earns a Fornix (Triumphal Arch), free, under Government & Decor while one is there to build. It is 3×3 and goes across a straight road, which runs on under it: the road must cross its middle from side to side, with no other road under it. It makes the land around it very desirable (+${BUILDINGS.triumphal_arch.des[0]} beside it, fading over ${BUILDINGS.triumphal_arch.des[3]} tiles). An arch that is lost may be built again.`),
       ];
+    case 'monuments':
+      return monumentHelp();
     case 'names':
       return [
         h('p', {}, 'Every building goes by its Latin name, as the colonists would have called it. The build menu, its tooltips and a building\'s panel show the English name with it; messages and advisors use the Latin. Clear Land is a tool and keeps its English name.'),

@@ -45,7 +45,7 @@ import { goalStatus } from '../sim/ratings.js';
 import { LEDGER_KEYS, ledgerNet, houseMonthlyTax, romeWage } from '../sim/economy.js';
 import { tradeHaltText } from '../sim/events.js';
 import { openRoute, setTradeMode, routeKind, shipsWaitingText, importWarnings } from '../sim/trade.js';
-import { partnerBuys, routeInterval } from '../sim/tradeDemand.js';
+import { partnerBuys, partnerSells, tradeBoost, routeInterval } from '../sim/tradeDemand.js';
 import { partnerOn, setPartnerGood, partnerIdle, partnersFor } from '../sim/tradeSwitches.js';
 import { homeSiteId } from '../data/sites.js';
 import { tripDays } from '../data/empireRoutes.js';
@@ -60,6 +60,9 @@ import { rankLine, salaryOption, salaryPickable, salaryOutlookText, giftLabel, g
 import { battleSummary, sendTroops, sendBlocked, strengthOf, awayCounts, awayOf, recallSummary } from '../sim/battle.js';
 import { legionText, battleLines, archLine, serviceButton, recallControls, recallLines, postsInBattle } from './empireInfo.js';
 import { productionReport } from './production.js';
+import { cityMonument, openOf, openFanumGod, isFinished } from '../sim/monumentEffects.js';
+import { MONUMENT_CULTURE, BASILICA } from '../data/monuments.js';
+import { monumentStatus, monumentSummary } from './monumentInfo.js';
 import { homesWithFood } from '../sim/population.js';
 import { loanTerms, takeLoan } from '../sim/loans.js';
 import { healthReport, educationReport, entertainmentReport, crimeNow, HEALTH_KINDS, EDUCATION_KINDS, VENUE_KINDS, TRAINER_KINDS } from '../sim/coverage.js';
@@ -98,6 +101,7 @@ const MOOD_LABELS = {
   gods: 'The gods\' moods',
   venus: 'Venus\'s blessing or wrath',
   festival: 'Recent festivals',
+  monument: 'The Thermae (Great Baths)',
   newCity: 'New city optimism',
   difficulty: 'Difficulty',
 };
@@ -163,7 +167,9 @@ export function tradeRouteCard(app, g, id, onChange) {
     h('div', { class: 'muted route-prices', style: { fontSize: '12px' } }, distanceNote(g.scenario, id)),
     idle ? h('div', { class: 'status warn route-idle', style: { fontSize: '12px' } }, `Every good is switched off: ${sea ? 'no ships' : 'no caravans'} will come until you tick one.`) : null,
     r.open && tradeHaltText(g, sea ? 'sea' : 'land') ? h('div', { class: 'status warn route-halt', style: { fontSize: '12px' } }, tradeHaltText(g, sea ? 'sea' : 'land')) : null,
-    h('div', { class: 'muted' }, 'They sell (you can import):'), h('div', {}, list(p.sells, r.bought, 'buy')),
+    // A working Pharus or Mansio Magna: a quarter more each way (sim/tradeDemand.js tradeBoost).
+    tradeBoost(g, id) > 1 ? h('div', { class: 'status good route-boost', style: { fontSize: '12px' } }, `+25% a year each way: the ${sea ? 'Pharus (Lighthouse)' : 'Mansio Magna (Caravanserai)'}.`) : null,
+    h('div', { class: 'muted' }, 'They sell (you can import):'), h('div', {}, list(partnerSells(g, id), r.bought, 'buy')),
     h('div', { class: 'muted' }, 'They buy (you can export):'), h('div', {}, list(partnerBuys(g, id), r.sold, 'sell')));
 }
 
@@ -256,6 +262,7 @@ export class Advisors {
           kv('Crime', crime.text, crime.level === 'bad' ? 'no' : ''),
           kv('Free housing space', fmt(c.vacancies || 0)),
           kv('Emperor\'s favor', `${Math.round(c.ratings.favor)}`))),
+      this.monumentCard(g),
       trendCharts(c.history || []),
       h('div', { class: 'card', style: { marginTop: '10px' } },
         h('h4', {}, `City mood: ${c.sentiment} / 100`),
@@ -333,6 +340,28 @@ export class Advisors {
     return h('button', { class: 'linkbtn', title: ids.length > 1 ? `Show one (each press the next of ${ids.length})` : 'Show it', onclick: () => this.showNextOf(g, key, ids) }, name);
   }
 
+  /**
+   * The Overview's card for the city's monument (ui/monumentInfo.js): what
+   * it is and how far along, what holds it up, and buttons to go there.
+   * Where monuments are offered but none is begun, a line on how to start
+   * one; elsewhere nothing.
+   */
+  monumentCard(g) {
+    const b = cityMonument(g);
+    if (!b) {
+      if (!g.isUnlocked('work_camp')) return null;
+      return h('div', { class: 'card', style: { marginTop: '10px' } }, h('h4', {}, 'Monument'),
+        h('div', { class: 'muted' }, 'No monument yet. One per city, from the Monuments menu: place its site, then a Castra Operarum (Work Camp) beside it, with a warehouse holding its goods on the same roads.'));
+    }
+    const st = monumentStatus(g, b);
+    const camps = [...g.buildings.values()].filter((x) => x.def.kind === 'work_camp').map((x) => x.id);
+    return h('div', { class: 'card monument-card', style: { marginTop: '10px' } },
+      h('h4', {}, 'Monument'),
+      h('div', {}, monumentSummary(g, b)),
+      h('div', { class: `status ${st.level}` }, st.text),
+      h('div', { style: { marginTop: '4px', display: 'flex', gap: '6px' } }, this.showButton(g, 'monument', [b.id], 'Show it'), this.showButton(g, 'work_camp', camps, 'Show the work camp')));
+  }
+
   /** A small "Show" button that goes to each of `ids` in turn, or null when there are none. */
   showButton(g, key, ids, label = 'Show') {
     if (!ids.length) return null;
@@ -359,7 +388,8 @@ export class Advisors {
           h('td', { class: 'r num' }, num(r.exported)),
           h('td', { class: 'r num' }, fmt(Math.round(r.stock))),
           h('td', { class: `r num ${r.net > 0.5 ? 'ok' : r.net < -0.5 ? 'no' : ''}` }, Math.abs(r.net) < 0.5 ? '0' : `${r.net > 0 ? '+' : ''}${fmt(Math.round(r.net))}`)))) : h('div', { class: 'muted' }, 'Nothing made or stored yet.'),
-      h('div', { class: 'muted' }, 'Used: eaten, worked up in workshops, built into boats and ships, used by homes, spent on recruits and sent to the Emperor. In store: granaries, warehouses and docks.'),
+      h('div', { class: 'muted' }, 'Used: eaten, worked up in workshops, built into boats and ships, used by homes, spent on recruits, sent to the Emperor, and built into a monument or used by it and its work camp. In store: granaries, warehouses and docks.'),
+      rep.goods.some((r) => r.built > 0) ? h('div', { class: 'built-line' }, `Built into the monument last month: ${rep.goods.filter((r) => r.built > 0).map((r) => `${r.name.toLowerCase()} ${fmt(r.built)}`).join(', ')}.`) : null,
       h('div', { class: 'row' }, h('h4', { style: { flex: 1 } }, 'Buildings not working as they should'),
         idleBuildings(g).length ? h('button', { class: 'btn small next-idle', title: 'Go to the idle buildings one by one, kind by kind (I; Shift+I goes back). Understaffed ones still work and are left out.', onclick: () => this.app.nextIdle(1) }, 'Next idle building (I)') : null),
       rep.troubles.length ? h('table', { class: 'tbl' },
@@ -414,7 +444,7 @@ export class Advisors {
     const est = h('span', { class: 'num' }, `${fmt(estTax())} Dn / month`);
     const ly = c.finance.lastYear;
     const ty = c.finance.thisYear;
-    const labels = { taxes: 'Taxes', exports: 'Exports', other: 'Other income/costs', wages: 'Wages', imports: 'Imports', construction: 'Construction', tribute: 'Tribute to Rome', festivals: 'Festivals', gifts: 'Requests sent to Rome', salary: 'Governor\'s salary', donations: 'Governor\'s donations', military: 'Army pay', plunder: 'Lost to raiders', stolen: 'Stolen by thieves', loans: 'Loan from Rome', repayments: 'Loan repayments' };
+    const labels = { taxes: 'Taxes', exports: 'Exports', other: 'Other income/costs', wages: 'Wages', imports: 'Imports', construction: 'Construction', tribute: 'Tribute to Rome', festivals: 'Festivals', gifts: 'Requests sent to Rome', salary: 'Governor\'s salary', donations: 'Governor\'s donations', military: 'Army pay', monuments: 'Monument upkeep', plunder: 'Lost to raiders', stolen: 'Stolen by thieves', loans: 'Loan from Rome', repayments: 'Loan repayments' };
     const income = ['taxes', 'exports', 'other', 'loans', 'donations'];
     return [
       h('div', { class: 'grid2' },
@@ -808,6 +838,9 @@ export class Advisors {
         sizes.filter(short).map((r) => h('div', { class: 'status bad', style: { fontSize: '12px', marginTop: '4px' }, dataset: { short: r.key } }, `${r.name}: ${r.blocked}`)),
         h('div', { class: 'muted sub', style: { marginTop: '4px' } }, `Food comes from the granaries (the largest stocks first), wine from the warehouses; a festival is held only if all of it is there. It is held at the god's own temples, and a bigger feast needs more priests: a staffed temple of the god has 1, a large temple 2; a small festival needs 1, a large one 3, a grand one 3 and an Oracle. Any festival resets its god's year; a large or grand one lifts the god and the people more.`),
         c.festivalCooldown > 0 ? h('div', { class: 'muted', style: { marginTop: '4px' } }, `Next festival possible in ${c.festivalCooldown} month${c.festivalCooldown === 1 ? '' : 's'}.`) : null),
+      // A working Pantheum or Great Sanctuary (sim/religion.js), said once above the gods.
+      openOf(g, 'pantheum') ? h('div', { class: 'status good', style: { marginTop: '8px' }, dataset: { pantheum: '1' } }, 'No jealous god, and none minds a year without a festival: the Pantheum. It counts as two temples of every god and lifts every god\'s mood by 10.') : null,
+      openFanumGod(g) ? h('div', { class: 'status good', style: { marginTop: '8px' } }, `${GODS[openFanumGod(g)].name}'s Great Sanctuary counts as six temples, keeps the god from ever striking, and brings blessings after 8 months.`) : null,
       GOD_KEYS.map((k) => {
         const s = c.gods[k];
         const jealous = godsJealousy(g);
@@ -853,9 +886,13 @@ export class Advisors {
       h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '3px' } }, tip));
     const seats = g.city.entCoverage || {};
     const seatText = `Venue seats for ${seats.theater || 0}% (theaters), ${seats.amphitheater || 0}% (amphitheaters) and ${seats.colosseum || 0}% (arenas) of the city${seats.hippodrome ? ', and races at the hippodrome for everyone,' : ''} give every home +${g.city.entBase || 0} entertainment.`;
+    // A finished monument (sim/ratings.js): culture while it stands, the Basilica's prosperity while it works.
+    const mon = cityMonument(g);
+    const monCulture = mon && isFinished(mon) ? ` The ${mon.def.name} adds ${MONUMENT_CULTURE}.` : '';
+    const basilica = openOf(g, 'basilica') ? ` The Basilica adds ${BASILICA.prosperity}.` : '';
     return [
-      row('culture', 'Culture', `Religion ${pct(cov.religion)}, school ${pct(cov.school)}, library ${pct(cov.library)}, academy ${pct(cov.academy)} of citizens covered; average entertainment ${Math.round(cov.entertainment || 0)}. ${seatText} Build temples, schools, libraries and venues where people live.`),
-      row('prosperity', 'Prosperity', 'Rises with better housing, patrician villas, a profitable treasury, low unemployment, fair wages and a Curia. Changes slowly.'),
+      row('culture', 'Culture', `Religion ${pct(cov.religion)}, school ${pct(cov.school)}, library ${pct(cov.library)}, academy ${pct(cov.academy)} of citizens covered; average entertainment ${Math.round(cov.entertainment || 0)}. ${seatText} Build temples, schools, libraries and venues where people live.${monCulture}`),
+      row('prosperity', 'Prosperity', `Rises with better housing, patrician villas, a profitable treasury, low unemployment, fair wages and a Curia. Changes slowly.${basilica}`),
       row('peace', 'Peace', `Grows each month the city is content (mood ${CONFIG.PEACE_MOOD}+). No growth in a month when a thief is about (except on Easy); falls with low mood, thieves and riots (more on harder levels), raids and the wrath of Mars.`),
       row('favor', 'Favor', `The Emperor likes paid tributes, fulfilled requests, troops sent when he calls for them and gifts. Debt, missed requests and calls ignored anger him. At ${CONFIG.LEGION_FAVOR} or less he sends his legions against you (Imperial advisor).`),
     ];

@@ -21,6 +21,8 @@ import { vendorSupply } from './market.js';
 import { cureHome } from './disease.js';
 import { missionaryVisit } from './natives.js';
 import { tendDecoration } from './gardens.js';
+import { openOf } from './monumentEffects.js';
+import { BASILICA } from '../data/monuments.js';
 
 /** Apply a roamer's effect to every building within reach of its tile. */
 export function roamerVisit(game, w) {
@@ -91,7 +93,8 @@ function applyEffect(game, effect, w, origin, b) {
       }
       break;
     case 'tax':
-      if (h && h.pop > 0) h.tax = CONFIG.TAX_ACCESS_DAYS;
+      // The Basilica at work: a registration lasts twice as long.
+      if (h && h.pop > 0) h.tax = openOf(game, 'basilica') ? BASILICA.taxDays : CONFIG.TAX_ACCESS_DAYS;
       break;
     case 'market':
       if (h && origin) vendorSupply(game, origin, b);

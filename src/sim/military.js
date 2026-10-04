@@ -60,6 +60,9 @@ import { revoltActive, revoltDaily, revoltMonthly, rebelCount } from './revolt.j
 import { leaveForBattle, awayCounts, awayOf, awayUpkeep, dropAway, postsAway, takesNewMen, AWAY_MAX_TICKS } from './battle.js';
 import { fightPrefect } from './prefectFight.js';
 import { updateVillager } from './natives.js';
+import { monumentHp, fanumOf } from './monumentEffects.js';
+import { GIFTS } from '../data/monuments.js';
+import { monumentStruck } from './monuments.js';
 
 // When a fort has fewer open tiles around its post than soldiers, extra men
 // share tiles using these sub-tile offsets.
@@ -939,6 +942,7 @@ export function recruitArrive(game, w) {
 // ---------------------------------------------------------------------------
 
 export function buildingMaxHp(b) {
+  if (b.def.kind === 'monument') return monumentHp(b); // a site's, then the finished monument's (data/monuments.js)
   if (b.def.hp) return b.def.hp;
   return (b.house ? 45 : 80) * b.size * b.size;
 }
@@ -957,6 +961,8 @@ export function damageBuilding(game, b, dmg, { fromSea = false, legion = null, r
   const inv = legion || revolt ? null : game.military.active; // (a gladiator's work is no raid's: sim/revolt.js)
   if (inv && !fromSea) inv.reached = true; // the warband made it to the city: plunder is possible
   if (b.hp > 0) return;
+  // A monument already sacked has nothing more to lose until it is repaired.
+  if (b.mon && b.mon.sacked && !game.difficulty.monumentRaze) { b.hp = 0; return; }
   if (inv) inv.buildingsLost++;
   if (legion) {
     legion.buildingsLost++;
@@ -967,6 +973,12 @@ export function damageBuilding(game, b, dmg, { fromSea = false, legion = null, r
   if (!revolt) game.military.stats.buildingsLost++;
   else if (game.military.revolt) game.military.revolt.buildingsLost = (game.military.revolt.buildingsLost || 0) + 1;
   game.city.ratings.peace = Math.max(0, game.city.ratings.peace - 1);
+  // A monument never falls but on Insane: a site is set back, a finished
+  // one sacked (sim/monuments.js monumentStruck). It counts as lost all the same.
+  if (b.def.kind === 'monument') {
+    if (monumentStruck(game, b)) return;
+    game.message(`The ${b.def.name} has been razed! Everything built and delivered is lost; another monument may be started.`, 'bad', b.x, b.y);
+  }
   const now = game.time.totalDays;
   const loud = now - game.military.lastLossMessageDay >= 4;
   if (loud) game.military.lastLossMessageDay = now;
@@ -1123,11 +1135,13 @@ export function fillField(game, field, isSource, breakCost = 0, wallsBlock = fal
 // ---------------------------------------------------------------------------
 
 /**
- * Strength multiplier for a unit: raiders scale with difficulty, Rome's
- * soldiers never do, and neither do Caesar's (the difficulty sets how many
- * he sends, sim/legion.js).
+ * Strength multiplier for a unit: raiders scale with difficulty, Caesar's
+ * men never do (the difficulty sets how many he sends, sim/legion.js), and
+ * Rome's soldiers and liburnians strike harder only while Mars's Great
+ * Sanctuary is at work (sim/monumentEffects.js).
  */
 export function enemyPower(game, u) {
+  if (u.side === 'rome') return fanumOf(game, 'mars') ? GIFTS.mars.attack : 1;
   return u.side === 'enemy' && !u.legion && u.type !== 'imperial' ? game.difficulty.enemy : 1;
 }
 
@@ -1746,7 +1760,9 @@ function pickRaidOrigin(game) {
 export function raidSize(game) {
   const s = game.military.settings;
   const base = s ? s.base : 5;
-  const n = Math.round((base + game.city.population / 450 + (game.military.stats.raids || 0)) * game.difficulty.raidSize);
+  // Mars's Great Sanctuary at work: a fifth fewer raiders, after the difficulty's lever.
+  const mars = fanumOf(game, 'mars') ? GIFTS.mars.raidSize : 1;
+  const n = Math.round((base + game.city.population / 450 + (game.military.stats.raids || 0)) * game.difficulty.raidSize * mars);
   return Math.max(3, Math.min(40, n));
 }
 

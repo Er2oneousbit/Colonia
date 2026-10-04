@@ -1270,3 +1270,78 @@ export function buildDemoNavy(game, center, opts = {}) {
   const portus = opts.portus ? buildDemoPortus(game, station) : null; // (last: the rest is laid out as without it)
   return { ok: !!navalia, station, navalia, portus };
 }
+
+// ---------------------------------------------------------------------------
+// A monument (simulate.mjs --monument, the console's `monument`, tests)
+// ---------------------------------------------------------------------------
+
+/**
+ * A waterside building of `type` (the Pharus) on the shore nearest the city,
+ * out over water ships can sail, joined by road to its streets: the dock's
+ * way (buildDemoHarbor). @returns the building, or null
+ */
+function placeOnShore(game, type, center) {
+  const { map } = game;
+  const S = BUILDINGS[type].size;
+  const spots = [];
+  for (let y = 1; y < map.h - S - 1; y++) {
+    for (let x = 1; x < map.w - S - 1; x++) {
+      const d = Math.hypot(x - center.x, y - center.y);
+      if (d <= 40 && overWaterFit(map, BUILDINGS[type], x, y)) spots.push({ x, y, d });
+    }
+  }
+  spots.sort((a, b) => a.d - b.d);
+  for (const s of spots.slice(0, 40)) {
+    const b = attempt(game, () => {
+      if (!place(game, type, s.x, s.y, S)) return null;
+      const placed = game.buildings.get(map.building[map.idx(s.x, s.y)]);
+      if (!placed || placed.type !== type) return null;
+      // (The networks are numbered afresh with every change: ask for the entry's each time.)
+      const entryNet = () => map.roadNet[map.idx(map.entry.x, map.entry.y)];
+      for (const i of accessTiles(map, placed.x, placed.y, S)) {
+        if (map.building[i] || map.terrain[i] === Terrain.WATER || map.terrain[i] === Terrain.ROCK) continue;
+        connectToRoad(game, map.xOf(i), map.yOf(i), entryNet());
+        game.processRoadChanges();
+        if (placed.accessRoad >= 0 && map.roadNet[placed.accessRoad] === entryNet()) return placed;
+      }
+      return null;
+    });
+    if (b) return b;
+  }
+  return null;
+}
+
+/**
+ * A monument of `type` beside the city, as a player would lay one out: its
+ * site (the Pharus on the shore), a Castra Operarum (Work Camp) near it with
+ * a well beside the camp, and a warehouse by the camp for its goods, all on
+ * the city's roads and guarded by a prefect and an engineer. The camp's food
+ * comes from the city's granaries. Built after everything else, so a run
+ * without it is laid out exactly as before.
+ * @returns {{ok:boolean, site?:object, camp?:object, warehouse?:object, well?:boolean}}
+ */
+export function buildDemoMonument(game, center, type) {
+  const def = BUILDINGS[type];
+  if (!def || def.kind !== 'monument' || !game.isUnlocked(type) || !game.isUnlocked('work_camp')) return { ok: false };
+  const { map } = game;
+  const site = def.placement === 'shore' ? placeOnShore(game, type, center) : placeNear(game, type, def.size, center, 6, 40);
+  if (!site) return { ok: false };
+  const by = { x: map.xOf(site.accessRoad), y: map.yOf(site.accessRoad) };
+  const camp = placeNear(game, 'work_camp', 3, by, 1, 14);
+  const warehouse = camp ? placeNear(game, 'warehouse', 3, camp, 2, 14) : null;
+  let well = false;
+  if (camp) {
+    // A well on a free tile beside the camp (no road needed) waters it.
+    for (let r = 1; r <= 2 && !well; r++) {
+      for (let dy = -r; dy <= 2 + r && !well; dy++) {
+        for (let dx = -r; dx <= 2 + r && !well; dx++) {
+          const tx = camp.x + dx;
+          const ty = camp.y + dy;
+          if (map.isFree(tx, ty) && map.terrain[map.idx(tx, ty)] !== Terrain.TREES && place(game, 'well', tx, ty, 1)) well = true;
+        }
+      }
+    }
+    guard(game, camp.x, camp.y);
+  }
+  return { ok: !!(site && camp && warehouse), site, camp, warehouse, well };
+}

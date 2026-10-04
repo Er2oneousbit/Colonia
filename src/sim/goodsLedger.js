@@ -9,13 +9,17 @@
  * ----------------------------------------------------------------------------
  */
 
-/** Add n units of `good` to this month's `field` (made | used | imported | exported). */
+/**
+ * Add n units of `good` to this month's `field` (made | used | imported |
+ * exported; and `built`, the part of `used` built into a monument, booked
+ * on top of it by sim/monuments.js for the Production advisor's line).
+ */
 export function logGoods(game, good, field, n) {
   if (!(n > 0)) return;
   const c = game.city;
   const book = c.goodsFlow || (c.goodsFlow = {});
   const row = book[good] || (book[good] = { made: 0, used: 0, imported: 0, exported: 0 });
-  row[field] += n;
+  row[field] = (row[field] || 0) + n;
 }
 
 /** Monthly: this month's book becomes last month's. */

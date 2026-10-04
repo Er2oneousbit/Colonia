@@ -55,6 +55,8 @@ import { spawnWalker, killWalker, shoreWaterAt, waterSideOf } from './entities.j
 import { followPath } from './movement.js';
 import { shipOutput } from './production.js';
 import { logGoods } from './goodsLedger.js';
+import { openOf, fanumOf } from './monumentEffects.js';
+import { GIFTS, PHARUS_BOATS } from '../data/monuments.js';
 
 const TPD = CONFIG.TICKS_PER_DAY;
 
@@ -222,7 +224,7 @@ export function boatArrive(game, w) {
 
 /** The catch goes into the wharf's store. */
 function landCatch(game, wharf) {
-  const n = CONFIG.FISH_CATCH;
+  const n = fanumOf(game, 'neptune') ? GIFTS.neptune.catch : CONFIG.FISH_CATCH; // Neptune's Great Sanctuary fills the nets
   wharf.stock.fish = (wharf.stock.fish || 0) + n;
   wharf.catches = (wharf.catches || 0) + 1;
   game.city.produced.fish = (game.city.produced.fish || 0) + n;
@@ -283,6 +285,7 @@ function sailOut(game, w, wharf) {
   }
   w.state = 'toGround';
   w.ground = { x: best.g.x, y: best.g.y };
+  w.speed = boatSpeed(game);
   followPath(game, w, best.path);
 }
 
@@ -296,7 +299,13 @@ function sailHome(game, w, wharf) {
     return;
   }
   w.state = 'homeWithCatch';
+  w.speed = boatSpeed(game);
   followPath(game, w, path);
+}
+
+/** A fishing boat's pace on a voyage: a walker's, a quarter faster while the Pharus is lit. */
+function boatSpeed(game) {
+  return CONFIG.WALKER_SPEED * (openOf(game, 'pharus') ? PHARUS_BOATS : 1);
 }
 
 /**

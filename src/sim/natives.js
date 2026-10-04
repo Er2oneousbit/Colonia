@@ -59,6 +59,7 @@ import { followPath } from './movement.js';
 import { spawnUnit, removeUnit, moveToward, fillField, attackUnit, nearestHostile, buildingMaxHp } from './military.js';
 import { fightPrefect } from './prefectFight.js';
 import { collapseBuilding } from './risk.js';
+import { monumentStruck } from './monuments.js';
 import { landPassable } from './crime.js';
 import { cityStock, takeGoods } from './storage.js';
 import { transact } from './economy.js';
@@ -423,6 +424,12 @@ function strike(game, b, dmg) {
   b.hp -= dmg;
   b.lastRaided = game.time.totalDays;
   if (b.hp > 0) return;
+  // A monument is set back or sacked, as raiders do, and falls only on Insane (sim/monuments.js).
+  if (b.def.kind === 'monument' && !game.difficulty.monumentRaze) {
+    if (b.mon?.sacked) b.hp = 0; // (nothing more to lose until it is repaired)
+    else monumentStruck(game, b);
+    return;
+  }
   const st = game.city.natives;
   if (st) st.buildingsLost++;
   collapseBuilding(game, b, 'natives');

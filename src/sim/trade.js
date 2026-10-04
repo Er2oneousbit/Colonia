@@ -58,7 +58,9 @@ import { militaryNeed } from './military.js';
 import { dispatchCart, cartsOut } from './production.js';
 import { transact } from './economy.js';
 import { logGoods } from './goodsLedger.js';
-import { partnerBuys, routeInterval, buysInForce, demandChangeAt } from './tradeDemand.js';
+import { partnerBuys, partnerSells, routeInterval, buysInForce, demandChangeAt } from './tradeDemand.js';
+import { openOf } from './monumentEffects.js';
+import { MANSIO_CARAVAN } from '../data/monuments.js';
 import { homeSiteId } from '../data/sites.js';
 import { tripDays } from '../data/empireRoutes.js';
 import { tradePrice } from './prices.js';
@@ -254,7 +256,9 @@ export function tradeAt(game, partnerId, wh) {
   let stables = null;
   const near = () => (stables = stables || ranchesNear(game, wh));
   const sources = (good) => (GOODS[good].keptAt ? near().filter((b) => isStable(b, good)) : [wh]);
-  sellExports(game, partnerId, sources, CONFIG.CARAVAN_MAX_TRADE, out);
+  // A caravan carries more each way while the Mansio Magna works (sim/monumentEffects.js).
+  const carry = openOf(game, 'mansio_magna') ? MANSIO_CARAVAN : CONFIG.CARAVAN_MAX_TRADE;
+  sellExports(game, partnerId, sources, carry, out);
   // The caravan unloads into the warehouse itself, so staffing does not matter
   // here; its orders do (Refuse or Empty: no imports of that good here).
   const spaceFor = (good) => {
@@ -269,7 +273,7 @@ export function tradeAt(game, partnerId, wh) {
       n -= k;
     }
   };
-  buyImports(game, partnerId, CONFIG.CARAVAN_MAX_TRADE, out, spaceFor, put);
+  buyImports(game, partnerId, carry, out, spaceFor, put);
   route.visits++;
   return out;
 }
@@ -576,7 +580,7 @@ export function shipManifest(game, partnerId, dock, exceptShip = 0) {
   const wants = {};
   if (!p || !route) return { unload, wants };
   let budget = CONFIG.SHIP_MAX_TRADE;
-  for (const [good, cap] of Object.entries(p.sells)) {
+  for (const [good, cap] of Object.entries(partnerSells(game, partnerId))) {
     const s = settings[good];
     if (!s || s.mode !== 'import' || !partnerOn(game, partnerId, good)) continue;
     // Horses only as many as the ranches (and barracks) can take in.
@@ -673,7 +677,7 @@ function landable(game, w, dock, good, level = false) {
   const p = TRADE_PARTNERS[w.partner];
   const route = game.city.trade.routes[w.partner];
   if (!s || s.mode !== 'import' || !p || !route || !partnerOn(game, w.partner, good)) return -1;
-  const quota = (p.sells[good] || 0) - (route.bought[good] || 0);
+  const quota = (partnerSells(game, w.partner)[good] || 0) - (route.bought[good] || 0);
   if (quota < CONFIG.CART_CAPACITY) return -1;
   const kept = !!GOODS[good].keptAt;
   if (kept && !stablesOf(game, good).length) return -1; // the last ranch is gone: no horses can come in
@@ -1037,7 +1041,7 @@ function buyImports(game, partnerId, budget, out, spaceFor, put) {
   const p = TRADE_PARTNERS[partnerId];
   const route = game.city.trade.routes[partnerId];
   const settings = game.city.trade.settings;
-  for (const [good, cap] of Object.entries(p.sells)) {
+  for (const [good, cap] of Object.entries(partnerSells(game, partnerId))) {
     const s = settings[good];
     if (!s || s.mode !== 'import' || budget <= 0 || !partnerOn(game, partnerId, good)) continue;
     const quota = cap - (route.bought[good] || 0);

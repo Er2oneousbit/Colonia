@@ -59,6 +59,8 @@ import { diseaseActive, houseHealth } from './disease.js';
 import { logGoods } from './goodsLedger.js';
 import { sinkFishingBoats } from './fishing.js';
 import { neptuneStorms } from './events.js';
+import { openMonument, isFinished, openOf } from './monumentEffects.js';
+import { FANUM_TEMPLES, FANUM_MOOD_FLOOR, FANUM_BLESS_WAIT, PANTHEUM_TEMPLES, PANTHEUM_MOOD } from '../data/monuments.js';
 
 /** Towns smaller than this do not bother the gods much (flat mood targets, no wrath, no neglect). */
 export const SMALL_TOWN = 800;
@@ -99,10 +101,12 @@ export function monthsSinceAnyFestival(game) {
 /**
  * The neglect a god's mood target takes this month: none where its temple
  * is not unlocked (it stays neutral at 50) or in a town under SMALL_TOWN
- * people, whose gods have flat targets and never strike.
+ * people, whose gods have flat targets and never strike, nor while the
+ * Pantheum works.
  */
 export function neglectPenalty(game, god) {
   if (!game.isUnlocked(`temple_${god}`) || game.city.population < SMALL_TOWN) return 0;
+  if (openOf(game, 'pantheum')) return 0; // a working Pantheum: no god minds a year without a festival
   return festivalNeglect(game.city.gods[god].monthsSinceFestival);
 }
 
@@ -114,6 +118,28 @@ export function newGodState() {
 
 /** Mood target the neglected god loses (the original's). */
 export const JEALOUS_PENALTY = 25;
+
+/**
+ * Temples at work per god, as the gods count them: each staffed temple (a
+ * large one as two, data/buildings.js templeWeight), plus a working
+ * monument's: a Great Sanctuary counts as FANUM_TEMPLES of its god, the
+ * Pantheum as PANTHEUM_TEMPLES of every god (sim/monumentEffects.js; a
+ * monument still being built or closed counts nothing).
+ */
+export function templeCounts(game) {
+  const temples = Object.fromEntries(GOD_KEYS.map((g) => [g, 0]));
+  for (const b of game.buildings.values()) if (b.def.god && b.efficiency > 0) temples[b.def.god] += b.def.templeWeight || 1;
+  const m = openMonument(game);
+  if (m && m.def.mon === 'fanum') temples[m.def.deity] += FANUM_TEMPLES;
+  if (m && m.def.mon === 'pantheum') for (const g of GOD_KEYS) temples[g] += PANTHEUM_TEMPLES;
+  return temples;
+}
+
+/** The working monument's hold on the gods: { fanum: its god or null, pantheum: true or false }. */
+function monumentGods(game) {
+  const m = openMonument(game);
+  return { fanum: m && m.def.mon === 'fanum' ? m.def.deity : null, pantheum: !!m && m.def.mon === 'pantheum' && isFinished(m) };
+}
 
 /**
  * The gods' jealousy (the original's rule): of the gods worshipped here, the
@@ -129,32 +155,28 @@ export const JEALOUS_PENALTY = 25;
 export function godsJealousy(game, temples = null) {
   const none = { favourite: null, neglected: null };
   if (game.city.population < SMALL_TOWN) return none;
-  if (!temples) {
-    temples = Object.fromEntries(GOD_KEYS.map((g) => [g, 0]));
-    for (const b of game.buildings.values()) if (b.def.god && b.efficiency > 0) temples[b.def.god] += b.def.templeWeight || 1;
-  }
+  if (!temples) temples = templeCounts(game);
   const gods = GOD_KEYS.filter((g) => game.isUnlocked(`temple_${g}`));
   if (gods.length < 2) return none;
   const counts = gods.map((g) => temples[g]);
   const hi = Math.max(...counts);
   const lo = Math.min(...counts);
   const only = (v) => (counts.filter((c) => c === v).length === 1 ? gods[counts.indexOf(v)] : null);
-  return { favourite: hi > lo ? only(hi) : null, neglected: hi > lo ? only(lo) : null };
+  // A working Pantheum: no god is ever jealous (the favourite still is).
+  return { favourite: hi > lo ? only(hi) : null, neglected: hi > lo && !monumentGods(game).pantheum ? only(lo) : null };
 }
 
 export function updateReligion(game) {
   const c = game.city;
   const pop = c.population;
-  const temples = {};
+  // A large temple counts as two (data/buildings.js templeWeight); a working
+  // monument as several (templeCounts).
+  const temples = templeCounts(game);
   let oracles = 0;
-  for (const g of GOD_KEYS) temples[g] = 0;
-  for (const b of game.buildings.values()) {
-    // A large temple counts as two (data/buildings.js templeWeight).
-    if (b.def.god && b.efficiency > 0) temples[b.def.god] += b.def.templeWeight || 1;
-    if (b.type === 'oracle') oracles++;
-  }
+  for (const b of game.buildings.values()) if (b.type === 'oracle') oracles++;
   const wanted = Math.max(1, pop / GOD_KEYS.length);
   const jealous = godsJealousy(game, temples);
+  const mon = monumentGods(game);
   for (const g of GOD_KEYS) {
     const s = c.gods[g];
     s.temples = temples[g];
@@ -170,9 +192,12 @@ export function updateReligion(game) {
     // neglected one sulks (godsJealousy).
     if (g === jealous.favourite) target = target >= 50 ? 100 : target + 50;
     else if (g === jealous.neglected) target -= JEALOUS_PENALTY;
-    target -= neglectPenalty(game, g); // a year without a festival in its honor
+    target -= neglectPenalty(game, g); // a year without a festival in its honor (never with a working Pantheum)
     // Blessings (mood 92+) need festivals or oracles on top of good temple coverage.
     target += Math.min(20, oracles * 6) + s.festival;
+    if (mon.pantheum) target += PANTHEUM_MOOD;
+    // The god of a working Great Sanctuary never sinks low enough to strike.
+    if (g === mon.fanum) target = Math.max(target, FANUM_MOOD_FLOOR);
     target = Math.max(0, Math.min(100, target));
     const delta = Math.max(-4, Math.min(6, target - s.mood));
     s.mood = Math.max(0, Math.min(100, s.mood + delta));
@@ -181,7 +206,7 @@ export function updateReligion(game) {
     if (s.cooldown > 0) s.cooldown--;
     if (s.mood >= CONFIG.GOD_BLESS_MOOD && s.cooldown <= 0) {
       bless(game, g);
-      s.cooldown = 14;
+      s.cooldown = g === mon.fanum ? FANUM_BLESS_WAIT : 14; // its Great Sanctuary brings the next sooner
     } else if (s.mood <= CONFIG.GOD_WRATH_MOOD && s.cooldown <= 0 && pop >= SMALL_TOWN) {
       wrath(game, g, s);
       s.cooldown = 8;
@@ -397,7 +422,7 @@ function wrath(game, god, s) {
       const sea = neptuneStorms(game);
       const parts = [];
       if (sunk > 0) parts.push(`His storms sink ${sunk === 1 ? 'a fishing boat' : `all ${sunk} fishing boats`}: the shipyards must build new ones.`);
-      if (sea.halted) parts.push(`${sea.sunk > 0 ? `${sea.sunk === 1 ? 'A merchant ship goes' : `${sea.sunk} merchant ships go`} down with ${sea.sunk === 1 ? 'its' : 'their'} cargo, and n` : 'N'}o ship will sail for your city for 5 months.`);
+      if (sea.halted) parts.push(`${sea.sunk > 0 ? `${sea.sunk === 1 ? 'A merchant ship goes' : `${sea.sunk} merchant ships go`} down with ${sea.sunk === 1 ? 'its' : 'their'} cargo, and n` : 'N'}o ship will sail for your city for ${openOf(game, 'pharus') ? '2 months (the Pharus guides them in sooner)' : '5 months'}.`);
       if (parts.length) note = { text: `${GODS[god].wrath} ${parts.join(' ')}` };
       break;
     }

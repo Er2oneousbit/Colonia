@@ -62,7 +62,7 @@ export function productionReport(game) {
     const f = (last && last[k]) || { made: 0, used: 0, imported: 0, exported: 0 };
     const stock = cityStock(game, k);
     if (!(f.made || f.used || f.imported || f.exported || stock)) continue;
-    goods.push({ good: k, name: GOODS[k].name, made: f.made, used: f.used, imported: f.imported, exported: f.exported, stock, net: f.made + f.imported - f.used - f.exported });
+    goods.push({ good: k, name: GOODS[k].name, made: f.made, used: f.used, imported: f.imported, exported: f.exported, stock, net: f.made + f.imported - f.used - f.exported, built: f.built || 0 });
   }
   // --- troubles --------------------------------------------------------------
   const groups = new Map();

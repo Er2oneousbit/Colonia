@@ -240,8 +240,14 @@ const TIER4 = [...TIER3, 'bridge', 'timber_yard', 'furniture_ws', 'farm_olive', 
  * would only make the missions easier). From step 7 every province has it.
  */
 const HIPPODROME_KEYS = ['hippodrome', 'hippodrome_part', 'chariot_maker'];
-/** Every building and tool, as a list (for `'all'` with some taken out). */
-const ALL_KEYS = [...Object.keys(TOOLS), ...Object.keys(BUILDINGS)];
+/**
+ * Every building and tool, as a list (for `'all'` with some taken out). The
+ * monuments and their work camp are never on a mission's list: they come
+ * by a rule of the map instead, from step 6 (sim/monuments.js
+ * monumentAllowed), and stay out of the capacity model (optional work, so
+ * no population goal counts on their jobs).
+ */
+const ALL_KEYS = [...Object.keys(TOOLS), ...Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].kind !== 'monument' && BUILDINGS[k].kind !== 'work_camp')];
 const ALL_BUT_HIPPODROME = ALL_KEYS.filter((k) => !HIPPODROME_KEYS.includes(k));
 /** Mission 6's desert has no water a ship can sail: no fleet there (a test holds every mission's fleet to its water). */
 const ALL_BUT_HIPPODROME_AND_NAVY = ALL_BUT_HIPPODROME.filter((k) => !NAVY_KEYS.includes(k));

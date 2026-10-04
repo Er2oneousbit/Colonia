@@ -54,6 +54,15 @@
  *                    CONFIG.CARE_STEP_DAYS / careFade days a step): half as
  *                    fast on Easy, half again as fast on Insane. The grace
  *                    and the floor stay the same
+ *   monumentUpkeep   a finished monument's monthly upkeep in Dn (data/monuments.js
+ *                    `upkeep`), times this: half on Easy, a quarter more on Hard,
+ *                    half again on Insane
+ *   monumentRaze     raiders who bring a monument (a site at any stage, or a
+ *                    finished one) to 0 hit points raze it to rubble, everything
+ *                    built and delivered lost (Insane only). Elsewhere a raid
+ *                    sets a site back (half the stage's work, a quarter of its
+ *                    goods; finished stages stand) and closes a finished one
+ *                    until it is patched up (sim/monuments.js monumentStruck)
  *
  * Easy, Normal and Hard only use the first four levers plus raid size, crime,
  * crimePeace, disease, the two event levers and careFade (and Easy a longer devolveDays);
@@ -98,6 +107,7 @@ export const DIFFICULTY = Object.freeze({
     wolfBite: 4,
     events: 0.5, eventCooldown: 36, // mishaps half as often, and never the same one within 3 years
     careFade: 0.5, // an untended garden fades over 10 months, not 5
+    monumentUpkeep: 0.5, monumentRaze: false,
   }),
   normal: Object.freeze({
     name: 'Normal',
@@ -115,6 +125,7 @@ export const DIFFICULTY = Object.freeze({
     wolfBite: 6,
     events: 1, eventCooldown: 24,
     careFade: 1,
+    monumentUpkeep: 1, monumentRaze: false,
   }),
   hard: Object.freeze({
     name: 'Hard',
@@ -132,6 +143,7 @@ export const DIFFICULTY = Object.freeze({
     wolfBite: 8,
     events: 1.25, eventCooldown: 18,
     careFade: 1,
+    monumentUpkeep: 1.25, monumentRaze: false,
   }),
   insane: Object.freeze({
     name: 'Insane',
@@ -151,6 +163,9 @@ export const DIFFICULTY = Object.freeze({
     wolfBite: 8,
     events: 1.5, eventCooldown: 12,
     careFade: 1.5, // fades over 3 months and a third
+    // Insane only: years of building can be lost to one raid left
+    // unanswered, so a monument there must be walled and garrisoned.
+    monumentUpkeep: 1.5, monumentRaze: true,
   }),
 });
 

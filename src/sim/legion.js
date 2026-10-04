@@ -53,6 +53,8 @@ import { spawnUnit, removeUnit, passable, fillField, damageBuilding, damageWallA
 import { residenceOf } from './governor.js';
 import { fightPrefect } from './prefectFight.js';
 import { inOwnFort } from './entities.js';
+import { fanumOf } from './monumentEffects.js';
+import { GIFTS } from '../data/monuments.js';
 
 /** Fresh state: no attack coming, none so far. Kept on game.military.caesar (saved with it). */
 export function newCaesarState() {
@@ -72,7 +74,10 @@ export function newCaesarState() {
 export function legionSize(game, n) {
   const sizes = CONFIG.LEGION_SIZES;
   const base = sizes[Math.min(n, sizes.length - 1)];
-  return Math.max(1, Math.min(CONFIG.LEGION_MAX, Math.round(base * game.difficulty.raidSize)));
+  // Mars's Great Sanctuary at work in a province with no army of its own:
+  // Caesar finds fewer men willing to march on it.
+  const mars = fanumOf(game, 'mars') && !game.isUnlocked('fort_legion') ? GIFTS.mars.legionSize : 1;
+  return Math.max(1, Math.min(CONFIG.LEGION_MAX, Math.round(base * game.difficulty.raidSize * mars)));
 }
 
 /**

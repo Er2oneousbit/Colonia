@@ -27,7 +27,8 @@
  *   what it sells, counting only the goods switched on with it) is more than
  *   that comes proportionally more often: its
  *   interval is scaled by carry / volume, so on average its traders can carry
- *   its whole year. The line sits at the full carry, not below it, so every
+ *   its whole year (a Pharus's or Mansio Magna's quarter more, tradeBoost,
+ *   counts too: its partners' traders come more often). The line sits at the full carry, not below it, so every
  *   route of the first two missions, the military provinces of steps 3 to 5,
  *   Paestum, Oasis Aurea and Urbs Magna keeps its pace (the busiest, Aquileia's
  *   caravans at 3,200 and Corinthus's ships at 5,200, are at 92% and 90% of
@@ -55,6 +56,8 @@ import { TRADE_PARTNERS } from '../data/scenarios.js';
 import { homeSiteId } from '../data/sites.js';
 import { tripDays } from '../data/empireRoutes.js';
 import { onlyOn } from './tradeSwitches.js';
+import { openOf } from './monumentEffects.js';
+import { TRADE_BOOST } from '../data/monuments.js';
 
 /** The original's yearly quota tiers (15, 25 and 40 loads of 100), and 0 for none. */
 export const DEMAND_TIERS = Object.freeze([0, 1500, 2500, 4000]);
@@ -110,9 +113,33 @@ export function buysInForce(scenario, seed, partnerId, month, before = -1) {
   return out;
 }
 
-/** What a partner buys in this game now (good -> units a year). */
+/**
+ * The factor a working monument puts on a partner's yearly amounts: a lit
+ * Pharus TRADE_BOOST for every sea partner, a fed Mansio Magna for every
+ * land partner (sim/monumentEffects.js), else 1.
+ */
+export function tradeBoost(game, partnerId) {
+  const sea = TRADE_PARTNERS[partnerId]?.route === 'sea';
+  return openOf(game, sea ? 'pharus' : 'mansio_magna') ? TRADE_BOOST : 1;
+}
+
+/** Amounts (good -> units a year) times a factor, each to the nearest 100 (unchanged at 1). */
+function boosted(amounts, f) {
+  if (f === 1) return amounts;
+  const out = {};
+  for (const [g, n] of Object.entries(amounts)) out[g] = Math.round((n * f) / 100) * 100;
+  return out;
+}
+
+/** What a partner buys in this game now (good -> units a year), with a working monument's boost. */
 export function partnerBuys(game, partnerId) {
-  return buysInForce(game.scenario, game.seed, partnerId, game.time.totalMonths);
+  return boosted(buysInForce(game.scenario, game.seed, partnerId, game.time.totalMonths), tradeBoost(game, partnerId));
+}
+
+/** What a partner sells in this game now (good -> units a year): its table's, with a working monument's boost. */
+export function partnerSells(game, partnerId) {
+  const p = TRADE_PARTNERS[partnerId];
+  return p ? boosted(p.sells, tradeBoost(game, partnerId)) : {};
 }
 
 /**
@@ -169,7 +196,7 @@ export function visitInterval(kind, volume, trip = 0) {
 export function routeInterval(game, partnerId) {
   const p = TRADE_PARTNERS[partnerId];
   const kind = p?.route === 'sea' ? 'sea' : 'land';
-  const volume = p ? routeVolume(onlyOn(game, partnerId, partnerBuys(game, partnerId)), onlyOn(game, partnerId, p.sells)) : 0;
+  const volume = p ? routeVolume(onlyOn(game, partnerId, partnerBuys(game, partnerId)), onlyOn(game, partnerId, partnerSells(game, partnerId))) : 0;
   return visitInterval(kind, volume, p ? tripDays(homeSiteId(game), partnerId) : 0);
 }
 

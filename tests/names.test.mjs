@@ -34,6 +34,7 @@ const KEYS = ['house', 'well', 'fountain', 'reservoir', 'barber', 'clinic', 'bat
   'farm_wheat', 'farm_veg', 'farm_fruit', 'farm_pig', 'farm_olive', 'farm_vine', 'farm_flax', 'clay_pit', 'timber_yard', 'iron_mine', 'marble_quarry', 'pottery_ws',
   'furniture_ws', 'oil_ws', 'wine_ws', 'weapons_ws', 'fletcher_ws', 'linen_ws', 'clothing_ws', 'market', 'granary', 'warehouse', 'dock', 'shipyard', 'wharf',
   'horse_ranch', 'barracks', 'military_academy', 'fort_legion', 'fort_archer', 'fort_cavalry', 'tower', 'navalia', 'portus', 'naval_station',
+  'work_camp', 'fanum_ceres', 'fanum_neptune', 'fanum_mercury', 'fanum_mars', 'fanum_venus', 'pantheum', 'pharus', 'mansio_magna', 'thermae', 'basilica',
   'mission_post', 'native_hut', 'native_meeting', 'native_crops'];
 
 test('names: every building and tool has a Latin name and an English one; only Clear Land stays English', () => {

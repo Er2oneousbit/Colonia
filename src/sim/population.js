@@ -25,6 +25,8 @@ import { romeWage } from './economy.js';
 import { houseWantsGood, foodKindsWanted } from './market.js';
 import { sendEmigrants } from './housing.js';
 import { newHousehold } from './mood.js';
+import { openOf } from './monumentEffects.js';
+import { THERMAE } from '../data/monuments.js';
 
 /** Daily: recompute population, workforce inputs and goods demand. */
 export function computeCityStats(game) {
@@ -306,6 +308,8 @@ export function computeSentiment(game) {
   // Venus's blessing or wrath (sim/religion.js), decaying like the festival
   // boost; listed only while it is felt.
   if (c.venusBoost) f.venus = c.venusBoost;
+  // The Great Baths at work: listed only while they are (sim/monumentEffects.js).
+  if (openOf(game, 'thermae')) f.monument = THERMAE.mood;
   f.newCity = Math.round(CONFIG.NEW_CITY_MOOD * newCityShare(game.time.totalDays));
   if (game.difficulty.mood) f.difficulty = game.difficulty.mood; // Insane: a hard-to-please populace
   let s = 0;

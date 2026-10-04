@@ -23,6 +23,8 @@
   water=1 (fishing and races only: shipyard, wharf, boats, the hippodrome, chariots)
   cloth=1 (the cloth industry only: the flax farm as it grows and rests, the two workshops, the carts)
   navy=1 (the fleet only: the navalia and naval station on each side, liburnians and raider ships)
+  monuments=1 (the monuments only: each at every stage, the Pharus on each water side, the five
+           gods' sanctuaries, the work camp, and the 5x5 ones at turns 0 to 3)
   bridges=1 (the bridges only: the Pons over a merchant ship, its ramps up from the banks, the
            Pons Sublicius with its short ramps, both ways along the screen, and under snow)
   turns=1 (turned art only: every building and home level at turns 0, 1, 2 and 3; turns=farm,temple
@@ -41,6 +43,7 @@
   import { GOOD_KEYS } from '../../src/data/goods.js';
   import { BUILDINGS } from '../../src/data/buildings.js';
   import { spanLayout } from '../../src/sim/entities.js';
+  import { MONUMENT_TYPES } from '../../src/data/monuments.js';
 
   const q = new URLSearchParams(location.search);
   const scale = Number(q.get('scale') || 2);
@@ -48,10 +51,11 @@
   const water = !!q.get('water');
   const cloth = !!q.get('cloth');
   const navy = !!q.get('navy');
+  const monuments = !!q.get('monuments');
   const bridges = !!q.get('bridges');
   const governor = !!q.get('governor');
   const turns = q.get('turns');
-  const only = q.get('carts') || water || cloth || navy || bridges || governor || turns ? [] : q.get('tiers') ? q.get('tiers').split(',').map(Number) : null;
+  const only = q.get('carts') || water || cloth || navy || monuments || bridges || governor || turns ? [] : q.get('tiers') ? q.get('tiers').split(',').map(Number) : null;
   const sheet = document.getElementById('sheet');
 
   /** Draw one sprite spec into a new canvas at `scale`. */
@@ -240,6 +244,37 @@
       shipSpec({ type: 'raider_ship', state: 'leave', moving: true, hp: 40, maxHp: 140 }, 'damaged, leaving'),
     ]);
   }
+  if (!only || q.get('extras') || monuments) {
+    // The monuments (render/monumentArt.js): each at every stage, its state
+    // the stage under way (the number of stages once finished); the Pharus
+    // with its two rows on the water (state + 8 * side), water drawn under
+    // them; the five gods' sanctuaries; the work camp; the 5x5 ones turned.
+    const stagesOf = (key) => MONUMENT_TYPES[BUILDINGS[key].mon].stages;
+    const stageCells = (key, side = 0, wrap = (s) => s) => stagesOf(key).map((st, k) => [`${k}: ${st.en}`, wrap(buildingSpec(key, BUILDINGS[key].size, 0, k + 8 * side))])
+      .concat([['finished', wrap(buildingSpec(key, BUILDINGS[key].size, 0, stagesOf(key).length + 8 * side))]]);
+    const S3 = 3;
+    const pharusWater = (side) => (spec) => ({ ...spec, w: spec.w + 70, h: spec.h + 34, ax: spec.ax + 35, draw(ctx) {
+      // its two front rows and a strip beyond them are water (designed on +u, turned as waterArt.js turner)
+      const rows = [[1, 0, S3 + 0.9, S3], [0, 1, S3, S3 + 0.9], [-0.9, 0, 2, S3], [0, -0.9, S3, 2]];
+      const [u0, v0, u1, v1] = [rows[3], rows[0], rows[1], rows[2]][side];
+      const P = (u, v) => [(u - v) * 32, (u + v) * 16];
+      ctx.fillStyle = '#4a90c8';
+      ctx.beginPath();
+      for (const [u, v] of [[u0, v0], [u1, v0], [u1, v1], [u0, v1]]) ctx.lineTo(...P(u, v));
+      ctx.fill();
+      spec.draw(ctx);
+    } });
+    for (const key of ['pantheum', 'fanum_ceres', 'thermae', 'basilica', 'mansio_magna']) section(`${BUILDINGS[key].en} (${key}): each stage under way, then finished`, stageCells(key));
+    section('Pharus (Lighthouse): each stage under way, then finished, its water to the lower right (side 1)', stageCells('pharus', 1, pharusWater(1)));
+    section('Pharus: finished, and its piers begun, on each water side (0 = -y, 1 = +x, 2 = +y, 3 = -x)', [0, 1, 2, 3].flatMap((side) => [4, 0].map((st) => [`side ${side}${st ? '' : ', piers'}`, pharusWater(side)(buildingSpec('pharus', 3, 0, st + 8 * side))])));
+    section('Fanum: the five gods\' sanctuaries, finished', ['ceres', 'neptune', 'mercury', 'mars', 'venus'].map((g) => [g, buildingSpec(`fanum_${g}`, 5, 0, 4)]));
+    section('Castra Operarum (Work Camp), and turned', [0, 1, 2, 3].map((t) => [`turn ${t}`, buildingSpec('work_camp', 3, 0, 0, false, 0, false, t)]));
+    for (const key of ['pantheum', 'fanum_mars', 'thermae', 'basilica', 'mansio_magna']) {
+      const n = stagesOf(key).length;
+      section(`${BUILDINGS[key].en}: finished, then half built, at turns 0 to 3`, [0, 1, 2, 3].flatMap((t) => [n, Math.max(1, n - 2)].map((st) => [`turn ${t}${st < n ? `, stage ${st}` : ''}`, buildingSpec(key, 5, 0, st, false, 0, false, t)])));
+    }
+    section('Under snow: finished, and a site', [['pantheum', 5], ['fanum_venus', 4], ['basilica', 2], ['thermae', 4]].map(([k, st]) => [`${k} ${st}`, buildingSpec(k, 5, 0, st, false, 2)]));
+  }
   if (!only || q.get('extras') || bridges) {
     // The bridges as the game lays them: a bank road tile, the water tiles,
     // the far bank, drawn back to front along the screen's u axis (right
@@ -289,7 +324,7 @@
       ['Pons in snow', pons('u', 1)],
     ]);
   }
-  if ((!only || q.get('extras') || q.get('carts') || cloth) && !water && !navy && !bridges) {
+  if ((!only || q.get('extras') || q.get('carts') || cloth) && !water && !navy && !monuments && !bridges) {
     // Carts: every good at a part load (100 of a hand cart's 200) and a full
     // load, facing right then left; farm wagons at 100 and 400; horses led;
     // caravan mules coming in (bales) and going out with what they bought.

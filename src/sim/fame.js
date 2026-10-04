@@ -14,7 +14,9 @@
  *       plan allows; whole points)
  *   D = the difficulty: Easy 0.5, Normal 1, Hard 1.5, Insane 2
  *   score = round(D x (R + P + S)) + 50 for each distant battle won and 25
- *   for each raid repelled in that mission (shown as lines of their own).
+ *   for each raid repelled in that mission, and 150 for a finished monument
+ *   standing at the win (data/monuments.js FAME_MONUMENT; shown as lines of
+ *   their own). A monument is never a goal: it is rewarded here instead.
  *   Worked example: Firmum on Normal, ratings 45 + 30 + 50 + 40 = 165; 1,800
  *   people for a goal of 1,600: P 112; won in 6 years where the plan says
  *   4.5: S 75; one battle won and two raids repelled: 352 + 50 + 50 = 452.
@@ -32,6 +34,8 @@
  */
 
 import { LAST_STEP, stepOf } from '../data/scenarios.js';
+import { FAME_MONUMENT } from '../data/monuments.js';
+import { cityMonument, isFinished } from './monumentEffects.js';
 
 /** The score's multiplier for each difficulty. */
 export const FAME_MULT = Object.freeze({ easy: 0.5, normal: 1, hard: 1.5, insane: 2 });
@@ -66,7 +70,7 @@ export function cleanFame(raw) {
 
 /**
  * The score of a win from its numbers.
- * @param {object} w  { ratings: {culture, prosperity, peace, favor}, population, goal, paceYears, months, difficulty, battles, raids }
+ * @param {object} w  { ratings: {culture, prosperity, peace, favor}, population, goal, paceYears, months, difficulty, battles, raids, monument (1: a finished monument stands) }
  * @returns {{ratings:number, population:number, pace:number, mult:number, base:number, battles:number, raids:number, score:number}}
  */
 export function winScore(w) {
@@ -80,7 +84,8 @@ export function winScore(w) {
   const base = Math.round(mult * (R + P + S));
   const battles = (w.battles || 0) * FAME_BATTLE;
   const raids = (w.raids || 0) * FAME_RAID;
-  return { ratings: R, population: P, pace: S, mult, base, battles, raids, score: base + battles + raids };
+  const monument = w.monument ? FAME_MONUMENT : 0;
+  return { ratings: R, population: P, pace: S, mult, base, battles, raids, monument, score: base + battles + raids + monument };
 }
 
 /**
@@ -111,6 +116,7 @@ export function winOf(game) {
     difficulty: game.difficultyKey,
     battles: m.battles?.won || 0,
     raids: m.stats?.repelled || 0,
+    monument: finishedMonument(game) ? 1 : 0,
   };
   return {
     mission: s.id,
@@ -123,9 +129,16 @@ export function winOf(game) {
     population: c.population,
     battlesWon: numbers.battles,
     raidsRepelled: numbers.raids,
+    monument: finishedMonument(game)?.def.name || null,
     parts: winScore(numbers),
     score: winScore(numbers).score,
   };
+}
+
+/** The city's finished monument standing at the win, or null (sim/monumentEffects.js). */
+function finishedMonument(game) {
+  const b = cityMonument(game);
+  return b && isFinished(b) ? b : null;
 }
 
 /** The career's score from each mission's best: the best win at each step, plus FAME_CAESAR once the last step is won. */

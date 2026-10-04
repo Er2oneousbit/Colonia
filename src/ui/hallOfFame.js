@@ -12,6 +12,7 @@ import { h, fmt } from './dom.js';
 import { DIFFICULTY } from '../data/difficulty.js';
 import { LAST_STEP } from '../data/scenarios.js';
 import { FAME_TOP, FAME_BATTLE, FAME_RAID, FAME_CAESAR, ordinal } from '../sim/fame.js';
+import { FAME_MONUMENT } from '../data/monuments.js';
 
 /** A stored date (YYYY-MM-DD) as the list shows it, or a dash. */
 function dateText(d) {
@@ -39,7 +40,7 @@ export function hallOfFameBody(app) {
         h('tr', {}, h('th', {}, '#'), h('th', {}, 'Province'), h('th', {}, 'Level'), h('th', { class: 'r' }, 'Score'), h('th', { class: 'r' }, 'Years'), h('th', { class: 'r' }, 'Won')),
         rows)
       : null,
-    h('p', { class: 'muted' }, `The ${FAME_TOP} best wins, each province once with its best. A win scores its four ratings added, plus 100 x its people / the population goal (at most 200), plus 100 x the planned years / the years it took (at most 150), all times the difficulty (Easy x0.5, Normal x1, Hard x1.5, Insane x2), plus ${FAME_BATTLE} for each distant battle won and ${FAME_RAID} for each raid repelled. The career adds the best win at each of the ${LAST_STEP} steps, and ${FAME_CAESAR} once Rome hails you Caesar. The sandbox is not scored.`),
+    h('p', { class: 'muted' }, `The ${FAME_TOP} best wins, each province once with its best. A win scores its four ratings added, plus 100 x its people / the population goal (at most 200), plus 100 x the planned years / the years it took (at most 150), all times the difficulty (Easy x0.5, Normal x1, Hard x1.5, Insane x2), plus ${FAME_BATTLE} for each distant battle won, ${FAME_RAID} for each raid repelled and ${FAME_MONUMENT} for a finished monument. The career adds the best win at each of the ${LAST_STEP} steps, and ${FAME_CAESAR} once Rome hails you Caesar. The sandbox is not scored.`),
   ];
 }
 
@@ -60,6 +61,7 @@ export function fameVictoryLines(app) {
     h('tr', {}, h('td', {}, `x ${p.mult} (${level})`), h('td', { class: 'r num' }, fmt(p.base))),
     p.battles ? h('tr', {}, h('td', {}, `Distant battles won (${win.battlesWon})`), h('td', { class: 'r num' }, `+${fmt(p.battles)}`)) : null,
     p.raids ? h('tr', {}, h('td', {}, `Raids repelled (${win.raidsRepelled})`), h('td', { class: 'r num' }, `+${fmt(p.raids)}`)) : null,
+    p.monument ? h('tr', {}, h('td', {}, `A finished monument (${win.monument || 'its monument'})`), h('td', { class: 'r num' }, `+${fmt(p.monument)}`)) : null,
   ];
   const where = best
     ? place ? `the ${ordinal(place)} best win in the Hall of Fame` : `a new best for ${win.name}, not among the ${FAME_TOP} best wins`

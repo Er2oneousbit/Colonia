@@ -13,6 +13,7 @@ import { iconCanvas } from './icons.js';
 import { Minimap } from '../render/minimap.js';
 import { planNoRoadWarning, turnRule } from '../sim/construction.js';
 import { archesToBuild } from '../sim/battle.js';
+import { monumentRefused, cityMonument } from '../sim/monuments.js';
 
 /**
  * The English name under the Latin one (Castra, then "Legion Fort"), smaller
@@ -94,15 +95,17 @@ export class Sidebar {
       h('div', { class: 'build-cat-title' }, cat ? cat.name : ''),
       items.map(({ key, def }) => {
         const unlocked = !g || g.isUnlocked(key);
+        // One monument per city: with one standing (or being built) the others are greyed out, saying why.
+        const refused = g && unlocked && def.kind === 'monument' ? monumentRefused(g, key) : null;
         const cost = def.kind === 'arch' ? `Free (${this.archSig})` : def.cost ? `${def.cost} Dn` : '';
         return h('button', {
-          class: `build-item${current === key ? ' active' : ''}${unlocked ? '' : ' locked'}`,
+          class: `build-item${current === key ? ' active' : ''}${unlocked && !refused ? '' : ' locked'}`,
           dataset: { key }, // for the smoke test, which should not depend on the wording
-          title: `${fullName(def)}\n${unlocked ? def.desc : 'Not available in this scenario'}`,
-          onclick: () => { if (unlocked) this.app.ui.selectTool(key); },
+          title: `${fullName(def)}\n${refused || (unlocked ? def.desc : 'Not available in this scenario')}`,
+          onclick: () => { if (refused) this.app.ui.toastError(refused); else if (unlocked) this.app.ui.selectTool(key); },
           onmouseenter: () => { if (!this.app.input?.tool) this.showToolInfo(key, true); },
           onmouseleave: () => { if (!this.app.input?.tool) this.showToolInfo(null); },
-        }, iconCanvas(key), h('span', { class: 'nm' }, def.name, englishName(def), unlocked ? null : h('div', { class: 'muted', style: { fontSize: '11px' } }, 'Locked')), h('span', { class: 'cost' }, cost));
+        }, iconCanvas(key), h('span', { class: 'nm' }, def.name, englishName(def), unlocked ? null : h('div', { class: 'muted', style: { fontSize: '11px' } }, 'Locked'), refused ? h('div', { class: 'muted', style: { fontSize: '11px' } }, refused) : null), h('span', { class: 'cost' }, cost));
       }));
   }
 
@@ -124,7 +127,7 @@ export class Sidebar {
       const ns = def.span > 1 && (this.app.input?.turnFor(key) ?? 0) % 2 === 1;
       facts.push(ns ? `${def.size}×${def.size * def.span}` : `${def.size * (def.span || 1)}×${def.size}`);
     }
-    if (def.workers) facts.push(`${def.workers} workers (${LABOR_CATEGORIES[def.labor] || 'Industry'})`);
+    if (def.workers) facts.push(`${def.workers} workers${def.kind === 'monument' ? ' once finished' : ''} (${LABOR_CATEGORIES[def.labor] || 'Industry'})`);
     this.planEl = h('div', {});
     mount(this.infoEl,
       h('h4', {}, def.name, englishName(def), preview ? null : this.turnButton(key)),
@@ -181,5 +184,9 @@ export class Sidebar {
     this.undoBtn.disabled = !this.app.canUndo();
     // An arch earned or built: the Government list shows it, or stops showing it.
     if (this.category === 'government' && archesToBuild(g) !== this.archSig) this.renderList();
+    // A monument placed or gone: the Monuments list greys the others out, or opens them again.
+    const mon = cityMonument(g)?.id || 0;
+    if (this.category === 'monuments' && mon !== this.monSig) this.renderList();
+    this.monSig = mon;
   }
 }

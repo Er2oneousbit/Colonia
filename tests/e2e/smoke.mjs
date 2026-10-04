@@ -3047,6 +3047,164 @@ try {
     await gp.close();
   }
 
+  // 6e3. Monuments (sim/monuments.js), on a page of their own: a Basilica's
+  //      site, a work camp beside it and a warehouse by the camp are picked
+  //      from the build menu and placed with the mouse on the city's roads,
+  //      and a well beside the camp; the other monuments are then greyed
+  //      out; with clay and timber in the warehouse the camp's ox cart brings
+  //      a load to the site, whose panel shows its stage and goods. Then the
+  //      console finishes it, and the finished Basilica is drawn from all
+  //      four sides without an error.
+  {
+    const mp = await ctx.newPage();
+    const merrors = [];
+    mp.on('pageerror', (e) => merrors.push(`pageerror: ${e.message}`));
+    mp.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) merrors.push(m.text()); });
+    await mp.goto(`${url}?skipmenu=1&map=small&maptype=plains&seed=demo&mute=1&money=90000`);
+    await mp.waitForFunction(() => window.colonia && window.colonia.game, null, { timeout: 15000 });
+    const monAt = await mp.evaluate(() => {
+      const app = window.colonia;
+      app.paused = true;
+      app.renderer.camera.zoomIndex = 1;
+      app.ui.console.run('demo 2');
+      const g = app.game;
+      g.runDays(60); // people in the homes, for the camp's workers
+      const m = g.map;
+      const net = m.roadNet[m.idx(m.entry.x, m.entry.y)];
+      const taken = [];
+      const clear = (x, y, S) => {
+        for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) if (!m.inBounds(x + dx, y + dy) || !m.isFree(x + dx, y + dy) || m.terrain[m.idx(x + dx, y + dy)] === 2) return false;
+        return !taken.some((t) => x < t.x + t.S + 1 && x + S + 1 > t.x && y < t.y + t.S + 1 && y + S + 1 > t.y);
+      };
+      const onRoad = (x, y, S) => {
+        for (let k = 0; k < S; k++) {
+          for (const [tx, ty] of [[x + k, y - 1], [x + k, y + S], [x - 1, y + k], [x + S, y + k]]) {
+            if (m.inBounds(tx, ty) && m.road[m.idx(tx, ty)] && m.roadNet[m.idx(tx, ty)] === net) return true;
+          }
+        }
+        return false;
+      };
+      const near = (S, from, maxD) => {
+        let best = null;
+        for (let y = 1; y < m.h - S - 1; y++) {
+          for (let x = 1; x < m.w - S - 1; x++) {
+            const d = Math.hypot(x - from.x, y - from.y);
+            if (d > maxD || (best && d >= best.d) || !clear(x, y, S) || !onRoad(x, y, S)) continue;
+            best = { x, y, d, S };
+          }
+        }
+        if (best) taken.push(best);
+        return best;
+      };
+      const home = [...g.buildings.values()].find((b) => b.house && b.house.pop > 0);
+      const site = home ? near(5, home, 40) : null;
+      const camp = site ? near(3, site, 14) : null;
+      const store = camp ? near(3, camp, 14) : null;
+      if (!site || !camp || !store) return null;
+      // A tile for a well within its reach of the camp (2 tiles), clear of the rest.
+      const inside = (x, y) => taken.some((t) => x >= t.x && x < t.x + t.S && y >= t.y && y < t.y + t.S);
+      let well = null;
+      for (let y = camp.y - 2; y <= camp.y + 4 && !well; y++) {
+        for (let x = camp.x - 2; x <= camp.x + 4 && !well; x++) {
+          if (m.inBounds(x, y) && m.isFree(x, y) && m.terrain[m.idx(x, y)] !== 2 && !inside(x, y)) well = { x, y, ax: x, ay: y };
+        }
+      }
+      if (!well) return null;
+      return { site: { x: site.x, y: site.y, ax: site.x + 2, ay: site.y + 2 }, camp: { x: camp.x, y: camp.y, ax: camp.x + 1, ay: camp.y + 1 }, store: { x: store.x, y: store.y, ax: store.x + 1, ay: store.y + 1 }, well };
+    });
+    check('the demo city has room on its roads for a monument\'s site, a work camp and a warehouse', !!monAt);
+    if (monAt) {
+      const mScreen = (tx, ty) => mp.evaluate(([x, y]) => {
+        const app = window.colonia;
+        const cam = app.renderer.camera;
+        const wx = (x + 0.5 - (y + 0.5)) * 32;
+        const wy = (x + 0.5 + (y + 0.5)) * 16;
+        const r = app.canvas.getBoundingClientRect();
+        return { x: r.left + ((wx - cam.x) * cam.scale) / cam.dpr, y: r.top + ((wy - cam.y) * cam.scale) / cam.dpr };
+      }, [tx, ty]);
+      const placeFromMenu = async (cat, key, at) => {
+        await mp.evaluate(({ ax, ay }) => { const app = window.colonia; app.renderer.camera.centerOnTile(ax, ay); app.renderer.render(0, 0.016); }, at);
+        await mp.click(`.cat-btn[title^="${cat}"]`);
+        const listed = await mp.isVisible(`.build-item[data-key="${key}"]`);
+        if (listed) await mp.click(`.build-item[data-key="${key}"]`);
+        const tool = await mp.evaluate(() => window.colonia.input.tool);
+        if (tool === key) {
+          const p = await mScreen(at.ax, at.ay);
+          await mp.mouse.move(p.x - 4, p.y);
+          await mp.mouse.move(p.x, p.y);
+          await mp.waitForTimeout(100);
+          await mp.mouse.click(p.x, p.y);
+        }
+        if (await mp.evaluate(() => window.colonia.input.tool)) await mp.keyboard.press('Escape');
+        const placed = await mp.evaluate(({ x, y, k }) => {
+          const g = window.colonia.game;
+          const b = g.buildings.get(g.map.building[g.map.idx(x, y)]);
+          return !!b && b.type === k && b.x === x && b.y === y;
+        }, { ...at, k: key });
+        return { listed, tool, placed };
+      };
+      const sitePlaced = await placeFromMenu('Monuments', 'basilica', monAt.site);
+      const greyed = await mp.evaluate(() => {
+        const el = document.querySelector('.build-item[data-key="thermae"]');
+        return { locked: !!el && el.classList.contains('locked'), why: el ? el.title : '' };
+      });
+      const campPlaced = await placeFromMenu('Monuments', 'work_camp', monAt.camp);
+      const storePlaced = await placeFromMenu('Storage', 'warehouse', monAt.store);
+      const wellPlaced = await placeFromMenu('Water', 'well', monAt.well); // (no road needed: it waters the camp)
+      check('a Basilica\'s site and a Castra Operarum are picked from the Monuments menu and placed; the other monuments are greyed out, saying why',
+        sitePlaced.listed && sitePlaced.placed && campPlaced.listed && campPlaced.placed && storePlaced.placed && wellPlaced.placed && greyed.locked && /one monument: the Basilica/.test(greyed.why) && merrors.length === 0,
+        JSON.stringify({ monAt, sitePlaced, campPlaced, storePlaced, wellPlaced, greyed, merrors }));
+      const hauled = await mp.evaluate(({ site, camp, store }) => {
+        const app = window.colonia;
+        const g = app.game;
+        const at = (p) => g.buildings.get(g.map.building[g.map.idx(p.x, p.y)]);
+        const s = at(site);
+        const c = at(camp);
+        const wh = at(store);
+        if (!s || !c || !wh) return null;
+        wh.stock.clay = 1000;
+        wh.stock.timber = 400;
+        const out = { cart: false, got: 0 };
+        for (let d = 0; d < 80 && !(out.got > 0); d++) {
+          g.runDays(1);
+          out.cart ||= c.walkers.some((id) => g.walkers.get(id)?.state === 'campHaul');
+          out.got = Object.values(s.mon.got).reduce((a, n) => a + n, 0);
+        }
+        out.camp = { staff: c.workers, water: c.camp.water, fed: c.camp.fed };
+        app.ui.info.showBuilding(s.id);
+        out.panel = document.querySelector('#info-panel')?.textContent || '';
+        app.ui.info.close();
+        return out;
+      }, monAt);
+      check('the work camp\'s ox cart brings a load from the warehouse to the site, whose panel shows its stage and goods',
+        !!hauled && hauled.cart && hauled.got > 0 && /Stage 1 of 4: Fundamenta/.test(hauled.panel) && /Clay/.test(hauled.panel) && /Halt construction/.test(hauled.panel) && merrors.length === 0,
+        JSON.stringify({ ...hauled, panel: (hauled?.panel || '').slice(0, 240), merrors }));
+      const drawn = await mp.evaluate(({ site }) => {
+        const app = window.colonia;
+        const g = app.game;
+        const reply = app.ui.console.run('monument basilica done');
+        const b = g.buildings.get(g.map.building[g.map.idx(site.x, site.y)]);
+        const out = { reply, finished: !!b && b.mon.stage === 4, turns: [] };
+        for (let t = 0; t < 4; t++) {
+          app.renderer.camera.setTurn(t);
+          app.renderer.camera.centerOnTile(site.x + 2, site.y + 2);
+          app.renderer.render(0, 0.016);
+          out.turns.push(app.renderer.camera.turn);
+        }
+        app.renderer.camera.setTurn(0);
+        app.ui.info.showBuilding(b.id);
+        out.panel = document.querySelector('#info-panel')?.textContent || '';
+        app.ui.info.close();
+        return out;
+      }, monAt);
+      if (shots) await mp.screenshot({ path: path.join(shots, 'smoke-monument.png') });
+      check('a finished monument is drawn from all four sides without an error, and its panel says what it does',
+        drawn.finished && drawn.turns.join() === '0,1,2,3' && /prosperity rises by 8/.test(drawn.panel) && merrors.length === 0,
+        JSON.stringify({ ...drawn, panel: drawn.panel.slice(0, 200), merrors }));
+    }
+    await mp.close();
+  }
+
   // 6d2. Peoples and wolves (data/peoples.js, sim/wildlife.js): a sandbox at
   //      Narbo Martius set to the province's own people and with wolves:
   //      the Cimbri raid it and packs roam its woods; a click on a wolf and

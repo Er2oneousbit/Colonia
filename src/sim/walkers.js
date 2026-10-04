@@ -27,6 +27,7 @@ import { physicianArrive, physicianAfterWait } from './disease.js';
 import { boatArrive, boatAfterWait } from './fishing.js';
 import { boatBlocked } from './bridges.js';
 import { nativeTraderArrive, nativeTraderReroute } from './natives.js';
+import { campFetchArrive, campHaulArrive, campFoodArrive, monSupplyArrive, crewArrive, monumentWalkerHome } from './monuments.js';
 import { FOOD_TYPES } from '../data/goods.js';
 
 /** Advance every walker by one tick. */
@@ -237,6 +238,24 @@ function onPathEnd(game, w) {
     case 'nativeHome':
       killWalker(game, w);
       break;
+    // A work camp's ox cart at a warehouse, then at its site; its food buyer
+    // at a granary; its crew at the site; a monument's own store cart
+    // (sim/monuments.js).
+    case 'campFetch':
+      campFetchArrive(game, w);
+      break;
+    case 'campHaul':
+      campHaulArrive(game, w);
+      break;
+    case 'campFood':
+      campFoodArrive(game, w);
+      break;
+    case 'crewOut':
+      crewArrive(game, w);
+      break;
+    case 'monSupply':
+      monSupplyArrive(game, w);
+      break;
     default:
       killWalker(game, w);
   }
@@ -247,6 +266,10 @@ function returnHome(game, w) {
   const origin = game.buildings.get(w.origin);
   if (origin && origin.def.kind === 'dock' && w.type === 'cart') {
     dockWorkerHome(game, w, origin); // hands an export to the ship, sends the dock's workers out again
+    return;
+  }
+  if (origin && (origin.def.kind === 'work_camp' || origin.def.kind === 'monument')) {
+    monumentWalkerHome(game, w, origin); // the larder, the store, the crew's rest (sim/monuments.js)
     return;
   }
   if (origin) {

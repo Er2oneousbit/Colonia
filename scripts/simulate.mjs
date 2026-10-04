@@ -34,6 +34,7 @@
  *   npm run sim -- --events off   (no events: the city as before they existed)
  *   npm run sim -- --events wages,clay   (the sandbox with only these random events switched on)
  *   npm run sim -- --scenario c10p --years 10   (a mission's events: Puteoli's earthquake in its 8th year)
+ *   npm run sim -- --level 3 --years 6 --monument basilica   (a monument: how long it takes, what it costs)
  *
  * Campaign runs build every building unless --unlocks is given (then only
  * what the mission unlocks), so their numbers stay comparable with earlier
@@ -68,6 +69,11 @@ import { PEOPLES } from '../src/data/peoples.js';
 import { quakeSummary } from '../src/sim/events.js';
 import { parseEventsOption, EVENT_SWITCHES } from '../src/data/events.js';
 import { careInfo, careApplies, YARD_TYPE } from '../src/sim/gardens.js';
+import { buildDemoMonument } from '../src/dev/demoCity.js';
+import { MONUMENT_TYPES, monumentTotals } from '../src/data/monuments.js';
+import { GOODS } from '../src/data/goods.js';
+import { isFinished } from '../src/sim/monumentEffects.js';
+import { stageOf } from '../src/sim/monuments.js';
 
 const HELP = `
 Headless balance simulation
@@ -143,6 +149,13 @@ Options:
                     --legion-size n), with favor held at 5 so they attack; a Governor's House goes up
                     with the city. Reports the fight: men killed, soldiers lost, buildings lost, the
                     residence, and whether the city was overrun (a mission's loss)
+  --monument <key>  in month 12 (or --monument-month m), a monument's site beside the city (the
+                    Pharus on the shore), a work camp near it with a well, and a warehouse by the
+                    camp, kept stocked each month with what the stage under way still needs (a
+                    stand-in for the quarries, workshops and imports; reported at import prices).
+                    Keys: fanum_ceres (and the other gods), pantheum, pharus, mansio_magna,
+                    thermae, basilica. Reports when each stage was done, the money, the goods, the
+                    upkeep and the camp's staffing, food and water
   --json            print a JSON summary at the end
   --pace            print the campaign's pace (the fewest months each goal takes) and exit
   --capacity        print what each mission's buildings can employ (sim/capacity.js) and exit
@@ -151,7 +164,7 @@ Options:
 `;
 
 function parse(argv) {
-  const o = { harbor: 0, scenario: null, type: 'river', size: 64, seed: 'demo', years: 3, level: 2, difficulty: 'normal', json: false, verbose: false, garrison: false, raids: null, pace: false, caretaker: false, capacity: false, unlocks: false, homes: Infinity, fishing: 0, venues: false, hippodrome: false, uptown: false, cloth: false, clothOff: 0, blocks: 1, villas: 0, wine: false, seaRaids: null, events: 'on', navy: false, salary: false, academy: false, academyLate: null, legion: 0, legionSize: 0, people: null, wolves: null, lowBridge: false, natives: false, festivals: true };
+  const o = { harbor: 0, scenario: null, type: 'river', size: 64, seed: 'demo', years: 3, level: 2, difficulty: 'normal', json: false, verbose: false, garrison: false, raids: null, pace: false, caretaker: false, capacity: false, unlocks: false, homes: Infinity, fishing: 0, venues: false, hippodrome: false, uptown: false, cloth: false, clothOff: 0, blocks: 1, villas: 0, wine: false, seaRaids: null, events: 'on', navy: false, salary: false, academy: false, academyLate: null, legion: 0, legionSize: 0, people: null, wolves: null, lowBridge: false, natives: false, festivals: true, monument: null, monumentMonth: 12 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -189,6 +202,8 @@ function parse(argv) {
     else if (a === '--academy-late') o.academyLate = Number(next());
     else if (a === '--legion') o.legion = Number(next());
     else if (a === '--legion-size') o.legionSize = Number(next());
+    else if (a === '--monument') o.monument = next();
+    else if (a === '--monument-month') o.monumentMonth = Number(next());
     else if (a === '--verbose') o.verbose = true;
     else if (a === '--pace') o.pace = true;
     else if (a === '--caretaker') o.caretaker = true;
@@ -235,6 +250,7 @@ if (opts.capacity) {
   }
   process.exit(0);
 }
+if (opts.monument && BUILDINGS[opts.monument]?.kind !== 'monument') { console.error(`--monument takes a monument's key: ${Object.keys(BUILDINGS).filter((k) => BUILDINGS[k].kind === 'monument').join(', ')}`); process.exit(2); }
 if (!DIFFICULTY[opts.difficulty]) { console.error(`Unknown difficulty ${opts.difficulty} (${Object.keys(DIFFICULTY).join(' | ')})`); process.exit(2); }
 
 const scenario = opts.scenario
@@ -428,6 +444,58 @@ function buildLateAcademy(m) {
   lateAcademy.academy = buildDemoAcademy(game, res.center);
   if (!game.city.laborPriority.includes('military')) game.city.laborPriority.unshift('military');
 }
+// --monument: a monument built beside the city (see the help). Without it
+// the run is exactly what it always was.
+const mon = { site: null, camp: null, warehouse: null, from: 0, money0: 0, spent: 0, supplied: {}, stages: [], staff: [], factor: [], upkeep: 0, summary: null, finishedMonth: null };
+function buildMonument(m) {
+  const before = game.city.treasury;
+  const r = buildDemoMonument(game, res.center, opts.monument);
+  if (!r.ok) { console.log(`Monument: ${opts.monument} could not be built here${r.site ? ' (no room for its camp or warehouse)' : ''}`); return; }
+  Object.assign(mon, { site: r.site, camp: r.camp, warehouse: r.warehouse, from: m, money0: before - game.city.treasury });
+  mon.lastStage = 0;
+  mon.ledger0 = (game.city.finance.thisYear.construction || 0);
+  console.log(`Monument: ${r.site.def.name} (${r.site.def.en}) at ${r.site.x},${r.site.y} in month ${m}; work camp at ${r.camp.x},${r.camp.y} (${r.well ? 'a well beside it' : 'no well'}), warehouse at ${r.warehouse.x},${r.warehouse.y}`);
+}
+/** Monthly: what the stage under way still needs goes into the camp's warehouse (a stand-in for production and imports), and the camp's state is noted. */
+function monumentMonth(m) {
+  const b = mon.site;
+  if (!game.buildings.has(b.id)) return;
+  if (b.mon.stage !== mon.lastStage) { mon.stages.push({ stage: mon.lastStage, month: m }); mon.lastStage = b.mon.stage; }
+  if (isFinished(b)) { mon.finishedMonth ??= m; return; }
+  const wh = mon.warehouse;
+  const st = stageOf(b);
+  if (wh && game.buildings.has(wh.id)) {
+    for (const [g, need] of Object.entries(st.goods)) {
+      const want = need - (b.mon.got[g] || 0) - (b.mon.way[g] || 0) - (wh.stock[g] || 0);
+      let used = 0;
+      for (const k in wh.stock) used += wh.stock[k] + (wh.incoming[k] || 0);
+      const n = Math.max(0, Math.min(want, CONFIG.WAREHOUSE_CAPACITY - used));
+      wh.stock[g] += n;
+      mon.supplied[g] = (mon.supplied[g] || 0) + n;
+    }
+  }
+  if (mon.camp && game.buildings.has(mon.camp.id)) { mon.staff.push(mon.camp.efficiency); mon.factor.push(mon.camp.camp.factor); }
+}
+/** The --monument report: stages, months, money, goods, upkeep and the camp. */
+function monumentReport() {
+  if (!mon.site) return 'Monument: none built';
+  const b = mon.site;
+  const t = MONUMENT_TYPES[b.def.mon];
+  const tot = monumentTotals(b.def.mon);
+  const gone = !game.buildings.has(b.id);
+  const stages = mon.stages.map((s) => `stage ${s.stage + 1} by month ${s.month - mon.from}`).join(', ');
+  const months = mon.finishedMonth !== null ? mon.finishedMonth - mon.from : null;
+  const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+  const goodsCost = Object.entries(tot.goods).reduce((n, [g, u]) => n + (u / 100) * GOODS[g].buy, 0);
+  const upkeepYear = Math.round(t.upkeep * (game.difficulty.monumentUpkeep ?? 1) * 12);
+  mon.summary = { type: b.type, finishedMonths: months, stages: mon.stages, money: tot.money, goods: tot.goods, units: tot.units, goodsAtImportPrices: Math.round(goodsCost), upkeepYear, campStaff: Math.round(avg(mon.staff) * 100), campPace: Math.round(avg(mon.factor) * 100) };
+  return [
+    `Monument: ${b.def.name} (${b.def.en})${gone ? ' (lost)' : ''}: ${months !== null ? `finished ${months} months after it was placed (${(months / 12).toFixed(1)} years)` : `not finished: stage ${b.mon.stage + 1} of ${t.stages.length}, work ${Math.round(b.mon.work)}`}; ${stages || 'no stage done'}`,
+    `  Cost: ${tot.money} Dn (placing ${t.place} and its stages), ${tot.units} units of goods (${Object.entries(tot.goods).map(([g, u]) => `${g} ${u}`).join(', ')}; ${Math.round(goodsCost)} Dn at the base import prices); upkeep ${upkeepYear} Dn a year once finished`,
+    `  Camp: staffed ${Math.round(avg(mon.staff) * 100)}% on average, pace ${Math.round(avg(mon.factor) * 100)}% (food and water); goods stocked for it ${Object.entries(mon.supplied).map(([g, u]) => `${g} ${Math.round(u)}`).join(', ') || 'none'}`,
+  ].join('\n');
+}
+
 const runMonth = () => {
   // From 800 people, a small festival for the god longest without one, when
   // the cooldown, the money and the food allow (holdDemoFestival): all five
@@ -477,6 +545,8 @@ for (let m = 0; m < opts.years * 12; m++) {
   if (opts.harbor && m === 6) buildHarbor();
   if (opts.garrison && opts.academyLate !== null && m === opts.academyLate) buildLateAcademy(m);
   if (cloth && opts.clothOff && m === opts.clothOff) clothOff();
+  if (opts.monument && m === opts.monumentMonth) buildMonument(m);
+  if (mon.site) monumentMonth(m);
   runMonth();
   if (opts.uptown || opts.cloth) clothMonth(m + 1);
   if (quarters) villaShares.push(game.city.population > 0 ? game.city.patricians / game.city.population : 0);
@@ -622,7 +692,8 @@ if (care.months.length) {
 const capacityCheck = quarters ? checkCapacity() : null;
 const fountains = [...game.buildings.values()].filter((b) => b.type === 'fountain');
 const water = { fountains: fountains.length, wet: fountains.filter((b) => b.hasWater).length };
-if (opts.json) console.log(JSON.stringify({ ...(harbor.summary ? { harbor: harbor.summary } : {}), population: c.population, treasury: c.treasury, ratings: c.ratings, stats: c.stats, tiers: c.tierCounts, crime: c.crime.total, health, gods: { moods: gods.moods, blessings: gods.blessings.total, wraths: gods.wraths.total, festivals: gods.festivals.total }, money, water, avgTier: c.avgTier, sentiment: c.sentiment, ...(events ? { events } : {}), ...(fishing ? { fishing } : {}), ...(capacityCheck ? { capacity: capacityCheck } : {}), ...(opts.uptown || opts.cloth ? { clothing: { peak: clothing.peak, months: clothing.months, produced: { flax: c.produced.flax || 0, linen: c.produced.linen || 0, clothing: c.produced.clothing || 0 } } } : {}) }));
+if (opts.monument) console.log(monumentReport());
+if (opts.json) console.log(JSON.stringify({ ...(harbor.summary ? { harbor: harbor.summary } : {}), ...(mon.site ? { monument: mon.summary } : {}), population: c.population, treasury: c.treasury, ratings: c.ratings, stats: c.stats, tiers: c.tierCounts, crime: c.crime.total, health, gods: { moods: gods.moods, blessings: gods.blessings.total, wraths: gods.wraths.total, festivals: gods.festivals.total }, money, water, avgTier: c.avgTier, sentiment: c.sentiment, ...(events ? { events } : {}), ...(fishing ? { fishing } : {}), ...(capacityCheck ? { capacity: capacityCheck } : {}), ...(opts.uptown || opts.cloth ? { clothing: { peak: clothing.peak, months: clothing.months, produced: { flax: c.produced.flax || 0, linen: c.produced.linen || 0, clothing: c.produced.clothing || 0 } } } : {}) }));
 
 /**
  * --cloth-off: demolish the cloth industry (and the clothing in store), as a
