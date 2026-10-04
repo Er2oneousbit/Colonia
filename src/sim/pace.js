@@ -22,7 +22,7 @@
  */
 
 import { CONFIG } from '../config.js';
-import { immigrationPerDay } from './population.js';
+import { immigrationPerDay, newCityShare } from './population.js';
 
 /** The mood of a well-run city (the model's settlers come at this mood). */
 export const PACE_MOOD = 70;
@@ -31,8 +31,8 @@ export const PACE_MOOD = 70;
 export function populationMonths(target, { mood = PACE_MOOD, factor = 1 } = {}) {
   let pop = 0;
   for (let m = 0; m < 12000; m++) {
-    const fresh = m < CONFIG.NEW_CITY_BONUS_MONTHS;
-    const perMonth = immigrationPerDay(Math.min(100, mood + (fresh ? CONFIG.NEW_CITY_MOOD : 0)), fresh, factor) * CONFIG.DAYS_PER_MONTH;
+    const keen = newCityShare((m + 0.5) * CONFIG.DAYS_PER_MONTH); // the month's middle
+    const perMonth = immigrationPerDay(Math.min(100, mood + Math.round(CONFIG.NEW_CITY_MOOD * keen)), keen, factor) * CONFIG.DAYS_PER_MONTH;
     if (perMonth <= 0) return Infinity;
     if (pop + perMonth >= target) return m + (target - pop) / perMonth;
     pop += perMonth;

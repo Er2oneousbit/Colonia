@@ -68,13 +68,25 @@ function entryInfo(game) {
 }
 
 /**
- * Settlers a day at a given city mood, in a new city (its first months) or
- * not, at a difficulty's immigration factor. Also the pace model's rate
- * (sim/pace.js).
+ * How keen settlers still are on a new city, 1 to 0, at `days` since it
+ * was founded: full for NEW_CITY_BONUS_MONTHS, then fading evenly over
+ * NEW_CITY_TAPER_MONTHS (a cliff at month 12 once cost 20 mood overnight).
  */
-export function immigrationPerDay(mood, newCity = false, factor = 1) {
+export function newCityShare(days) {
+  const full = CONFIG.NEW_CITY_BONUS_MONTHS * CONFIG.DAYS_PER_MONTH;
+  const taper = CONFIG.NEW_CITY_TAPER_MONTHS * CONFIG.DAYS_PER_MONTH;
+  return days < full ? 1 : Math.max(0, 1 - (days - full) / taper);
+}
+
+/**
+ * Settlers a day at a given city mood, in a new city (`newCity`: its share
+ * of keenness, 1 to 0, newCityShare; true counts as 1) or not, at a
+ * difficulty's immigration factor. Also the pace model's rate (sim/pace.js).
+ */
+export function immigrationPerDay(mood, newCity = 0, factor = 1) {
   if (mood < CONFIG.IMMIGRATION_MIN_MOOD) return 0;
-  return CONFIG.IMMIGRATION_BASE_PER_DAY * ((mood - 20) / 80) * (newCity ? CONFIG.NEW_CITY_IMMIGRATION : 1) * factor;
+  const keen = Number(newCity) || 0;
+  return CONFIG.IMMIGRATION_BASE_PER_DAY * ((mood - 20) / 80) * (1 + (CONFIG.NEW_CITY_IMMIGRATION - 1) * keen) * factor;
 }
 
 /** Daily: settlers arrive at homes with free space. */
@@ -108,7 +120,7 @@ export function updateImmigration(game) {
   c.vacancies = vacancies.reduce((s, v) => s + v.free, 0);
   if (vacancies.length === 0) return;
 
-  const perDay = immigrationPerDay(c.sentiment, game.time.totalMonths < CONFIG.NEW_CITY_BONUS_MONTHS, game.difficulty.immigration);
+  const perDay = immigrationPerDay(c.sentiment, newCityShare(game.time.totalDays), game.difficulty.immigration);
   c.immigrationAcc = Math.min(40, c.immigrationAcc + perDay);
   let guard = 0;
   while (c.immigrationAcc >= 1 && vacancies.length > 0 && guard++ < 12) {
@@ -294,7 +306,7 @@ export function computeSentiment(game) {
   // Venus's blessing or wrath (sim/religion.js), decaying like the festival
   // boost; listed only while it is felt.
   if (c.venusBoost) f.venus = c.venusBoost;
-  f.newCity = game.time.totalMonths < CONFIG.NEW_CITY_BONUS_MONTHS ? CONFIG.NEW_CITY_MOOD : 0;
+  f.newCity = Math.round(CONFIG.NEW_CITY_MOOD * newCityShare(game.time.totalDays));
   if (game.difficulty.mood) f.difficulty = game.difficulty.mood; // Insane: a hard-to-please populace
   let s = 0;
   for (const k in f) s += f[k];

@@ -85,7 +85,7 @@ import { CONFIG } from '../config.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { followPath } from './movement.js';
 import { killWalker, inOwnFort } from './entities.js';
-import { waterOf } from './navy.js';
+import { waterOf, waterPath, shoreBerth } from './navy.js';
 import { watchOf, standsTo, fortGate, landRoute } from './military.js';
 import { postsAway } from './battle.js';
 import { revoltActive } from './revolt.js';
@@ -369,6 +369,16 @@ export function trainAt(game, u, school, days) {
  * given up on halfway there.
  */
 export function startDrill(game, u, school, walk = 0) {
+  // A ship's way is its route on the water (round headlands and islands),
+  // not the straight line, which once gave up on a ship rowing round a
+  // long coast halfway there (v0.18.8 note).
+  if (!walk && UNIT_TYPES[u.type].naval) {
+    const map = game.map;
+    const from = map.idx(Math.max(0, Math.min(map.w - 1, Math.floor(u.x))), Math.max(0, Math.min(map.h - 1, Math.floor(u.y))));
+    const berth = shoreBerth(game, school);
+    const route = berth >= 0 ? waterPath(game, from, berth) : null;
+    if (route) walk = route.length;
+  }
   const tiles = Math.max(walk, Math.hypot(school.x + school.size / 2 - u.x, school.y + school.size / 2 - u.y));
   const perDay = UNIT_TYPES[u.type].speed * CONFIG.TICKS_PER_DAY;
   u.drill = school.id;

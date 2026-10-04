@@ -190,3 +190,20 @@ test('save: a version 22 save (before events, peoples, wolves, low bridges and n
   assert.deepEqual(back.wildlife.packs, []);
   back.runDays(3); // (and plays on)
 });
+
+test('a save keeps the desirability the running game had, and whether it was due a new pass', () => {
+  // Found reviewing v0.11.0: the game works desirability out only when the
+  // map changes, a load did a fresh pass, and the two could differ.
+  const game = newGame({ seed: 'des-save' });
+  assert.ok(buildDemoCity(game, { level: 2 }).ok);
+  game.runDays(40);
+  game.dirty.des = false;
+  game.map.desirability[game.map.idx(5, 5)] = 77; // as the running game has it, whatever a fresh pass would say
+  const copy = deserializeGame(JSON.parse(JSON.stringify(serializeGame(game))));
+  assert.deepEqual(Array.from(copy.map.desirability), Array.from(game.map.desirability));
+  assert.equal(copy.dirty.des, false);
+  // An older save without the layer gets the fresh pass, as before.
+  const old = JSON.parse(JSON.stringify(serializeGame(game)));
+  delete old.desirability;
+  assert.notEqual(deserializeGame(old).map.desirability[game.map.idx(5, 5)], 77);
+});

@@ -1327,6 +1327,7 @@ export class Renderer {
           const w = it.w;
           const ship = w.type === 'ship';
           if (!ship && w.id % 3) continue;
+          if (it.clipY != null) continue; // a ship under a bridge's deck: its lantern is behind the stone
           const sx = (it.wx - cam.x) * k;
           const sy = (it.wy - cam.y) * k;
           L.pool(sx, sy, tile * (ship ? 2.4 : 1.2), (ship ? 0.6 : 0.4) * lamps);
@@ -1334,6 +1335,7 @@ export class Renderer {
         } else if (it.kind === K_UNIT) {
           const u = it.u;
           if (u.side === 'wild' || (u.side === 'enemy' ? u.id % 2 : u.id % 4)) continue; // (wolves carry no torch)
+          if (it.clipY != null) continue; // a ship under a bridge's deck
           const sx = (it.wx - cam.x) * k;
           const sy = (it.wy - cam.y) * k;
           const f = flick(u.id);
@@ -2099,8 +2101,10 @@ export class Renderer {
     const moved = f.x !== undefined && (Math.abs(cam.x - f.x) > 0.5 || Math.abs(cam.y - f.y) > 0.5);
     if (!w || w.dead || moved) { this.follow = null; return; }
     const map = this.game.map;
-    const { wx, wy } = walkerWorld(w, alpha, this.viewTurn, map.w, map.h);
-    cam.setCenter(wx, wy - 10);
+    const { fx, fy, wx, wy } = walkerWorld(w, alpha, this.viewTurn, map.w, map.h);
+    // On a bridge he is drawn lifted to its deck or ramp (bridgeSpan): follow him there.
+    const lift = bridgeSpan(map, fx, fy, w.kind === 'ship', this.viewTurn).lift;
+    cam.setCenter(wx, wy - lift - 10);
     f.x = cam.x;
     f.y = cam.y;
   }

@@ -13,6 +13,15 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.18.15)
+
+* **A new city's keenness fades instead of ending as a cliff**: the settlers' extra mood (+20) and numbers (1.6 times) stay full for 9 months, then fade evenly over 6 (the same 12 months' worth); at month 12 the city lost 20 mood overnight
+* **A save keeps its desirability**: the running game works desirability out only when the map changes, and a load did a fresh pass, so a loaded game could differ from the one saved. The layer is saved (byte planes, so an Uber save stays small) with whether a pass is due; older saves get the fresh pass
+* **The ship bridge**: the camera follows a walker up onto the deck, and a ship's lantern under the deck no longer shines through the stone
+* **A ship's trip to the Portus** is timed by its route on the water, not the straight line
+* Headless sim: Easy, Normal and Hard end the same as v0.18.14; Insane peace 24 (was 23)
+* 1010 unit tests, 204 browser checks
+
 ## Done (v0.18.14)
 
 * **Homes join into blocks without stranding a single home**: a home joins a 2x2 block as any corner of it, blocks are laid from the west and north end of each run of single homes so they line up (a run two deep and six long becomes three blocks; seven long leaves only the last column), and 1 square in 5 (not 1 tile in 3) stays four homes for variety. Growing and splitting keep the singles around able to pair
@@ -623,10 +632,7 @@ Seeing why:
 
 From playtesting (still to decide which to take):
 
-* **The new city's mood bonus ends as a 20-point cliff** at month 12; on Insane it lands just when the economy is weakest. A taper over several months would be kinder and easier to read.
 * **The early missions on Hard and Insane**: the sweep's demo city finds them harsh, partly because it builds what those missions do not unlock (`npm run sim -- --unlocks` builds only what they allow); measure again with it before changing anything.
-* **Unstaffed buildings wear out from the day they are placed**: industry burned or collapsed three times before its first worker came. Either risk grows only once staffed, or the placement and building panels say so.
-* **Buildings placed together collapse together**: everything built on day one reached its collapse point in the same month, so three key buildings fell at once. Some spread in their starting risk would turn a sudden disaster into a warning.
 * **Festival costs** (after v0.18.4): Colonia's small festival costs about 3.5 times the original's money (60 + 0.15 a citizen against the original's population / 20 + 10), and keeping five gods content now takes about five festivals a year; the food's one-load minimum is steep for a town just past 800 people. Whether to lower either.
 
 Playing smoother:
@@ -659,7 +665,6 @@ Security:
 The sim is deterministic (seeded RNG, never `Math.random`), so the same seed plus the same player actions rebuild a city exactly.
 
 * **Replay and timelapse**: record the player's actions with the tick they happened on, then play them back: a timelapse of the city growing, a rewind to before a disaster, and bug reports that come with a replay instead of "it broke somehow".
-* **Desirability after loading**: a loaded game works out every home's desirability at once, while a running game does so only when the map changes, so a home's desirability can differ between a save and the game it came from (the random numbers stay in step; found reviewing v0.11.0). Work it out on the same schedule in both, or save it.
 * **Sim fuzzer**: thousands of game-days of random building, demolishing and speed changes, checking invariants: the books balance, no stock goes negative, save and reload gives the same game, no walker is stuck forever. It finds bugs before players do.
 * **Save corpus in CI**: keep a save from every release and prove each one still loads.
 * **More in `npm run sweep`** (it runs every difficulty on every campaign map since v0.11.1): sandbox landscapes and seeds, and a garrison run.
@@ -684,8 +689,8 @@ Ideas that would change the original's economy or rules; each would come as an o
 * Keyboard remapping and a colorblind-friendly overlay palette.
 * Performance: cache static terrain into chunk canvases for the most zoomed-out view. When the screen is full of tiles (the middle of a Large or Uber map) that view costs about 16 ms a frame in headless Chromium against 4 ms one zoom level in; chunks would cut its thousands of ground draw calls to a few dozen (see ARCHITECTURE.md, *Draw calls*).
 * Smaller saves for very big cities: buildings are about 0.8 KB each in a save (mostly the house record), so a 1,500-building capital needs about 1.5 MB per slot. Dropping default-valued fields, or compressing the whole save, would stretch the ~5 MB browser allowance further.
-* **The ship bridge's leftovers** (v0.18.8): a small step where two ship bridges cross at a bridge's first water tile, and where a shore road runs right beside that tile; a ship's mast top vanishes the moment it passes under the deck's far edge; a ship's lantern glow at night shows through the stone above it; following a walker on the deck centers the camera about 23 px too high (`followWalker` does not use the bridge's lift).
-* **Training trips' small gaps** (v0.18.8): a ship's trip to the Portus is timed from the straight line, not its route on the water (the 16-day retry hold limits repeat failures); a unit more than 12 tiles inside one huge placement is not moved off it.
+* **The ship bridge's leftovers** (v0.18.8): a small step where two ship bridges cross at a bridge's first water tile, and where a shore road runs right beside that tile; a ship's mast top vanishes the moment it passes under the deck's far edge.
+* **Units inside a huge placement** (v0.18.8): a unit more than 12 tiles inside one huge placement is not moved off it.
 * **A smoke check fails now and then** on the main page's random map (v0.18.8, root cause not yet found): "the cloth chain can be placed" (no free meadow within 10 tiles of a road on that map: the search, not the rule). Log the seed on failure and find the cause. (Its partner, "a second fire pauses again", was found in v0.18.9: the home it torched could merge into a neighbour's and vanish, and the check waited on its old id.)
 
 ## Decisions

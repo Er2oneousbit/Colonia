@@ -26,7 +26,7 @@ import { unlockedBuildings, topLevels, bestEntertainment, planCity, jobsFor, emp
 import { demandChangeAt } from '../src/sim/tradeDemand.js';
 import { generateMap, mapOptions, REGION_KINDS } from '../src/world/mapgen.js';
 import { Terrain } from '../src/world/map.js';
-import { updateImmigration, immigrationPerDay } from '../src/sim/population.js';
+import { updateImmigration, immigrationPerDay, newCityShare } from '../src/sim/population.js';
 import { buildDemoCity } from '../src/dev/demoCity.js';
 import { checkBuilding } from '../src/sim/construction.js';
 import { waterRowsSide } from '../src/sim/entities.js';
@@ -478,4 +478,17 @@ test('map regions: only where a mission asks, the same rivers and coasts, and th
   assert.deepEqual(mapOptions(findScenario('c10p').map), { width: 224, height: 224, seed: 'puteoli', type: 'coast', regions: true });
   assert.deepEqual(SCENARIOS.filter((s) => s.map.regions).map((s) => s.id), ['c10m', 'c10p']);
   assert.equal(mapOptions(findScenario('c1').map).regions, false);
+});
+
+test('a new city keeps its settlers keen for 9 months, then they fade evenly over 6 (no 20-point cliff)', () => {
+  const D = CONFIG.DAYS_PER_MONTH;
+  assert.equal(newCityShare(0), 1);
+  assert.equal(newCityShare(9 * D - 1), 1);
+  assert.equal(newCityShare(12 * D), 0.5, 'halfway through the fade');
+  assert.equal(newCityShare(15 * D), 0);
+  // The same 12 months' worth as the old full bonus.
+  let worth = 0;
+  for (let d = 0; d < 20 * D; d++) worth += newCityShare(d);
+  assert.ok(Math.abs(worth / D - 12) < 0.1, `${(worth / D).toFixed(2)} months' worth`);
+  assert.ok(immigrationPerDay(70, 0.5) > immigrationPerDay(70, 0) && immigrationPerDay(70, 0.5) < immigrationPerDay(70, 1));
 });

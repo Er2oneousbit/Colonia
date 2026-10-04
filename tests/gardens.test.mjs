@@ -315,13 +315,15 @@ test('save: care survives a save; a hand-edited step out of range loads as tende
   const g = decoration(game, 'garden', 60);
   updateCare(game, g);
   assert.equal(g.careStep, 2);
+  updateDesirability(game); // (the pass the step asked for, before the save: a save keeps the layer as it is)
+  game.dirty.des = false;
   const data = JSON.parse(JSON.stringify(serializeGame(game)));
   assert.equal(data.version, CONFIG.SAVE_VERSION);
   assert.ok(CONFIG.SAVE_VERSION >= 26, 'care is saved from version 26');
   const copy = deserializeGame(JSON.parse(JSON.stringify(data)));
   const b = copy.buildings.get(g.id);
   assert.deepEqual([b.careStep, b.tendedDay], [2, g.tendedDay]);
-  assert.deepEqual(Array.from(copy.map.desirability), Array.from((updateDesirability(game), game.map.desirability)), 'the same desirability after the load');
+  assert.deepEqual(Array.from(copy.map.desirability), Array.from(game.map.desirability), 'the same desirability after the load');
   const bad = JSON.parse(JSON.stringify(data));
   bad.buildings.find((x) => x.id === g.id).careStep = 99;
   const fixed = deserializeGame(bad).buildings.get(g.id);

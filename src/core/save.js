@@ -357,6 +357,25 @@ export function encodeLayer(bytes) {
   return packed.length < bytes.length * 0.95 ? `pb:${encodeBytes(packed)}` : encodeBytes(bytes);
 }
 
+/**
+ * A 16-bit layer as bytes for encodeLayer: every low byte, then every high
+ * byte. Interleaved, the high bytes (mostly 0 or 255) broke the runs PackBits
+ * packs, and an Uber map's desirability cost 100 KB more.
+ */
+export function splitShorts(arr) {
+  const n = arr.length;
+  const out = new Uint8Array(n * 2);
+  for (let i = 0; i < n; i++) { out[i] = arr[i] & 255; out[n + i] = (arr[i] >> 8) & 255; }
+  return out;
+}
+
+/** The 16-bit signed values splitShorts wrote. */
+export function joinShorts(bytes, n) {
+  const out = new Int16Array(n);
+  for (let i = 0; i < n; i++) out[i] = (bytes[n + i] << 8) | bytes[i]; // (stored as Int16: the sign comes back)
+  return out;
+}
+
 /** Read a map layer written by encodeLayer: "pb:" + PackBits, or plain base64 (when that was smaller). */
 export function decodeLayer(str, length) {
   if (typeof str !== 'string') throw new Error('Map layer is not a string');
@@ -428,6 +447,11 @@ export function serializeGame(game, extra = {}) {
     rng: game.rng.getState(),
     time: game.time.serialize(),
     map: game.map.serialize(encodeLayer),
+    // Desirability as the running game has it, and whether it is due a new
+    // pass: it is worked out only when the map changes, so a fresh pass on
+    // load could differ from the game the save came from (v0.18.15).
+    desirability: encodeLayer(splitShorts(game.map.desirability)),
+    desDirty: !!game.dirty.des,
     buildings,
     walkers,
     fires: [...game.fires].map(([i, d]) => [i, d, fireOf(game, i)]),
@@ -609,6 +633,14 @@ export function deserializeGame(data, flags = {}) {
 
   // Rebuild derived state (no simulation side effects).
   game.recomputeDerived();
+  // Then the desirability the game had (older saves keep the fresh pass).
+  if (typeof data.desirability === 'string') {
+    const bytes = decodeLayer(data.desirability, game.map.size * 2);
+    if (bytes.length === game.map.size * 2) {
+      game.map.desirability.set(joinShorts(bytes, game.map.size));
+      game.dirty.des = !!data.desDirty;
+    }
+  }
   // A waterside building that no ship or boat had used yet was saved with no
   // side: turn it to its water now, with the water layers rebuilt (sim/entities.js faceWater).
   for (const b of game.buildings.values()) if (b.waterSide === undefined) faceWater(game, b);
