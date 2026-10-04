@@ -290,6 +290,12 @@ const PIPED_PALE = Object.freeze({ fill: 'rgba(110,220,190,0.26)', edge: 'rgba(6
  */
 const HINT_FAINT = Object.freeze({ fill: 'rgba(150,208,255,0.15)', edge: 'rgba(120,186,250,0.45)' });
 const HINT_FOUNTAIN = Object.freeze({ fill: 'rgba(60,132,236,0.3)', edge: 'rgba(28,92,210,0.95)', width: 2 });
+/**
+ * A fountain that gives no water (no workers, or no piped water) shows the
+ * area it would cover, in a muted grey-blue: before, it showed nothing, and
+ * a fountain without hands read as one with no reach at all (playtest).
+ */
+const HINT_IDLE_FOUNTAIN = Object.freeze({ key: 'idleFountain', style: { fill: 'rgba(128,140,160,0.24)', edge: 'rgba(96,108,130,0.9)', width: 1.5 } });
 const HINT_PIPED = Object.freeze({ fill: 'rgba(110,220,190,0.16)', edge: 'rgba(60,180,150,0.5)' });
 const BLUE = Object.freeze({ strong: RADIUS_STRONG, pale: RADIUS_PALE });
 const TEAL = Object.freeze({ strong: PIPED_STRONG, pale: PIPED_PALE });
@@ -2179,6 +2185,17 @@ export class Renderer {
     // (under the rest; tiles the coverage preview paints are left to it).
     const hints = waterHintLayers(this.tool);
     if (hints.length) this.drawWaterHints(hints, water ? (i) => strong.has(i) || (map.water[i] & water.bit) !== 0 : null);
+    if (hints.some((l) => l.key === 'fountain')) {
+      // Fountains giving no water: the ground they would cover, where no working fountain does.
+      const idle = new Set();
+      for (const b of game.buildings.values()) {
+        if (b.def.kind === 'fountain' && !(b.hasWater && b.efficiency > 0)) this.squareTiles(b.x, b.y, b.size, CONFIG.FOUNTAIN_RADIUS, idle);
+      }
+      if (idle.size) {
+        const counts = this.drawTileHints([HINT_IDLE_FOUNTAIN], (i) => (idle.has(i) && !(map.water[i] & WaterBits.FOUNTAIN) ? 0 : -1), water ? (i) => strong.has(i) : null);
+        this.stats.idleFountainHint = counts ? counts.idleFountain : 0;
+      }
+    }
     const meadow = meadowHintLayer(this.tool);
     this.stats.meadowHint = meadow ? this.drawTileHints([meadow], (i) => (map.terrain[i] === Terrain.MEADOW ? 0 : -1))?.meadow ?? 0 : null;
     if (!plan) {

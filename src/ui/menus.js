@@ -60,6 +60,8 @@ export function mainMenu(app) {
       hasAuto ? h('button', { class: 'btn primary', title: `${latest.meta.city}, ${latest.meta.date}`, onclick: () => app.loadSlot(latest.slot) }, 'Continue') : null,
       h('button', { class: `btn${hasAuto ? '' : ' primary'}`, onclick: () => app.ui.showModal(campaignMenu(app)) }, 'Campaign'),
       h('button', { class: 'btn', onclick: () => app.ui.showModal(sandboxMenu(app)) }, 'Sandbox'),
+      // Province mode (several of the player's own cities trading with each other): on the roadmap.
+      h('button', { class: 'btn coming-soon', disabled: true, title: 'Several of your own cities in one province, trading with each other: coming soon' }, 'Province (coming soon)'),
       h('button', { class: 'btn', onclick: () => app.ui.showModal(loadMenu(app)) }, 'Load game'),
       h('button', { class: 'btn hall-of-fame', onclick: () => app.ui.showModal(hallOfFameMenu(app)) }, 'Hall of Fame'),
       h('button', { class: 'btn', onclick: () => app.ui.openHelp() }, 'How to play'),
