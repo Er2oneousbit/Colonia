@@ -87,6 +87,69 @@ function ringRoad(game, x, y, size) {
   }
 }
 
+/** Lay road tiles in a ring just outside the w x h rectangle at (x, y). */
+function roadAround(game, x, y, w, h) {
+  for (let k = -1; k <= w; k++) for (const ty of [y - 1, y + h]) game.map.road[game.map.idx(x + k, ty)] = 1;
+  for (let k = -1; k <= h; k++) for (const tx of [x - 1, x + w]) game.map.road[game.map.idx(tx, y + k)] = 1;
+}
+
+/** A free w x h spot (with a free ring around it) where every tile may start a 2x2 block. */
+function spotForRun(game, w, h) {
+  const { map } = game;
+  for (let y = 3; y < map.h - h - 3; y++) {
+    for (let x = 3; x < map.w - w - 3; x++) {
+      let ok = true;
+      for (let dy = -1; dy <= h && ok; dy++) {
+        for (let dx = -1; dx <= w; dx++) {
+          const i = map.idx(x + dx, y + dy);
+          if (!map.isFree(x + dx, y + dy) || map.terrain[i] === Terrain.TREES) { ok = false; break; }
+          if (dx >= 0 && dy >= 0 && dx < w && dy < h && !blockTile(game, x + dx, y + dy)) { ok = false; break; }
+        }
+      }
+      if (ok) return { x, y };
+    }
+  }
+  throw new Error('no spot');
+}
+
+/** What stands on each tile of the rectangle, row by row: 'b' a block, '1' a single-tile home, '#' a road. */
+function plan(game, x, y, w, h) {
+  const rows = [];
+  for (let dy = 0; dy < h; dy++) {
+    let r = '';
+    for (let dx = 0; dx < w; dx++) {
+      const o = game.buildings.get(game.map.buildingAt(x + dx, y + dy));
+      r += !o ? (game.map.road[game.map.idx(x + dx, y + dy)] ? '#' : '.') : !o.house ? 'o' : o.size === 1 ? '1' : o.house.merged ? 'b' : String(o.size);
+    }
+    rows.push(r);
+  }
+  return rows;
+}
+
+/**
+ * A run two tiles deep and `n` homes long between streets, every plot settled
+ * by a family in a Tent (no water: none moves up), updated home by home in
+ * the column order given (top row, then bottom row of each column), twice.
+ * @returns {{x:number, y:number, homes:object[]}}
+ */
+function settleRun(game, n, columns) {
+  const s = spotForRun(game, n, 2);
+  roadAround(game, s.x, s.y, n, 2);
+  const homes = [];
+  for (let dx = 0; dx < n; dx++) {
+    for (let dy = 0; dy < 2; dy++) {
+      homes.push(home(game, s.x + dx, s.y + dy, 1, 3));
+      game.map.water[game.map.idx(s.x + dx, s.y + dy)] = 0;
+    }
+  }
+  for (let round = 0; round < 2; round++) {
+    for (const c of columns) {
+      for (const b of [homes[2 * c], homes[2 * c + 1]]) if (game.buildings.has(b.id)) updateHouse(game, b);
+    }
+  }
+  return { ...s, homes };
+}
+
 /** A free spot whose top-left tile does (or does not) allow 2x2 blocks. */
 function spotWithBlockRule(game, w, h, allowed) {
   const { map } = game;
@@ -294,7 +357,7 @@ test('market vendors stock only the kinds of food a home needs', () => {
   assert.ok(ins.house.food.vegetables > 10, 'vegetables topped up');
 });
 
-test('four single-tile homes of one level join into a 2x2 block (only where the tile allows it)', () => {
+test('four single-tile homes of one level join into a 2x2 block (only where the square allows it)', () => {
   const game = newGame();
   const lvl = T('Townhouse');
   const make = (s) => [[0, 0], [1, 0], [0, 1], [1, 1]].map(([dx, dy], k) => {
@@ -317,7 +380,7 @@ test('four single-tile homes of one level join into a 2x2 block (only where the 
   for (const o of yes.slice(1)) assert.ok(!game.buildings.has(o.id));
   const no = make(spotWithBlockRule(game, 2, 2, false));
   updateHouse(game, no[0]);
-  assert.equal(no[0].size, 1, 'this tile never starts a block');
+  assert.equal(no[0].size, 1, 'this square stays four homes');
   // A settled tent joins three vacant lots.
   const s = spotWithBlockRule(game, 2, 2, true);
   const t = home(game, s.x, s.y, 1, 3);
@@ -326,6 +389,60 @@ test('four single-tile homes of one level join into a 2x2 block (only where the 
   updateHouse(game, t);
   assert.equal(t.size, 2);
   assert.equal(houseCapacity(t.house.tier, t.size), 20);
+});
+
+test('a run two deep pairs up from its west end: six homes leave none single, seven leave the east column', () => {
+  // Updated from the second column on, the old rule (a home could only be a
+  // block's top-left corner) made blocks b-c and d-e and stranded a and f.
+  for (const [n, want] of [[6, 'bbbbbb'], [7, 'bbbbbb1']]) {
+    for (const columns of [[1, 2, 3, 4, 5, 6, 0].filter((c) => c < n), [...Array(n).keys()].reverse(), [3, 0, 5, 1, 6, 2, 4].filter((c) => c < n)]) {
+      const game = newGame();
+      const r = settleRun(game, n, columns);
+      assert.deepEqual(plan(game, r.x, r.y, n, 2), [want, want], `${n} homes, updated in column order ${columns}`);
+      // The blocks start at the run's west end, every second column.
+      const blocks = [...game.buildings.values()].filter((b) => b.house && b.size === 2).map((b) => b.x - r.x).sort((a, b) => a - b);
+      assert.deepEqual(blocks, [0, 2, 4]);
+    }
+  }
+});
+
+test('a home joins a block as any corner of it, and keeps its id', () => {
+  const game = newGame();
+  const s = spotWithBlockRule(game, 2, 2, true);
+  // The bottom-right plot is settled; the other three are vacant lots.
+  for (const [dx, dy] of [[0, 0], [1, 0], [0, 1]]) home(game, s.x + dx, s.y + dy, 0, 0);
+  const t = home(game, s.x + 1, s.y + 1, 1, 4);
+  ground(game, s.x, s.y, 2, 0, 0);
+  updateHouse(game, t);
+  assert.deepEqual([t.x, t.y, t.size], [s.x, s.y, 2], 'the block covers the square, under the settled home\'s id');
+  assert.ok(t.house.merged);
+  assert.equal(t.house.pop, 4);
+  assert.equal([...game.buildings.values()].filter((b) => b.house).length, 1);
+});
+
+test('a run counts from the block at its end, and a home waits for its partner rather than pair out of step', () => {
+  const game = newGame();
+  const s = spotForRun(game, 7, 2);
+  roadAround(game, s.x, s.y, 7, 2);
+  // A block of Tents at the west end (columns 0-1), then five single homes.
+  const blk = home(game, s.x, s.y, 1, 8, 2);
+  blk.house.merged = true;
+  const homes = [];
+  for (let dx = 2; dx < 7; dx++) for (let dy = 0; dy < 2; dy++) homes.push(home(game, s.x + dx, s.y + dy, 1, 3));
+  ground(game, s.x, s.y, 7, 0, 0);
+  // Column 2's top home is a level up: the square 2-3 is not ready, and 3-4
+  // is out of step (one column west of it), so column 3 waits. 4-5 has two
+  // columns west of it and joins; column 6 is the odd one out.
+  const other = homes[0];
+  other.house.tier = 2;
+  const update = () => { for (const b of homes) if (game.buildings.has(b.id)) updateHouse(game, b); };
+  update();
+  assert.deepEqual(plan(game, s.x, s.y, 7, 2), ['bb11bb1', 'bb11bb1']);
+  // Back to a Tent: the square 2-3 is ready now.
+  other.house.tier = 1;
+  update();
+  assert.deepEqual(plan(game, s.x, s.y, 7, 2), ['bbbbbb1', 'bbbbbb1']);
+  assert.ok(game.buildings.has(other.id) && other.size === 2, 'it joined as the top-left corner');
 });
 
 test('a block falls back as a block, and a block of Apartment Houses becomes a Tenement without growing', () => {
