@@ -27,6 +27,7 @@ import { sendEmigrants } from './housing.js';
 import { newHousehold } from './mood.js';
 import { openOf } from './monumentEffects.js';
 import { THERMAE } from '../data/monuments.js';
+import { gamesMood, fadeGames } from './games.js';
 
 /** Daily: recompute population, workforce inputs and goods demand. */
 export function computeCityStats(game) {
@@ -308,6 +309,10 @@ export function computeSentiment(game) {
   // Venus's blessing or wrath (sim/religion.js), decaying like the festival
   // boost; listed only while it is felt.
   if (c.venusBoost) f.venus = c.venusBoost;
+  // Ludi and Circenses held lately (sim/games.js): each its own factor, listed
+  // only while felt. Apart from the festivals' lift, and so on top of it: each
+  // has its own cooldown, which bounds what they add together.
+  gamesMood(game, f);
   // The Great Baths at work: listed only while they are (sim/monumentEffects.js).
   if (openOf(game, 'thermae')) f.monument = THERMAE.mood;
   f.newCity = Math.round(CONFIG.NEW_CITY_MOOD * newCityShare(game.time.totalDays));
@@ -318,6 +323,7 @@ export function computeSentiment(game) {
   c.sentiment = Math.round(c.sentiment + (s - c.sentiment) * 0.5);
   c.sentimentFactors = f;
   c.festivalBoost *= 0.8;
+  fadeGames(game);
   // Under half a point it rounds to nothing in the advisor: drop it there.
   c.venusBoost = Math.abs((c.venusBoost || 0) * CONFIG.VENUS_DECAY) < 0.5 ? 0 : c.venusBoost * CONFIG.VENUS_DECAY;
   return f;

@@ -12,7 +12,7 @@ import { Game } from '../src/core/game.js';
 import { serializeGame, deserializeGame } from '../src/core/save.js';
 import { sandboxScenario, SCENARIOS, NAVY_KEYS } from '../src/data/scenarios.js';
 import { FOOD_TYPES, LAND_FOODS, GOODS } from '../src/data/goods.js';
-import { BUILDINGS } from '../src/data/buildings.js';
+import { BUILDINGS, ARENA_ENT_BONUS } from '../src/data/buildings.js';
 import { GameMap, Terrain } from '../src/world/map.js';
 import { checkBuilding } from '../src/sim/construction.js';
 import { removeBuilding, Building, perimeterTiles } from '../src/sim/entities.js';
@@ -620,7 +620,8 @@ test('guard: the capacity model ignores wharves, and plans the hippodrome once a
     const keys = unlockedBuildings(s);
     const noFish = { ...s, unlocks: [...keys].filter((k) => !['wharf', 'shipyard'].includes(k)) };
     assert.deepEqual(missionCapacity(s), missionCapacity(noFish), `${s.id}: the same people and jobs with or without wharves`);
-    assert.equal(bestEntertainment(keys) <= 80, true, `${s.id}: the model's venues stop at the colosseum`);
+    // 80 from the three venues at their best, and the staffed Great Arena's 5 for every home.
+    assert.equal(bestEntertainment(keys) <= 80 + ARENA_ENT_BONUS, true, `${s.id}: the model's venues stop at the colosseum`);
     // Only which levels a city could reach at all sees the hippodrome's
     // shows: the top one needs it. A city where it is unlocked builds one
     // (and its chariot stable) for its jobs, whatever its size.

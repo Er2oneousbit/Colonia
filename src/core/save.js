@@ -231,6 +231,10 @@
  *      reservation marked `mon` at the site; the finance ledger has a
  *      'monuments' row (upkeep). An older save has none of them: its
  *      ledgers get the row at 0, see upgradeMonumentsV30().
+ *  32  games and races (sim/games.js): city.games holds, for Ludi and
+ *      Circenses, the lift to the city mood still felt, the months before
+ *      the next and how many were held. An older save starts with none held
+ *      and nothing to wait for, see upgradeGamesV31().
  *
  * Typed-array map layers are base64 encoded, run-length compressed first
  * when that is smaller (encodeLayer). Derived data (building tile layer,
@@ -272,6 +276,7 @@ import { NATIVE_ID_BASE } from '../data/natives.js';
 import { isFort, numberForts } from '../sim/fortNumbers.js';
 import { endDrill } from '../sim/training.js';
 import { newSiteState, newCampState } from '../sim/monumentEffects.js';
+import { newGamesState, gamesStateOf } from '../sim/games.js';
 
 /** Oldest save version this game can load (4: the 20-level housing ladder). */
 export const MIN_SAVE_VERSION = 4;
@@ -620,6 +625,9 @@ export function deserializeGame(data, flags = {}) {
   if (data.version < 28) upgradeFireGroupsV27(game);
   if (data.version < 29) upgradeSoldierTripsV28(game);
   if (data.version < 31) upgradeMonumentsV30(game);
+  if (data.version < 32) upgradeGamesV31(game);
+  // Games state out of shape (a hand-edited file) starts as in a new city.
+  gamesStateOf(game.city);
   // A monument's or camp's record missing a part (a hand-edited file) gets a
   // fresh one rather than stopping the game's daily update on it.
   for (const b of game.buildings.values()) {
@@ -1074,6 +1082,14 @@ export function upgradeSoldierTripsV28(game) {
 export function upgradeMonumentsV30(game) {
   const f = game.city.finance;
   for (const l of [f?.thisYear, f?.lastYear]) if (l && l.monuments === undefined) l.monuments = 0;
+}
+
+/**
+ * A save before version 32 (before Ludi and Circenses): the city has held
+ * none, and can hold either at once.
+ */
+export function upgradeGamesV31(game) {
+  game.city.games = newGamesState();
 }
 
 /**

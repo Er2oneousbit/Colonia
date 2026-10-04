@@ -47,7 +47,7 @@
 import { Game } from '../src/core/game.js';
 import { SCENARIOS, sandboxScenario, withDifficulty } from '../src/data/scenarios.js';
 import { DIFFICULTY } from '../src/data/difficulty.js';
-import { buildDemoCity, buildDemoGarrison, buildDemoAcademy, commandGarrison, buildDemoHarbor, buildDemoFishery, buildDemoVenues, buildDemoHippodrome, buildDemoUptown, buildDemoCloth, buildDemoNavy, buildDemoResidence, buildDemoQuarters, holdDemoFestival, UPTOWN_GOODS, DEMO_YARD_TIMBER } from '../src/dev/demoCity.js';
+import { buildDemoCity, buildDemoGarrison, buildDemoAcademy, commandGarrison, buildDemoHarbor, buildDemoFishery, buildDemoVenues, buildDemoHippodrome, buildDemoUptown, buildDemoCloth, buildDemoNavy, buildDemoResidence, buildDemoQuarters, holdDemoFestival, holdDemoGames, UPTOWN_GOODS, DEMO_YARD_TIMBER } from '../src/dev/demoCity.js';
 import { launchLegion, legionCount, soldierCount, isOverrun } from '../src/sim/legion.js';
 import { trainedTotals } from '../src/sim/training.js';
 import { log } from '../src/core/debug.js';
@@ -61,6 +61,7 @@ import { generateMap, mapOptions } from '../src/world/mapgen.js';
 import { HOUSE_TIERS } from '../src/data/housing.js';
 import { CONFIG } from '../src/config.js';
 import { GOD_KEYS } from '../src/data/gods.js';
+import { GAME_KINDS } from '../src/data/games.js';
 import { goalStatus } from '../src/sim/ratings.js';
 import { setTradeMode } from '../src/sim/trade.js';
 import { Terrain } from '../src/world/map.js';
@@ -139,6 +140,9 @@ Options:
                     demo city holds a small festival whenever the cooldown allows and it can spare
                     the food, for the god longest without one; off holds none. The Gods: line
                     reports the gods' moods, blessings, wraths and festivals
+  --games           hold Ludi at a Great Arena and Circenses at the hippodrome whenever each can be
+                    held (sim/games.js: cooldown, a staffed venue with shows, money); the Games: line
+                    reports how many and what they cost
   --navy            also build a naval station and a navalia, stocked for a squadron (where ships can sail)
   --academy         with --garrison also a Military Academy, with --navy also a Portus (training: who is trained)
   --academy-late <m>  with --garrison, a Military Academy built at the start of month m instead, once
@@ -164,7 +168,7 @@ Options:
 `;
 
 function parse(argv) {
-  const o = { harbor: 0, scenario: null, type: 'river', size: 64, seed: 'demo', years: 3, level: 2, difficulty: 'normal', json: false, verbose: false, garrison: false, raids: null, pace: false, caretaker: false, capacity: false, unlocks: false, homes: Infinity, fishing: 0, venues: false, hippodrome: false, uptown: false, cloth: false, clothOff: 0, blocks: 1, villas: 0, wine: false, seaRaids: null, events: 'on', navy: false, salary: false, academy: false, academyLate: null, legion: 0, legionSize: 0, people: null, wolves: null, lowBridge: false, natives: false, festivals: true, monument: null, monumentMonth: 12 };
+  const o = { harbor: 0, scenario: null, type: 'river', size: 64, seed: 'demo', years: 3, level: 2, difficulty: 'normal', json: false, verbose: false, garrison: false, raids: null, pace: false, caretaker: false, capacity: false, unlocks: false, homes: Infinity, fishing: 0, venues: false, hippodrome: false, uptown: false, cloth: false, clothOff: 0, blocks: 1, villas: 0, wine: false, seaRaids: null, events: 'on', navy: false, salary: false, academy: false, academyLate: null, legion: 0, legionSize: 0, people: null, wolves: null, lowBridge: false, natives: false, festivals: true, games: false, monument: null, monumentMonth: 12 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -196,6 +200,7 @@ function parse(argv) {
     else if (a === '--wolves') o.wolves = /^(on|off)$/.test(argv[i + 1] || '') ? next() : 'on';
     else if (a === '--events') o.events = next();
     else if (a === '--festivals') o.festivals = next() !== 'off';
+    else if (a === '--games') o.games = true;
     else if (a === '--navy') o.navy = true;
     else if (a === '--salary') o.salary = true;
     else if (a === '--academy') o.academy = true;
@@ -496,11 +501,18 @@ function monumentReport() {
   ].join('\n');
 }
 
+const gamesHeld = { spent: 0 }; // kind -> times held, and the Dn they cost (--games)
 const runMonth = () => {
   // From 800 people, a small festival for the god longest without one, when
   // the cooldown, the money and the food allow (holdDemoFestival): all five
   // gods inside their year, as a sensible player keeps them.
   if (opts.festivals) holdDemoFestival(game);
+  if (opts.games) {
+    for (const { kind, cost } of holdDemoGames(game)) {
+      gamesHeld[kind] = (gamesHeld[kind] || 0) + 1;
+      gamesHeld.spent += cost;
+    }
+  }
   if (harbor.docks) harborMonth();
   if (uptown) uptown.monthly();
   if (quarters) quarters.monthly();
@@ -623,6 +635,7 @@ const gods = {
   wraths: godTally(/^(\w+) is angry!/),
   festivals: godTally(/^An? (\w+) festival is held/),
 };
+if (opts.games) console.log(`Games: ${GAME_KINDS.map((k) => `${k} ${gamesHeld[k] || 0}`).join(', ')}; they cost ${gamesHeld.spent} Dn`);
 console.log(`Gods: moods ${GOD_KEYS.map((k) => `${k} ${gods.moods[k]}`).join(', ')}; blessings ${gods.blessings.text}; wraths ${gods.wraths.text}; festivals ${gods.festivals.text}`);
 const req = c.stats;
 console.log(`Emperor: requests met ${req.requestsMet ?? '?'}, failed ${req.requestsFailed ?? '?'}; mood factors ${JSON.stringify(Object.fromEntries(Object.entries(c.sentimentFactors || {}).map(([k, v]) => [k, Math.round(v)])))}`);

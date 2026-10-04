@@ -58,6 +58,7 @@ import { computeCityStats, computeSentiment, updateImmigration, updateEmigration
 import { monthlyEconomy, yearlyEconomy, newLedger } from '../sim/economy.js';
 import { repayLoan } from '../sim/loans.js';
 import { newGodState, newGodMood, updateReligion } from '../sim/religion.js';
+import { newGamesState, gamesMonth } from '../sim/games.js';
 import { GOD_KEYS } from '../data/gods.js';
 import { newTradeState, updateTrade, resetTradeYear, updateDock, tradeMonthly } from '../sim/trade.js';
 import { pricesNewYear } from '../sim/prices.js';
@@ -112,6 +113,7 @@ export function newCityState(scenario, funds, savings = 0) {
     sentimentFactors: {},
     festivalBoost: 0,
     festivalCooldown: 0,
+    games: newGamesState(), // Ludi and Circenses: each kind's lift, cooldown and count (sim/games.js)
     venusBoost: 0, // Venus's blessing (+) or wrath (-) on the city mood, decaying (sim/religion.js)
     immigrationAcc: 0,
     vacancies: 0,
@@ -431,6 +433,7 @@ export class Game {
     for (const k in c.foodFlow) c.foodFlow[k] = 0;
     closeGoodsMonth(this);
     if (c.festivalCooldown > 0) c.festivalCooldown--;
+    gamesMonth(this); // the games' cooldowns, as the festivals'
     giftsMonth(this);
     c.history.push({ m: this.time.totalMonths, pop: c.population, treasury: Math.round(c.treasury), sentiment: c.sentiment });
     if (c.history.length > 240) c.history.shift();

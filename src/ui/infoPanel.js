@@ -13,7 +13,7 @@
 
 import { h, mount, fmt, pct, bar, kv } from './dom.js';
 import { CONFIG } from '../config.js';
-import { BUILDINGS, TOOLS, GATE, LABOR_CATEGORIES, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_SUPPLIERS, PERFORMER_NAMES, ENT_BASE_MAX, ENT_SEATS_MAX, fullName } from '../data/buildings.js';
+import { BUILDINGS, TOOLS, GATE, LABOR_CATEGORIES, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_SUPPLIERS, PERFORMER_NAMES, ENT_BASE_MAX, ENT_SEATS_MAX, ARENA_ENT_BONUS, fullName } from '../data/buildings.js';
 import { HOUSE_TIERS, MAX_TIER, houseCapacity } from '../data/housing.js';
 import { GOODS, FOOD_TYPES, HOUSE_GOODS, RECRUIT_COST, formatAmount } from '../data/goods.js';
 import { UNIT_TYPES, FORT_CAPACITY, HERD_MAX, STATION_CAPACITY, STABLE_CAPACITY } from '../data/units.js';
@@ -56,6 +56,7 @@ import { fortTitle, fortKey } from '../sim/fortNumbers.js';
 import { monumentStatus, monumentSections, campSections } from './monumentInfo.js';
 import { isSite } from '../sim/monumentEffects.js';
 import { demolishWarning } from '../sim/monuments.js';
+import { gamesSection } from './gamesInfo.js';
 
 /** "in about 12 days", counting the winter rest on Insane. */
 function nextMareText(game, b) {
@@ -82,7 +83,7 @@ export function describeNeed(m) {
     case 'water': return m.need >= 2 ? 'Clean water from a fountain within 4 tiles (fountains need a reservoir).' : 'Access to water: a well within 2 tiles.';
     case 'food': return `${m.need} type${m.need > 1 ? 's' : ''} of food (has ${m.have}). A market vendor must pass by, and the market needs a stocked granary.`;
     case 'religion': return `Priests of ${m.need} different god${m.need > 1 ? 's' : ''} visiting (has ${m.have}). Build temples nearby.`;
-    case 'ent': return `Entertainment ${m.need} (has ${m.have}). Entertainers passing by: theater ${VENUE_POINTS.theater}, amphitheater ${VENUE_POINTS.amphitheater} (${VENUE_POINTS.amphitheater + VENUE_BOTH_BONUS.amphitheater} with plays and gladiators), arena ${VENUE_POINTS.colosseum} (${VENUE_POINTS.colosseum + VENUE_BOTH_BONUS.colosseum} with gladiators and beasts), the hippodrome's charioteers ${VENUE_POINTS.hippodrome}, plus up to ${ENT_SEATS_MAX} when the city's venues have seats for everyone (${ENT_BASE_MAX} with races at the hippodrome).`;
+    case 'ent': return `Entertainment ${m.need} (has ${m.have}). Entertainers passing by: theater ${VENUE_POINTS.theater}, amphitheater ${VENUE_POINTS.amphitheater} (${VENUE_POINTS.amphitheater + VENUE_BOTH_BONUS.amphitheater} with plays and gladiators), arena ${VENUE_POINTS.colosseum} (${VENUE_POINTS.colosseum + VENUE_BOTH_BONUS.colosseum} with gladiators and beasts), the hippodrome's charioteers ${VENUE_POINTS.hippodrome}, plus up to ${ENT_SEATS_MAX} when the city's venues have seats for everyone (${ENT_BASE_MAX} with races at the hippodrome), and ${ARENA_ENT_BONUS} more while a Great Arena is staffed.`;
     case 'edu': return `${['', 'A school or a library nearby.', 'Both a school and a library nearby.', 'A school, a library and an academy nearby.'][m.need]} (has ${['none', 'one of school and library', 'school and library', 'all three'][m.have]})`;
     case 'barber': return 'A barber nearby.';
     case 'baths': return 'Public baths (Balneae) nearby. They need piped water from a reservoir.';
@@ -706,12 +707,17 @@ export class InfoPanel {
             kv('Seats', on ? `The whole city: +${ENT_BASE_MAX - ENT_SEATS_MAX} at most to every home` : 'None while no races run'),
             kv('Prosperity', on ? `+${CONFIG.HIPPODROME_PROSPERITY} while races run` : 'Nothing while no races run'),
             h('div', { class: 'muted' }, 'A Factio connected by road books 32 days of races with each team it sends. One hippodrome per city.')));
+          parts.push(gamesSection(g, b, 'circenses', sec, () => this.render(), (why) => this.app.ui.toastError(why)));
           break;
         }
         const acc = VENUE_SUPPLIERS[def.venue];
         const both = venueHasBoth(b, def.venue);
         const value = VENUE_POINTS[def.venue] + (both ? VENUE_BOTH_BONUS[def.venue] || 0 : 0);
-        parts.push(sec('Shows', kv('Entertainment value', `${value}${VENUE_BOTH_BONUS[def.venue] ? (both ? ' (both kinds of show)' : ` (${VENUE_POINTS[def.venue] + VENUE_BOTH_BONUS[def.venue]} with both kinds of show)`) : ''}`), acc.map((v) => kv(`${PERFORMER_NAMES[v]} shows`, `${b.shows[v]} days left`))));
+        parts.push(sec('Shows', kv('Entertainment value', `${value}${VENUE_BOTH_BONUS[def.venue] ? (both ? ' (both kinds of show)' : ` (${VENUE_POINTS[def.venue] + VENUE_BOTH_BONUS[def.venue]} with both kinds of show)`) : ''}`), acc.map((v) => kv(`${PERFORMER_NAMES[v]} shows`, `${b.shows[v]} days left`)),
+          // The Great Arena's flat part of every home's base (sim/entertainment.js), and its performers' long walks.
+          def.venue === 'colosseum' ? kv('Every home', b.efficiency > 0 ? `+${ARENA_ENT_BONUS} while staffed` : `Nothing while nobody works here (+${ARENA_ENT_BONUS} when staffed)`) : null,
+          def.roam ? kv('Performers walk', `${def.roam} tiles, twice as far as other entertainers`) : null));
+        if (def.venue === 'colosseum') parts.push(gamesSection(g, b, 'ludi', sec, () => this.render(), (why) => this.app.ui.toastError(why)));
         break;
       }
       case 'training': {
