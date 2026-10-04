@@ -6,11 +6,13 @@
  *
  * Daily, each occupied home:
  *   1. counts down its service access timers
- *   2. a single-tile home (levels 1-10) tries to join its three neighbors
- *      to the right and below into a 2x2 block, if they are single-tile homes
- *      of the same level (vacant lots count as tents) and the tile allows it
- *      (a fixed roll per tile, from the map seed: about 1 tile in 3 never
- *      starts a block, which keeps streets from turning into one pattern)
+ *   2. a single-tile home (levels 1-10) tries to join three neighbors into a
+ *      2x2 block, as any corner of it, if they are single-tile homes of the
+ *      same level (vacant lots count as tents). Blocks are laid from the west
+ *      and north end of each run of single homes, so they line up and leave
+ *      no home stranded between them (tryJoinBlock); a fixed roll per square,
+ *      from the map seed, keeps about 1 square in 5 as four single homes,
+ *      which keeps streets from turning into one pattern (blockTile)
  *   3. measures what it has (water, food variety, gods, entertainment...)
  *   4. a BAD day is desirability at or below its level's `down`, or any need
  *      of its own level missing. After game.difficulty.devolveDays bad days in
@@ -20,11 +22,14 @@
  *      one a day). A sick home (sim/disease.js) does not move up. Reaching 11, 15 or 19 it first grows into a 2x2, 3x3 or
  *      4x4 footprint, taking over homes of its own level or lower (so four
  *      Apartment Houses can become one Tenement), then clear land, then
- *      gardens.
+ *      gardens; of the squares that fit, the one that leaves the single
+ *      homes around it best placed to pair up (pickGrowth: a Tenement keeps
+ *      to the blocks' rule, so the odd home at the end of a run waits).
  *
  * A home that falls back below 11, 15 or 19 splits: it keeps a corner at the
- * smaller size (the top-left one, unless only another corner still has a
- * road within reach), and the rest become single-tile Apartment Houses.
+ * smaller size (one with a road within reach; of several, the one leaving
+ * the fewest single homes stranded, then the top-left), and the rest become
+ * single-tile Apartment Houses.
  * People and goods are shared by the tiles each part covers. Parts start
  * without service visits and are first checked the day after; a part with
  * no road within reach stays a vacant lot and its people look for another
@@ -317,8 +322,18 @@ function mix(a) {
 }
 
 /**
- * Can a single-tile home on this tile start a 2x2 block? Fixed for the whole
- * game (derived from the map seed, so it needs no saving): 2 tiles in 3 can.
+ * May the 2x2 square whose top-left tile is (x, y) become a block? Fixed for
+ * the whole game (derived from the map seed, so it needs no saving): 4
+ * squares in 5 may. The fifth stay four single-tile homes, so a street keeps
+ * some variety. The roll is per square, not per tile as it once was: a tile
+ * that could never start a block used to leave its home without a partner,
+ * while a square left as four homes strands none of them. They still have
+ * each other, the runs beside them keep their even length (tryJoinBlock),
+ * and as Apartment Houses the first to move up grows into a Tenement on that
+ * same square (pickGrowth). (Under the old rule 1 tile in 3 never started a
+ * block, but a home beside it could start one over it: on a test district of
+ * two-deep rows about 1 square in 7 stayed four homes, besides the stranded
+ * ones. 1 square in 5 keeps the streets about as varied.)
  */
 export function blockTile(game, x, y) {
   let s = seedHashes.get(game);
@@ -326,35 +341,139 @@ export function blockTile(game, x, y) {
     s = hashSeed(`${game.seed}:blocks`);
     seedHashes.set(game, s);
   }
-  return mix(s ^ mix(x * 73856093 ^ y * 19349663)) % 3 !== 0;
+  return mix(s ^ mix(x * 73856093 ^ y * 19349663)) % 5 !== 0;
+}
+
+/** The 2x2 squares holding a tile: as their top-left, top-right, bottom-left and bottom-right tile. */
+const SQUARES_AROUND = [[0, 0], [-1, 0], [0, -1], [-1, -1]];
+
+/** Is (x, y) a single-tile home (a vacant lot counts)? False off the map. */
+function isSingle(game, x, y) {
+  const o = game.buildings.get(game.map.buildingAt(x, y));
+  return !!(o && o.house && o.size === 1);
 }
 
 /**
- * A single-tile home joins its neighbors to the right, below and diagonally
- * into a 2x2 block when all three are single-tile homes of its level (vacant
- * lots count as tents) and its tile allows blocks.
+ * The run of single-tile homes beyond one side of the S x S square at
+ * (sx, sy), in direction (dx, dy): how many strips as wide as the square, one
+ * after another, are all single-tile homes (`single(x, y)` says what counts).
+ * The run ends at anything else: a street, another building, a block or a
+ * bigger home, the map edge.
+ */
+function runBeyond(sx, sy, S, dx, dy, single) {
+  for (let n = 0; ; n++) {
+    const x = dx < 0 ? sx - 1 - n : dx > 0 ? sx + S + n : sx;
+    const y = dy < 0 ? sy - 1 - n : dy > 0 ? sy + S + n : sy;
+    for (let k = 0; k < S; k++) if (!single(x + (dx ? 0 : k), y + (dy ? 0 : k))) return n;
+  }
+}
+
+/** Is the 2x2 square at (sx, sy) laid from the west and north ends of its runs (see tryJoinBlock)? */
+function laidFromRunEnds(sx, sy, single) {
+  return runBeyond(sx, sy, 2, -1, 0, single) % 2 === 0 && runBeyond(sx, sy, 2, 0, -1, single) % 2 === 0;
+}
+
+/**
+ * Is (x, y) a single-tile home that no 2x2 square of single-tile homes holds?
+ * Such a home can never join a block: it is stranded at the single-tile levels.
+ */
+function strandedAt(x, y, single) {
+  if (!single(x, y)) return false;
+  for (const [ox, oy] of SQUARES_AROUND) {
+    const sx = x + ox;
+    const sy = y + oy;
+    if (single(sx, sy) && single(sx + 1, sy) && single(sx, sy + 1) && single(sx + 1, sy + 1)) return false;
+  }
+  return true;
+}
+
+/** Stranded single-tile homes in the rectangle (x0, y0) to (x1, y1), corners included. */
+function strandedIn(x0, y0, x1, y1, single) {
+  let n = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (strandedAt(x, y, single)) n++;
+  return n;
+}
+
+/**
+ * The three other homes of the 2x2 square at (sx, sy) when the square can be
+ * a block now: all four single-tile homes of `b`'s level (vacant lots count
+ * as tents), none sick. Otherwise null.
+ */
+function blockPartners(game, b, sx, sy) {
+  const { map, buildings } = game;
+  const others = [];
+  for (let dy = 0; dy < 2; dy++) {
+    for (let dx = 0; dx < 2; dx++) {
+      const id = map.buildingAt(sx + dx, sy + dy);
+      if (id === b.id) continue;
+      const o = buildings.get(id);
+      if (!o || !o.house || o.size !== 1 || o.house.merged || o.house.sick > 0) return null;
+      if ((o.house.tier || 1) !== b.house.tier) return null;
+      others.push(o);
+    }
+  }
+  return others;
+}
+
+/**
+ * A single-tile home joins three neighbors into a 2x2 block, as any corner of
+ * it, when all four are single-tile homes of its level (vacant lots count as
+ * tents) and the square may be a block (blockTile).
+ *
+ * Which square: homes are updated one after another, so when a home could
+ * only be a block's top-left corner, the first to qualify claimed a block
+ * wherever it stood, and a row could end up with blocks a tile out of step
+ * and a single home stranded between each two (with no square of single
+ * homes left around it, it never pairs again and stays at the single-tile
+ * levels among Insulae). So a square only becomes a block when the run of
+ * single-tile homes west of it (whole columns of its two rows) and the run
+ * north of it (whole rows of its two columns) are each an even number of
+ * tiles long. A run ends at anything that is not a single-tile home: a
+ * street, another building, a block or a bigger home, the map edge. Blocks
+ * are then laid from the west and north end of every run, whichever home
+ * qualifies first, so they line up with the street and with the blocks
+ * already there, and a run of odd length leaves its last column (or row)
+ * at its east (or south) end. (Two side by side squares of single homes
+ * cannot both have an even run west of them, so a home has one such square
+ * in a straight row; the four squares are tried in a fixed order, the home
+ * as top-left corner first.) When none is ready (a neighbor of another
+ * level, or sick), the home waits rather than take a square out of step,
+ * which would strand a neighbor. A square kept as four homes (blockTile) is
+ * two columns wide, so the runs beyond it stay even or odd as they were.
+ * Worked example, a run two tiles deep between two streets (#), seven homes
+ * a..g long, rows 0 and 1:
+ *
+ *      # a b c d e f g #     blocks [a b] [c d] [e f], g left over
+ *      # a b c d e f g #
+ *
+ *   Say b, c and d reach the same level first. The square b-c has one column
+ *   (a) west of it, an odd run, so b waits for a; c-d has two (a, b), so c
+ *   and d join. Later a-b (no run west of it) and e-f (none either: d is in
+ *   a block now) join, and g, the odd one out, stays single at the run's
+ *   east end. With six homes, a..f, nothing is left over; the old rule
+ *   (top-left corners only, first come first served) could make b-c and d-e
+ *   and strand a and f.
  */
 function tryJoinBlock(game, b) {
   const h = b.house;
   if (b.size !== 1 || h.merged || h.tier < 1 || h.tier > MAX_SMALL_TIER) return false;
-  if (!blockTile(game, b.x, b.y)) return false;
-  const { map, buildings } = game;
   if (h.sick > 0) return false; // nobody joins a sick home
-  const others = [];
-  for (const [dx, dy] of [[1, 0], [0, 1], [1, 1]]) {
-    const o = buildings.get(map.buildingAt(b.x + dx, b.y + dy));
-    if (!o || !o.house || o.size !== 1 || o.house.merged || o.house.sick > 0) return false;
-    if ((o.house.tier || 1) !== h.tier) return false;
-    others.push(o);
+  const single = (x, y) => isSingle(game, x, y);
+  for (const [ox, oy] of SQUARES_AROUND) {
+    const sx = b.x + ox;
+    const sy = b.y + oy;
+    const others = blockPartners(game, b, sx, sy);
+    if (!others || !blockTile(game, sx, sy) || !laidFromRunEnds(sx, sy, single)) continue;
+    const moved = new Map();
+    for (const o of others) absorbHouse(game, b, o, moved);
+    retarget(game, moved);
+    setFootprint(game, b, sx, sy, 2);
+    h.merged = true;
+    game.markDirty('des');
+    game.events.emit('houseChanged', b);
+    return true;
   }
-  const moved = new Map();
-  for (const o of others) absorbHouse(game, b, o, moved);
-  retarget(game, moved);
-  setFootprint(game, b, b.x, b.y, 2);
-  h.merged = true;
-  game.markDirty('des');
-  game.events.emit('houseChanged', b);
-  return true;
+  return false;
 }
 
 /**
@@ -474,13 +593,16 @@ function isClearLand(game, i) {
  * The square a home growing to size S takes over, or null. Four squares are
  * tried (the one anchored at the home, then shifted up-left, left and up),
  * in three passes: only this home and homes of its level or lower (vacant
- * lots included); then also clear land; then also gardens.
+ * lots included); then also clear land; then also gardens. Of the squares
+ * that fit in a pass, pickGrowth chooses one (or none, and the next pass is
+ * tried).
  * @returns {{x:number,y:number}|null}
  */
 export function findGrowth(game, b, S) {
   const { map, buildings } = game;
   const shifts = [[0, 0], [-1, -1], [-1, 0], [0, -1]];
   for (let pass = 0; pass < 3; pass++) {
+    const fits = [];
     for (const [ox, oy] of shifts) {
       const sx = b.x + ox;
       const sy = b.y + oy;
@@ -490,10 +612,66 @@ export function findGrowth(game, b, S) {
           if (!tileTakeable(game, b, sx + dx, sy + dy, pass, map, buildings)) { ok = false; break; }
         }
       }
-      if (ok) return { x: sx, y: sy };
+      if (ok) fits.push({ x: sx, y: sy });
     }
+    const sq = pickGrowth(game, b, S, fits);
+    if (sq) return sq;
   }
   return null;
+}
+
+/**
+ * Of the squares that fit in one pass, the one that leaves the single-tile
+ * homes around it best placed to pair up, judged on the homes as they will
+ * be (homes it only partly covers break into single tiles):
+ *   - a 2x2 (an Apartment House becoming a Tenement) follows the rule blocks
+ *     are laid by (tryJoinBlock): only a square with an even run of single
+ *     homes west and north of it, and of those the fewest odd runs east and
+ *     south. A home with no such square waits: it is the odd one out at the
+ *     end of its run, and growing over a neighbor would strand that
+ *     neighbor between two bigger homes instead. This is also the way out
+ *     for a home stranded between blocks (by an older rule, or in an older
+ *     save): as an Apartment House it grows over half of the neighboring
+ *     block (of its level or lower), whose other half then pairs with the
+ *     next stranded home, so the row lines up again.
+ *   - a 3x3 or 4x4: the fewest stranded single homes left around it, so a
+ *     home stranded beside a growing villa is taken in rather than left out.
+ * Ties go to the first square in the order tried.
+ * @returns {{x:number,y:number}|null}
+ */
+function pickGrowth(game, b, S, fits) {
+  if (S > 2 && fits.length < 2) return fits[0] || null;
+  let best = null;
+  let bestKey = Infinity;
+  for (const sq of fits) {
+    const single = singleAfterGrowth(game, b, sq, S);
+    let key;
+    if (S === 2) {
+      if (!laidFromRunEnds(sq.x, sq.y, single)) continue;
+      key = runBeyond(sq.x, sq.y, 2, 1, 0, single) % 2 + runBeyond(sq.x, sq.y, 2, 0, 1, single) % 2;
+    } else {
+      // Every square tried lies within a tile of the home; two more tiles
+      // around them all make one window, the same for every square.
+      key = strandedIn(b.x - 3, b.y - 3, b.x + S + 1, b.y + S + 1, single);
+    }
+    if (key < bestKey) {
+      best = sq;
+      bestKey = key;
+    }
+  }
+  return best;
+}
+
+/** Will (x, y) hold a single-tile home once `b` has grown into the S x S square `sq`? */
+function singleAfterGrowth(game, b, sq, S) {
+  const { map, buildings } = game;
+  return (x, y) => {
+    if (x >= sq.x && x < sq.x + S && y >= sq.y && y < sq.y + S) return false;
+    const o = buildings.get(map.buildingAt(x, y));
+    if (!o || !o.house) return false;
+    // A home partly inside the square breaks into single tiles (breakUp).
+    return o.size === 1 || (o.x < sq.x + S && o.x + o.size > sq.x && o.y < sq.y + S && o.y + o.size > sq.y);
+  };
 }
 
 function tileTakeable(game, b, x, y, pass, map, buildings) {
@@ -606,9 +784,11 @@ function newPiece(game, x, y, level, pop, stock, share, source, families = sourc
 }
 
 /**
- * A 2x2, 3x3 or 4x4 home falls below its footprint's levels: it keeps its
- * anchor corner at `keep` x `keep`, and every other tile becomes a
- * single-tile Apartment House. People and goods are shared by tiles covered.
+ * A 2x2, 3x3 or 4x4 home falls below its footprint's levels: it keeps a
+ * corner at `keep` x `keep`, and every other tile becomes a single-tile
+ * Apartment House. People and goods are shared by tiles covered. Four
+ * Apartment Houses on a 2x2's square join again as a block by the usual rule
+ * (tryJoinBlock), lining up with the run they stand in.
  */
 function splitHouse(game, b, keep) {
   const h = b.house;
@@ -616,12 +796,28 @@ function splitHouse(game, b, keep) {
   const n = S * S;
   const each = Math.floor(h.pop / n);
   const stock = { food: { ...h.food }, goods: { ...h.goods } };
-  // The top-left corner, unless only another corner keeps a road within reach.
-  const off = S - keep;
-  const corners = [[0, 0], [off, 0], [0, off], [off, off]];
-  const [kx, ky] = corners.find(([cx, cy]) => roadWithinReach(game, b.x + cx, b.y + cy, keep)) || corners[0];
   const x0 = b.x;
   const y0 = b.y;
+  // A corner that keeps a road within reach (the top-left if none does).
+  // Of several, the one that leaves the fewest single-tile homes stranded
+  // around it, so the strip it gives up pairs with single homes beside it
+  // where it can; then the top-left first. (A 2x2 falling to single tiles
+  // leaves four singles on its own square whichever corner it keeps.)
+  const off = S - keep;
+  const corners = [[0, 0], [off, 0], [0, off], [off, off]];
+  const reach = corners.filter(([cx, cy]) => roadWithinReach(game, x0 + cx, y0 + cy, keep));
+  let [kx, ky] = reach[0] || corners[0];
+  if (keep > 1 && reach.length > 1) {
+    let fewest = Infinity;
+    for (const [cx, cy] of reach) {
+      const single = (x, y) => {
+        if (x >= x0 && x < x0 + S && y >= y0 && y < y0 + S) return !(x >= x0 + cx && x < x0 + cx + keep && y >= y0 + cy && y < y0 + cy + keep);
+        return isSingle(game, x, y);
+      };
+      const n = strandedIn(x0 - 2, y0 - 2, x0 + S + 1, y0 + S + 1, single);
+      if (n < fewest) [fewest, kx, ky] = [n, cx, cy];
+    }
+  }
   const pieces = [];
   for (let dy = 0; dy < S; dy++) {
     for (let dx = 0; dx < S; dx++) {

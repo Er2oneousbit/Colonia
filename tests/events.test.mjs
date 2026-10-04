@@ -783,7 +783,8 @@ test('sandbox switches: with every one on, a city sees the very events it saw be
     return { pop: game.city.population, counts: game.city.events.counts, wage: game.city.romeWage, cooldowns: game.city.events.cooldowns, rng: JSON.stringify(game.rng.getState()) };
   };
   const all = run([...EVENT_SWITCHES]);
-  assert.deepEqual({ ...all, rng: undefined }, { pop: 399, counts: { clay: 1, water: 1, wageDown: 1, wageUp: 1 }, wage: 25, cooldowns: { clay: 6, water: 11, wages: 43 }, rng: undefined });
+  // (pop 399 until v0.18.14, when homes stopped stranding singles between blocks.)
+  assert.deepEqual({ ...all, rng: undefined }, { pop: 409, counts: { clay: 1, water: 1, wageDown: 1, wageUp: 1 }, wage: 25, cooldowns: { clay: 6, water: 11, wages: 43 }, rng: undefined });
   assert.deepEqual(run(true), all, 'the old one switch, on');
   assert.deepEqual(run(undefined), all, 'a scenario without the field');
 });
