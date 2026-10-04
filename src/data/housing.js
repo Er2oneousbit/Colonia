@@ -60,6 +60,11 @@ const COMFORT = ['pottery', 'furniture', 'oil'];
 // before its villas. Wine stays the villas' own need.
 const DRESSED = ['pottery', 'furniture', 'oil', 'clothing'];
 const LUXURY = ['pottery', 'furniture', 'oil', 'clothing', 'wine'];
+// Marble (Colonia's own) from the Marble Villa up, as its name says: the
+// top five levels, all patrician, so it never touches a working home or
+// the capacity model's quarters (Insula and Villa). Used at half the usual
+// rate (data/goods.js HOUSE_GOOD_USE).
+const MARBLED = [...LUXURY, 'marble'];
 
 // Desirability the homes give off, by band: humble homes are poor neighbors,
 // villas and palaces lift the streets around them.
@@ -87,9 +92,9 @@ export const HOUSE_TIERS = Object.freeze([
   L({ name: 'Garden Villa', size: 2, people: 48, down: 41, up: 49, water: 2, food: 2, religion: 2, ent: 40, edu: 2, barber: 1, baths: 1, health: 2, goods: LUXURY, tax: 9, patrician: true, fire: 0.6, damage: 0.8, desOut: [2, 1, -1, 2] }),
   // --- 3x3 -------------------------------------------------------------------
   L({ name: 'Peristyle Villa', size: 3, people: 99, down: 43, up: 53, water: 2, food: 2, religion: 2, ent: 45, edu: 3, barber: 1, baths: 1, health: 2, goods: LUXURY, tax: 10, patrician: true, fire: 0.6, damage: 0.8, desOut: [3, 2, -1, 3] }),
-  L({ name: 'Marble Villa', size: 3, people: 108, down: 49, up: 57, water: 2, food: 3, religion: 3, ent: 50, edu: 3, barber: 1, baths: 1, health: 2, goods: LUXURY, tax: 11, patrician: true, fire: 0.6, damage: 0.8, desOut: [3, 2, -1, 3] }),
-  L({ name: 'Mansion', size: 3, people: 117, down: 53, up: 61, water: 2, food: 3, religion: 3, ent: 55, edu: 3, barber: 1, baths: 1, health: 2, goods: LUXURY, wine: 2, tax: 12, patrician: true, fire: 0.6, damage: 0.8, desOut: [4, 2, -1, 4] }),
-  L({ name: 'Palatium', size: 3, people: 126, down: 57, up: 66, water: 2, food: 3, religion: 4, ent: 60, edu: 3, barber: 1, baths: 1, health: 2, goods: LUXURY, wine: 2, tax: 13, patrician: true, fire: 0.6, damage: 0.8, desOut: [4, 2, -1, 4] }),
+  L({ name: 'Marble Villa', size: 3, people: 108, down: 49, up: 57, water: 2, food: 3, religion: 3, ent: 50, edu: 3, barber: 1, baths: 1, health: 2, goods: MARBLED, tax: 11, patrician: true, fire: 0.6, damage: 0.8, desOut: [3, 2, -1, 3] }),
+  L({ name: 'Mansion', size: 3, people: 117, down: 53, up: 61, water: 2, food: 3, religion: 3, ent: 55, edu: 3, barber: 1, baths: 1, health: 2, goods: MARBLED, wine: 2, tax: 12, patrician: true, fire: 0.6, damage: 0.8, desOut: [4, 2, -1, 4] }),
+  L({ name: 'Palatium', size: 3, people: 126, down: 57, up: 66, water: 2, food: 3, religion: 4, ent: 60, edu: 3, barber: 1, baths: 1, health: 2, goods: MARBLED, wine: 2, tax: 13, patrician: true, fire: 0.6, damage: 0.8, desOut: [4, 2, -1, 4] }),
   // --- 4x4 -------------------------------------------------------------------
   // Entertainment 80 and 95 (were 70 and 80) since the hippodrome: with it a
   // home can score 116, and 80 no longer needed the colosseum (theater,
@@ -99,9 +104,9 @@ export const HOUSE_TIERS = Object.freeze([
   // cleared 95. As in the original, the top level now needs the hippodrome
   // (80 is the most a city without one can give) and the one below it every
   // other venue at its best.
-  L({ name: 'Grand Palatium', size: 4, people: 192, down: 60, up: 72, water: 2, food: 3, religion: 4, ent: 80, edu: 3, barber: 1, baths: 1, health: 2, goods: LUXURY, wine: 2, tax: 15, patrician: true, fire: 0.5, damage: 0.8, desOut: [5, 2, -1, 5] }),
+  L({ name: 'Grand Palatium', size: 4, people: 192, down: 60, up: 72, water: 2, food: 3, religion: 4, ent: 80, edu: 3, barber: 1, baths: 1, health: 2, goods: MARBLED, wine: 2, tax: 15, patrician: true, fire: 0.5, damage: 0.8, desOut: [5, 2, -1, 5] }),
   // The top level never moves up (`up` is out of reach).
-  L({ name: 'Imperial Palatium', size: 4, people: 208, down: 68, up: 999, water: 2, food: 3, religion: 4, ent: 95, edu: 3, barber: 1, baths: 1, health: 2, goods: LUXURY, wine: 2, tax: 16, patrician: true, fire: 0.5, damage: 0.8, desOut: [5, 2, -1, 5] }),
+  L({ name: 'Imperial Palatium', size: 4, people: 208, down: 68, up: 999, water: 2, food: 3, religion: 4, ent: 95, edu: 3, barber: 1, baths: 1, health: 2, goods: MARBLED, wine: 2, tax: 16, patrician: true, fire: 0.5, damage: 0.8, desOut: [5, 2, -1, 5] }),
 ]);
 
 export const MAX_TIER = HOUSE_TIERS.length - 1;

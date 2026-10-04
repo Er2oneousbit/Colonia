@@ -33,7 +33,7 @@ import { GIFT_SIZES, GIFT_MEMORY_MONTHS, giftCost, giftFavor, sendGift, giftsMon
 import {
   rankLine, salaryOption, salaryPickable, salaryOutlookText, giftLabel, giftBlocked, giftNote, briefingGovernorLine, victoryGovernorLine, victoryTitle, salaryNow,
 } from '../src/ui/governorInfo.js';
-import { newGame, build, findFree } from './helpers.mjs';
+import { newGame, build, findFree, waiveMarble } from './helpers.mjs';
 
 log.setLevel('error');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -457,7 +457,9 @@ test('residences: one stands at a time; a second is refused with the reason unti
   assert.equal(no.reason, 'You already have a residence (Praetorium): only one may stand at a time. Demolish it first to build another.');
   assert.equal(checkBuilding(game, 'governor_house', far.x, far.y).ok, false);
   removeBuilding(game, house);
-  assert.ok(checkBuilding(game, 'governor_palace', far.x, far.y).ok);
+  // Then only its marble stands in the way (tests/marble.test.mjs).
+  assert.equal(checkBuilding(game, 'governor_palace', far.x, far.y).reason, 'Needs 400 marble in the warehouses, 0 stored');
+  assert.ok(checkBuilding(waiveMarble(game), 'governor_palace', far.x, far.y).ok);
 });
 
 test('residences: desirability by the spec\'s rings', () => {

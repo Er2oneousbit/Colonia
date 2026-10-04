@@ -12,7 +12,7 @@
  */
 
 import { CONFIG } from '../config.js';
-import { FOOD_TYPES, HOUSE_GOODS } from '../data/goods.js';
+import { FOOD_TYPES, HOUSE_GOODS, houseGoodUse } from '../data/goods.js';
 import { HOUSE_TIERS, MAX_TIER } from '../data/housing.js';
 import { spawnWalker } from './entities.js';
 import { followPath, goHome } from './movement.js';
@@ -57,9 +57,9 @@ function keepsKind(market, h, f, monthly) {
   return h.food[f] > 0.01 && (market.stock[f] > 0 || h.food[f] >= monthly);
 }
 
-/** How much of each good a vendor's visit tops a home up to: three months of it. */
-function goodsTargetOf(h) {
-  return Math.max(2, (h.pop / CONFIG.GOODS_PER_HOUSE_PEOPLE) * 3);
+/** How much of a good a vendor's visit tops a home up to: three months of it, at its rate of use. */
+function goodsTargetOf(h, g) {
+  return Math.max(2, (h.pop / CONFIG.GOODS_PER_HOUSE_PEOPLE) * 3) * houseGoodUse(g);
 }
 
 /**
@@ -91,9 +91,9 @@ export function vendorNeed(market, h) {
     }
     need = short / kinds;
   }
-  const goodsTarget = goodsTargetOf(h);
   for (const g of HOUSE_GOODS) {
     if (market.stock[g] <= 0 || !houseWantsGood(h, g)) continue;
+    const goodsTarget = goodsTargetOf(h, g);
     need = Math.max(need, Math.max(0, goodsTarget - h.goods[g]) / goodsTarget);
   }
   return need;
@@ -119,10 +119,10 @@ export function vendorSupply(game, market, house) {
       game.city.foodFlow.sold += give;
     }
   }
-  const goodsTarget = goodsTargetOf(h);
   for (const g of HOUSE_GOODS) {
     if (market.stock[g] <= 0 || !houseWantsGood(h, g)) continue;
     const have = h.goods[g];
+    const goodsTarget = goodsTargetOf(h, g);
     if (have >= goodsTarget) continue;
     const give = Math.min(market.stock[g], goodsTarget - have);
     market.stock[g] -= give;
@@ -152,9 +152,10 @@ export function updateMarketBuyer(game, market) {
   }
   for (const g of HOUSE_GOODS) {
     if (!demand[g]) continue;
-    // Clothing, likewise: Tenements want it from the day they stand, long
-    // before a city may make any, and no partner sells it.
-    if (g === 'clothing' && !inStore(game, 'clothing')) continue;
+    // Clothing and marble, likewise: Tenements want clothing from the day
+    // they stand, and Peristyle Villas marble, long before a city may have
+    // any in its warehouses.
+    if ((g === 'clothing' || g === 'marble') && !inStore(game, g)) continue;
     const ratio = market.stock[g] / CONFIG.MARKET_GOODS_CAP;
     if (ratio < 0.5) wants.push({ good: g, ratio });
   }

@@ -33,7 +33,8 @@ import { Road, Terrain, WaterBits, Wall, ROADBLOCK } from '../world/map.js';
 import { addBuilding, perimeterTiles, accessTiles, removeBuilding, linkedGroup, spanLayout, spanOrigin, isWaterside, overWaterFit, waterRowsFor, waterRowsSide, shoreWaterAt, OVER_WATER_ART } from './entities.js';
 import { canAfford, transact } from './economy.js';
 import { dockBerth } from './trade.js';
-import { cityStock } from './storage.js';
+import { cityStock, warehouseStock, takeFromWarehouses, storageRoom } from './storage.js';
+import { logGoods } from './goodsLedger.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
 import { waterBeside } from './fishing.js';
 import { clearRuin, restoreRuin, ruinAt } from './ruins.js';
@@ -233,6 +234,57 @@ export function waterRowsBlocked(game, tiles) {
 }
 
 /** The no-road warning to show by the cursor for a plan, or null when every spot has a road. */
+/**
+ * Marble a building of `type` takes from the warehouses as it is placed
+ * (data/buildings.js `marble`): none for most. None under free build (the
+ * console's cheat), nor while `cheats.freeMarble` is set, which only the
+ * demo cities do: they stand in for the quarry as they stock their markets,
+ * so a balance run builds the same town as before marble was needed.
+ */
+export function marbleCost(game, type) {
+  const n = BUILDINGS[type]?.marble || 0;
+  return n > 0 && !game.cheats.freeBuild && !game.cheats.freeMarble ? n : 0;
+}
+
+/**
+ * Why the warehouses cannot pay for a building's marble right now, or null
+ * (the build menu greys it out with this, and placing is refused with it).
+ */
+export function marbleShort(game, type) {
+  const need = marbleCost(game, type);
+  if (need <= 0) return null;
+  const have = Math.floor(warehouseStock(game, 'marble'));
+  return have >= need ? null : `Needs ${need} marble in the warehouses, ${have} stored`;
+}
+
+/**
+ * Put back marble an undo returns (`parts`: what came from which warehouse,
+ * takeFromWarehouses). Each part goes back where it came from; one whose
+ * warehouse is gone goes to the warehouse with the most room. All of it,
+ * even into a full warehouse, so an undo always gives back what it took
+ * (canUndo holds it back while no warehouse stands).
+ */
+function returnMarble(game, parts) {
+  for (const { id, n } of parts) {
+    let b = game.buildings.get(id);
+    if (!b || b.def.kind !== 'warehouse') {
+      b = null;
+      for (const w of game.buildings.values()) if (w.def.kind === 'warehouse' && (!b || storageRoom(w) > storageRoom(b))) b = w;
+    }
+    if (b) b.stock.marble = (b.stock.marble || 0) + n;
+  }
+  // The goods book counted it used when it was taken (applyPlan).
+  const row = game.city.goodsFlow?.marble;
+  if (row) row.used = Math.max(0, row.used - parts.reduce((s, p) => s + p.n, 0));
+}
+
+/** Does an undo entry hold marble, and is there no warehouse to put it back in? */
+function marbleHomeless(game, u) {
+  if (!u.ops.some((op) => op.marble && op.marble.length)) return false;
+  for (const b of game.buildings.values()) if (b.def.kind === 'warehouse') return false;
+  return true;
+}
+
 export function planNoRoadWarning(plan) {
   if (!plan || !plan.items || !plan.items.some((it) => it.ok && it.noRoad)) return null;
   return BUILDINGS[plan.tool]?.kind === 'house' ? HOUSE_NO_ROAD_WARNING : NO_ROAD_WARNING;
@@ -317,6 +369,11 @@ export function checkBuilding(game, type, x, y, turn = 0) {
       break;
   }
   if (!canAfford(game, cost)) return fail('Not enough money', cost);
+  // Marble from the warehouses, all of it or none (data/buildings.js `marble`).
+  const short = marbleShort(game, type);
+  if (short) return fail(short, cost);
+  const marble = marbleCost(game, type);
+  if (marble) out.marble = marble;
   // Soft warnings (placement allowed, but it will not work well).
   // (A building with no workers, the Oracle, works without a road.)
   if (def.needsRoad && def.kind !== 'house' && def.workers > 0) {
@@ -542,6 +599,7 @@ export function planAction(game, tool, x0, y0, x1, y1, turn = 0, { auto = false 
     warnings: chk.warnings,
     reason: chk.reason,
     fertility: chk.fertility,
+    ...(chk.ok && chk.marble ? { marble: chk.marble } : {}), // taken from the warehouses (marbleCost)
   };
 }
 
@@ -934,6 +992,7 @@ export function applyPlan(game, plan) {
   if (!plan || plan.count === 0) return { ok: false, count: 0, cost: 0, reason: plan?.reason || 'Nothing to do' };
   const { map } = game;
   const undo = { tool: plan.tool, day: game.time.totalDays, cost: 0, ops: [] };
+  let used = 0; // marble taken (marbleCost)
   let spent = 0;
   let done = 0;
   // `ruin`: what the rubble remembered (sim/ruins.js), so an undo gives it back.
@@ -1068,7 +1127,11 @@ export function applyPlan(game, plan) {
       if (chk.axis !== undefined) b.axis = chk.axis; // a triumphal arch: the way its road runs (art, sim/battle.js)
       if (b.def.placement === 'shore') dockBerth(game, b); // berth + which side faces the water (docks, the navalia, naval stations)
       if (b.def.placement === 'fishingShore') waterBeside(game, b); // slip or mooring + which side faces the water
-      undo.ops.push({ op: 'building', id: b.id, tiles });
+      // Its marble from the warehouses (checked above), remembered by
+      // warehouse so an undo puts it back where it was.
+      const marble = chk.marble ? takeFromWarehouses(game, 'marble', chk.marble) : null;
+      if (marble) { logGoods(game, 'marble', 'used', chk.marble); used += chk.marble; }
+      undo.ops.push(marble ? { op: 'building', id: b.id, tiles, marble } : { op: 'building', id: b.id, tiles });
       if (lay.sections.length > 1) addSections(game, b, lay.sections, undo);
       spent += chk.cost;
       done++;
@@ -1082,7 +1145,7 @@ export function applyPlan(game, plan) {
   game.lastUndo = done > 0 ? undo : null;
   game.onMapEdited();
   if (done > 0) game.events.emit('sound', { name: 'build' });
-  return { ok: done > 0, count: done, cost: spent };
+  return { ok: done > 0, count: done, cost: spent, ...(used ? { marble: used } : {}) };
 }
 
 /**
@@ -1115,6 +1178,7 @@ export function canUndo(game) {
     if (demolishBlocked(game, b)) return false; // (an undo takes it down too: not with its men away)
     if (b.def.kind === 'monument' && siteStarted(b)) return false; // goods or work in it: no refund now (sim/monuments.js)
   }
+  if (marbleHomeless(game, u)) return false; // no warehouse to give its marble back to
   return true;
 }
 
@@ -1122,16 +1186,20 @@ export function canUndo(game) {
 export function undoLast(game) {
   if (!canUndo(game)) {
     const away = (game.lastUndo?.ops || []).map((op) => op.op === 'building' && demolishBlocked(game, game.buildings.get(op.id))).find(Boolean);
-    return { ok: false, reason: away || 'Nothing to undo' };
+    const u = game.lastUndo;
+    const homeless = u && game.time.totalDays - u.day <= UNDO_WINDOW_DAYS && marbleHomeless(game, u) ? 'No warehouse stands to take its marble back: build one first' : null;
+    return { ok: false, reason: away || homeless || 'Nothing to undo' };
   }
   const u = game.lastUndo;
   const { map } = game;
   let lowChanged = false;
+  let marble = 0; // given back to the warehouses (returnMarble)
   for (const op of [...u.ops].reverse()) {
     if (op.op === 'building') {
       const b = game.buildings.get(op.id);
       if (b) removeBuilding(game, b, 'undo');
       for (const t of op.tiles) { map.terrain[t.i] = t.terrain; map.rubble[t.i] = t.rubble; restoreRuin(game, t.i, t.ruin); }
+      if (op.marble) { returnMarble(game, op.marble); marble += op.marble.reduce((s, p) => s + p.n, 0); }
     } else if (op.op === 'road') {
       if (map.bridgeLow[op.i]) { map.bridgeLow[op.i] = 0; lowChanged = true; }
       map.road[op.i] = Road.NONE;
@@ -1163,7 +1231,7 @@ export function undoLast(game) {
   game.lastUndo = null;
   if (lowChanged) refreshWaterways(game);
   game.onMapEdited();
-  return { ok: true, refund: u.cost };
+  return { ok: true, refund: u.cost, ...(marble ? { marble } : {}) };
 }
 
 /** Residents a demolition would evict (UI confirmation helper). */

@@ -20,7 +20,7 @@ import { Terrain } from '../src/world/map.js';
 import { serializeGame, deserializeGame } from '../src/core/save.js';
 import { planAction, planNoRoadWarning, checkBuilding, NO_ROAD_WARNING, HOUSE_NO_ROAD_WARNING } from '../src/sim/construction.js';
 import { lacksRoad, accessEdgeTiles, noRoadText } from '../src/sim/roadAccess.js';
-import { newGame, build, findFree } from './helpers.mjs';
+import { newGame, build, findFree, waiveMarble } from './helpers.mjs';
 
 log.setLevel('error');
 
@@ -81,6 +81,7 @@ test('roads: placing with no road touching flags the plan; a corner road is not 
   // Wells need no road, and the Oracle, with no workers, works without one: never flagged.
   assert.equal(planAction(game, 'well', s.x + 3, s.y + 3, s.x + 3, s.y + 3).items[0].noRoad, false);
   const far = room(game, 2, 2);
+  waiveMarble(game); // (the Oracle's marble: tests/marble.test.mjs)
   const oraclePlan = planAction(game, 'oracle', far.x, far.y, far.x, far.y);
   assert.equal(oraclePlan.items[0].ok && oraclePlan.items[0].noRoad, false);
   assert.ok(build(game, 'oracle', oraclePlan.items[0].x, oraclePlan.items[0].y).ok);

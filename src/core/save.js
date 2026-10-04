@@ -231,6 +231,12 @@
  *      reservation marked `mon` at the site; the finance ledger has a
  *      'monuments' row (upkeep). An older save has none of them: its
  *      ledgers get the row at 0, see upgradeMonumentsV30().
+ *  32  marble is a home good (data/goods.js HOUSE_GOODS): homes and
+ *      markets hold it, and homes need it from the Marble Villa up. Older
+ *      saves load with it at 0 in markets and most homes; Peristyle Villas
+ *      and better start with MARBLE_GRACE_MONTHS of it, see
+ *      upgradeMarbleV31(). (Buildings made of marble take it from the
+ *      warehouses as they are placed, which changes nothing saved.)
  *
  * Typed-array map layers are base64 encoded, run-length compressed first
  * when that is smaller (encodeLayer). Derived data (building tile layer,
@@ -257,6 +263,7 @@ import { WALKER_TYPES } from '../data/walkers.js';
 import { findScenario, withDifficulty } from '../data/scenarios.js';
 import { SITES } from '../data/sites.js';
 import { HOUSE_TIERS } from '../data/housing.js';
+import { houseGoodUse } from '../data/goods.js';
 import { serializeRuins, restoreRuins } from '../sim/ruins.js';
 import { fireOf } from '../sim/risk.js';
 import { isStable, stableRoom } from '../sim/storage.js';
@@ -620,6 +627,7 @@ export function deserializeGame(data, flags = {}) {
   if (data.version < 28) upgradeFireGroupsV27(game);
   if (data.version < 29) upgradeSoldierTripsV28(game);
   if (data.version < 31) upgradeMonumentsV30(game);
+  if (data.version < 32) upgradeMarbleV31(game);
   // A monument's or camp's record missing a part (a hand-edited file) gets a
   // fresh one rather than stopping the game's daily update on it.
   for (const b of game.buildings.values()) {
@@ -1074,6 +1082,39 @@ export function upgradeSoldierTripsV28(game) {
 export function upgradeMonumentsV30(game) {
   const f = game.city.finance;
   for (const l of [f?.thisYear, f?.lastYear]) if (l && l.monuments === undefined) l.monuments = 0;
+}
+
+/**
+ * Months of marble an upgraded save's Peristyle Villas and better homes
+ * start with (see upgradeMarbleV31): twice clothing's grace, as a city may
+ * have to open a route and wait for ships where it has no rock to quarry.
+ */
+export const MARBLE_GRACE_MONTHS = 6;
+
+/**
+ * A save before version 32 (before homes needed marble): homes and markets
+ * get marble at 0 (markets also on the way to them; warehouses, docks and
+ * the trade settings always had it). Homes that need it now (the Marble
+ * Villa and up) or will next (Peristyle Villas) start with
+ * MARBLE_GRACE_MONTHS of it at its rate of use, as upgradeClothV9 gave
+ * clothing, so a loaded late city has time to quarry or buy it before its
+ * palaces fall back.
+ */
+export function upgradeMarbleV31(game) {
+  const firstLevel = HOUSE_TIERS.findIndex((t) => t.goods.includes('marble'));
+  for (const b of game.buildings.values()) {
+    const h = b.house;
+    if (h) {
+      if (!h.goods || h.goods.marble !== undefined) continue;
+      const months = h.pop > 0 && h.tier >= firstLevel - 1 ? MARBLE_GRACE_MONTHS : 0;
+      h.goods.marble = Math.max(0.25, h.pop / CONFIG.GOODS_PER_HOUSE_PEOPLE) * houseGoodUse('marble') * months;
+      continue;
+    }
+    if (b.def.kind === 'market') {
+      if (b.stock) b.stock.marble ??= 0;
+      if (b.incoming) b.incoming.marble ??= 0;
+    }
+  }
 }
 
 /**

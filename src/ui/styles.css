@@ -243,6 +243,8 @@ button, input, select { font: inherit; color: inherit; }
 /* The English name under the Latin one (data/buildings.js `en`). */
 .build-item .nm .en { display: block; font-size: 11px; color: var(--ink-soft); }
 .build-item .cost { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* A building made of marble: its marble under its denarii (sim/construction.js marbleCost). */
+.build-item .cost .marble { display: block; font-size: 11px; text-align: right; }
 
 /* One fixed height: pointing at a build item fills this box with its
    description, and a box that grew with it shrank the list above, moving the

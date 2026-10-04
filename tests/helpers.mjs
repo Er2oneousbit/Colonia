@@ -27,6 +27,16 @@ export function build(game, tool, x0, y0, x1 = x0, y1 = y0) {
   return applyPlan(game, planAction(game, tool, x0, y0, x1, y1));
 }
 
+/**
+ * Waive the marble a grand building takes from the warehouses
+ * (sim/construction.js marbleCost), as the demo cities do: for a test of
+ * something else about a hippodrome, a statue or a palace.
+ */
+export function waiveMarble(game) {
+  game.cheats.freeMarble = true;
+  return game;
+}
+
 /** Find a free rectangle of open land (no water/rock/trees/buildings/roads). */
 export function findFree(game, w, h, from = null) {
   const { map } = game;

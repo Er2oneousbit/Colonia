@@ -50,11 +50,32 @@ function buildWhole(game, tool, x0, y0, x1, y1) {
 
 /** Try to build; returns true on success. */
 function build(game, tool, x0, y0, x1 = x0, y1 = y0) {
-  const plan = planAction(game, tool, x0, y0, x1, y1);
-  if (!plan || plan.count === 0) return false;
-  const ok = applyPlan(game, plan).ok;
-  if (ok && recording) recording.push(game.lastUndo);
-  return ok;
+  return withDemoMarble(game, () => {
+    const plan = planAction(game, tool, x0, y0, x1, y1);
+    if (!plan || plan.count === 0) return false;
+    const ok = applyPlan(game, plan).ok;
+    if (ok && recording) recording.push(game.lastUndo);
+    return ok;
+  });
+}
+
+/**
+ * Run `fn` with the marble of grand buildings (statues, the Arena, the
+ * hippodrome: data/buildings.js `marble`) waived, as a stand-in for a quarry
+ * the demo city does not build, the way it stocks its markets with goods it
+ * does not make. So a balance run builds the town it built before buildings
+ * needed marble. The switch (sim/construction.js marbleCost) is gone again
+ * afterwards, so it never reaches a save.
+ */
+export function withDemoMarble(game, fn) {
+  const was = game.cheats.freeMarble;
+  game.cheats.freeMarble = true;
+  try {
+    return fn();
+  } finally {
+    if (was === undefined) delete game.cheats.freeMarble;
+    else game.cheats.freeMarble = was;
+  }
 }
 
 /**

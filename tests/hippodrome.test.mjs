@@ -1,6 +1,7 @@
 /**
  * hippodrome.test.mjs - the hippodrome (three linked 5x5 sections), the
  * chariot maker, races, the charioteer and what they are worth to homes.
+ * Its marble is waived here (waiveMarble): tests/marble.test.mjs checks it.
  */
 
 import test from 'node:test';
@@ -20,7 +21,7 @@ import { updateRatings } from '../src/sim/ratings.js';
 import { serializeGame, deserializeGame } from '../src/core/save.js';
 import { vendorSupply } from '../src/sim/market.js';
 import { Building, newHouseData } from '../src/sim/entities.js';
-import { newGame, build, findFree } from './helpers.mjs';
+import { newGame, build, findFree, waiveMarble } from './helpers.mjs';
 import { Terrain } from '../src/world/map.js';
 import { raceSpot, ghostOrder } from '../src/render/renderer.js';
 
@@ -53,7 +54,7 @@ test('hippodrome: data as the spec sets it (900 Dn, 40 workers, 30 points, one p
 });
 
 test('hippodrome: placed as three linked 5x5 sections in a row, one cost; a second is refused', () => {
-  const game = newGame({ size: 96 });
+  const game = waiveMarble(newGame({ size: 96 }));
   const before = game.city.treasury;
   const { main, x, y } = placeHippodrome(game);
   assert.equal(before - game.city.treasury, BUILDINGS.hippodrome.cost + 0, 'one price for the whole');
@@ -68,7 +69,7 @@ test('hippodrome: placed as three linked 5x5 sections in a row, one cost; a seco
 });
 
 test('hippodrome: a road beside any section gives it access; the preview shows all three', () => {
-  const game = newGame({ size: 96 });
+  const game = waiveMarble(newGame({ size: 96 }));
   const { main, x, y } = placeHippodrome(game);
   assert.equal(main.accessRoad, -1);
   build(game, 'road', x + 12, y + 5); // beside the last section only
@@ -81,7 +82,7 @@ test('hippodrome: a road beside any section gives it access; the preview shows a
 });
 
 test('hippodrome: demolishing any section takes the whole; undo takes it back with a refund', () => {
-  const game = newGame({ size: 96 });
+  const game = waiveMarble(newGame({ size: 96 }));
   const { main, x, y } = placeHippodrome(game);
   const money = game.city.treasury;
   assert.ok(undoLast(game).ok);
@@ -95,7 +96,7 @@ test('hippodrome: demolishing any section takes the whole; undo takes it back wi
 });
 
 test('hippodrome: when it burns all three sections fall; the rubble rebuilds the whole', () => {
-  const game = newGame({ size: 96 });
+  const game = waiveMarble(newGame({ size: 96 }));
   const { main, x, y } = placeHippodrome(game);
   igniteBuilding(game, linkedGroup(game, main)[1]);
   assert.equal([...game.buildings.values()].filter((b) => b.type.startsWith('hippodrome')).length, 0);
@@ -106,7 +107,7 @@ test('hippodrome: when it burns all three sections fall; the rubble rebuilds the
   assert.equal(plan.items[0].x, x);
   assert.ok(applyPlan(game, plan).ok);
   assert.equal(linkedGroup(game, game.buildings.get(game.map.building[game.map.idx(x, y)])).length, 3);
-  const g2 = newGame({ size: 96 });
+  const g2 = waiveMarble(newGame({ size: 96 }));
   const h2 = placeHippodrome(g2);
   collapseBuilding(g2, h2.main);
   assert.equal([...g2.buildings.values()].filter((b) => b.type.startsWith('hippodrome')).length, 0);
@@ -120,7 +121,7 @@ test('hippodrome: only its main section burns or decays (the parts are fire-proo
 
 /** A city with a hippodrome and a chariot maker on one road, both staffed. */
 function raceCity() {
-  const game = newGame({ size: 96 });
+  const game = waiveMarble(newGame({ size: 96 }));
   const { main, x, y } = placeHippodrome(game);
   build(game, 'road', x - 1, y + 6, x + 16, y + 6);
   build(game, 'road', x + 7, y + 5, x + 7, y + 6);
@@ -215,7 +216,7 @@ test('entertainment: a working hippodrome seats the whole city (+6 to every home
 });
 
 test('entertainment: a home the charioteer passed gets 30, and the top score is 116', () => {
-  const game = newGame();
+  const game = waiveMarble(newGame());
   game.city.entBase = 26;
   const h = newHouseData();
   h.ent = { theater: 5, amphitheater: 5, colosseum: 5, hippodrome: 5 };
@@ -251,7 +252,7 @@ test('save: a hippodrome keeps its sections linked and its races', () => {
 });
 
 test('fish reaches homes: a vendor hands fish to a home that wants a kind the market has', () => {
-  const game = newGame();
+  const game = waiveMarble(newGame());
   const market = new Building(500, 'market', 0, 0);
   const home = new Building(501, 'house', 2, 2);
   home.house.pop = 20;
@@ -284,7 +285,7 @@ function placeTurnedHippodrome(game, turn) {
 
 test('hippodrome: turned, it lies north-south, its sections along y (end, middle, gates the way the turn takes them)', () => {
   for (const [turn, ns, order] of [[1, true, [0, 1, 2]], [3, true, [2, 1, 0]], [2, false, [2, 1, 0]], [0, false, [0, 1, 2]]]) {
-    const game = newGame({ size: 96, seed: `hip-ns-${turn}` });
+    const game = waiveMarble(newGame({ size: 96, seed: `hip-ns-${turn}` }));
     const { main, x, y, plan } = placeTurnedHippodrome(game, turn);
     const group = linkedGroup(game, main);
     assert.deepEqual(group.map((b) => b.turn), [turn, turn, turn], 'every section turned');
@@ -299,7 +300,7 @@ test('hippodrome: turned, it lies north-south, its sections along y (end, middle
 });
 
 test('hippodrome: north-south, a road beside any section gives it access; a spot too narrow is refused', () => {
-  const game = newGame({ size: 96, seed: 'hip-ns-road' });
+  const game = waiveMarble(newGame({ size: 96, seed: 'hip-ns-road' }));
   const { main, x, y } = placeTurnedHippodrome(game, 1);
   assert.equal(main.accessRoad, -1);
   build(game, 'road', x + 5, y + 13); // beside the far section only, on its east side
@@ -309,7 +310,7 @@ test('hippodrome: north-south, a road beside any section gives it access; a spot
   let g2 = null;
   let s = null;
   for (const seed of ['hip-ns-fit', 'plains-a', 'plains-b', 'plains-c']) {
-    g2 = newGame({ size: 128, seed, type: 'plains' });
+    g2 = waiveMarble(newGame({ size: 128, seed, type: 'plains' }));
     s = findFree(g2, 17, 17);
     if (s) break;
   }
@@ -324,7 +325,7 @@ test('hippodrome: north-south, a road beside any section gives it access; a spot
 });
 
 test('hippodrome: north-south, demolish and undo take the whole; fire and Rebuild put it back north-south; saves keep it', () => {
-  const game = newGame({ size: 96, seed: 'hip-ns-life' });
+  const game = waiveMarble(newGame({ size: 96, seed: 'hip-ns-life' }));
   const { x, y } = placeTurnedHippodrome(game, 3);
   const money = game.city.treasury;
   assert.ok(undoLast(game).ok);
@@ -355,7 +356,7 @@ test('hippodrome: north-south, demolish and undo take the whole; fire and Rebuil
 
 test('hippodrome: the races run along the track whichever way it is turned', () => {
   for (let t = 0; t < 4; t++) {
-    const game = newGame({ size: 96, seed: `hip-race-${t}` });
+    const game = waiveMarble(newGame({ size: 96, seed: `hip-race-${t}` }));
     const { main, x, y } = placeTurnedHippodrome(game, t);
     const ns = t % 2 === 1;
     // The spina's ends and middle, as hippodromeArt.js draws them, on the map: inside the row, along its length.
@@ -371,13 +372,13 @@ test('hippodrome: the races run along the track whichever way it is turned', () 
 
 test('hippodrome: the ghost draws back to front at every turn; a save whose sections disagree lies the main\'s way', () => {
   for (let t = 0; t < 4; t++) {
-    const game = newGame({ size: 96, seed: `hip-ghost-${t}` });
+    const game = waiveMarble(newGame({ size: 96, seed: `hip-ghost-${t}` }));
     const plan = planAction(game, 'hippodrome', 40, 40, 40, 40, t); // (where it would fit or not: the order is the same)
     const depth = ghostOrder(plan.items).map((it) => it.x + it.y);
     assert.deepEqual(depth, [...depth].sort((a, b) => a - b), `turn ${t}: back to front`);
     assert.equal(plan.items[0].part, undefined, `turn ${t}: the plan still lists the main section first`);
   }
-  const game = newGame({ size: 96, seed: 'hip-ns-hand' });
+  const game = waiveMarble(newGame({ size: 96, seed: 'hip-ns-hand' }));
   placeTurnedHippodrome(game, 1);
   const data = JSON.parse(JSON.stringify(serializeGame(game)));
   for (const b of data.buildings) if (b.type === 'hippodrome_part') b.turn = 2; // a hand-edited file
@@ -386,7 +387,7 @@ test('hippodrome: the ghost draws back to front at every turn; a save whose sect
 });
 
 test('hippodrome: north-south, a team on the road beside it books the races and the charioteer goes out', () => {
-  const game = newGame({ size: 96, seed: 'hip-ns-race' });
+  const game = waiveMarble(newGame({ size: 96, seed: 'hip-ns-race' }));
   const { main, x, y } = placeTurnedHippodrome(game, 1);
   build(game, 'road', x + 5, y - 1, x + 5, y + 16); // along its east side
   // A Factio on the road's other side, wherever there is room for it.
