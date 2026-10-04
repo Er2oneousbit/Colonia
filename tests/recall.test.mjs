@@ -268,7 +268,7 @@ test('recall before the battle: the rest fight alone, and too few lose; recallin
   assert.equal(atFort(game, a).length, 8);
   assert.equal(atFort(game, bFort).length, 0);
 
-  // Everyone recalled: -50, as if none had been sent (never cheaper than staying home).
+  // Everyone recalled: -25, as if none had been sent (never cheaper than staying home).
   const all = marching({ enemy: 10 });
   months(all.game, 1);
   recallFromBattle(all.game, all.posts[0].id);
@@ -278,7 +278,7 @@ test('recall before the battle: the rest fight alone, and too few lose; recallin
   all.b.due = all.game.time.totalMonths + 1;
   months(all.game, 1);
   assert.equal(all.b.outcome, 'none');
-  assert.equal(all.game.city.ratings.favor, 10);
+  assert.equal(all.game.city.ratings.favor, 35);
   assert.ok(all.game.messages.some((m) => /You called all your troops back/.test(m.text)));
 });
 

@@ -36,7 +36,8 @@
  *   battle's month.
  *
  * The battle (the month it is due), in this order:
- *   nobody sent                        lost: favor -50
+ *   nobody sent                        lost: favor -25 (-10 with no soldier
+ *                                      or ship in the city to send)
  *   troops more than BATTLE_IN_TIME away  lost, too late: favor -25; the
  *                                      troops turn back unharmed
  *   their strength under the enemy's   lost, too weak: favor -10, and every
@@ -62,7 +63,7 @@
  *   longer count in the battle (their strength comes off the army's). A
  *   rider who has not reached them when the battle is fought is too late:
  *   they fight with the rest, and come home by the battle's rule. An army
- *   everyone was called back from is "nobody sent" (-50 favor), so sending
+ *   everyone was called back from is "nobody sent" (-25 favor), so sending
  *   and recalling never costs less than staying home. Riders and the men
  *   coming home are military.recalls (they outlive the battle):
  *     { post, city, march, rider, riderTotal, homeIn, homeTotal, men, ships }
@@ -421,15 +422,27 @@ export function fightBattle(game) {
   const s = b.sent;
   const c = THREATENED_CITIES[b.city];
   const r = game.city.ratings;
-  const favor = (k) => { r.favor = Math.max(0, Math.min(100, r.favor + CONFIG.BATTLE_FAVOR[k])); return CONFIG.BATTLE_FAVOR[k]; };
+  // A lost battle never brings Caesar's legions by itself: favor above
+  // LEGION_FAVOR stays above it (playtest: one missed call, then the legions).
+  const favor = (k) => {
+    const was = r.favor;
+    let now = Math.max(0, Math.min(100, was + CONFIG.BATTLE_FAVOR[k]));
+    if (was > CONFIG.LEGION_FAVOR) now = Math.max(now, CONFIG.LEGION_FAVOR + 1);
+    r.favor = now;
+    return now - was;
+  };
   const late = leaving(game);
   ridersTooLate(game);
   let outcome;
   if (!s || s.strength <= 0) {
     // (Strength 0 with troops sent: every one of them was called back.)
     outcome = 'none';
-    const f = favor('none');
-    game.message(`${s ? 'You called all your troops back' : 'You sent no troops'}: ${c.name} has fallen to ${c.enemy}. Caesar will not forget it (${f} favor).`, 'bad');
+    // No soldier or ship in the city at all: nobody it could have sent, and Caesar knows it.
+    const noArmy = !s && ![...game.units.values()].some((u) => u.side === 'rome' && (u.fort || u.station));
+    const f = favor(noArmy ? 'noArmy' : 'none');
+    game.message(noArmy
+      ? `You had no troops to send: ${c.name} has fallen to ${c.enemy}. Caesar is displeased, but he knows the province had none (${f} favor).`
+      : `${s ? 'You called all your troops back' : 'You sent no troops'}: ${c.name} has fallen to ${c.enemy}. Caesar will not forget it (${f} favor).`, 'bad');
   } else if (s.toGo > CONFIG.BATTLE_IN_TIME) {
     outcome = 'late';
     const f = favor('late');

@@ -301,16 +301,33 @@ test('too late: -25 favor, the troops come home unharmed after the months they m
   assert.equal(game.military.battle.phase, 'foreign', 'the city is lost all the same');
 });
 
-test('nobody sent: -50 favor, which alone can start Caesar\'s march', () => {
+test('nobody sent: -25 favor, -10 with no army to send, and never alone down to the legions', () => {
+  // Playtest: one missed call cost 50 and brought Caesar's legions.
   const game = newGame();
+  fortWith(game, 2, 0); // soldiers it could have sent
   requestTroops(game, 'messana', 30);
   game.city.ratings.favor = 60;
   game.time.totalMonths = game.military.battle.due - 1;
   months(game, 1);
   assert.equal(game.military.battle.outcome, 'none');
-  assert.equal(game.city.ratings.favor, 10);
-  game.runDays(1);
-  assert.equal(legionSummary(game).state, 'marching', 'favor 10: the legions set out');
+  assert.equal(game.city.ratings.favor, 35);
+  // No soldier or ship at all: Caesar knows there was nobody to send.
+  const bare = newGame();
+  requestTroops(bare, 'messana', 30);
+  bare.city.ratings.favor = 60;
+  bare.time.totalMonths = bare.military.battle.due - 1;
+  months(bare, 1);
+  assert.equal(bare.city.ratings.favor, 50);
+  // Low favor already: the loss stops just above the legions' mark.
+  const low = newGame();
+  fortWith(low, 2, 0);
+  requestTroops(low, 'messana', 30);
+  low.city.ratings.favor = 20;
+  low.time.totalMonths = low.military.battle.due - 1;
+  months(low, 1);
+  assert.equal(low.city.ratings.favor, CONFIG.LEGION_FAVOR + 1);
+  low.runDays(1);
+  assert.notEqual(legionSummary(low).state, 'marching', 'a lost battle alone brings no legions');
 });
 
 test('the whole way in the game: request, send, march, battle, home', () => {

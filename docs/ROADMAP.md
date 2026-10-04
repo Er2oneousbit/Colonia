@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.5)
+
+* **A missed call for troops is softer**: nobody sent costs -25 favor (was -50), only -10 if the city had no soldier or ship at all to send, and a lost distant battle never by itself drops favor to the legions' mark (playtest: one missed call took favor from 55 to Caesar's legions)
+* Headless sim: every level identical to v0.19.4; the 8-year frequent-raid run, which ignores its call for troops, ends at favor 45 (was 30)
+* 1051 unit tests, 208 browser checks
+
 ## Done (v0.19.4)
 
 * **Soldiers on the march fight raiders they meet**: deployed soldiers on their way to a far rally point walked past raiders, struck or not; now an enemy within half a soldier's sight of him (4 tiles for a legionary) is fought, then he marches on
