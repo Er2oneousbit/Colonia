@@ -82,7 +82,7 @@ Press **F1** in the game for the full manual. The rules and numbers are in [docs
 | E | Empire map |
 | , / . | The building before / after the open one, of the same kind |
 | I, Shift+I | Next / previous idle building |
-| Shift+1 to Shift+9 | Show fort I to IX (again: its standard, if deployed) |
+| Shift+1 to Shift+9 | Pick up fort I to IX's standard: the next click deploys it there (twice quickly: go to it) |
 | F | Deploy the open fort or naval station, then click where they go |
 | Drag a rally flag | Move a deployed fort or squadron there (a click on the flag opens it) |
 | F1 / F2 | Help / Advisors |

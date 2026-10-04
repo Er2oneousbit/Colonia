@@ -738,7 +738,7 @@ export class InfoPanel {
           inTrainingText(g, b) ? kv('At the Campus', inTrainingText(g, b)) : null,
           h('div', { class: 'muted', style: { fontSize: '12px' } }, trainingNote(g, b)),
           kv('Orders', b.rally ? `Holding ${Math.floor(b.rally.x)}, ${Math.floor(b.rally.y)}` : 'Holding the fort'),
-          kv('Keys', fortKey(b) ? `${fortKey(b)} shows this fort, F deploys it` : 'F deploys it (Shift+1 to 9 show forts I to IX)'),
+          kv('Keys', fortKey(b) ? `${fortKey(b)} picks up its standard (twice: goes to it), F deploys it` : 'F deploys it (Shift+1 to 9 pick up the standards of forts I to IX)'),
           awayOf(g, b.id).length ? kv('Away', `${awayOf(g, b.id).length} at a distant battle (their places are kept)`) : null,
           kv('Pay', `${fmt(unit.upkeep * (n + awayOf(g, b.id).length))} Dn / month`),
           h('div', { class: 'muted' }, unit.desc),

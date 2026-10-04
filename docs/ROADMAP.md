@@ -13,6 +13,11 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.9)
+
+* **Shift+1 to 9 pick up a fort's standard where you are looking**: one press opens fort N's panel and puts its standard in hand (deploy mode), without moving the view, so the next click on the map sends its men there; pressed twice quickly, the view glides to its standard (deployed) or the fort (playtest: the keys glided to the fort, which is what the player wanted to avoid)
+* 1052 unit tests, 210 browser checks
+
 ## Done (v0.19.8)
 
 * **Ceres's blessing is a real bumper harvest**: every farm brings in a whole harvest (a load) at once, over what is growing, full or not, staffed or not, and the message says what came in. It used to set the fields nearly ripe, which a full farm or one without workers never harvested (playtest: it did not work)

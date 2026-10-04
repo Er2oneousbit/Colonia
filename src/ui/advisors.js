@@ -652,7 +652,7 @@ export class Advisors {
       const unit = UNIT_TYPES[f.def.unit];
       const n = counts.get(f.id) || 0;
       return h('tr', {},
-        h('td', { title: f.number >= 1 && f.number <= 9 ? `Shift+${f.number} shows it` : '' }, h('span', { style: { color: unit.color, fontWeight: 700 } }, '■ '), fortTitle(f)),
+        h('td', { title: f.number >= 1 && f.number <= 9 ? `Shift+${f.number} picks up its standard` : '' }, h('span', { style: { color: unit.color, fontWeight: 700 } }, '■ '), fortTitle(f)),
         h('td', { class: 'r num' }, `${n}/${FORT_CAPACITY}${f.recruiting ? ` (+${f.recruiting})` : ''}${away.get(f.id) ? ` (${away.get(f.id)} away)` : ''}`),
         h('td', { class: 'r num' }, pct(f.efficiency)),
         h('td', {}, f.rally ? `Holding ${Math.floor(f.rally.x)},${Math.floor(f.rally.y)}` : 'At the fort'),

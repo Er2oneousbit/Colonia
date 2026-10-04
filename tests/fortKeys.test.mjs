@@ -439,19 +439,17 @@ function appFor(game) {
   return { a, log };
 }
 
-test('app: over the Advisors or the Empire map, Shift+N and F close it first; a panel hidden behind it is not "open" (review)', () => {
+test('app: over the Advisors or the Empire map, Shift+N and F close it first (review)', () => {
   const game = newGame({ seed: 'modal' });
   const f = placeFort(game);
   const { a, log } = appFor(game);
   game.units.set(999, { id: 999, fort: f.id, side: 'rome', type: 'legionary' });
-  a.showFort(1);
-  deployTo(game, f.id, 5, 6);
-  a.ui.modalKind = 'advisors'; // F2 over the open fort panel
+  a.ui.modalKind = 'advisors';
   a.showFort(1);
   assert.equal(a.ui.modalKind, null, 'the advisors closed');
-  assert.deepEqual(log.glides.at(-1), [f.x + 1, f.y + 1], 'the fort first, not its standard behind the modal');
-  a.showFort(1);
-  assert.deepEqual(log.glides.at(-1), [5, 6], 'then its standard');
+  assert.equal(a.deploying, f.id, 'its standard picked up');
+  assert.equal(log.glides.length, 0, 'the view stays');
+  a.cancelDeploy();
   a.ui.modalKind = 'empire';
   a.deployKey();
   assert.equal(a.ui.modalKind, null, 'the empire map closed');
@@ -462,27 +460,39 @@ test('app: over the Advisors or the Empire map, Shift+N and F close it first; a 
   assert.equal(a.ui.modalKind, 'outcome');
 });
 
-test('app: Shift+N glides to fort N and opens it; again, to its standard and back; a missing fort is said so', () => {
+test('app: Shift+N picks up fort N\'s standard where the view is; twice quickly glides there; a missing fort is said so', () => {
+  // Playtest: the keys are there so the player need not scroll back to the fort.
   const game = newGame({ seed: 'hop' });
   const f1 = placeFort(game);
   const f2 = placeFort(game, 'fort_archer', { x: 40, y: 40 });
   const { a, log } = appFor(game);
+  const later = () => { if (a.fortHop) a.fortHop.at = -1e9; }; // the next press is a new one, not the second of a pair
+  // No soldiers yet: its panel, and why not.
   a.showFort(2);
-  assert.deepEqual(log.glides, [[f2.x + 1, f2.y + 1]]);
   assert.deepEqual(log.shown, [f2.id]);
-  a.showFort(2); // not deployed: the fort again
+  assert.equal(a.deploying, 0);
+  assert.match(log.errors.at(-1), /no soldiers/);
+  assert.equal(log.glides.length, 0, 'the view stays');
+  game.units.set(998, { id: 998, fort: f2.id, side: 'rome', type: 'archer' });
+  later();
+  a.showFort(2);
+  assert.equal(a.deploying, f2.id, 'one press: its standard in hand, the next click plants it');
+  assert.equal(log.glides.length, 0, 'still no move of the view');
+  a.showFort(2); // twice quickly: the view goes to the fort (not deployed)
   assert.deepEqual(log.glides.at(-1), [f2.x + 1, f2.y + 1]);
+  assert.equal(a.deploying, 0, 'and the standard is put down');
   deployTo(game, f2.id, 5, 6);
+  later();
   a.showFort(2);
-  assert.deepEqual(log.glides.at(-1), [5, 6], 'to its standard');
   a.showFort(2);
-  assert.deepEqual(log.glides.at(-1), [f2.x + 1, f2.y + 1], 'and back to the fort');
+  assert.deepEqual(log.glides.at(-1), [5, 6], 'deployed: twice quickly goes to its standard');
+  later();
+  game.units.set(997, { id: 997, fort: f1.id, side: 'rome', type: 'legionary' });
   a.showFort(1);
+  assert.equal(a.deploying, f1.id, 'another fort: its standard instead');
   assert.deepEqual(log.shown.at(-1), f1.id);
-  a.ui.info.target = { kind: 'building', id: f2.id }; // fort II opened by a click
-  a.showFort(2);
-  assert.deepEqual(log.glides.at(-1), [5, 6], 'its panel open: to its standard');
   const glides = log.glides.length;
+  later();
   a.showFort(7);
   assert.equal(log.glides.length, glides, 'no fort VII: the view stays');
   assert.match(log.messages.at(-1), /No fort holds the number VII \(Shift\+7\)/);

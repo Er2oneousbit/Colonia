@@ -48,6 +48,8 @@ import { stepOfKind, nextIdleFrom, cyclable, kindPosition } from './ui/cycle.js'
 import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
 
 /** Input events that count as a user activation (HTML spec) in some browser. */
+/** Shift+N pressed twice within this long glides to the fort (app.showFort): once picks up its standard. */
+const FORT_KEY_DOUBLE_MS = 450;
 const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
 
 const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
@@ -775,7 +777,7 @@ export class App {
     const t = this.ui.info.open ? this.ui.info.target : null;
     const b = t && t.kind === 'building' ? g.buildings.get(t.id) : null;
     if (!hasRally(b)) {
-      this.ui.messages.push({ text: 'Open a fort or a naval station first (Shift+1 to 9 shows a fort): F sends its men out.', level: 'info', date: '' });
+      this.ui.messages.push({ text: 'Open a fort or a naval station first (or press Shift+1 to 9 to pick up the standard of that fort): F sends its men out.', level: 'info', date: '' });
       return;
     }
     const naval = b.def.kind === 'station';
@@ -785,9 +787,13 @@ export class App {
   }
 
   /**
-   * Shift+1..9: show fort `n` (sim/fortNumbers.js): glide to it and open its
-   * panel. Pressed again while its panel is open, the view goes to its rally
-   * flag if it is deployed, and back to the fort the time after.
+   * Shift+1..9: fort `n` (sim/fortNumbers.js). One press picks up its
+   * standard where the view is (deploy mode, as F: the next click on the
+   * map plants it) and opens its panel, without moving the view: the keys
+   * are there so the player need not scroll back to the fort (playtest).
+   * Pressed twice quickly (FORT_KEY_DOUBLE_MS), the view glides to its
+   * standard if it is deployed, else to the fort. A fort with nobody to
+   * send opens its panel and says so.
    */
   showFort(n) {
     const g = this.game;
@@ -797,20 +803,25 @@ export class App {
       this.ui.messages.push({ text: `No fort holds the number ${roman(n)} (Shift+${n}). Each new fort takes the lowest free number.`, level: 'info', date: '' });
       return;
     }
-    if (this.deploying && this.deploying !== f.id) this.cancelDeploy();
-    // A panel hidden behind the Advisors or the Empire map does not count as
-    // open: the modal closes (as goToBuilding closes it) and the fort shows first.
-    const hidden = this.ui.hasModal() && this.ui.modalKind !== 'outcome';
-    if (hidden) this.ui.closeModal();
-    const open = !hidden && this.ui.info.open && this.ui.info.target?.kind === 'building' && this.ui.info.target.id === f.id;
-    const toFlag = open && !!f.rally && !(this.fortHop && this.fortHop.id === f.id && this.fortHop.flag);
-    if (toFlag) {
-      this.renderer.camera.glideToTile(Math.floor(f.rally.x), Math.floor(f.rally.y));
-      this.fortHop = { id: f.id, flag: true };
+    // Over the Advisors or the Empire map the map is hidden: close it first.
+    if (this.ui.hasModal() && this.ui.modalKind !== 'outcome') this.ui.closeModal();
+    const now = performance.now();
+    const double = this.fortHop && this.fortHop.id === f.id && now - this.fortHop.at < FORT_KEY_DOUBLE_MS;
+    this.fortHop = { id: f.id, at: now };
+    if (double) {
+      if (this.deploying) this.cancelDeploy();
+      if (f.rally) this.renderer.camera.glideToTile(Math.floor(f.rally.x), Math.floor(f.rally.y));
+      else this.goToBuilding(f.id);
       return;
     }
-    this.fortHop = { id: f.id, flag: false };
-    this.goToBuilding(f.id);
+    if (this.deploying && this.deploying !== f.id) this.cancelDeploy();
+    this.ui.info.showBuilding(f.id);
+    const n2 = garrisonCounts(g).get(f.id) || 0;
+    if (!n2) {
+      this.ui.toastError(`${f.def.name} ${roman(n)} has no soldiers to send yet.`);
+      return;
+    }
+    if (this.deploying !== f.id) this.startDeploy(f.id);
   }
 
   /** A click on a rally flag (input.js): its fort's or station's panel, with Recall. */
