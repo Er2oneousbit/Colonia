@@ -628,7 +628,6 @@ From playtesting (still to decide which to take):
 * **Unstaffed buildings wear out from the day they are placed**: industry burned or collapsed three times before its first worker came. Either risk grows only once staffed, or the placement and building panels say so.
 * **Buildings placed together collapse together**: everything built on day one reached its collapse point in the same month, so three key buildings fell at once. Some spread in their starting risk would turn a sudden disaster into a warning.
 * **Festival costs** (after v0.18.4): Colonia's small festival costs about 3.5 times the original's money (60 + 0.15 a citizen against the original's population / 20 + 10), and keeping five gods content now takes about five festivals a year; the food's one-load minimum is steep for a town just past 800 people. Whether to lower either.
-* **The water's-edge rule and slanted coasts** (v0.18.6): it cut legal dock spots two to seven times on the campaign maps (every coastal mission keeps 22 or more) and to 5 on one sandbox lakes map. Whether a diagonal shore should count as the water's edge.
 
 Playing smoother:
 
