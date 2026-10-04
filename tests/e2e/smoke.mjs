@@ -408,7 +408,8 @@ try {
 
   // 4. Menus and advisors via keyboard
   await page.keyboard.press('F2');
-  check('F2 opens advisors', await page.isVisible('text=Advisors'));
+  // (The modal itself: the top bar's "Advisors" label hides when the bar is full.)
+  check('F2 opens advisors', await page.evaluate(() => window.colonia.ui.modalKind === 'advisors' && !!document.querySelector('.modal')));
   for (const tab of ['Labor', 'Population', 'Production', 'Finance', 'Trade', 'Military', 'Health', 'Education', 'Entertainment', 'Religion', 'Ratings', 'Imperial']) {
     await page.click(`.tab:has-text("${tab}")`);
   }
@@ -2053,9 +2054,10 @@ try {
     // from the legions above while they fight on in real time, can fill
     // it): measured with the season shown, as fitSeason() measures it.
     const hid = bar.classList.contains('no-season');
-    bar.classList.remove('no-season');
+    const steps = ['no-season', 'tight', 'tighter'].filter((k) => bar.classList.contains(k));
+    bar.classList.remove(...steps); // (measured with every fitting step undone)
     out.fullAfter = bar.scrollWidth > bar.clientWidth;
-    if (hid) bar.classList.add('no-season');
+    bar.classList.add(...steps);
     out.shownAfter = !hid || out.fullAfter;
     return out;
   });

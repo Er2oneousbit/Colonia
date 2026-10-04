@@ -160,6 +160,9 @@ button, input, select { font: inherit; color: inherit; }
 /* The season word only where the top bar has room; the glyph and the tooltip carry it elsewhere. */
 @media (max-width: 1280px) { .hud-stat .season { display: none; } }
 #hud-top.no-season .hud-stat .season { display: none; } /* set by Hud.fitSeason() when the bar is full */
+#hud-top.tight .hud-title, #hud-top.tight .btn-lbl { display: none; } /* the next steps, while it is still full */
+#hud-top.tight .hud-select { max-width: 52px; }
+#hud-top.tighter #hud-turn-left, #hud-top.tighter #hud-turn-right, #hud-top.tighter .msg-btn { display: none; }
 .hud-stat.neg { color: #ff8f83; }
 .hud-stat.warn { color: #ffcf6a; } /* unemployment that costs mood */
 .hud-title { font-family: var(--font-title); font-weight: 700; letter-spacing: 0.04em; color: var(--gold); white-space: nowrap; }

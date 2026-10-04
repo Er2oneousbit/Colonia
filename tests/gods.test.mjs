@@ -551,3 +551,20 @@ test('jealousy: gods not worshipped in the province take no part', () => {
   addBuilding(game, 'temple_ceres', spot.x, spot.y, 2).efficiency = 1;
   assert.deepEqual(godsJealousy(game), { favourite: 'ceres', neglected: 'mercury' });
 });
+
+test('one god strikes a month, the angriest first; the others wait their turn', () => {
+  // Playtest: every god neglected alike struck in the same month.
+  const game = newGame({ seed: 'one-wrath' });
+  game.city.population = 2000;
+  // (Moods move toward their target, 5 with no temple, before the check: the
+  // others come down to 6 to 10, Mars rises to 5, still the angriest.)
+  for (const [k, g] of GOD_KEYS.entries()) Object.assign(game.city.gods[g], { mood: 10 + k, cooldown: 0, festival: 0 });
+  game.city.gods.mars.mood = 0;
+  updateReligion(game);
+  const struck = GOD_KEYS.filter((g) => game.city.gods[g].cooldown === 8);
+  assert.deepEqual(struck, ['mars']);
+  updateReligion(game);
+  const next = GOD_KEYS.filter((g) => game.city.gods[g].cooldown === 8);
+  assert.equal(next.length, 1, 'the next month, one more');
+  assert.notEqual(next[0], 'mars');
+});

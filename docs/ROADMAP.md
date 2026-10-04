@@ -13,6 +13,13 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.3)
+
+* **One god's wrath a month**, the angriest first: neglected gods all struck in the same month (playtest)
+* **The engineer's post has a door** on the front it turns toward its road (it turned, but nothing showed it faced the street)
+* **The top bar fits smaller screens**: when it is full it drops, a step at a time, the season's name, then the city's name, the Advisors' label and the Overlays list's width, then the view-turn arrows and the messages button (a 16-inch laptop cut off the Advisors)
+* 1050 unit tests, 208 browser checks
+
 ## Done (v0.19.2)
 
 * **A fountain with no workers shows its reach** while fountains or homes are placed, in a muted grey-blue: it showed nothing, and read as a fountain with no reach (playtest: a fountain with no homes in labor range)

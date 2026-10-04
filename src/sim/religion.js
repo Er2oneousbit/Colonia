@@ -176,6 +176,7 @@ export function updateReligion(game) {
   for (const b of game.buildings.values()) if (b.type === 'oracle') oracles++;
   const wanted = Math.max(1, pop / GOD_KEYS.length);
   const jealous = godsJealousy(game, temples);
+  const angry = []; // gods ready to strike this month (one does: below)
   const mon = monumentGods(game);
   for (const g of GOD_KEYS) {
     const s = c.gods[g];
@@ -208,10 +209,19 @@ export function updateReligion(game) {
       bless(game, g);
       s.cooldown = g === mon.fanum ? FANUM_BLESS_WAIT : 14; // its Great Sanctuary brings the next sooner
     } else if (s.mood <= CONFIG.GOD_WRATH_MOOD && s.cooldown <= 0 && pop >= SMALL_TOWN) {
-      wrath(game, g, s);
-      s.cooldown = 8;
-      s.mood = Math.min(100, s.mood + 12);
+      angry.push(g);
     }
+  }
+  // One god's wrath a month, the angriest first (the lowest mood, then the
+  // gods' order): every god neglected alike once struck in the same month,
+  // a city-wrecking pile-up (playtest). The others keep their turn for the
+  // months after.
+  if (angry.length) {
+    const g = angry.reduce((a, b) => (c.gods[b].mood < c.gods[a].mood ? b : a));
+    const s = c.gods[g];
+    wrath(game, g, s);
+    s.cooldown = 8;
+    s.mood = Math.min(100, s.mood + 12);
   }
 }
 

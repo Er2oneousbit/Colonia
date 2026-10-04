@@ -1961,6 +1961,9 @@ function ironMineArt(ctx, S) {
 function engineerArt(ctx) {
   quad(ctx, 0.05, 0.05, 0.95, 0.95, 0, '#bca77f');
   box(ctx, 0.14, 0.14, 0.55, 0.6, 0, 14, COL.cream);
+  // Its door on the front (+v) face, the side it turns toward a road: with
+  // none, the post turned but never looked as if it faced the street (playtest).
+  door(ctx, 'left', 0.14, 0.14, 0.69, 0.74, 0, 0.5, '#4a3222', 0.17, 8);
   gableRoof(ctx, 0.14, 0.14, 0.55, 0.6, 14, 7, COL.terra, 'v');
   // wooden crane
   const [x, y] = P(0.82, 0.55);

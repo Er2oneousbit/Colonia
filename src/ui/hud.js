@@ -94,8 +94,8 @@ export class Hud {
       this.overlaySel,
       this.viewBtns,
       h('button', { class: 'hud-btn', id: 'hud-empire', title: 'Empire map (E)', 'aria-label': 'Empire map', onclick: () => app.ui.openEmpire() }, '🧭'),
-      h('button', { class: 'hud-btn', title: 'Advisors (F2)', onclick: () => app.ui.openAdvisors() }, '📜 Advisors'),
-      h('button', { class: 'hud-btn', title: 'Messages', onclick: () => app.ui.openAdvisors('messages') }, '✉'),
+      h('button', { class: 'hud-btn', title: 'Advisors (F2)', onclick: () => app.ui.openAdvisors() }, '📜', h('span', { class: 'btn-lbl' }, ' Advisors')),
+      h('button', { class: 'hud-btn msg-btn', title: 'Messages', onclick: () => app.ui.openAdvisors('messages') }, '✉'),
       h('button', { class: 'hud-btn', title: 'Help (F1)', onclick: () => app.ui.openHelp() }, '?'),
     );
     root.appendChild(this.el);
@@ -118,8 +118,17 @@ export class Hud {
     const sig = `${el.clientWidth}|${this.title.textContent}|${this.money.val.textContent}|${this.pop.val.textContent}|${this.date.val.textContent}|${this.season.textContent}|${this.mood.val.textContent}|${this.work.val.textContent}|${this.threat.className}|${this.threat.textContent}`;
     if (sig === this.fitSig) return;
     this.fitSig = sig;
-    el.classList.remove('no-season');
-    if (el.scrollWidth > el.clientWidth) el.classList.add('no-season');
+    // Fit in steps, each only while the bar still overflows (a 16-inch
+    // laptop cut off the Advisors, playtest): the season's name, then the
+    // city's name, the Advisors' label and a narrow Overlays list, then the
+    // view-turn arrows and the messages button (Q, [ and ] still turn it;
+    // the messages are in the Advisors too).
+    const steps = ['no-season', 'tight', 'tighter'];
+    el.classList.remove(...steps);
+    for (const s of steps) {
+      if (el.scrollWidth <= el.clientWidth) break;
+      el.classList.add(s);
+    }
   }
 
   update() {
