@@ -62,7 +62,7 @@ import { fightPrefect } from './prefectFight.js';
 import { updateVillager } from './natives.js';
 import { monumentHp, fanumOf } from './monumentEffects.js';
 import { GIFTS } from '../data/monuments.js';
-import { monumentStruck } from './monuments.js';
+import { monumentStruck, monumentSpent } from './monuments.js';
 
 // When a fort has fewer open tiles around its post than soldiers, extra men
 // share tiles using these sub-tile offsets.
@@ -1027,7 +1027,10 @@ export function computeField(game) {
   const map = game.map;
   let field = game.enemyField;
   if (!field || field.length !== map.size) field = game.enemyField = new Float32Array(map.size);
-  fillField(game, field, (id) => game.buildings.get(id)?.def.kind !== 'village'); // (raiders pass native villages by)
+  fillField(game, field, (id) => {
+    const b = game.buildings.get(id);
+    return !!b && b.def.kind !== 'village' && !monumentSpent(game, b); // (raiders pass native villages by, and a monument with nothing more to lose)
+  });
   game.enemyFieldRev = map.revision;
   game.enemyFieldTick = game.time.totalTicks;
   computeRaidField(game);
@@ -1517,7 +1520,8 @@ function updateRaider(game, u, romans, soldiers) {
     const ny = ty + dy;
     if (!map.inBounds(nx, ny)) continue;
     const j = map.idx(nx, ny);
-    if (map.building[j] && game.buildings.get(map.building[j])?.def.kind !== 'village') {
+    const nb = map.building[j] ? game.buildings.get(map.building[j]) : null;
+    if (nb && nb.def.kind !== 'village' && !monumentSpent(game, nb)) { // (a spent monument: walked past, sim/monuments.js)
       // Adjacent building: attack it right away (not a native village's: raiders pass those by).
       best = j;
       bestKind = 'building';

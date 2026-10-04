@@ -783,6 +783,10 @@ export function campHaulArrive(game, w) {
  * and the load with it is lost (as a demolished building's carts' are).
  */
 function cartToStorage(game, w) {
+  // Its claim on the site first: overwritten by the storage one below, it
+  // stayed counted as on its way for good, and the stage could never finish
+  // (a road cut while the cart was out, review).
+  releaseReservation(game, w);
   w.campClaim = null;
   const here = game.map.idx(w.x, w.y);
   const t = w.cargo && w.cargo.amount > 0 && game.map.road[here] ? findDeliveryFit(game, here, w.cargo.good, w.cargo.amount) : null;
@@ -885,26 +889,53 @@ export function monumentsMonthly(game) {
  *   - a site is set back: the stage under way loses RAID_WORK_LOSS of its
  *     work and RAID_GOODS_LOSS of each good delivered (whole units, rounded
  *     down: smashed and carried off), its hit points refill, finished stages
- *     stand; raiders striking on may set it back again;
+ *     stand; once a raid (raidKey), and raiders then walk on past it;
  *   - a finished monument is sacked: closed until it is patched back to full.
  * @returns {boolean} true when handled here (nothing falls)
  */
 export function monumentStruck(game, b) {
   if (game.difficulty.monumentRaze) return false;
   const m = b.mon;
+  // One setback a raid: struck on and on, a site lost about four fifths of
+  // its stage's goods in one raid, not the quarter decided (review).
+  if (!isFinished(b) && m.setbackRaid === raidKey(game)) { b.hp = 0; return true; }
   if (isFinished(b)) {
     b.hp = 0;
     if (m.sacked) return true;
     m.sacked = true;
+    game.enemyFieldTick = -Infinity; // raiders make for something else at once (monumentSpent)
     game.markDirty('des');
     game.message(`The ${b.def.name} has been sacked! It is closed until it is repaired, which starts once the fighting stops.`, 'bad', b.x, b.y);
     return true;
   }
   setBack(b);
+  m.setbackRaid = raidKey(game);
+  game.enemyFieldTick = -Infinity; // raiders make for something else at once (monumentSpent)
   b.hp = monumentHp(b);
   const st = stageOf(b);
   game.message(`Raiders have struck the ${b.def.name}'s site: half the work on ${st.name} (${st.en}) is undone and a quarter of its goods are lost. The stages finished before it stand.`, 'bad', b.x, b.y);
   return true;
+}
+
+/**
+ * Which raid is striking now, for one setback a raid: the warband's id while
+ * one is in the province, else a 30-day window (angry villagers, Caesar's
+ * legion and the like strike outside a raid).
+ */
+export function raidKey(game) {
+  const inv = game.military.active;
+  return inv ? `raid:${inv.id}` : `days:${Math.floor(game.time.totalDays / 30)}`;
+}
+
+/**
+ * Has a monument nothing more to lose to this raid (outside Insane)? A
+ * finished one sacked, or a site already set back by it: raiders walk on
+ * past it rather than stand there striking (military.js), and its repairs
+ * wait for the fighting to stop either way.
+ */
+export function monumentSpent(game, b) {
+  if (!b.mon || game.difficulty.monumentRaze) return false;
+  return isFinished(b) ? !!b.mon.sacked : b.mon.setbackRaid === raidKey(game);
 }
 
 /** The raid's setback on a site's stage under way (worked example: 60 work, marble 1,000: 30 and 750). */

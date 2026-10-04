@@ -27,7 +27,7 @@ import { SCENARIOS, findScenario, withDifficulty, TRADE_PARTNERS } from '../src/
 import { addBuilding, removeBuilding, spawnWalker } from '../src/sim/entities.js';
 import {
   updateMonument, workCap, goodsShare, campRate, supplyFactor, supplyRule, planCartTrip,
-  monumentRefused, setBack, monumentsMonthly, monumentUpkeep, builtSoFar, demolishWarning, siteStatus, setHalted,
+  monumentRefused, setBack, monumentsMonthly, monumentUpkeep, builtSoFar, demolishWarning, siteStatus, setHalted, monumentSpent, stillNeeded,
 } from '../src/sim/monuments.js';
 import { cityMonument, isFinished, closedReason, openOf, fanumOf } from '../src/sim/monumentEffects.js';
 import { planAction, applyPlan, canUndo, undoLast } from '../src/sim/construction.js';
@@ -448,6 +448,54 @@ for (const level of ['easy', 'normal', 'hard']) {
     assert.equal(done.mon.sacked, false, 'patched back to full: open again');
   });
 }
+
+test('raids: a site is set back once a raid, and raiders walk on past it after', () => {
+  // Review: struck on and on through one raid, a site kept about a fifth of
+  // its stage's goods, not the three quarters decided.
+  const game = newGame({ size: 96, type: 'plains', difficulty: 'normal' });
+  const site = addBuilding(game, 'basilica', 10, 10);
+  Object.assign(site.mon, { stage: 1, work: 40, got: { clay: 400 } });
+  game.military.active = { id: 7 };
+  damageBuilding(game, site, 1e9);
+  assert.deepEqual([site.mon.work, site.mon.got.clay], [20, 300]);
+  assert.equal(monumentSpent(game, site), true, 'nothing more to lose to this raid');
+  for (let k = 0; k < 5; k++) damageBuilding(game, site, 1e9);
+  assert.deepEqual([site.mon.work, site.mon.got.clay], [20, 300], 'struck on in the same raid: no further loss');
+  game.military.active = { id: 8 };
+  assert.equal(monumentSpent(game, site), false, 'the next raid may set it back again');
+  damageBuilding(game, site, 1e9);
+  assert.deepEqual([site.mon.work, site.mon.got.clay], [10, 225]);
+  game.military.active = null;
+});
+
+test('a camp cart whose road is cut while it is out gives back its claim on the site, so the stage still finishes', () => {
+  // Review: the claim stayed counted as on its way for good, and the stage was stuck.
+  const DAY = CONFIG.TICKS_PER_DAY;
+  const game = newGame({ seed: 'mon-probe', size: 96, type: 'plains' });
+  const spot = findFree(game, 24, 12, { x: 48, y: 48 });
+  const ry = spot.y + 6;
+  build(game, 'road', spot.x, ry, spot.x + 23, ry);
+  build(game, 'work_camp', spot.x + 1, ry - 2);
+  build(game, 'warehouse', spot.x + 5, ry - 2);
+  build(game, 'granary', spot.x + 9, ry - 2);
+  build(game, 'well', spot.x + 1, ry + 1);
+  assert.ok(build(game, 'basilica', spot.x + 16, ry - 3).ok);
+  const by = (t) => [...game.buildings.values()].find((b) => b.type === t);
+  const camp = by('work_camp'); const wh = by('warehouse'); const gran = by('granary'); const site = by('basilica');
+  gran.stock.wheat = 800;
+  wh.stock.clay = 1500;
+  wh.stock.timber = 600;
+  const tick = () => { for (const b of [camp, wh, gran]) { b.efficiency = 1; b.fireRisk = 0; b.damageRisk = 0; } game.tick(); };
+  for (let n = 0; n < 20 * DAY && !camp.walkers.some((id) => game.walkers.get(id)?.state === 'campFetch'); n++) tick();
+  const cx = spot.x + 13;
+  assert.ok(build(game, 'clear', cx, ry).ok, 'the road cut');
+  for (let t = 0; t < 10 * DAY; t++) tick();
+  assert.ok(build(game, 'road', cx, ry).ok, 'and mended');
+  for (let t = 0; t < 120 * DAY; t++) tick();
+  // Stuck, it had clay 200 of 1,000 with 800 counted on the way for good.
+  const way = Object.values(site.mon.way || {}).reduce((a, v) => a + v, 0);
+  assert.ok(site.mon.stage >= 1 || (site.mon.got.clay > 200 && way < 800), `deliveries went on (stage ${site.mon.stage}, got ${JSON.stringify(site.mon.got)}, on its way ${JSON.stringify(site.mon.way)})`);
+});
 
 test('raids on Insane: raiders raze a site or a finished monument to rubble, and another may be started', () => {
   assert.equal(DIFFICULTY.insane.monumentRaze, true);

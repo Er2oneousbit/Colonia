@@ -1067,15 +1067,6 @@ export function upgradeSoldierTripsV28(game) {
 }
 
 /**
- * A save before version 24 (one Events switch for the sandbox): returns a
- * copy of the raw data whose sandbox scenario lists its switches, every one
- * if its events were on (`true`, or no field: a save from before events,
- * which played with them all once loaded) and none if they were off. It
- * runs on the raw data because the Game reads its events from the scenario
- * it is built with. Campaign saves hold only the mission id and are left
- * alone, as is a sandbox that already holds a list (a hand edit).
- */
-/**
  * Version 31 brought monuments. A save from before has no monument, camp or
  * cart of theirs, so only the finance ledgers change: each gets its
  * 'monuments' row (upkeep paid), at 0, as a new game's has.
@@ -1085,6 +1076,15 @@ export function upgradeMonumentsV30(game) {
   for (const l of [f?.thisYear, f?.lastYear]) if (l && l.monuments === undefined) l.monuments = 0;
 }
 
+/**
+ * A save before version 24 (one Events switch for the sandbox): returns a
+ * copy of the raw data whose sandbox scenario lists its switches, every one
+ * if its events were on (`true`, or no field: a save from before events,
+ * which played with them all once loaded) and none if they were off. It
+ * runs on the raw data because the Game reads its events from the scenario
+ * it is built with. Campaign saves hold only the mission id and are left
+ * alone, as is a sandbox that already holds a list (a hand edit).
+ */
 export function upgradeEventSwitchesV23(data) {
   const s = data.scenario;
   if (!s || typeof s !== 'object' || s.id !== 'sandbox' || Array.isArray(s.events)) return data;
