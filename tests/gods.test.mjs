@@ -568,3 +568,23 @@ test('one god strikes a month, the angriest first; the others wait their turn', 
   assert.equal(next.length, 1, 'the next month, one more');
   assert.notEqual(next[0], 'mars');
 });
+
+test('Ceres blesses with a bumper harvest: every farm a whole load at once, full or unstaffed; a ranch none', () => {
+  // Playtest: the old blessing (fields nearly ripe) did nothing at a full farm or one without workers.
+  const game = newGame({ seed: 'bumper' });
+  game.city.population = 500;
+  const at = (type, size) => { const s = findFree(game, size + 1, size + 1); return addBuilding(game, type, s.x, s.y, size); };
+  const full = at('farm_wheat', 3);
+  full.stock.wheat = CONFIG.PRODUCER_MAX_STOCK;
+  full.efficiency = 1;
+  const idle = at('farm_veg', 3);
+  idle.efficiency = 0;
+  const ranch = at('horse_ranch', 3);
+  const horses = ranch.stock.horses || 0;
+  Object.assign(game.city.gods.ceres, { mood: 100, cooldown: 0 });
+  updateReligion(game);
+  assert.equal(full.stock.wheat, CONFIG.PRODUCER_MAX_STOCK + CONFIG.CART_CAPACITY);
+  assert.equal(idle.stock.vegetables, CONFIG.CART_CAPACITY);
+  assert.equal(ranch.stock.horses || 0, horses, 'no horses from a harvest');
+  assert.ok(game.messages.some((m) => /bumper harvest/.test(m.text) && /100 wheat/.test(m.text)), 'the message says what came in');
+});

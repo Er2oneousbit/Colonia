@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.8)
+
+* **Ceres's blessing is a real bumper harvest**: every farm brings in a whole harvest (a load) at once, over what is growing, full or not, staffed or not, and the message says what came in. It used to set the fields nearly ripe, which a full farm or one without workers never harvested (playtest: it did not work)
+* Headless sim: every level identical to v0.19.7; the uptown run's one Ceres blessing moves its granaries a load
+* 1052 unit tests, 209 browser checks
+
 ## Done (v0.19.7)
 
 * **The arenas stay inside their squares**: the Great Arena and the Amphitheater were drawn as ellipses too wide for their footprint's diamond and spilled past it on the diagonals; the Great Arena's flags now stand on its far rim

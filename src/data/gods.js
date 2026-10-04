@@ -22,7 +22,7 @@ export const GODS = Object.freeze({
     name: 'Ceres',
     domain: 'Harvest and fertile fields',
     color: '#c9a227',
-    blessing: 'Every farm ripens early: an instant bumper harvest.',
+    blessing: 'A bumper harvest: every farm brings in a whole harvest at once.',
     wrath: 'Blight withers the crops: farm progress is lost.',
   },
   neptune: {

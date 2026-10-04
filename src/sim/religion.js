@@ -30,7 +30,8 @@
  * way every time.
  *
  * The five gods (data/gods.js):
- *   Ceres    blessing: every farm ripens.  wrath: farm progress lost.
+ *   Ceres    blessing: a bumper harvest, a load from every farm at once.
+ *            wrath: farm progress lost.
  *   Neptune  blessing: money.  wrath: buildings near water weakened, and
  *            every fishing boat sinks (the original's curse; the shipyards
  *            build new ones); where the city trades by sea, merchant ships
@@ -49,10 +50,9 @@
 
 import { CONFIG } from '../config.js';
 import { GODS, GOD_KEYS } from '../data/gods.js';
-import { FOOD_TYPES, LAND_FOODS } from '../data/goods.js';
+import { FOOD_TYPES, LAND_FOODS, GOODS } from '../data/goods.js';
 import { transact } from './economy.js';
 import { igniteBuilding, buildingLabel } from './risk.js';
-import { farmDormant } from './production.js';
 import { isStorage, storageUsed, storageRoom, storageAccepts, receiveGoods, takeGoods } from './storage.js';
 import { liftAllMoods } from './mood.js';
 import { diseaseActive, houseHealth } from './disease.js';
@@ -225,6 +225,30 @@ export function updateReligion(game) {
   }
 }
 
+/**
+ * Ceres's blessing: a bumper harvest. Every farm brings in a whole harvest
+ * (a load) at once, over what is growing, into its store even if full (its
+ * carts take it on as any harvest). It used to set the fields nearly ripe,
+ * which a full farm, or one without workers, never harvested, and a farm
+ * that did only had its own harvest a little early (playtest: "doesn't
+ * work"). Horses are no harvest: a ranch is left alone.
+ */
+function blessCeres(game) {
+  const got = {};
+  for (const b of game.buildings.values()) {
+    const good = b.def.kind === 'farm' ? b.def.produces : null;
+    if (!good || GOODS[good]?.keptAt) continue;
+    b.stock[good] = (b.stock[good] || 0) + CONFIG.CART_CAPACITY;
+    game.city.produced[good] = (game.city.produced[good] || 0) + CONFIG.CART_CAPACITY;
+    logGoods(game, good, 'made', CONFIG.CART_CAPACITY);
+    if (FOOD_TYPES.includes(good)) game.city.foodFlow.harvested += CONFIG.CART_CAPACITY;
+    got[good] = (got[good] || 0) + CONFIG.CART_CAPACITY;
+  }
+  const list = Object.entries(got).map(([g, n]) => `${n} ${GOODS[g].name.toLowerCase()}`);
+  if (!list.length) return { text: 'She would bless your farms with a bumper harvest, but the city has none.' };
+  return { text: `A bumper harvest: every farm brings in a whole harvest at once (${list.join(', ')}).` };
+}
+
 /** "the Granary at 12,40" */
 function placeLabel(b) {
   return `the ${buildingLabel(b)} at ${b.x},${b.y}`;
@@ -384,9 +408,7 @@ function bless(game, god) {
   let note = null;
   switch (god) {
     case 'ceres':
-      // Nearly ripe: harvested on the farm's next working day. A field resting
-      // for an Insane winter grows nothing that day, so it gets the full 100.
-      for (const b of game.buildings.values()) if (b.def.kind === 'farm') b.progress = farmDormant(game, b) ? Math.max(b.progress, 100) : 99.9;
+      note = blessCeres(game);
       break;
     case 'neptune': {
       const bonus = Math.round(200 + c.population * 0.2);

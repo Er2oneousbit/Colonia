@@ -585,7 +585,7 @@ A god that strikes stays **angered** until its mood is back above 50 (the Religi
 
 | God | Blessing | Wrath | Angered again |
 |---|---|---|---|
-| Ceres | instant harvest on every farm | farm progress lost | the same |
+| Ceres | a bumper harvest: every farm brings in a whole harvest (a load) at once, over what is growing | farm progress lost | the same |
 | Neptune | trade windfall (200 Dn + 0.2 a citizen) | buildings near water weakened, and every fishing boat sinks; where you trade by sea, merchant ships under sail sink with their cargo (one tied up at an Emporium rides it out) and no ship sails for your city for 5 months | the same |
 | Mercury | the working granary with the least food receives 600 each of wheat, vegetables, fruit and meat (never fish: the four land foods), as far as it has room and accepts them (a granary set to refuse every land food is passed over; any granary if none is staffed) | the granary or warehouse holding the most loses 1600 units (a granary wheat first, then vegetables, fruit, meat, fish; a warehouse its largest stocks first) | that storehouse burns down, with everything in it; the fire can spread |
 | Mars | +10 peace | brawls: -10 peace, treasury looted (100 Dn + 0.1 a citizen) | the same |
