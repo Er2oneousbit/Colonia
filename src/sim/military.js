@@ -1235,6 +1235,9 @@ export function nearestHostile(list, x, y, range) {
   return best;
 }
 
+/** Deployed, an enemy within this share of a soldier's aggro of himself is fought wherever he is. */
+const DEPLOYED_SELF = 0.5;
+
 /**
  * Where a soldier may fight right now (see HOLD_REACH). A zone is `spots`
  * (the ground it is measured from: an enemy's distance is to the nearest),
@@ -1244,7 +1247,8 @@ export function nearestHostile(list, x, y, range) {
  * this close to him is fought wherever he is: a man marching home who is
  * struck strikes back) and `hold` (so is one striking at him, see inZone).
  *   Deployed: around the rally point, guard def.aggro * 1.5, leash 4 more,
- *   near his aggro; nothing beyond the leash.
+ *   near his aggro, nothing else beyond the leash but an enemy close to
+ *   him (self: half his aggro, at least his reach and a tile).
  *   Holding the fort: a legionary or cavalryman, the fort's ranks (every
  *   spot of its formation: the men hold their ground together, or raiders
  *   cut down the front man while the rest look on), guard HOLD_REACH; an
@@ -1254,7 +1258,10 @@ export function nearestHostile(list, x, y, range) {
 function fightZone(game, def, fort, post) {
   if (fort.rally) {
     const guard = def.aggro * 1.5;
-    return { spots: [fort.rally], guard, leash: guard + 4, near: def.aggro, self: -1, hold: false };
+    // On the march to the rally point too, an enemy that comes close is
+    // fought wherever he is (DEPLOYED_SELF): with none, soldiers walked
+    // past raiders, struck or not, on their way there (playtest).
+    return { spots: [fort.rally], guard, leash: guard + 4, near: def.aggro, self: Math.max(def.range + 1, def.aggro * DEPLOYED_SELF), hold: false };
   }
   const guard = def.ranged ? def.range : HOLD_REACH;
   const spots = def.ranged ? [post] : formationSpots(game, fort);

@@ -987,3 +987,20 @@ test('the raiders\' field crosses a big forest in one pass, each tile pushed a f
   // And the costs are still the walk: ten forest tiles west of the building, 16.
   assert.ok(Math.abs(field[map.idx(b.x - 10, b.y)] - 16) < 0.001, `${field[map.idx(b.x - 10, b.y)]}`);
 });
+
+test('a soldier marching to a far rally point fights a raider he meets on the way, then marches on', () => {
+  // Playtest: soldiers walked past raiders on their way to their rally point.
+  const { game, fort, men: [u] } = restingFort('fort_legion', 1);
+  const m = game.map;
+  // A rally point across the map, well beyond the fight zone's leash (20 tiles from it).
+  const rx = u.x < m.w / 2 ? m.w - 3 : 2;
+  assert.ok(deployFort(game, fort.id, rx, Math.floor(u.y)));
+  for (let t = 0; t < 10; t++) tick(game); // under way
+  assert.ok(Math.abs(u.x - rx) > 22, `still far from the rally point (${Math.abs(u.x - rx).toFixed(1)} tiles)`);
+  const dir = Math.sign(rx - u.x);
+  const foe = spawnUnit(game, 'raider', u.x + dir * 2, u.y, { invasion: 1 });
+  foe.hp = 1e6;
+  let fought = false;
+  for (let t = 0; t < 40 && !fought; t++) { foe.x = u.x + dir * 2; foe.y = u.y; tick(game); fought = u.target === foe.id; }
+  assert.ok(fought, 'he turns on the raider beside him');
+});
