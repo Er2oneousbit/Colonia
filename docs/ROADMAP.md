@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.1)
+
+* Monuments, fixes from a second review: a Lighthouse's panel says whether it is open before any note about a low bridge; a halted site pays nothing for its next stage until it goes on; a monument cart cut off on its way takes its load to storage instead of losing it
+* Headless sim: every level identical to v0.19.0
+* 1049 unit tests, 208 browser checks
+
 ## Done (v0.19.0)
 
 * **Monuments** (after Augustus's, rebuilt as Colonia's own): six great works, only one a city, from campaign step 6 (the Pantheon from step 8; all in the sandbox), each built in stages from a Castra Operarum (Work Camp: 3x3, 300 Dn, 40 workers) whose carts bring the goods from the warehouses and whose crew builds once a stage's goods are all in. The camp works at half pace without food or without water, and stops without both. A sensible city takes 1.4 to 3.1 years and 4,400 to 9,800 goods

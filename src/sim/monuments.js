@@ -259,7 +259,7 @@ export function updateMonument(game, b) {
   if (isFinished(b)) { updateFinished(game, b); return; }
   const st = stageOf(b);
   const m = b.mon;
-  if (!m.paid) {
+  if (!m.paid && !m.halted) { // (a halted site pays nothing until it goes on, review)
     if (game.cheats.freeBuild || game.city.treasury >= st.money) {
       if (st.money > 0) transact(game, 'construction', -st.money);
       m.paid = true;
@@ -782,7 +782,7 @@ export function campHaulArrive(game, w) {
  * goods are not lost on the road. With nowhere to take it, it goes home
  * and the load with it is lost (as a demolished building's carts' are).
  */
-function cartToStorage(game, w) {
+export function cartToStorage(game, w) {
   // Its claim on the site first: overwritten by the storage one below, it
   // stayed counted as on its way for good, and the stage could never finish
   // (a road cut while the cart was out, review).

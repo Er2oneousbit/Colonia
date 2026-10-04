@@ -27,7 +27,7 @@ import { physicianArrive, physicianAfterWait } from './disease.js';
 import { boatArrive, boatAfterWait } from './fishing.js';
 import { boatBlocked } from './bridges.js';
 import { nativeTraderArrive, nativeTraderReroute } from './natives.js';
-import { campFetchArrive, campHaulArrive, campFoodArrive, monSupplyArrive, crewArrive, monumentWalkerHome } from './monuments.js';
+import { campFetchArrive, campHaulArrive, campFoodArrive, monSupplyArrive, crewArrive, monumentWalkerHome, cartToStorage } from './monuments.js';
 import { FOOD_TYPES } from '../data/goods.js';
 
 /** Advance every walker by one tick. */
@@ -165,6 +165,10 @@ function reroute(game, w) {
   } else if (w.kind === 'traveler' && (w.state === 'toHouse' || w.state === 'seeking')) {
     releaseReservation(game, w);
     seekHome(game, w);
+  } else if (w.state === 'campHaul' || w.state === 'monSupply') {
+    // A monument's cart cut off on its way: its load goes to storage, as
+    // the monuments promise nothing is lost on the road (review).
+    cartToStorage(game, w);
   } else {
     killWalker(game, w);
   }

@@ -167,7 +167,9 @@ export function buildingStatus(game, b) {
   if (def.workers && b.efficiency <= 0) return { level: 'bad', text: 'No workers available. The city needs more people, or change labor priorities.' };
   if (def.needsPiped && !b.hasWater) return { level: 'bad', text: 'No piped water. It must sit inside a full reservoir\'s area.' };
   if (def.kind === 'village') return villageStatus(game, b); // (no road, no staff: sim/natives.js)
-  const cut = cutOffNote(game, b); // (a low bridge between it and the sea, or its fishing grounds)
+  // (A low bridge between it and the sea, or its fishing grounds; a
+  // monument says whether it is open first, review.)
+  const cut = def.kind === 'monument' ? null : cutOffNote(game, b);
   if (cut) return { level: def.kind === 'dock' || def.kind === 'wharf' ? 'bad' : 'warn', text: cut };
   switch (def.kind) {
     case 'residence':

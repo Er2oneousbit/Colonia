@@ -719,3 +719,18 @@ test('fame: a finished monument standing at a win adds its points', () => {
   const w = { ratings: { culture: 50, prosperity: 50, peace: 50, favor: 50 }, population: 1000, goal: 1000, paceYears: 5, months: 60, difficulty: 'normal' };
   assert.equal(winScore({ ...w, monument: 1 }).score - winScore(w).score, 150);
 });
+
+test('a halted site pays nothing for its next stage until it goes on', () => {
+  // Review: a halted site still took the next stage's money.
+  const game = newGame({ size: 96, type: 'plains', money: 50000 });
+  const site = addBuilding(game, 'basilica', 10, 10);
+  site.mon.paid = false;
+  setHalted(game, site, true);
+  const before = game.city.treasury;
+  updateMonument(game, site);
+  assert.equal(site.mon.paid, false);
+  assert.equal(game.city.treasury, before);
+  setHalted(game, site, false);
+  updateMonument(game, site);
+  assert.equal(site.mon.paid, true, 'going on, it pays');
+});
