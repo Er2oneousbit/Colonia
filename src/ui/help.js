@@ -49,6 +49,23 @@ const partnersWho = (side, good) => {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0] || 'nobody';
 };
 
+/**
+ * "a Statua 100, ..., a Circus 800": the marble of each building made of it
+ * (data/buildings.js `marble`), from the data; the five grand temples as one.
+ */
+function marbleBuildings() {
+  const seen = new Set();
+  const out = [];
+  for (const def of Object.values(BUILDINGS)) {
+    if (!def.marble) continue;
+    const name = def.god ? 'Templum (Grand Temple, each god)' : `${def.name} (${def.en})`;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push(`${name} ${def.marble}`);
+  }
+  return out.join(', ');
+}
+
 /** "none on Easy, 5 on Normal, 10 on Hard, 15 on Insane": crime's cost in peace by difficulty. */
 const peaceByLevel = (base) => Object.values(DIFFICULTY)
   .map((d) => (d.crimePeace > 0 ? `${base * d.crimePeace} on ${d.name}` : `none on ${d.name}`)).join(', ');
@@ -199,7 +216,8 @@ function content(tab) {
         chain('Linarium (Flax Field, meadow)', 'Textrinum (Linen Weaver)', 'Taberna Vestiaria (Clothing Maker)', 'Horreum', 'Macellum', 'Homes (Clothing)'),
         h('p', { class: 'muted' }, `Clothing takes two workshops: a Textrinum spins and weaves flax into linen, and a Taberna Vestiaria sews the linen into clothing. Homes need it from the Insula up (a Tenement already stocks it). Linen can also be bought (${partnersWho('sells', 'linen')} sell it) for a Taberna Vestiaria, and ${partnersWho('buys', 'clothing')} buy clothing.`),
         chain('Ferraria (Iron Mine, by rocks)', 'Fabrica (Weaponsmith)', 'Horreum', 'Export'),
-        chain('Lapicidina (Marble Quarry, by rocks)', 'Horreum', 'Export'),
+        chain('Lapicidina (Marble Quarry, by rocks)', 'Horreum', 'Macellum', 'Homes (Marble)'),
+        h('p', { class: 'muted' }, `Marble is also built into the grand buildings, taken from the warehouses as you place them, all of it or none: ${marbleBuildings()}. Undo gives it back; demolishing does not. Homes need it from the ${HOUSE_TIERS.find((t) => t.goods.includes('marble')).name} up, at half the rate of other goods. ${partnersWho('sells', 'marble')} sell it, and it is a valuable export.`),
         h('p', {}, 'Raw materials go straight to a workshop that needs them (timber to a shipyard too), otherwise to a warehouse, which later sends them to workshops and shipyards that run low.'),
         h('h4', {}, 'Granary and warehouse orders'),
         h('p', {}, 'Click a granary or warehouse and click a good\'s order to cycle it:'),
@@ -258,7 +276,7 @@ function content(tab) {
         h('h4', {}, 'The governor: rank, salary, savings'),
         h('p', {}, `You hold a rank, from ${RANKS[0].name} to ${RANKS[TOP_RANK].name}: each step of the campaign is played one rank higher, both of its provinces alike (${RANKS[0].name} in the first, ${RANKS[SCENARIOS.at(-1).rank].name} in the last, and a win at the last step makes you ${RANKS[TOP_RANK].name}), and the sandbox lets you pick one. Your rank sets the most salary Rome lets you draw: ${RANKS.map((r) => `${r.name} ${r.salary}`).join(', ')} Dn a month. In the Imperial advisor you can draw your rank's rate or a lower rank's, never a higher one's (those are listed greyed out). The salary is paid at each month's end from the treasury into your personal savings, but never when the treasury cannot cover it. At New Year Rome looks at what you drew over the year: less than your rank's pay, by your own choice, earns a point of favor.`),
         h('p', {}, `Your savings are your own and go with you from mission to mission (to both provinces of the next step where it has two). Spend them on gifts to the Emperor (Imperial advisor): a modest, generous or lavish gift costs ${GIFT_SIZES.map((g) => `1/${g.share} of your savings plus ${g.base} Dn`).join(', ')}, and pleases him by ${GIFT_SIZES.map((g) => `+${g.favor[0]}`).join(', ')} favor; each further gift within a year of your last pleases him less, and he counts afresh 12 months after the last. Or give them to the city: a donation goes into the treasury and is not counted as profit. Festivals are paid from the treasury.`),
-        h('p', {}, `Your residence: a Praetorium (Governor's House: ${BUILDINGS.governor_house.cost} Dn, 3×3), Praetorium Maius (Villa: ${BUILDINGS.governor_villa.cost} Dn, 4×4) or Regia (Palace: ${BUILDINGS.governor_palace.cost} Dn, 5×5), under Government & Decor. It is kept by servants (${BUILDINGS.governor_house.workers}, ${BUILDINGS.governor_villa.workers} and ${BUILDINGS.governor_palace.workers} workers), so it needs a road like any building with workers, and makes the land around it very desirable as far as it is staffed (+${BUILDINGS.governor_house.des[0]}, +${BUILDINGS.governor_villa.des[0]}, +${BUILDINGS.governor_palace.des[0]} beside it). Only one may stand at a time: demolish it to build a bigger one. Rioters within ${CONFIG.RIOT_TARGET_RANGE} tiles go for it before anything else.`),
+        h('p', {}, `Your residence: a Praetorium (Governor's House: ${BUILDINGS.governor_house.cost} Dn, 3×3), Praetorium Maius (Villa: ${BUILDINGS.governor_villa.cost} Dn, 4×4) or Regia (Palace: ${BUILDINGS.governor_palace.cost} Dn and ${BUILDINGS.governor_palace.marble} marble, 5×5), under Government & Decor. It is kept by servants (${BUILDINGS.governor_house.workers}, ${BUILDINGS.governor_villa.workers} and ${BUILDINGS.governor_palace.workers} workers), so it needs a road like any building with workers, and makes the land around it very desirable as far as it is staffed (+${BUILDINGS.governor_house.des[0]}, +${BUILDINGS.governor_villa.des[0]}, +${BUILDINGS.governor_palace.des[0]} beside it). Only one may stand at a time: demolish it to build a bigger one. Rioters within ${CONFIG.RIOT_TARGET_RANGE} tiles go for it before anything else.`),
       ];
     }
     case 'military':

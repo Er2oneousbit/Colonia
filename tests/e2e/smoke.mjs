@@ -1146,6 +1146,89 @@ try {
     return head;
   });
   check('a building\'s panel title shows its Latin name with the English after it', govHead === 'Praetorium (Governor\'s House)', JSON.stringify(govHead));
+
+  // 5a2f. Building in marble (sim/construction.js marbleCost): with no marble
+  //       in the warehouses the Government menu shows a Statua's 100 marble
+  //       under its denarii, greyed out with the reason, and a click does not
+  //       pick it; held anyway, it is refused where it would go, saying why,
+  //       and nothing is built. With 100 marble given, the menu opens it again
+  //       and the click places it, the marble gone from the warehouse.
+  const marbleAt = await page.evaluate(() => {
+    const app = window.colonia;
+    const g = app.game;
+    const m = g.map;
+    for (const b of g.buildings.values()) if (b.def.kind === 'warehouse') b.stock.marble = 0;
+    const home = [...g.buildings.values()].find((b) => b.house && b.house.pop > 0);
+    const fits = (x, y) => {
+      for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) if (!m.inBounds(x + dx, y + dy) || !m.isFree(x + dx, y + dy) || m.terrain[m.idx(x + dx, y + dy)] === 2) return false;
+      return true;
+    };
+    for (let r = 3; r < 60; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !fits(home.x + dx, home.y + dy)) continue;
+        app.renderer.camera.centerOnTile(home.x + dx + 1, home.y + dy + 1);
+        app.renderer.render(0, 0.016);
+        return { x: home.x + dx, y: home.y + dy, warehouses: [...g.buildings.values()].filter((b) => b.def.kind === 'warehouse').length };
+      }
+    }
+    return null;
+  });
+  const statueItem = () => page.evaluate(() => {
+    const sb = window.colonia.ui.sidebar;
+    sb.marbleAt = 0; // (look again now, not in 400 ms)
+    sb.update(performance.now());
+    const el = document.querySelector('.build-item[data-key="statue_medium"]');
+    return el ? { cost: el.querySelector('.cost')?.textContent || '', locked: el.classList.contains('locked'), title: el.title } : null;
+  });
+  if (await page.evaluate(() => window.colonia.ui.sidebar.category !== 'government')) await page.click('.cat-btn[title^="Government"]');
+  const shortItem = await statueItem();
+  await page.click('.build-item[data-key="statue_medium"]');
+  const shortTool = await page.evaluate(() => window.colonia.input.tool);
+  check('the build menu shows a Statua\'s marble under its denarii, greyed out saying how much is short; a click does not pick it',
+    !!shortItem && /60 Dn/.test(shortItem.cost) && /100 marble/.test(shortItem.cost) && shortItem.locked && /Needs 100 marble in the warehouses, 0 stored/.test(shortItem.title) && shortTool !== 'statue_medium',
+    JSON.stringify({ shortItem, shortTool }));
+  let marbleRefused = null;
+  let marblePlaced = null;
+  if (marbleAt) {
+    await page.evaluate(() => window.colonia.ui.selectTool('statue_medium'));
+    const p = await toScreen(marbleAt.x, marbleAt.y);
+    await page.mouse.move(p.x - 4, p.y);
+    await page.mouse.move(p.x, p.y);
+    await page.waitForTimeout(100);
+    const said = await page.evaluate(() => document.querySelector('#sidebar')?.textContent || '');
+    await page.mouse.click(p.x, p.y);
+    marbleRefused = await page.evaluate(({ x, y }) => {
+      const g = window.colonia.game;
+      const toast = [...document.querySelectorAll('#messages .toast')].map((t) => t.textContent).join(' | ');
+      return { built: !!g.map.building[g.map.idx(x, y)], toast };
+    }, marbleAt);
+    marbleRefused.said = /Needs 100 marble in the warehouses, 0 stored/.test(said);
+    await page.keyboard.press('Escape');
+    // Now with the marble: the menu opens it again, and the click builds it.
+    const gave = await page.evaluate(() => window.colonia.ui.console.run('give marble 100'));
+    const okItem = await statueItem();
+    await page.click('.build-item[data-key="statue_medium"]');
+    const tool = await page.evaluate(() => window.colonia.input.tool);
+    await page.mouse.move(p.x - 4, p.y);
+    await page.mouse.move(p.x, p.y);
+    await page.waitForTimeout(100);
+    await page.mouse.click(p.x, p.y);
+    marblePlaced = await page.evaluate(({ x, y }) => {
+      const g = window.colonia.game;
+      const b = g.buildings.get(g.map.building[g.map.idx(x, y)]);
+      let marble = 0;
+      for (const w of g.buildings.values()) if (w.def.kind === 'warehouse') marble += w.stock.marble || 0;
+      return { type: b?.type || null, marble };
+    }, marbleAt);
+    Object.assign(marblePlaced, { gave, locked: okItem?.locked, tool });
+    if (await page.evaluate(() => window.colonia.input.tool)) await page.keyboard.press('Escape');
+  }
+  check('held anyway, a Statua is refused for want of marble, saying why, and nothing is built',
+    !!marbleAt && marbleRefused && !marbleRefused.built && marbleRefused.said && /Needs 100 marble/.test(marbleRefused.toast),
+    JSON.stringify({ marbleAt, marbleRefused }));
+  check('with 100 marble in a warehouse the Statua opens again and is placed, the marble taken',
+    !!marblePlaced && marblePlaced.locked === false && marblePlaced.tool === 'statue_medium' && marblePlaced.type === 'statue_medium' && marblePlaced.marble === 0 && errors.length === 0,
+    JSON.stringify({ marbleAt, marblePlaced }));
   await page.keyboard.press('F2');
   await page.click('.tab:has-text("Imperial")');
   const govText = await page.textContent('.governor-card');
