@@ -1267,6 +1267,18 @@ try {
     JSON.stringify({ sickHome, healthTipShown, healthLegend, healthReport: healthReport.slice(0, 200), errors }));
   await page.selectOption('.hud-select', 'none');
   const legendGone = await page.isHidden('#overlay-legend');
+  // Out of the overlay too, the sick home carries its green sign, and its
+  // panel opens on the outbreak (playtest: both were easy to miss).
+  const sickShown = sickHome ? await page.evaluate(async ({ x, y }) => {
+    const app = window.colonia;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const b = app.game.buildings.get(app.game.map.buildingAt(x, y));
+    app.ui.info.showBuilding(b.id);
+    const first = document.querySelector('#info-panel .status')?.textContent || '';
+    app.ui.info.close();
+    return { signs: app.renderer.stats.sickSigns, first };
+  }, sickHome) : null;
+  check('a sick home shows a sign on the map, and its panel opens on the outbreak', !!sickShown && sickShown.signs >= 1 && /Disease outbreak/.test(sickShown.first), JSON.stringify(sickShown));
   // Wheat in store, so the goods table has a row to show however young the
   // city is (the check used to find "Wheat" in a Wheat Farm's trouble line,
   // and the young city had made and stored nothing yet).

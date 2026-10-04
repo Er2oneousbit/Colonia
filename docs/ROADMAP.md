@@ -13,6 +13,11 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.6)
+
+* **Disease outbreaks are easy to see**: a sick home carries a round green sign with a cross over its roof (drawn like the no-road sign, readable zoomed out, by night and with an overlay on), and its panel opens on a red "Disease outbreak" note with the days left, the risk to its neighbours and what cures it (playtest: the pale house and a line deep in the panel were easy to miss)
+* 1051 unit tests, 209 browser checks
+
 ## Done (v0.19.5)
 
 * **A missed call for troops is softer**: nobody sent costs -25 favor (was -50), only -10 if the city had no soldier or ship at all to send, and a lost distant battle never by itself drops favor to the legions' mark (playtest: one missed call took favor from 55 to Caesar's legions)

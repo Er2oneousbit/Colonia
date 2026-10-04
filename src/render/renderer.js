@@ -70,7 +70,7 @@ import { SpriteCache } from './sprites.js';
 import { groundTileSpec, groundBlendSpec, waterTileSpec, shoreSpec, roadSpec, plazaSpec, bridgeSpec, bridgeFootSpec, lowBridgeSpec, rubbleSpec, treesSpec, rocksSpec, aqueductSpec, BLEND_RANK, roadblockSpec } from './terrainArt.js';
 import { bridgeLook, footLook, bridgeFeet, deckLift, mastClip } from './bridgeProfile.js';
 import { buildingSpec, artState, drawWarehouseStock, drawGranaryStock, shadowLength, flagsFor, templeAltar } from './buildingArt.js';
-import { drawFlag, drawShoppers, drawCrowd, drawAltarFlame, drawMapGate, GATE_H, drawNoRoadSign, NO_ROAD_SIGN_R } from './liveArt.js';
+import { drawFlag, drawShoppers, drawCrowd, drawAltarFlame, drawMapGate, GATE_H, drawNoRoadSign, drawSickSign, NO_ROAD_SIGN_R } from './liveArt.js';
 import { lacksRoad, accessEdgeTiles } from '../sim/roadAccess.js';
 import { drawWalker, drawChariot } from './walkerArt.js';
 import { isWagon } from './cargoArt.js';
@@ -1421,6 +1421,7 @@ export class Renderer {
     const front = Math.max(...depths);
     if (overlayOn && ov.show && !ov.show(b)) {
       if (lacksRoad(b)) this.noRoadMarks.push({ b, H: 0 });
+      if (b.house && b.house.pop > 0 && b.house.sick > 0) this.noRoadMarks.push({ b, H: 0, sick: true }); // (the overlays show it too)
       // Flat footprint + optional info column.
       const color = b.house ? 'rgba(214,190,140,0.9)' : 'rgba(150,145,135,0.85)';
       items.push({ d: front - 0.5, kind: K_EXTRA, b, flat: color, wx, wy });
@@ -1445,6 +1446,7 @@ export class Renderer {
     const snow = this.pal.snow;
     const spr = this.sprites.get(key + this.snowKey, () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T), this.snowPrev === null ? null : key + this.snowPrev);
     if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
+    if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     const n = depths.length;
     // Just built: rise out of the ground and fade in (half a second).
     let alpha;
@@ -2141,22 +2143,26 @@ export class Renderer {
    */
   drawNoRoadMarks() {
     const marks = this.noRoadMarks;
-    this.stats.noRoad = marks.length;
+    this.stats.noRoad = marks.filter((m) => !m.sick).length;
+    this.stats.sickSigns = 0;
     this.noRoadSpots = []; // where each sign's disc was drawn (device px), for the browser smoke test
     if (!marks.length) return;
     const { ctx, camera: cam } = this;
     const k = cam.scale;
     const s = Math.max(k, cam.dpr);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    for (const { b, H } of marks) {
+    for (const { b, H, sick } of marks) {
       const S = b.size;
       const c = this.worldAt(b.x + S / 2, b.y + S / 2);
       // The tail's tip just over the roof (H is the art's headroom over the
       // footprint's top corner, flag poles included).
       const top = H > 0 ? this.footAt(b.x, b.y, S).wy - H * 0.55 : c.y;
       const bob = this.motionOn ? Math.sin(this.time * 3 + b.id) * 1.2 * s : 0;
-      const sx = Math.round((c.x - cam.x) * k);
+      // A sick home that also has no road: its green sign beside the red one.
+      const both = sick && lacksRoad(b);
+      const sx = Math.round((c.x - cam.x) * k + (both ? (NO_ROAD_SIGN_R * 2 + 3) * s : 0));
       const sy = Math.round((top - cam.y) * k + bob);
+      if (sick) { drawSickSign(ctx, sx, sy, s); this.stats.sickSigns = (this.stats.sickSigns || 0) + 1; continue; }
       drawNoRoadSign(ctx, sx, sy, s);
       this.noRoadSpots.push({ id: b.id, x: sx, y: sy - (NO_ROAD_SIGN_R + 4) * s, r: NO_ROAD_SIGN_R * s });
     }

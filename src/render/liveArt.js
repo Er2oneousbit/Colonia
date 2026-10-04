@@ -265,6 +265,44 @@ export function drawNoRoadSign(ctx, sx, sy, s) {
   ctx.restore();
 }
 
+/**
+ * The sign over a sick home (sim/disease.js), drawn like the no-road sign
+ * so it reads at any zoom, by night and in snow: a round sign on a pointed
+ * tail, sickly green with a cream middle and a dark green cross (a
+ * physician wanted). The pale house and its cloth were easy to miss
+ * zoomed out (playtest). (sx, sy) is the tail's tip in device px, s the size.
+ */
+export function drawSickSign(ctx, sx, sy, s) {
+  const r = NO_ROAD_SIGN_R * s;
+  const cx = sx;
+  const cy = sy - r - 4 * s;
+  ctx.save();
+  ctx.fillStyle = 'rgba(24,36,12,0.85)';
+  ctx.beginPath();
+  ctx.moveTo(cx - 3.2 * s, cy + r * 0.7);
+  ctx.lineTo(sx, sy);
+  ctx.lineTo(cx + 3.2 * s, cy + r * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 1.2 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8fb03a';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#f4f1dc';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3d5a14';
+  const a = r * 0.46;
+  const b = r * 0.16;
+  ctx.fillRect(cx - b, cy - a, b * 2, a * 2);
+  ctx.fillRect(cx - a, cy - b, a * 2, b * 2);
+  ctx.restore();
+}
+
 /** Height of a map gate's pillars (art px, before scaling). */
 export const GATE_H = 34;
 

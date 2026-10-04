@@ -549,6 +549,13 @@ export class InfoPanel {
     const tier = HOUSE_TIERS[hs.tier];
     const cap = houseCapacity(hs.tier, b.size);
     const parts = [this.head(tier.name, hs.merged ? `${b.size}×${b.size} block` : `${b.size}×${b.size}`)];
+    // A sick home says so first, and what to do: it was a line in the
+    // Health section further down, easy to miss (playtest).
+    if (hs.pop > 0 && hs.sick > 0) {
+      parts.push(h('div', { class: 'status bad sick-alert' },
+        h('b', {}, '✚ Disease outbreak. '),
+        `${hs.sick} day${hs.sick === 1 ? '' : 's'} of sickness left. It can spread to the homes touching it; a Medicus (Physician) whose physician passes cures it at once. Until then the home cannot move up or take in settlers.`));
+    }
     if (hs.tier === 0 || hs.pop === 0) {
       let text = 'Waiting for settlers.';
       let level = 'warn';
