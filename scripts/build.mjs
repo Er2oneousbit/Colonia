@@ -30,22 +30,25 @@ Options:
   --no-minify     Keep the bundle readable (bigger file, easier debugging)
   --artifact      Emit a page FRAGMENT for claude.ai artifacts (no html/head/body
                   tags; the host wraps it). Default out: dist/colonia.artifact.html
-  --help          Show this help
+  --lab           Build the look lab instead (src/dev/lab.js: the 3D look on one
+                  well), one self-contained page. Default out: dist/colonia-lab.html
+  --help         Show this help
 
 Made with ❤️ from your friendly hacker - er2oneousbit
 `;
 
 function parseArgs(argv) {
-  const o = { out: null, minify: true, artifact: false };
+  const o = { out: null, minify: true, artifact: false, lab: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') { console.log(HELP); process.exit(0); }
     else if (a === '--out') o.out = path.resolve(argv[++i]);
     else if (a === '--no-minify') o.minify = false;
     else if (a === '--artifact') o.artifact = true;
+    else if (a === '--lab') o.lab = true;
     else { console.error(`Unknown option: ${a}\n${HELP}`); process.exit(2); }
   }
-  if (!o.out) o.out = path.join(ROOT, 'dist', o.artifact ? 'colonia.artifact.html' : 'colonia.html');
+  if (!o.out) o.out = path.join(ROOT, 'dist', o.lab ? 'colonia-lab.html' : o.artifact ? 'colonia.artifact.html' : 'colonia.html');
   return o;
 }
 
@@ -60,10 +63,36 @@ async function loadEsbuild() {
 
 const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%238e1b1b'/%3E%3Cpath d='M10 26 32 12 54 26Z' fill='%23d6ab3c'/%3E%3Crect x='14' y='28' width='6' height='20' fill='%23f3ecdc'/%3E%3Crect x='29' y='28' width='6' height='20' fill='%23f3ecdc'/%3E%3Crect x='44' y='28' width='6' height='20' fill='%23f3ecdc'/%3E%3Crect x='10' y='50' width='44' height='5' fill='%23d6ab3c'/%3E%3C/svg%3E";
 
+/**
+ * The look lab: its own entry and page (src/dev/lab.html), with the bundle
+ * inlined where the page says, so it is one file with nothing to fetch.
+ */
+async function buildLab(esbuild, opts, t0) {
+  const result = await esbuild.build({
+    entryPoints: [path.join(ROOT, 'src', 'dev', 'lab.js')],
+    bundle: true,
+    format: 'iife',
+    target: ['es2020'],
+    minify: opts.minify,
+    legalComments: 'eof',
+    write: false,
+    logLevel: 'warning',
+  });
+  const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+  const page = fs.readFileSync(path.join(ROOT, 'src', 'dev', 'lab.html'), 'utf8');
+  // A function replacement, so "$" sequences in the bundle are not read as patterns.
+  const html = page.replace('<!--LAB_SCRIPT-->', () => `<script>\n${js}\n</script>`);
+  fs.mkdirSync(path.dirname(opts.out), { recursive: true });
+  fs.writeFileSync(opts.out, html);
+  const kb = (fs.statSync(opts.out).size / 1024).toFixed(1);
+  console.log(`Built ${path.relative(ROOT, opts.out)} (${kb} KB) in ${Date.now() - t0} ms`);
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const esbuild = await loadEsbuild();
   const t0 = Date.now();
+  if (opts.lab) return buildLab(esbuild, opts, t0);
 
   const result = await esbuild.build({
     entryPoints: [path.join(ROOT, 'src', 'main.js')],
