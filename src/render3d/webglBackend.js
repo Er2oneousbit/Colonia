@@ -188,6 +188,7 @@ export class WebGLBackend {
     this.zA = 0;
     this.zB = 0;
     this.placed = []; // this frame's models: { b, T, state, snow, vx, vy, rise }
+    this.ghosts = []; // this frame's build ghosts drawn as models: { type, x, y, size, T, vx, vy, ok, snow }
 
     // Quads: one mesh, its groups drawn in order, each group a batch of up to `slots` textures.
     this.slots = Math.max(1, Math.min(MAX_SLOTS, gl.capabilities.maxTextures || 16));
@@ -302,6 +303,7 @@ export class WebGLBackend {
     this.atlasW = Math.min(this.maxTex, Math.max(1024, 2 ** Math.ceil(Math.log2(cam.viewW + 2))));
     this.dropped = 0;
     this.placed.length = 0;
+    this.ghosts.length = 0;
     // The 3D world's light for this hour and sky (the ground's and the models').
     this.rig.ensureEnv();
     this.rig.light(r);
@@ -459,6 +461,11 @@ export class WebGLBackend {
     this.placed.push({ b, ...place });
   }
 
+  /** The build ghost of a type drawn as a model (Renderer.placeGhostModels): drawn as that model, see-through and tinted. */
+  ghostModel(g) {
+    this.ghosts.push(g);
+  }
+
   items(items) {
     const r = this.r;
     const cam = r.camera;
@@ -581,7 +588,8 @@ export class WebGLBackend {
     gl.clear(true, true, true);
     const cam = r.camera;
     // This frame's models, instanced, at the level of detail of this zoom (modelPass.js).
-    const models = this.models.update(r, this.placed, lodFor(cam.scale));
+    const built = this.models.update(r, this.placed, lodFor(cam.scale), this.ghosts);
+    const models = built + this.ghosts.length;
     if (this.drawsGround || models) {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
@@ -614,7 +622,7 @@ export class WebGLBackend {
     ctx.drawImage(this.canvas, 0, 0);
     ctx.restore();
     const st = r.stats;
-    st.models = models;
+    st.models = built;
     // (By type, their triangles, the level of detail: the smoke test and the console read them.)
     st.modelPass = this.models.stats;
     st.drawCalls = gl.info.render.calls;

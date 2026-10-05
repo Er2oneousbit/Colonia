@@ -3819,6 +3819,61 @@ try {
         await gp.waitForTimeout(150);
       }
       check('WebGL renderer: at every view turn the well is a model and a click on it opens its panel', picks.every((o, t) => o.turn === t && o.models >= 1 && o.backend === 'webgl' && o.target?.kind === 'building' && o.target.id === well.id), JSON.stringify(picks));
+      // A fountain drawn as a model (render3d/models/fountain.js), its look following its
+      // neighbourhood (render3d/fountainTier.js), and a click on it picks it.
+      const fnt = await gp.evaluate(() => {
+        const app = window.colonia;
+        const g = app.game;
+        // (A fountain on an open tile beside a road near the well: drawn whatever its water.)
+        const w = [...g.buildings.values()].find((b) => b.type === 'well');
+        const before = new Set(g.buildings.keys());
+        app.ui.selectTool('fountain');
+        app.input.mouse.over = true;
+        let found = null;
+        for (let r = 1; r < 8 && !found; r++) {
+          for (let dy = -r; dy <= r && !found; dy++) {
+            for (let dx = -r; dx <= r && !found; dx++) {
+              app.input.hover = { x: w.x + dx, y: w.y + dy };
+              app.input.refreshPlan();
+              const plan = app.renderer.plan;
+              if (!plan || !plan.items.length || !plan.items.every((it) => it.ok) || plan.items.some((it) => it.noRoad)) continue;
+              app.applyPlan(plan);
+              const b = [...g.buildings.values()].find((x) => !before.has(x.id) && x.type === 'fountain');
+              if (b) found = { id: b.id, x: b.x, y: b.y };
+            }
+          }
+        }
+        app.ui.selectTool(null);
+        if (found) app.renderer.camera.centerOnTile(found.x, found.y);
+        return found;
+      });
+      const shotFountain = async () => {
+        await gp.waitForTimeout(700); // (the new building rises out of the ground for half a second)
+        return gp.evaluate((f) => {
+          const r = window.colonia.renderer;
+          const be = r.backend;
+          return { fountains: r.stats.modelPass?.byType?.fountain || 0, tier: be.models.tiers.get(f.id)?.t ?? null };
+        }, fnt);
+      };
+      let fview = null;
+      let fpick = null;
+      let rich = null;
+      if (fnt) {
+        await gp.evaluate((f) => { const g = window.colonia.game; g.map.desirability[g.map.idx(f.x, f.y)] = 0; }, fnt);
+        fview = await shotFountain();
+        const p = await onPage(fnt.x + 0.5, fnt.y + 0.5);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        fpick = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        // A rich quarter: the finest look (the sim is paused; the renderer reads the layer each frame).
+        await gp.evaluate((f) => { const g = window.colonia.game; g.map.desirability[g.map.idx(f.x, f.y)] = 60; }, fnt);
+        rich = await shotFountain();
+        if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-fountain.png') });
+      }
+      check('WebGL renderer: a fountain is a 3D model, a click picks it, and its look follows its neighbourhood',
+        !!fnt && fview.fountains >= 1 && fview.tier === 1 && fpick?.kind === 'building' && fpick.id === fnt.id && rich.tier === 4,
+        JSON.stringify({ fnt, fview, fpick, rich }));
       // A walker in view, clicked on its body (painted into the frame's live-art texture).
       await gp.evaluate(() => { const app = window.colonia; app.renderer.camera.zoomIndex = 2; app.game.runDays(1); });
       await gp.waitForTimeout(300);
@@ -3932,7 +3987,7 @@ try {
         const r = window.colonia.renderer;
         return { ready: r.stats.groundTexReady, ground: r.stats.ground, out: window.colonia.ui.console.run('textures') };
       });
-      check('3D ground: its texture layers are painted on the GPU before it draws', painted.ready === true && new RegExp(`${N_GROUND}/${N_GROUND} layers in`).test(painted.out) && new RegExp(`${N_GROUND} painted on the GPU`).test(painted.out), JSON.stringify(painted));
+      check('3D ground: its texture layers are painted on the GPU before it draws', painted.ready === true && new RegExp(`${N_GROUND}/${N_GROUND} layers in`).test(painted.out) && new RegExp(`\\(${N_GROUND} ground layers`).test(painted.out), JSON.stringify(painted));
       await gq.waitForTimeout(500);
       const lowDrawn = await gq.evaluate(() => {
         const r = window.colonia.renderer;

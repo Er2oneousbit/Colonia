@@ -24,6 +24,11 @@
  * The fountain's look follows its neighbourhood (fountainTier.js): the tier
  * is kept per building here, render-only state the sim never sees.
  *
+ * The build ghost: a building being placed is drawn as its model, see-
+ * through and tinted (green where it can go, orange where no road would
+ * reach it, as the 2D ghost's tints), its opaque parts only, from the same
+ * kits through InstancedMeshes of their own (two materials, one program).
+ *
  * Ready. A model draws only once its materials' textures are painted and
  * its programs compiled (in the background: compileAsync, under the light
  * it is drawn in), so the game never stalls on a compile; meanwhile, and
@@ -41,9 +46,10 @@
 import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement } from 'three';
 import { MODELS, partShows, modelMatrix } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
-import { LOOK, waterMaterial, surfacesReady } from './materials.js';
+import { LOOK, waterMaterial, surfacesReady, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
-import { fountainTier } from './fountainTier.js';
+import { fountainTier, tierOf } from './fountainTier.js';
+import { WaterBits } from '../world/map.js';
 import { painterFor } from './paint/painter.js';
 import { CONFIG } from '../config.js';
 
@@ -74,6 +80,18 @@ function withColourManagement(fn) {
 
 const _m = new Matrix4();
 
+/** A kit's ghost meshes (placeGhost), both tints. */
+function ghostMeshes(k) {
+  return k.ghosts ? [...k.ghosts.ok, ...k.ghosts.warn].filter(Boolean) : [];
+}
+
+/** The ghost's see-through tint: green where it can be built, orange where no road would reach it (renderer.js NO_ROAD_FILL). */
+function ghostMaterial(tint) {
+  return tint === 'ok'
+    ? material('ghost-ok', { color: 0x7ee08a, roughness: 0.7, opacity: 0.62, snow: 0, wet: 0 })
+    : material('ghost-warn', { color: 0xffa04a, roughness: 0.7, opacity: 0.62, snow: 0, wet: 0 });
+}
+
 export class ModelPass {
   /**
    * @param {import('three').WebGLRenderer} gl
@@ -98,10 +116,15 @@ export class ModelPass {
     return this.compiled && !this.lost && surfacesReady() && painterFor(this.gl).idle;
   }
 
-  /** The tier a fountain shows (fountainTier.js), kept per building so its look changes only past a band's edge. */
+  /**
+   * The tier a fountain shows (fountainTier.js), kept per building so its
+   * look changes only past a band's edge; a ghost's (no id) straight from
+   * its band.
+   */
   fountainTier(b) {
     const map = this.game && this.game.map;
     const d = map ? map.desirability[map.idx(b.x, b.y)] : 0;
+    if (b.id === null || b.id === undefined) return tierOf(d);
     const was = this.tiers.get(b.id);
     const t = fountainTier(d, was ? was.t : null);
     if (was) {
@@ -167,11 +190,11 @@ export class ModelPass {
    * vx, vy, rise }), drawn at level `lod`. Fills every part's instances;
    * returns how many buildings are drawn as models.
    */
-  update(r, placed, lod) {
+  update(r, placed, lod, ghosts = []) {
     this.frame++;
     this.game = r.game;
     this.life(r);
-    for (const k of this.kits.values()) for (const im of k.meshes) im.userData.n = 0;
+    for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
     const byType = {};
     // (The shadow map is cleared rather than drawn when no model wants it: sunRig.js fitShadow.)
     for (const m of placed) {
@@ -190,9 +213,10 @@ export class ModelPass {
       }
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
     }
+    for (const g of ghosts) this.placeGhost(g, lod);
     let tris = 0;
     for (const [id, k] of this.kits) {
-      for (const im of k.meshes) {
+      for (const im of k.meshes.concat(ghostMeshes(k))) {
         const n = im.userData.n;
         im.count = n;
         im.visible = n > 0;
@@ -212,6 +236,46 @@ export class ModelPass {
     }
     this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod };
     return placed.length;
+  }
+
+  /**
+   * A ghost (the renderer's placeGhostModels: { type, x, y, size, T, vx, vy,
+   * ok, snow }): the model as it would stand there, see-through and tinted.
+   */
+  placeGhost(g, lod) {
+    const map = this.game.map;
+    const i = map.idx(g.x, g.y);
+    // As built there: a fountain runs where the reservoirs' pipes reach, and takes the look of its band.
+    const b = { id: null, type: g.type, x: g.x, y: g.y, size: g.size, hasWater: (map.water[i] & WaterBits.PIPED) !== 0, efficiency: 1 };
+    const v = MODELS[g.type].variant(b, { snow: g.snow }, this);
+    const k = this.kitFor(v.key, lod);
+    k.seen = this.frame;
+    const tint = g.ok ? 'ok' : 'warn';
+    k.ghosts ??= { ok: [], warn: [] };
+    const list = k.ghosts[tint];
+    modelMatrix(g.vx, g.vy, g.size, g.T, 0, _m);
+    k.kit.parts.forEach((part, p) => {
+      if (part.material.transparent || !partShows(part.when, v.state, v.ice)) return;
+      let im = list[p];
+      if (!im) {
+        im = this.instanced({ ...part, material: ghostMaterial(tint), cast: false }, 2);
+        list[p] = im;
+      }
+      let n = im.userData.n;
+      if (n >= im.instanceMatrix.count) {
+        // (Grown in place of the old: a drag of fountains along a street.)
+        const bigger = this.instanced(im.userData.part, im.instanceMatrix.count * 2);
+        bigger.instanceMatrix.array.set(im.instanceMatrix.array.subarray(0, n * 16));
+        bigger.userData.n = n;
+        this.slot.remove(im);
+        im.dispose();
+        list[p] = bigger;
+        im = bigger;
+        n = im.userData.n;
+      }
+      _m.toArray(im.instanceMatrix.array, n * 16);
+      im.userData.n = n + 1;
+    });
   }
 
   /** Hide the casters from the shadow map while it is cleared (sunRig.js: nothing in it to show). */
@@ -237,7 +301,7 @@ export class ModelPass {
   dropKit(id) {
     const k = this.kits.get(id);
     if (!k) return;
-    for (const im of k.meshes) {
+    for (const im of k.meshes.concat(ghostMeshes(k))) {
       this.slot.remove(im);
       im.dispose();
     }
