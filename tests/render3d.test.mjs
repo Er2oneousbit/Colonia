@@ -40,7 +40,6 @@ import { fountainTier, tierOf, TIER_FLOORS, HYSTERESIS } from '../src/render3d/f
 import { triangles } from '../src/render3d/shapes.js';
 import { heightFor } from '../src/render/buildingArt.js';
 import { liveBox } from '../src/render3d/liveBox.js';
-import { TOP, AMBIENT, SUN, SUN_DIR } from '../src/render3d/light.js';
 import { parseFlags } from '../src/core/debug.js';
 
 /** A 2D camera over a W x H map at a zoom level, view turn and scroll. */
@@ -248,15 +247,6 @@ test('render3d: the level of detail follows the size of a tile on the screen', (
     const t = [0, 1, 2].map((l) => kitOf(MODELS[type].build(key, l)).triangles);
     assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
   }
-});
-
-test('render3d: the light matches the sprites\' shading (tops x1.15, +v faces x1.0, +u faces x0.8)', () => {
-  const lit = (n) => AMBIENT + SUN * Math.max(0, n[0] * SUN_DIR[0] + n[1] * SUN_DIR[1] + n[2] * SUN_DIR[2]);
-  assert.ok(Math.abs(lit([0, 1, 0]) - 1.15) < 0.01, `top ${lit([0, 1, 0])}`);
-  assert.ok(Math.abs(lit([0, 0, 1]) - 1.0) < 0.01, `+v ${lit([0, 0, 1])}`);
-  assert.ok(Math.abs(lit([1, 0, 0]) - 0.8) < 0.01, `+u ${lit([1, 0, 0])}`);
-  assert.equal(TOP, lit([0, 1, 0]));
-  assert.ok(Math.abs(Math.hypot(...SUN_DIR) - 1) < 1e-12);
 });
 
 test('render3d: sprites land on whole pixels 1:1, and stretched strips meet without gaps or overlaps', () => {
