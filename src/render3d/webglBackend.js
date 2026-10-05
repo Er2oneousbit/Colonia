@@ -63,7 +63,7 @@ import {
 import { HALF_W, HALF_H, CONFIG } from '../config.js';
 import { K_STRIP, spriteRect } from '../render/items.js';
 import { makeCanvas } from '../render/sprites.js';
-import { hasModel } from './models.js';
+import { hasModel, TILE_M } from './models.js';
 import { liveBox } from './liveBox.js';
 import { aimCamera, groundDepth, standDepth } from './projection.js';
 import { GroundPass } from './ground/groundPass.js';
@@ -78,8 +78,8 @@ const BACKGROUND = 0x2a241c;
 const GROUND_BIAS = 0.02;
 /** Textures one batch (one draw call) can hold; WebGL 2 promises 16 to a fragment shader. */
 const MAX_SLOTS = 16;
-/** Models draw nothing under this height (tiles): what rises out of the ground is hidden under it (materials.js uLookClipY). */
-const MODEL_CLIP = -0.002;
+/** Models draw nothing under this height (metres; a tile is 4): what rises out of the ground is hidden under it (materials.js uLookClipY). */
+const MODEL_CLIP = -0.008;
 
 const VERTEX = `
 in vec3 position;
@@ -174,6 +174,7 @@ export class WebGLBackend {
     LOOK.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
     LOOK.textureScale = softwareGL(gl) ? 0.25 : 1;
     LOOK.uniforms.uLookClipY.value = MODEL_CLIP;
+    LOOK.uniforms.uLookMetres.value = TILE_M;
     paintSurfaces();
     // The 3D world's scene and light (the ground and the models share them), and the models.
     this.rig = new SunRig(gl);
@@ -589,8 +590,8 @@ export class WebGLBackend {
     const cam = r.camera;
     // This frame's models, instanced, at the level of detail of this zoom (modelPass.js).
     const built = this.models.update(r, this.placed, lodFor(cam.scale), this.ghosts);
-    const models = built + this.ghosts.length;
-    if (this.drawsGround || models) {
+    const models = built;
+    if (this.drawsGround || models || this.ghosts.length) {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
       const c = [tileOfWorld(cam.x, cam.y), tileOfWorld(cam.x + vw, cam.y), tileOfWorld(cam.x, cam.y + vh), tileOfWorld(cam.x + vw, cam.y + vh)];
@@ -609,6 +610,8 @@ export class WebGLBackend {
       this.rig.renderModels(this.camera);
     }
     gl.render(this.quadScene, this.camera);
+    // The build ghost over the sprites, as the 2D ghost is drawn (sunRig.js renderGhosts).
+    if (this.ghosts.length) this.rig.renderGhosts(this.camera);
     // Onto the 2D canvas, under everything the renderer draws after the scene.
     const ctx = r.ctx;
     ctx.save();

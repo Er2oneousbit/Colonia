@@ -27,7 +27,9 @@
  * The build ghost: a building being placed is drawn as its model, see-
  * through and tinted (green where it can go, orange where no road would
  * reach it, as the 2D ghost's tints), its opaque parts only, from the same
- * kits through InstancedMeshes of their own (two materials, one program).
+ * kits through InstancedMeshes of their own (two materials, one program),
+ * in the rig's ghost slot: drawn after the sprites, over everything, as the
+ * 2D ghost is.
  *
  * Ready. A model draws only once its materials' textures are painted and
  * its programs compiled (in the background: compileAsync, under the light
@@ -87,9 +89,9 @@ function ghostMeshes(k) {
 
 /** The ghost's see-through tint: green where it can be built, orange where no road would reach it (renderer.js NO_ROAD_FILL). */
 function ghostMaterial(tint) {
-  return tint === 'ok'
+  return withColourManagement(() => (tint === 'ok'
     ? material('ghost-ok', { color: 0x7ee08a, roughness: 0.7, opacity: 0.62, snow: 0, wet: 0 })
-    : material('ghost-warn', { color: 0xffa04a, roughness: 0.7, opacity: 0.62, snow: 0, wet: 0 });
+    : material('ghost-warn', { color: 0xffa04a, roughness: 0.7, opacity: 0.62, snow: 0, wet: 0 })));
 }
 
 export class ModelPass {
@@ -155,8 +157,8 @@ export class ModelPass {
     return k;
   }
 
-  /** An InstancedMesh of a part with room for `room` copies, in the models' slot. */
-  instanced(part, room) {
+  /** An InstancedMesh of a part with room for `room` copies, in `slot` (the models', or the ghosts'). */
+  instanced(part, room, slot = this.slot) {
     const im = new InstancedMesh(part.geometry, part.material, room);
     im.instanceMatrix.setUsage(DynamicDrawUsage);
     im.castShadow = part.cast;
@@ -167,20 +169,34 @@ export class ModelPass {
     im.visible = false;
     im.userData.part = part;
     im.userData.n = 0;
-    this.slot.add(im);
+    slot.add(im);
+    return im;
+  }
+
+  /**
+   * A bigger buffer for `old` (room for `n`): a new InstancedMesh in the old
+   * one's place among its slot's children. The order matters: three's
+   * sorting is off, so see-through parts draw in that order (the water
+   * under the rings and foam, kit.js).
+   */
+  bigger(old, n) {
+    let room = old.instanceMatrix.count;
+    while (room < n) room *= 2;
+    const slot = old.parent;
+    const at = slot.children.indexOf(old);
+    const im = this.instanced(old.userData.part, room, slot);
+    im.instanceMatrix.array.set(old.instanceMatrix.array.subarray(0, old.userData.n * 16));
+    im.userData.n = old.userData.n;
+    slot.remove(old);
+    old.dispose();
+    slot.children.splice(slot.children.indexOf(im), 1);
+    slot.children.splice(at, 0, im);
     return im;
   }
 
   /** Make room for `n` copies in mesh `i` of kit `k` (a bigger buffer: a new InstancedMesh). */
   grow(k, i, n) {
-    const old = k.meshes[i];
-    let room = old.instanceMatrix.count;
-    while (room < n) room *= 2;
-    const im = this.instanced(old.userData.part, room);
-    im.instanceMatrix.array.set(old.instanceMatrix.array.subarray(0, old.userData.n * 16));
-    im.userData.n = old.userData.n;
-    this.slot.remove(old);
-    old.dispose();
+    const im = this.bigger(k.meshes[i], n);
     k.meshes[i] = im;
     return im;
   }
@@ -192,6 +208,8 @@ export class ModelPass {
    */
   update(r, placed, lod, ghosts = []) {
     this.frame++;
+    // A new game or a load: its buildings' ids start again, the tiers remembered are another city's.
+    if (this.game && r.game && r.game.map !== this.game.map) this.tiers.clear();
     this.game = r.game;
     this.life(r);
     for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
@@ -258,21 +276,12 @@ export class ModelPass {
       if (part.material.transparent || !partShows(part.when, v.state, v.ice)) return;
       let im = list[p];
       if (!im) {
-        im = this.instanced({ ...part, material: ghostMaterial(tint), cast: false }, 2);
+        im = this.instanced({ ...part, material: ghostMaterial(tint), cast: false }, 2, this.rig.ghostSlot);
         list[p] = im;
       }
-      let n = im.userData.n;
-      if (n >= im.instanceMatrix.count) {
-        // (Grown in place of the old: a drag of fountains along a street.)
-        const bigger = this.instanced(im.userData.part, im.instanceMatrix.count * 2);
-        bigger.instanceMatrix.array.set(im.instanceMatrix.array.subarray(0, n * 16));
-        bigger.userData.n = n;
-        this.slot.remove(im);
-        im.dispose();
-        list[p] = bigger;
-        im = bigger;
-        n = im.userData.n;
-      }
+      const n = im.userData.n;
+      // (A drag of fountains along a street.)
+      if (n >= im.instanceMatrix.count) list[p] = im = this.bigger(im, n + 1);
       _m.toArray(im.instanceMatrix.array, n * 16);
       im.userData.n = n + 1;
     });
@@ -302,7 +311,7 @@ export class ModelPass {
     const k = this.kits.get(id);
     if (!k) return;
     for (const im of k.meshes.concat(ghostMeshes(k))) {
-      this.slot.remove(im);
+      im.parent.remove(im);
       im.dispose();
     }
     disposeKit(k.kit);
@@ -323,28 +332,15 @@ export class ModelPass {
     this.compiled = false;
     // (Every material of every look: a frost's ice is the water's program, so the frozen looks need nothing more.)
     const looks = ['well', 'fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'];
-    const shown = [];
-    for (const look of looks) {
-      for (const im of this.kitFor(look, 1).meshes) {
-        shown.push([im, im.count, im.visible]);
-        im.count = 1;
-        im.visible = true;
-      }
-    }
+    for (const look of looks) this.kitFor(look, 1);
+    // The ghosts' tints (the see-through program the stains use, but their own materials).
+    ghostMaterial('ok');
+    ghostMaterial('warn');
     const rig = this.rig;
-    const g = rig.groundSlot.visible;
-    rig.groundSlot.visible = false;
-    let job;
-    try {
-      // (Under the very output state it is drawn in: tone mapping and sRGB are part of a program.)
-      job = rig.withOutput(() => this.gl.compileAsync(rig.scene, camera));
-    } finally {
-      rig.groundSlot.visible = g;
-      for (const [im, n, v] of shown) {
-        im.count = n;
-        im.visible = v;
-      }
-    }
+    // The models' slot alone, in the rig's light (three compiles hidden objects too: the target
+    // scene's lights and sky, without the ground's own shader), under the very output state it is
+    // drawn in (tone mapping and sRGB are part of a program).
+    const job = rig.withOutput(() => this.gl.compileAsync(rig.modelSlot, camera, rig.scene));
     const done = () => {
       if (this.warming !== job) return; // (the light changed again meanwhile)
       this.warming = null;

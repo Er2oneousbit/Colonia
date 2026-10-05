@@ -86,9 +86,12 @@ export const LOOK = {
     uLookFadeColor: { value: new Color(0x000000) },
     uLookWind: { value: new Vector2(0.6, 0.3) },
     uLookGrass: { value: new Vector4(1, 1, 1, 0) },
-    // Nothing under this height is drawn (world y): the game's models rise out of the ground
-    // through it (its 3D ground writes no depth to hide them); the lab keeps it far below.
+    // Nothing under this height is drawn (world y, metres): the game's models rise out of the
+    // ground through it (its 3D ground writes no depth to hide them); the lab keeps it far below.
     uLookClipY: { value: -1e9 },
+    // Metres in a unit of the world: 1 in the lab, 4 in the game (a tile), so the snow's and the
+    // wet's noise is as fine on a game's well as on the lab's.
+    uLookMetres: { value: 1 },
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
@@ -114,6 +117,7 @@ uniform float uLookSnowMul;
 uniform float uLookWetMul;
 uniform vec2 uLookSway;
 uniform float uLookClipY;
+uniform float uLookMetres;
 varying vec3 vLookWPos;
 varying vec3 vLookWNormal;
 float lookHash( vec3 p ) {
@@ -142,7 +146,7 @@ const VERT_WORLD = /* glsl */ `
     ln = mat3( instanceMatrix ) * ln;
   #endif
   lw = modelMatrix * lw;
-  vLookWPos = lw.xyz;
+  vLookWPos = lw.xyz * uLookMetres;
   vLookWNormal = normalize( mat3( modelMatrix ) * ln );
 }
 `;

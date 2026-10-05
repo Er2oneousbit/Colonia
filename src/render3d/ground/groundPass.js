@@ -145,7 +145,6 @@ export class GroundPass {
   setQuality(q) {
     if (q === this.quality) return;
     this.quality = q;
-    this.sun.castShadow = q === 'high';
     this.dropGround();
     this.warmed = false;
     this.warming = null;
@@ -234,7 +233,7 @@ export class GroundPass {
           this.compileMs = performance.now() - t0;
         };
         // Under the very state it is drawn in (render(): tone mapping, output), or three compiles another program at the first draw.
-        const job = this.withOutput(() => this.withoutModels(() => this.gl.compileAsync(this.scene, camera))).then(done, done);
+        const job = this.withOutput(() => this.gl.compileAsync(this.root, camera, this.scene)).then(done, done);
         this.compiling = job;
         this.steps.push(['compile call', Math.round(performance.now() - t0)]);
       }
@@ -286,11 +285,12 @@ export class GroundPass {
       if (quality === this.quality) this.warmed = true;
       this.steps.push(['warm-up', Math.round(performance.now() - t0)]);
     };
-    const job = this.withOutput(() => this.withoutModels(() => this.gl.compileAsync(this.scene, camera))).then(done, done);
+    // (The ground alone, in the rig's light: three compiles what is hidden too, so not the scene.)
+    const job = this.withOutput(() => this.gl.compileAsync(this.root, camera, this.scene)).then(done, done);
     this.warming = job;
   }
 
-  /** Run `fn` with the models' slot hidden (the ground's own compile and Low's picture). */
+  /** Run `fn` with the models' slot hidden (Low's picture of the ground alone). */
   withoutModels(fn) {
     const slot = this.rig.modelSlot;
     const was = slot.visible;

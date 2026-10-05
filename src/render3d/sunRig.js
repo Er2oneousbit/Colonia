@@ -20,7 +20,9 @@
  * The scene's children, in the order three draws them (the back end turns
  * sorting off): the lights, `groundSlot` (the ground, which writes no
  * depth), `modelSlot` (the models, which do; their see-through water after
- * everything opaque). renderModels() draws the models alone (the ground
+ * everything opaque), and `ghostSlot` (the build ghost: hidden but in its
+ * own draw, renderGhosts(), after the sprites, as the 2D ghost was drawn
+ * over everything). renderModels() draws the models alone (the ground
  * drawn from Low's kept picture, or the ground's sprites).
  * ----------------------------------------------------------------------------
  */
@@ -70,7 +72,10 @@ export class SunRig {
     this.groundSlot.name = 'ground-slot';
     this.modelSlot = new Group();
     this.modelSlot.name = 'model-slot';
-    this.scene.add(this.sun, this.sun.target, this.fill, this.groundSlot, this.modelSlot);
+    this.ghostSlot = new Group();
+    this.ghostSlot.name = 'ghost-slot';
+    this.ghostSlot.visible = false;
+    this.scene.add(this.sun, this.sun.target, this.fill, this.groundSlot, this.modelSlot, this.ghostSlot);
     this.env = null;
     this.envDirty = true;
     this.sunDir = new Vector3(0, 1, 0);
@@ -137,8 +142,7 @@ export class SunRig {
     const want = models > 0 && span < SHADOW_MAX;
     this.sun.shadow.needsUpdate = want || this.shadowLive || !this.sun.shadow.map;
     this.shadowLive = want;
-    // (With nothing to show the models' slot is hidden for the redraw: the map is cleared.)
-    this.shadowEmpty = !want;
+    // (With nothing to show the models cast nothing into the redraw, so the map is cleared: ModelPass.setCasting.)
     if (!want) return false;
     const cu = (u0 + u1) / 2;
     const cv = (v0 + v1) / 2;
@@ -190,6 +194,25 @@ export class SunRig {
       this.render(camera);
     } finally {
       this.groundSlot.visible = g;
+    }
+  }
+
+  /** Draw the build ghost alone, over everything drawn so far (the shadow map is not drawn again). */
+  renderGhosts(camera) {
+    const g = this.groundSlot.visible;
+    const m = this.modelSlot.visible;
+    const up = this.sun.shadow.needsUpdate;
+    this.groundSlot.visible = false;
+    this.modelSlot.visible = false;
+    this.ghostSlot.visible = true;
+    this.sun.shadow.needsUpdate = false;
+    try {
+      this.render(camera);
+    } finally {
+      this.groundSlot.visible = g;
+      this.modelSlot.visible = m;
+      this.ghostSlot.visible = false;
+      this.sun.shadow.needsUpdate = up;
     }
   }
 
