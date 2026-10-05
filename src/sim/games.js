@@ -43,11 +43,15 @@ export function newGamesState() {
  * hand-edited save) starts as in a new city, so nothing downstream reads NaN.
  */
 export function gamesStateOf(city) {
-  if (!city.games || typeof city.games !== 'object') city.games = newGamesState();
+  if (!city.games || typeof city.games !== 'object' || Array.isArray(city.games)) city.games = newGamesState();
   for (const k of GAME_KINDS) {
     const s = city.games[k];
     const ok = s && typeof s === 'object' && [s.boost, s.cooldown, s.held].every((v) => Number.isFinite(v) && v >= 0);
     if (!ok) city.games[k] = { boost: 0, cooldown: 0, held: 0 };
+    // Never more than holding them can give: a lift above the kind's own or
+    // a wait longer than its cooldown would hold the mood up, or the games
+    // back, for good.
+    else if (s.boost > GAMES[k].mood || s.cooldown > GAMES[k].cooldown) Object.assign(s, { boost: Math.min(s.boost, GAMES[k].mood), cooldown: Math.min(s.cooldown, GAMES[k].cooldown) });
   }
   return city.games;
 }

@@ -320,6 +320,12 @@ export function peoplePerTile(t) {
 
 /** Home tiles one building of `key` serves with its roaming walker. */
 function walkerReach(key, perStreetTile = HOMES_PER_STREET_TILE) {
+  // The walker type's round, not a building's own: the Great Arena's
+  // performers walk 52 in the game (data/buildings.js `roam`), but counting
+  // that here plans half the Arenas and lowers missions 5 to 10's job
+  // ceilings by 400 to 1,100 people (the sensible column of --capacity),
+  // which moves the campaign's goal checks. Left at 26 until the goals are
+  // looked at again.
   const roam = WALKER_TYPES[BUILDINGS[key].walker]?.roam ?? CONFIG.DEFAULT_ROAM;
   return roam * perStreetTile;
 }

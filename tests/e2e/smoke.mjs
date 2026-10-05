@@ -1391,6 +1391,55 @@ try {
     fest.granary && fest.largeOff && /^Needs temples of Ceres with 3 priests .*: 1 at work/.test(fest.largeTitle) && /^Large festival: Needs temples of Ceres with 3 priests .*: 1 at work/.test(fest.templeNote) && errors.length === 0,
     JSON.stringify({ largeTitle: fest.largeTitle, templeNote: fest.templeNote }));
 
+  // 5a4c. Games at the Great Arena (sim/games.js): the console's builder
+  //       puts up an Arena (with its schools); its panel shows the Ludi with
+  //       their cost and a Hold games button; a click pays for them, the
+  //       button greys out with the cooldown, and at the turn of the month
+  //       the Overview's mood breakdown lists "Games" at +10. The
+  //       Entertainment advisor lists the games and the races.
+  const games = await page.evaluate(() => {
+    const app = window.colonia;
+    const g = app.game;
+    const free = g.cheats.freeBuild;
+    g.cheats.freeBuild = true;
+    const out = { built: app.ui.console.run('arena') };
+    g.cheats.freeBuild = free;
+    const arena = [...g.buildings.values()].find((b) => b.type === 'colosseum');
+    if (!arena) return out;
+    // Staffed, with gladiators booked, and money to pay (the console's city may be short of both).
+    arena.efficiency = 1;
+    arena.shows.colosseum = 20;
+    g.city.treasury = Math.max(g.city.treasury, 20000);
+    g.city.games.ludi.cooldown = 0;
+    app.ui.info.showBuilding(arena.id);
+    const panel = () => document.querySelector('#info-panel');
+    const btn = () => panel()?.querySelector('button[data-games="ludi"]');
+    out.panel = /Ludi \(Games\)/.test(panel()?.textContent || '') && /Every home\s*\+5 while staffed/.test(panel()?.textContent || '');
+    out.label = btn()?.textContent || '';
+    out.enabled = !!btn() && !btn().disabled;
+    const t0 = g.city.treasury;
+    btn()?.click();
+    out.paid = Math.round(t0 - g.city.treasury);
+    out.boost = g.city.games.ludi.boost;
+    out.after = { disabled: !!btn()?.disabled, why: panel()?.querySelector('[data-games-why="ludi"]')?.textContent || '' };
+    out.message = g.messages.some((m) => /^Ludi at the Arena!/.test(m.text));
+    app.ui.info.close();
+    // To the turn of the month: the city mood counts the games.
+    app.ui.console.run(`days ${16 - g.time.day}`);
+    app.ui.openAdvisors('overview');
+    const rows = [...document.querySelectorAll('.modal-body .tbl tr')].map((tr) => tr.textContent);
+    out.moodRow = rows.find((r) => /^Games/.test(r)) || '';
+    app.ui.openAdvisors('entertainment');
+    const card = document.querySelector('.modal-body .games');
+    out.advisor = { ludi: card?.querySelector('[data-games-kind="ludi"]')?.textContent || '', races: !!card?.querySelector('[data-games-kind="circenses"]') };
+    return out;
+  });
+  await page.keyboard.press('Escape');
+  check('games at the Great Arena: held from its panel for their cost, then on a cooldown; the mood breakdown lists them and the Entertainment advisor lists games and races',
+    games.panel && /^Hold games \([\d,]+ Dn\)$/.test(games.label) && games.enabled && games.paid > 0 && games.boost === 10 && games.after.disabled && /still talks of the last Ludi/.test(games.after.why) && games.message
+      && /^Games \(Ludi at the Arena\)\+10$/.test(games.moodRow) && /Hold games/.test(games.advisor.ludi) && games.advisor.races && errors.length === 0,
+    JSON.stringify({ ...games, errors }));
+
   // 5a5. Auto-pause (ui/autoPause.js): Settings turns on "a fire breaks out";
   //      a fire in the running game then pauses it, with a note that goes
   //      there on a click, outlasts other toasts and leaves when the game

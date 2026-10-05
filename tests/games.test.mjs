@@ -293,6 +293,13 @@ test('save: the games\' lifts, cooldowns and counts are kept; a save before vers
   const fixed = deserializeGame(hand);
   assert.deepEqual(fixed.city.games.ludi, { boost: 0, cooldown: 0, held: 0 });
   assert.deepEqual(fixed.city.games.circenses, game.city.games.circenses);
+  // A hand-edited lift or wait beyond what holding them gives comes down to it; an array is no state.
+  const big = JSON.parse(JSON.stringify(data));
+  big.city.games.ludi = { boost: 1e6, cooldown: 1e9, held: 2 };
+  assert.deepEqual(deserializeGame(big).city.games.ludi, { boost: GAMES.ludi.mood, cooldown: GAMES.ludi.cooldown, held: 2 });
+  const arr = JSON.parse(JSON.stringify(data));
+  arr.city.games = [];
+  assert.deepEqual(deserializeGame(arr).city.games, newGamesState());
   // The step on its own.
   const g2 = newGame({ seed: 'games-save-2' });
   g2.city.games.ludi.cooldown = 3;

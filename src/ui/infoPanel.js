@@ -57,6 +57,7 @@ import { monumentStatus, monumentSections, campSections } from './monumentInfo.j
 import { isSite } from '../sim/monumentEffects.js';
 import { demolishWarning } from '../sim/monuments.js';
 import { gamesSection } from './gamesInfo.js';
+import { arenaStaffed } from '../sim/entertainment.js';
 
 /** "in about 12 days", counting the winter rest on Insane. */
 function nextMareText(game, b) {
@@ -715,7 +716,7 @@ export class InfoPanel {
         const value = VENUE_POINTS[def.venue] + (both ? VENUE_BOTH_BONUS[def.venue] || 0 : 0);
         parts.push(sec('Shows', kv('Entertainment value', `${value}${VENUE_BOTH_BONUS[def.venue] ? (both ? ' (both kinds of show)' : ` (${VENUE_POINTS[def.venue] + VENUE_BOTH_BONUS[def.venue]} with both kinds of show)`) : ''}`), acc.map((v) => kv(`${PERFORMER_NAMES[v]} shows`, `${b.shows[v]} days left`)),
           // The Great Arena's flat part of every home's base (sim/entertainment.js), and its performers' long walks.
-          def.venue === 'colosseum' ? kv('Every home', b.efficiency > 0 ? `+${ARENA_ENT_BONUS} while staffed` : `Nothing while nobody works here (+${ARENA_ENT_BONUS} when staffed)`) : null,
+          def.venue === 'colosseum' ? kv('Every home', b.efficiency > 0 ? `+${ARENA_ENT_BONUS} while staffed (once, however many Arenas)` : arenaStaffed(g) ? `+${ARENA_ENT_BONUS} from another, staffed Arena (it counts once)` : `Nothing while nobody works here (+${ARENA_ENT_BONUS} when staffed)`) : null,
           def.roam ? kv('Performers walk', `${def.roam} tiles, twice as far as other entertainers`) : null));
         if (def.venue === 'colosseum') parts.push(gamesSection(g, b, 'ludi', sec, () => this.render(), (why) => this.app.ui.toastError(why)));
         break;
