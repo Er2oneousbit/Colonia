@@ -84,10 +84,11 @@ export const MOODS = {
   },
   night: {
     label: 'Night',
-    sun: { elev: 38, toward: [-0.6, -0.8], color: '#b9c6e4', intensity: 0.45 },
+    sun: { elev: 38, toward: [-0.6, -0.8], color: '#b9c6e4', intensity: 0.7 },
     sky: { night: true, zenith: '#080b18', horizon: '#1d2436', moon: '#6f7b98' },
     bounce: '#2a2620', bounceLevel: 0.08,
-    env: 1.0, exposure: 1.2, fade: '#06080e',
+    // Brighter than a real night: a city at night must still read at a glance.
+    env: 1.5, exposure: 1.45, fade: '#06080e',
     bloom: [0.55, 0.6, 1.6],
     grade: { contrast: 1.02, saturation: 0.95, lift: [0.0, 0.003, 0.012], gain: [1.0, 1.0, 1.0], vignette: 0.5 },
     lamps: 1, snow: 0, wet: 0, ice: false,
