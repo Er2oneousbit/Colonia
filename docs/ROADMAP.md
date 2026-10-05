@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.0)
+
+* **A WebGL renderer (beta), the start of 3D art**: *Settings > Renderer* now offers WebGL (beta) beside Classic (2D), switched live; `?renderer=3d` picks it for a page. It draws the same city through three.js, and buildings can now be 3D models one type at a time, everything else keeping its sprite. The well is the first: paving, a stone ring, water, posts and a bucket, turning with the view. Classic stays the default and draws exactly as before (0 differing pixels against v0.19.13 in 12 views). The renderer now works out what to draw once and hands it to a back end (`render/canvasBackend.js` or `render3d/webglBackend.js`); models register in `render3d/models.js`. Measured on a desktop GPU: a whole Large map zoomed out draws in 17 ms a frame with WebGL against 114 ms in Classic, a whole Uber map 29 ms against 231 ms. Without WebGL, or when its context is lost, Classic draws. three.js (MIT) is credited; the game file grew from 1.20 MB to 1.74 MB
+* Headless sim: identical to v0.19.13 on every difficulty
+* 1093 unit tests, 221 browser checks
+
 ## Done (v0.19.13)
 
 * **The sim is layered, with no import cycles**: the toolbox every sim module leaned on, which lived in `military.js` beside the orchestration, moved into leaf modules (`units`, `unitMove`, `combat`, `damage`, `field`, `demand`, `berths`, `forts`, `away`, `vendorNeed`), every function body as it was; `military.js` (2,147 lines, now 1,253) keeps the raids and the per-tick orchestration and imports the rest. The one upward call (a wolf's death counted by the wildlife module) goes through the `unitDied` event. The old modules re-export the moved names for the UI, dev tools and tests. A test (`tests/imports.test.mjs`) now fails on any new cycle, or on a sim module importing through a re-export
@@ -786,6 +792,7 @@ Ideas that would change the original's economy or rules; each would come as an o
 * **The capacity model and the Arena's longer walk** (v0.19.11): the model still plans the Great Arena's performers at 26 tiles, not 52; planning them at 52 lowers the job ceilings of missions 5 to 10 by 400 to 1,100 people, so it waits for the next look at the late missions' goals.
 * **Units inside a huge placement** (v0.18.8): a unit more than 12 tiles inside one huge placement is not moved off it.
 * **A smoke check fails now and then** on the main page's random map (v0.18.8, root cause not yet found): "the cloth chain can be placed" (no free meadow within 10 tiles of a road on that map: the search, not the rule). Log the seed on failure and find the cause. (Its partner, "a second fire pauses again", was found in v0.18.9: the home it torched could merge into a neighbour's and vanish, and the check waited on its old id.)
+* **The WebGL renderer, phase 2**: more 3D models, one building type at a time, then walkers and units; terrain relief; real lighting and shadows in place of the 2D shadow shapes and the night light map; model ghosts when placing a building, and models fading in as they are built (they now pop in opaque while rising); overlays, coverage and signs merged into the scene's depth; a sprite atlas or instancing to cut draw calls; free rotation and tilt; loading three.js only for players who pick WebGL, so Classic players do not download its 543 KB.
 
 ## Decisions
 
