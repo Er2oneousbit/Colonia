@@ -18,6 +18,7 @@ import { computeSentiment } from '../src/sim/population.js';
 import { holdGames, gamesBlocked, gamesCost, gamesVenue, gamesMonth, gamesStateOf, newGamesState } from '../src/sim/games.js';
 import { serializeGame, deserializeGame, upgradeGamesV32 } from '../src/core/save.js';
 import { Building, newHouseData, removeBuilding } from '../src/sim/entities.js';
+import { withDemoMarble } from '../src/dev/demoCity.js';
 import { newGame, build, findFree } from './helpers.mjs';
 
 /** A venue of this type put straight into the city (no map), staffed or not, with shows or not. */
@@ -36,7 +37,8 @@ function arenaCity() {
   assert.ok(spot, 'room for an Arena and its road');
   const x = spot.x + 1;
   const y = spot.y + 1;
-  assert.ok(build(game, 'colosseum', x + 2, y + 2).ok, 'placed'); // held by its middle tile
+  // (Its marble waived: the Arena costs 600 since v0.19.10, which these tests are not about.)
+  assert.ok(withDemoMarble(game, () => build(game, 'colosseum', x + 2, y + 2)).ok, 'placed'); // held by its middle tile
   assert.ok(build(game, 'road', x - 1, y + 5, x + 6, y + 5).ok, 'a road along it');
   game.processRoadChanges();
   const arena = game.buildings.get(game.map.building[game.map.idx(x, y)]);

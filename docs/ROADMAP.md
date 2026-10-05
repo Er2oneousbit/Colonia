@@ -13,6 +13,14 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.11)
+
+* **The Great Arena reaches the whole city a little**: a staffed Arena gives every home +5 entertainment (Augustus's rule, added after the seat-based base so nothing counts twice; the hippodrome already gave about as much through the base), and its performers walk 52 tiles, twice other entertainers, as the hippodrome's charioteers do
+* **Ludi and Circenses**: games at a staffed Great Arena with gladiators or beasts booked (200 Dn + 0.6 a citizen) lift the city mood +10, races at the hippodrome with races booked (150 + 0.5 a citizen) +8, each fading a fifth a month on top of any festival, each kind once in 6 months, from the venue's panel or the Entertainment advisor
+* Saves: version 33 (an older save has held none)
+* Headless sim: every level identical to v0.19.10; the uptown run, with its Arena, ends with the city mood 2 higher
+* 1081 unit tests, 214 browser checks
+
 ## Done (v0.19.10)
 
 * **Marble for the grand buildings**, taken from the warehouses when placed, all or nothing (the build menu shows it, greyed out with the reason when short; undo gives it back): a Statue 100, a Grand Statue, each large temple and the Oracle 200, the Governor's Palace 400, the Great Arena 600, the hippodrome 800. Not the Senate, the small statue or the monuments (which keep their stages)
@@ -763,6 +771,7 @@ Ideas that would change the original's economy or rules; each would come as an o
 * Performance: cache static terrain into chunk canvases for the most zoomed-out view. When the screen is full of tiles (the middle of a Large or Uber map) that view costs about 16 ms a frame in headless Chromium against 4 ms one zoom level in; chunks would cut its thousands of ground draw calls to a few dozen (see ARCHITECTURE.md, *Draw calls*).
 * Smaller saves for very big cities: buildings are about 0.8 KB each in a save (mostly the house record), so a 1,500-building capital needs about 1.5 MB per slot. Dropping default-valued fields, or compressing the whole save, would stretch the ~5 MB browser allowance further.
 * **The ship bridge's leftovers** (v0.18.8): a small step where two ship bridges cross at a bridge's first water tile, and where a shore road runs right beside that tile; a ship's mast top vanishes the moment it passes under the deck's far edge.
+* **The capacity model and the Arena's longer walk** (v0.19.11): the model still plans the Great Arena's performers at 26 tiles, not 52; planning them at 52 lowers the job ceilings of missions 5 to 10 by 400 to 1,100 people, so it waits for the next look at the late missions' goals.
 * **Units inside a huge placement** (v0.18.8): a unit more than 12 tiles inside one huge placement is not moved off it.
 * **A smoke check fails now and then** on the main page's random map (v0.18.8, root cause not yet found): "the cloth chain can be placed" (no free meadow within 10 tiles of a road on that map: the search, not the rule). Log the seed on failure and find the cause. (Its partner, "a second fire pauses again", was found in v0.18.9: the home it torched could merge into a neighbour's and vanish, and the check waited on its old id.)
 
