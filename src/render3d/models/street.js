@@ -44,10 +44,15 @@ export const STREET = Object.freeze({
   wallH: 4.25,
 });
 
-/** The basalt paving: a grid displaced by the basalt surface's own low-pass height. */
+/**
+ * The basalt paving: a grid displaced by the basalt surface's own low-pass
+ * height. The stones' levels come with the basalt's textures (painted in the
+ * background, materials.js): until then the grid lies level with only its
+ * ruts, and the same grid is raised in place when they come, with the
+ * stones' colour and joints, so nothing appears or moves but the stones.
+ */
 function paving() {
   const tex = surfaceTextures('basalt');
-  const low = tex.maps.height;
   const M = tex.metres;
   const x0 = -STREET.extent;
   const x1 = STREET.extent;
@@ -59,10 +64,10 @@ function paving() {
   const pos = [];
   const uv = [];
   const col = [];
-  const height = (x, z) => {
+  const height = (x, z, low) => {
     const u = (((x / M) % 1) + 1) % 1;
     const v = (((z / M) % 1) + 1) % 1;
-    let y = (low.sample(u, v) - 0.8) * 0.08;
+    let y = low ? (low.sample(u, v) - 0.8) * 0.08 : 0;
     for (const r of STREET.ruts) y -= 0.022 * Math.exp(-(((z - r) / 0.075) ** 2));
     return y;
   };
@@ -93,6 +98,18 @@ function paving() {
   g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
   g.setAttribute('color', new Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
+  // The stones' levels, when the basalt is painted (at once when it already is).
+  const raise = (maps) => {
+    if (!maps || !maps.height) return;
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, height(p.getX(i), p.getZ(i), maps.height));
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+  };
+  if (tex.maps) raise(tex.maps);
+  else tex.whenReady.then(raise);
   return g;
 }
 

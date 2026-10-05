@@ -29,7 +29,10 @@ import {
   MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, RepeatWrapping,
   LinearMipmapLinearFilter, LinearFilter, SRGBColorSpace, NoColorSpace, Vector2, Vector4, Color, Texture, DoubleSide,
 } from 'three';
-import { makeSurface } from './surfaces.js';
+import { SURFACES, surfaceSize } from './surfaces.js';
+import { Field } from './texgen.js';
+import { loadAll } from './paint/pool.js';
+import { standIn, fillPixels } from './paint/standIns.js';
 
 /** A 1 x 1 white texture, the AO input until look.js gives the real one. */
 const WHITE = (() => {
@@ -55,7 +58,7 @@ export const LOOK = {
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
-  /** Texture size factor (surfaces.js makeSurface): 1, or 0.5 where start-up time matters more than sharpness. */
+  /** Texture size factor (surfaces.js surfaceSize): 1; the tests paint at an eighth. */
   textureScale: 1,
 };
 
@@ -237,6 +240,15 @@ export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) 
 /** Textures of each surface, made once. */
 const TEXTURES = new Map();
 
+/**
+ * Surfaces asked for since the last load went out: sent to the pool together
+ * (paint/pool.js loadAll), so it sees them all and starts the biggest first.
+ */
+let asked = [];
+/** Painted maps waiting to go into their textures, one surface a frame. */
+const arrived = [];
+let draining = false;
+
 /** A tiling texture from bytes. */
 function dataTexture(bytes, size, srgb) {
   const t = new DataTexture(bytes, size, size, RGBAFormat, UnsignedByteType);
@@ -250,22 +262,116 @@ function dataTexture(bytes, size, srgb) {
   return t;
 }
 
-/** The three textures of a surface: { map, normalMap, orm, metres, maps }. */
+/**
+ * The three textures of a surface: { map, normalMap, orm, metres, size,
+ * maps, ready, whenReady }. Returned at once, at their final size, holding
+ * the surface's stand-in (paint/standIns.js: its average colour on a flat
+ * normal); the painted maps go into these same textures when they come
+ * (from the cache, or painted in the pool), so a material made on them
+ * never changes its shader and nothing has to be swapped. `maps` (with
+ * the height field, as a Field, for the paving) is null until then;
+ * `whenReady` resolves to it.
+ */
 export function surfaceTextures(name) {
   let t = TEXTURES.get(name);
   if (t) return t;
-  const maps = makeSurface(name, undefined, LOOK.textureScale);
+  const size = surfaceSize(name, LOOK.textureScale);
+  const metres = SURFACES[name].metres;
+  const stand = standIn('surface', name);
+  const px = size * size;
   t = {
-    map: dataTexture(maps.albedo, maps.size, true),
-    normalMap: dataTexture(maps.normal, maps.size, false),
-    orm: dataTexture(maps.orm, maps.size, false),
-    metres: maps.metres,
-    maps,
+    map: dataTexture(fillPixels(new Uint8Array(px * 4), stand.albedo), size, true),
+    normalMap: dataTexture(fillPixels(new Uint8Array(px * 4), stand.normal), size, false),
+    orm: dataTexture(fillPixels(new Uint8Array(px * 4), stand.orm), size, false),
+    metres,
+    size,
+    maps: null,
+    ready: false,
+    /** Copies of these textures made elsewhere (waterMaterial's ripples): they share the bytes, and take the upload too. */
+    copies: [],
+    disposed: false,
   };
+  t.whenReady = new Promise((resolve) => { t.resolveReady = resolve; });
   // UVs are in metres: one repeat of the texture covers `metres`.
-  for (const k of ['map', 'normalMap', 'orm']) t[k].repeat.set(1 / maps.metres, 1 / maps.metres);
+  for (const k of ['map', 'normalMap', 'orm']) t[k].repeat.set(1 / metres, 1 / metres);
+  // Freed while it was still being painted (a scene torn down): the maps are
+  // dropped when they come, and the next to ask for the surface gets new textures.
+  const freed = () => {
+    if (t.disposed) return;
+    t.disposed = true;
+    if (TEXTURES.get(name) === t) TEXTURES.delete(name);
+  };
+  for (const k of ['map', 'normalMap', 'orm']) t[k].addEventListener('dispose', freed);
   TEXTURES.set(name, t);
+  asked.push(name);
+  if (asked.length === 1) queueMicrotask(sendAsked);
   return t;
+}
+
+/** Send the surfaces asked for to the pool (via the cache). */
+function sendAsked() {
+  const ts = asked.map((name) => TEXTURES.get(name));
+  const jobs = asked.map((name, i) => ({ kind: 'surface', name, size: ts[i].size }));
+  asked = [];
+  loadAll(jobs, (i, maps) => {
+    arrived.push([ts[i], maps]);
+    drain();
+  });
+}
+
+/**
+ * Put arrived maps into their textures, one surface a frame: a cached load
+ * brings them all at once, and uploading every one in the same frame (40 MB
+ * with their mipmaps) would be one long frame.
+ */
+function drain() {
+  if (draining) return;
+  draining = true;
+  const step = () => {
+    const next = arrived.shift();
+    if (!next) {
+      draining = false;
+      return;
+    }
+    fillTextures(next[0], next[1]);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step);
+    else setTimeout(step, 0);
+  };
+  step();
+}
+
+/** A surface's painted maps into its textures (and their copies). */
+function fillTextures(t, maps) {
+  // A surface given up on meanwhile (its textures freed): drop the maps, never upload again.
+  if (t.disposed) return;
+  const put = (tex, data) => {
+    tex.image = { data, width: t.size, height: t.size };
+    tex.needsUpdate = true;
+  };
+  put(t.map, maps.albedo);
+  put(t.normalMap, maps.normal);
+  put(t.orm, maps.orm);
+  for (const c of t.copies) c.needsUpdate = true;
+  t.maps = {
+    albedo: maps.albedo, normal: maps.normal, orm: maps.orm, size: t.size, metres: t.metres,
+    height: maps.height ? Field.wrap(t.size, maps.height) : null,
+  };
+  t.ready = true;
+  t.resolveReady(t.maps);
+}
+
+/** How many surfaces are painted and in their textures. */
+export function surfacesCount() {
+  let n = 0;
+  for (const t of TEXTURES.values()) if (t.ready) n++;
+  return n;
+}
+
+/** Are all the surfaces asked for so far painted and in their textures? */
+export function surfacesReady() {
+  if (asked.length || arrived.length) return false;
+  for (const t of TEXTURES.values()) if (!t.ready) return false;
+  return true;
 }
 
 /** Materials made so far, by key. */
@@ -322,6 +428,8 @@ export function waterMaterial() {
   const nm = t.normalMap.clone();
   nm.needsUpdate = true;
   nm.repeat.set(1 / t.metres, 1 / t.metres);
+  // (Its own offset drifts; the bytes are the ripples' own, painted maybe later.)
+  t.copies.push(nm);
   m = new MeshPhysicalMaterial({
     color: new Color('#1d5560'), // deep green-blue: a near-black read as a hole, not water
     roughness: 0.03,

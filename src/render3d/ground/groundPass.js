@@ -68,7 +68,7 @@ import {
 import { MOODS, sunDirection, makeSkyParts, skyEnvironment, moodColor } from '../look.js';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
-import { groundLayers, groundArrays } from './groundTextures.js';
+import { groundTextures, groundArrays, liveGroundArrays } from './groundTextures.js';
 import { GROUND_LAYERS } from './groundSurfaces.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
@@ -169,17 +169,22 @@ export class GroundPass {
       else console.error('THREE.WebGLProgram: shader error', ctx.getProgramInfoLog(program));
     };
     this.steps = []; // [what, ms] of the start-up steps (stats, measuring)
+    // The layers: stand-ins at once, painted ones as they come (from the
+    // cache, or the paint pool's workers). The ground is drawn from the
+    // stand-ins as soon as its shader is compiled; it never waits for them.
     const t0 = performance.now();
-    groundLayers()
-      .then((layers) => {
-        this.layers = layers;
-        this.loadMs = performance.now() - t0;
-      })
-      .catch(() => { this.failed = true; });
+    this.layers = groundTextures();
+    this.layers.whenDone.then(() => {
+      this.loadMs = performance.now() - t0;
+      if (!this.loadMs) this.loadMs = 1; // (all there already: a renderer switched off and on)
+    });
   }
 
-  /** Can the ground be drawn this frame (its textures painted and a map set)? */
-  get ready() { return !!this.layers && !this.failed; }
+  /** Can the ground be drawn (its shader did not fail)? */
+  get ready() { return !this.failed; }
+
+  /** Are all the layers painted and in the arrays? */
+  get texturesReady() { return this.layers.done; }
 
   /** Draw at another quality: the material is remade (the textures are kept) and compiled again in the background. */
   setQuality(q) {
@@ -229,6 +234,8 @@ export class GroundPass {
     // Everything on the GPU is gone: upload the arrays again a frame at a time, compile in the
     // background again, and draw the shadow map at once (a map with no texture reads as all shadow).
     this.stage = 0;
+    // (Layer updates pending from before the loss would make the new upload a partial one.)
+    if (this.tex) this.tex.lost();
     this.warmed = false;
     this.warming = null;
     this.compiled = false;
@@ -248,12 +255,14 @@ export class GroundPass {
     const game = r.game;
     if (!this.tex) {
       const aniso = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
-      this.tex = groundArrays(this.layers, aniso);
+      this.tex = liveGroundArrays(this.layers, aniso);
+      // A painted layer changes what Low's kept picture shows.
+      this.tex.onLayer = () => { this.cacheDirty = true; };
     }
     // Upload the arrays one a frame (each with its mipmaps), not all at the first draw.
     if (this.stage < 3) {
       const t0 = performance.now();
-      this.gl.initTexture([this.tex.albedo, this.tex.normal, this.tex.orm][this.stage]);
+      this.tex.upload(this.gl, this.stage);
       this.steps.push([`upload ${this.stage}`, Math.round(performance.now() - t0)]);
       this.stage++;
       return false;

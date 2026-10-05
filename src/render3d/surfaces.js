@@ -533,11 +533,15 @@ function terracotta(n, seed) {
   return m;
 }
 
-/** Every surface: how much of the world one repeat covers (metres), the texture size, and its recipe. */
+/**
+ * Every surface: how much of the world one repeat covers (metres), the
+ * texture size, its recipe, and whether it keeps its height field (`height`:
+ * the paving's mesh is displaced by it).
+ */
 export const SURFACES = Object.freeze({
   limestone: { metres: 0.8, size: 512, make: limestone },
   travertine: { metres: 1.0, size: 512, make: travertine },
-  basalt: { metres: 4.8, size: 1024, make: basalt },
+  basalt: { metres: 4.8, size: 1024, make: basalt, height: true },
   tufa: { metres: 1.0, size: 256, make: tufa },
   cocciopesto: { metres: 2.0, size: 512, make: cocciopesto },
   plaster: { metres: 4.0, size: 1024, make: plaster },
@@ -552,20 +556,33 @@ export const SURFACES = Object.freeze({
 });
 
 /**
- * Make a surface's maps (seeded by its name unless a seed is given).
- * `scale` shrinks the texture (0.5: a quarter of the pixels and of the
- * time, for a phone); the pattern is the same, only less sharp.
+ * A surface's texture size at `scale` (0.125 in the tests: the pattern is
+ * the same, only less sharp), never under 32 px.
  */
-export function makeSurface(name, seed, scale = 1) {
+export function surfaceSize(name, scale = 1) {
   const s = SURFACES[name];
   if (!s) throw new Error(`Unknown surface: ${name}`);
-  let k = seed;
-  if (k === undefined) {
-    k = 0;
-    for (let i = 0; i < name.length; i++) k = (k * 31 + name.charCodeAt(i)) | 0;
-  }
-  const maps = s.make(Math.max(32, Math.round(s.size * scale)), k);
+  return Math.max(32, Math.round(s.size * scale));
+}
+
+/** The seed a surface is painted with: a hash of its name. */
+function nameSeed(name) {
+  let k = 0;
+  for (let i = 0; i < name.length; i++) k = (k * 31 + name.charCodeAt(i)) | 0;
+  return k;
+}
+
+/** Make a surface's maps, `size` px square, seeded by its name unless a seed is given. */
+export function makeSurfaceAt(name, size, seed = nameSeed(name)) {
+  const s = SURFACES[name];
+  if (!s) throw new Error(`Unknown surface: ${name}`);
+  const maps = s.make(size, seed);
   maps.metres = s.metres;
   return maps;
+}
+
+/** Make a surface's maps at `scale` of its size (seeded by its name unless a seed is given). */
+export function makeSurface(name, seed, scale = 1) {
+  return makeSurfaceAt(name, surfaceSize(name, scale), seed === undefined ? nameSeed(name) : seed);
 }
 
