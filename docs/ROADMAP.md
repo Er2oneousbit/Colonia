@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.2)
+
+* **Cleaner roads in 3D**: the wheel ruts are gone from gravel roads and the look lab's street (they read as streaks), and the lab's basalt street ends in a row of edge stones with the earth starting behind them, where the earth's bumps used to wander over the paving
+* A browser check fixed: the festival check put the temples of Ceres back as they were before clicking the small festival, so when the demo city's temple happened to be unstaffed the festival was refused; it now clicks first
+* 1125 unit tests, 230 browser checks
+
 ## Done (v0.20.1)
 
 * **3D ground under the WebGL renderer**: every kind of the map's ground is now lit 3D ground, each with its own look: pasture, a lusher meadow with flowers where farms can go, dry scrub far from water, the forest floor under the trees, limestone outcrops, dune sand and beaches with a wet band, a farm's ploughed soil, rivers and the sea deepening from clear shallows with ripples, sky reflections and foam at the shore. Country roads are rammed gravel with ruts; a road with a building beside it becomes a basalt street with kerbs, so a town paves itself as it grows; plazas are travertine, rubble a heap of stone and tile. The seasons colour what grows day by day, snow builds up and leaves the roads trodden, rain darkens the ground and fills the ruts. *Settings > Ground*: Auto, High, Low or Flat (the old ground). On a desktop GPU an Uber map zoomed out draws in 10.9 ms a frame against 15.2 ms with the old ground. Classic is unchanged

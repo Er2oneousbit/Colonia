@@ -20,8 +20,8 @@
  *   3. Roads, plazas, rubble, from the road byte of the pixel's own tile:
  *      the road's shape is a distance field (a centre square and an arm to
  *      each linked side, corners rounded), so the road bends and meets as
- *      the 2D art's does, with a worn verge, wheel ruts on a straight run,
- *      and kerbs of limestone along a street's basalt.
+ *      the 2D art's does, with a worn verge, and kerbs of limestone along
+ *      a street's basalt.
  *   4. Water, from the shore distance read between tile middles: a smooth
  *      coast, the bed seen through clear shallows, the colour deepening to
  *      the open water's (a river green-blue, the sea blue), drifting
@@ -32,7 +32,7 @@
  *      blue: blades and leaves, never the soil between them), snow settles
  *      by kind (little on a cleared road, none on water) and by the
  *      surface's bumps, rain darkens what soaks it up and leaves puddles in
- *      the ruts and hollows.
+ *      the hollows.
  *
  * The map's own coordinates (tiles, x along the map's x, z along its y)
  * are the mesh's local x and z (ground.js turns the mesh with the view), so
@@ -295,20 +295,6 @@ void groundSurface() {
     vec3 rn = R.n;
     float rao = R.orm.r;
     if ( surf == 1 ) {
-      // Wheel ruts on a straight run, worn into the gravel; a crown of finer grit between.
-      if ( links == 5 || links == 10 ) {
-        float acr = links == 5 ? q.x : q.y;
-        float wobR = ( gNoise( p * 3.1 ) - 0.5 ) * 0.03;
-        float rut = 0.0;
-        // (Squared by hand: pow() of a negative number is undefined in GLSL, NaN on some GPUs.)
-        for ( int s = -1; s <= 1; s += 2 ) {
-          float k = ( acr - 0.5 - float( s ) * 0.17 + wobR ) / 0.035;
-          rut = max( rut, exp( -k * k ) );
-        }
-        rc *= 1.0 - 0.22 * rut;
-        rh -= rut * 0.4;
-        rr *= 1.0 - 0.15 * rut;
-      }
       rc = mix( rc, rc * vec3( 0.86, 0.84, 0.8 ), smoothstep( -0.02, 0.0, sd + 0.04 ) * 0.5 );
     } else if ( surf == 2 ) {
       // Kerbs of pale limestone blocks along the paving, a gravel margin outside them.
@@ -401,7 +387,7 @@ void groundSurface() {
     float wet = max( uGWet * soak, wetBand * 0.9 ) * ( 1.0 - snowAmt );
     col *= 1.0 - wet * 0.42;
     rough = mix( rough, rough * 0.45, wet );
-    // Puddles in hollows and ruts after rain: still water over the ground.
+    // Puddles in hollows after rain: still water over the ground.
     float pd = smoothstep( 0.42, 0.34, h + ( gFbm( p * 1.3 + 5.0 ) - 0.5 ) * 0.9 - uGWet * 0.12 ) * uGWet * uGWet * puddle * ( 1.0 - snowAmt );
 #ifdef GROUND_HIGH
     gPuddle = pd;

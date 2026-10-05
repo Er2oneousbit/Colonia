@@ -413,7 +413,7 @@ function bed(n, seed) {
 /**
  * Via glareata: a road of rammed gravel, as most of the provinces' roads
  * were: light stones bedded in packed earth, larger ones worked up to the
- * top, finer grit where wheels and feet go (the shader adds the ruts).
+ * top, finer grit where wheels and feet go.
  */
 function gravel(n, seed) {
   const m = new MapSet(n);

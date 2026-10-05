@@ -1474,7 +1474,8 @@ try {
     const shown = { grandOff: !!btn('grand')?.disabled, largeOff: !!btn('large')?.disabled, smallOn: btn('small') && !btn('small').disabled, title: btn('grand')?.title || '', short: body().querySelector('.festivals [data-short="grand"]')?.textContent || '' };
     shown.largeTitle = btn('large')?.title || '';
     shown.templeNote = body().querySelector('[data-god="ceres"] [data-temples~="large"]')?.textContent || '';
-    for (const [b, eff] of ceresTemples) b.efficiency = eff;
+    // (The temples stay as set until after the click: restored first, an unstaffed
+    // temple of Ceres in the demo city at this moment had the festival refused.)
     const food = () => { let n = 0; for (const b of g.buildings.values()) if (b.def.kind === 'granary') for (const k in b.stock) n += b.stock[k]; return n; };
     const before = food();
     btn('small').click();
@@ -1485,6 +1486,7 @@ try {
     app.festivalDay = null;
     c.festivalBoost = 10;
     const musicLater = app.musicMood();
+    for (const [t, eff] of ceresTemples) t.efficiency = eff;
     const out = { granary: true, rows, ...shown, taken: Math.round(before - after), last: /Last festival\s*this month/.test(last), cooldown: c.festivalCooldown, afterOff: !!btn('small')?.disabled, music, musicLater };
     // Back as it was.
     Object.assign(gran.stock, was.stock);

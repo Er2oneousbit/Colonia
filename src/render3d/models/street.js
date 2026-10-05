@@ -7,7 +7,7 @@
  *
  *   - Basalt paving: the polygonal lava blocks of Pompeii's streets, a real
  *     displaced mesh (each stone's cushioned top and worn arris, the joints
- *     between them), with two cart ruts worn into it.
+ *     between them), ending in a row of low edge stones.
  *   - A raised pavement (0.3 m, as high as Pompeii's) of cocciopesto with
  *     white tesserae, behind a kerb of tufa blocks.
  *   - A plastered house front: red dado, a doorway with limestone jambs,
@@ -38,7 +38,7 @@ export const STREET = Object.freeze({
   kerbW: 0.3,
   pavementY: 0.3,
   earthZ: 3.7, // where the paving ends and the earth begins
-  ruts: [2.05, 3.45], // the two wheel ruts, 1.4 m apart, along x
+  edgeW: 0.32, // the row of edge stones between the paving and the earth
   door: [1.6, 2.9], // the doorway's x span
   doorH: 2.5,
   wallH: 4.25,
@@ -47,8 +47,8 @@ export const STREET = Object.freeze({
 /**
  * The basalt paving: a grid displaced by the basalt surface's own low-pass
  * height. The stones' levels come with the basalt's textures (painted in the
- * background, materials.js): until then the grid lies level with only its
- * ruts, and the same grid is raised in place when they come, with the
+ * background, materials.js): until then the grid lies level, and the same
+ * grid is raised in place when they come, with the
  * stones' colour and joints, so nothing appears or moves but the stones.
  */
 function paving() {
@@ -67,9 +67,7 @@ function paving() {
   const height = (x, z, low) => {
     const u = (((x / M) % 1) + 1) % 1;
     const v = (((z / M) % 1) + 1) % 1;
-    let y = low ? (low.sample(u, v) - 0.8) * 0.08 : 0;
-    for (const r of STREET.ruts) y -= 0.022 * Math.exp(-(((z - r) / 0.075) ** 2));
-    return y;
+    return low ? (low.sample(u, v) - 0.8) * 0.08 : 0;
   };
   for (let j = 0; j <= nz; j++) {
     const z = z0 + ((z1 - z0) * j) / nz;
@@ -77,10 +75,8 @@ function paving() {
       const x = x0 + ((x1 - x0) * i) / nx;
       pos.push(x, height(x, z), z);
       uv.push(x, z);
-      // Ruts are polished darker; the paving darkens toward the kerb's foot where dirt gathers.
-      let t = 1;
-      for (const r of STREET.ruts) t *= 1 - 0.18 * Math.exp(-(((z - r) / 0.09) ** 2));
-      t *= 0.8 + 0.2 * smoothstep(z0, z0 + 0.5, z);
+      // The paving darkens toward the kerb's foot where dirt gathers.
+      const t = 0.8 + 0.2 * smoothstep(z0, z0 + 0.5, z);
       col.push(t, t, t);
     }
   }
@@ -141,13 +137,26 @@ function pavement(seed) {
     kerb.push(g);
     x += len;
   }
+  // The street's far edge: a row of low edge stones set in the earth, a
+  // hand above the paving, so the street ends in a clean line rather than
+  // the earth's bumps wandering over the stones.
+  x = -E;
+  while (x < E) {
+    const len = 0.6 + rnd() * 0.5;
+    const g = block(Math.min(len, E - x) - 0.008, 0.2 + (rnd() - 0.5) * 0.008, STREET.edgeW, {
+      bevel: 0.025 + rnd() * 0.01, seed: seed * 37 + ++n, wobble: 0.006, grime: 0.5, topSag: 0.01, tone: 0.12,
+    });
+    g.translate(x + len / 2, -0.15, STREET.earthZ + STREET.edgeW / 2 - 0.02);
+    kerb.push(g);
+    x += len;
+  }
   return { walk, kerb };
 }
 
-/** The earth past the paving: a gently uneven grid, a little higher than the joints so the edge stones sit in it. */
+/** The earth past the edge stones: a gently uneven grid, starting just under the stones and staying below their tops. */
 function earth() {
   const E = STREET.extent;
-  const z0 = STREET.earthZ - 0.25;
+  const z0 = STREET.earthZ + STREET.edgeW - 0.06;
   const z1 = E;
   const g = new PlaneGeometry(2 * E, z1 - z0, 120, 40);
   g.rotateX(-Math.PI / 2);
@@ -218,7 +227,7 @@ function grass(seed, count = 9000) {
     if (r < 0.86) {
       // On the earth, in clumps: keep a blade where the clump noise says so.
       x = (rnd() * 2 - 1) * E;
-      z = STREET.earthZ - 0.05 + rnd() * (E - STREET.earthZ);
+      z = STREET.earthZ + STREET.edgeW + rnd() * (E - STREET.earthZ - STREET.edgeW); // (none through the edge stones)
       const clump = fbm((x / 20 + 1) % 1, (z / 20 + 1) % 1, 10, 3, 77);
       const nearEdge = 1 - smoothstep(STREET.earthZ, STREET.earthZ + 0.5, z);
       if (rnd() > smoothstep(0.42, 0.62, clump) + nearEdge * 0.5) continue;

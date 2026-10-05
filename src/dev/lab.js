@@ -70,7 +70,7 @@ flutes (strigils) as on many puteals and sarcophagi, and rope grooves worn into 
 travertine. A timber frame carries a wooden pulley (<i>trochlea</i>) on an iron axle; the rope runs up from a bronze bucket
 (<i>situla</i>: rolled rim, bail handle, a dent) over the pulley to a turn round the post and a coil on the step. Beside it a trough
 of four slabs is held by iron cramps, as the basins of Pompeii's street fountains are.</p>
-<p>The street is Pompeii's: polygonal basalt blocks with two cart ruts, a pavement 30 cm high of cocciopesto (lime with crushed tile)
+<p>The street is Pompeii's: polygonal basalt blocks ending in a row of edge stones, a pavement 30 cm high of cocciopesto (lime with crushed tile)
 set with white tesserae behind a tufa kerb, and a plastered house front with a red dado, a limestone door frame, a timber lintel,
 eaves of tegulae and imbrices, and a torch by the door. The figures are 1.7 m tall.</p>
 <p>Sources: general knowledge of the excavated sites and of Roman building practice (puteals in the Naples and Ostia collections,
@@ -98,7 +98,7 @@ the wind, with flowers), <b>scrub</b> (the garrigue of dry grass far from water:
 <b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's ploughed
 <b>soil</b>, and under the water a river's silt or the sea's sand.</p>
 <p>What people laid on it: an ordinary road is gravel rammed into the earth (a <i>via glareata</i>, the provinces' common road), with
-wheel ruts on a straight run; a town's streets are paved with polygonal basalt between limestone kerbs, as Pompeii's and the Via Appia were (in the game, a road with a building beside it); a
+a worn verge; a town's streets are paved with polygonal basalt between limestone kerbs, as Pompeii's and the Via Appia were (in the game, a road with a building beside it); a
 forum's plaza is travertine flagstones in courses; a fallen house leaves rubble of stone, roof tile and ash.</p>
 <p>Water deepens from its edge, from the bed seen through clear shallows to a river's green-blue or the sea's blue, with drifting
 ripples, the sky in it and foam lapping at the shore. Where two kinds meet, the higher one's bumps win, so the edges wander.</p>
