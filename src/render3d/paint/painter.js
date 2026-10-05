@@ -394,6 +394,33 @@ export class Painter {
     });
   }
 
+  /**
+   * A painted target's bytes, read back at once (waits for the GPU: for
+   * checks and tests, never a frame): RGBA, row 0 first; `layer` of an
+   * array target. An sRGB target reads back as its stored sRGB bytes.
+   */
+  readPixels(rt, layer = 0) {
+    const r = this.gl;
+    const gl = r.getContext();
+    const w = rt.width;
+    const h = rt.height;
+    const out = new Uint8Array(w * h * 4);
+    const was = r.getRenderTarget();
+    r.initRenderTarget(rt);
+    const tex = r.properties.get(rt.texture).__webglTexture;
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    if (rt.isWebGLArrayRenderTarget) gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, tex, 0, layer);
+    else gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(fb);
+    // (three's record of the GL state is stale now: start it afresh.)
+    r.resetState();
+    r.setRenderTarget(was);
+    return out;
+  }
+
   /** Targets freed by their owner: never painted (again). Their jobs settle as they are (unpainted). */
   forget(out) {
     const gone = (j) => j.out === out;

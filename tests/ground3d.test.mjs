@@ -14,7 +14,9 @@
  *   - chunks cover the map exactly; a view turn moves the ground as
  *     render/view.js moves a map point
  *   - snow and season as smooth numbers
- *   - every ground texture layer tiles, has the same size and its height
+ *   - the ground's texture layers: one per kind first, in KIND's order;
+ *     patterns square to the map never turned (their pixels are painted on
+ *     the GPU and checked in the smoke test's lab)
  * ----------------------------------------------------------------------------
  */
 
@@ -27,8 +29,8 @@ import {
   GroundMap, KIND, ROAD_SURFACE, G_RUBBLE, G_BRIDGE, WATER_KIND, CHUNK, SHORE_MAX, SCRUB_DIST, BEACH_DIST,
   shoreByte, shoreDist, shoreField, waterKinds, kindOf, roadByte,
 } from '../src/render3d/ground/groundMap.js';
-import { GROUND_LAYERS, LAYER, makeGroundLayer } from '../src/render3d/ground/groundSurfaces.js';
-import { groundArrays, packLayers } from '../src/render3d/ground/groundTextures.js';
+import { GROUND_LAYERS, LAYER } from '../src/render3d/ground/groundSurfaces.js';
+import { blankGroundArrays } from '../src/render3d/ground/groundTextures.js';
 import { Ground, groundSnow, seasonAt, SEASON_LOOKS } from '../src/render3d/ground/ground.js';
 import { labGroundMap } from '../src/dev/labGround.js';
 
@@ -45,10 +47,10 @@ function testMap(n = 64) {
   return map;
 }
 
-/** Small texture arrays (the tests check structure, not sharpness). */
+/** Blank texture arrays (the material's program does not depend on their pixels). */
 let TEX = null;
 function tex() {
-  if (!TEX) TEX = groundArrays(packLayers(GROUND_LAYERS.map((l) => makeGroundLayer(l.name, 16)), 16), 1);
+  if (!TEX) TEX = blankGroundArrays(16);
   return TEX;
 }
 
@@ -251,48 +253,11 @@ test('3D ground: the season moves smoothly through the year and wraps from autum
   for (let c = 0; c < 3; c++) assert.ok(Math.abs(mid.veg[c] - (SEASON_LOOKS[1].veg[c] + SEASON_LOOKS[2].veg[c]) / 2) < 1e-9);
 });
 
-test('3D ground: every texture layer has the same size, tiles, keeps its height in the alpha, and stays in the range of real ground', () => {
-  const N = 64;
+test('3D ground: one texture layer a kind, first and in KIND\'s order; patterns square to the map never turned', () => {
   assert.equal(GROUND_LAYERS.length, new Set(GROUND_LAYERS.map((l) => l.name)).size);
-  // The kinds' layers come first, in KIND's order.
   for (const [name, k] of Object.entries(KIND)) assert.equal(LAYER[name === 'BED' ? 'bed' : name.toLowerCase()], k, name);
-  // Patterns laid square to the map are never turned against tiling.
   for (const name of ['soil', 'basalt', 'flags']) assert.equal(GROUND_LAYERS[LAYER[name]].anti, false, name);
-  for (const l of GROUND_LAYERS) {
-    const m = makeGroundLayer(l.name, N);
-    assert.equal(m.albedo.length, N * N * 4);
-    assert.equal(m.normal.length, N * N * 4);
-    assert.equal(m.orm.length, N * N * 4);
-    let lo = 255;
-    let hi = 0;
-    let sum = 0;
-    for (let i = 0; i < N * N; i++) {
-      lo = Math.min(lo, m.albedo[i * 4 + 3]);
-      hi = Math.max(hi, m.albedo[i * 4 + 3]);
-      sum += (m.albedo[i * 4] + m.albedo[i * 4 + 1] + m.albedo[i * 4 + 2]) / 3;
-    }
-    assert.ok(lo === 0 && hi === 255, `${l.name}: height spans the alpha`);
-    const mean = sum / (N * N);
-    if (l.name !== 'ripples') assert.ok(mean > 30 && mean < 215, `${l.name}: mean albedo ${mean}`);
-    // Tiling: the step across the wrap (column N-1 to 0, row N-1 to 0) is
-    // no bigger than the biggest step between other columns or rows: a seam
-    // would stand out over all of them (a joint may fall on it, as anywhere).
-    for (const across of [true, false]) {
-      const steps = [];
-      for (let c = 0; c < N; c++) {
-        let sumStep = 0;
-        for (let r = 0; r < N; r++) {
-          const a = across ? (r * N + c) : (c * N + r);
-          const b = across ? (r * N + ((c + 1) % N)) : (((c + 1) % N) * N + r);
-          for (const ch of [0, 1, 2, 3]) sumStep += Math.abs(m.albedo[a * 4 + ch] - m.albedo[b * 4 + ch]);
-        }
-        steps.push(sumStep);
-      }
-      const wrap = steps[N - 1];
-      const most = Math.max(...steps.slice(0, N - 1));
-      assert.ok(wrap <= most * 1.05, `${l.name}: seam ${across ? 'across' : 'down'} ${wrap} vs at most ${most} inside`);
-    }
-  }
+  for (const l of GROUND_LAYERS) assert.ok(l.metres > 0 && l.fields && l.colour, l.name);
 });
 
 test('3D ground: the look lab\'s patch holds every kind of ground, a road of each surface, rubble, sea and river', () => {

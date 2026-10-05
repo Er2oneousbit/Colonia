@@ -44,6 +44,7 @@ import { groundTextures } from '../render3d/ground/groundTextures.js';
 import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
 import { painterFor } from '../render3d/paint/painter.js';
 import { buildGroundScene } from './labGround.js';
+import { mapStats } from './texReport.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
 const GAME_ZOOM = 2;
@@ -133,6 +134,9 @@ async function main() {
   const paintBar = el('div', { class: 'paintbar' });
   app.appendChild(paintBar);
 
+  // ?texscale=0.25: the surfaces painted smaller (a quick check under a software GL: the smoke test).
+  const texScale = Number(new URLSearchParams(location.search).get('texscale'));
+  if (texScale > 0 && texScale <= 1) LOOK.textureScale = texScale;
   const pr = Math.min(window.devicePixelRatio || 1, 2);
   const look = createLook(canvas, { pixelRatio: pr, shadowBox: 9.5, shadowMap: 4096 });
   timings.lookMade = performance.now();
@@ -557,6 +561,36 @@ async function main() {
     setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
+    /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */
+    textureReport() {
+      const painter = painterFor(look.renderer);
+      const read = (out, layer) => ({ albedo: painter.readPixels(out.albedo, layer), orm: painter.readPixels(out.orm, layer), normal: painter.readPixels(out.normal, layer) });
+      const report = {};
+      for (const name of Object.keys(SURFACES)) {
+        const t = surfaceTextures(name);
+        report[`surface.${name}`] = { size: t.size, ...mapStats(read(t.out), t.size) };
+      }
+      GROUND_LAYERS.forEach((l, i) => { report[`ground.${l.name}`] = { size: groundTex.size, ...mapStats(read(groundTex.out, i), groundTex.size) }; });
+      const h = surfaceTextures('basalt').maps;
+      report.pavingHeight = h && h.height ? h.height.data.length : 0;
+      return report;
+    },
+    /** Lose the WebGL context and get it back: resolves once every texture is painted again. */
+    async loseContext() {
+      const ext = look.renderer.getContext().getExtension('WEBGL_lose_context');
+      const painter = painterFor(look.renderer);
+      const restored = new Promise((resolve) => canvas.addEventListener('webglcontextrestored', resolve, { once: true }));
+      ext.loseContext();
+      await new Promise((r) => setTimeout(r, 50));
+      ext.restoreContext();
+      await restored;
+      const before = painter.stats.textures;
+      await new Promise((resolve) => {
+        const check = () => (painter.idle && painter.stats.textures > before ? resolve() : setTimeout(check, 20));
+        check();
+      });
+      return painter.stats.textures - before;
+    },
     orbit(az, el, dist, ty = 0.9, tx = 0, tz = 0) {
       setView('orbit');
       const a = (az * Math.PI) / 180;

@@ -68,7 +68,7 @@ export function groundSnow(cover) {
 export class Ground {
   /**
    * @param {object} map        a GameMap (or anything with its layers, the lab's)
-   * @param {object} tex        groundTextures.js groundArrays()
+   * @param {object} tex        groundTextures.js groundTextures() (or blankGroundArrays())
    * @param {object} [opts]     { quality: 'high'|'low', scale: units per tile, farmAt(i), buildingAt(i),
    *                            kindHook, waterHook (groundMap.js: the lab's own layout),
    *                            ownOutput (groundMaterial.js: drawn into a texture) }
