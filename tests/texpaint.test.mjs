@@ -34,7 +34,7 @@ import { bundleTexWorker } from '../scripts/texWorker.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** A stand-in for a worker: answers each job after `delay` ms with maps naming it; `crash` fires onerror instead. */
-function fakeWorkers({ delay = 5, crash = false } = {}) {
+function fakeWorkers({ delay = 5, crash = false, crashes = Infinity } = {}) {
   const made = [];
   const sent = [];
   const create = () => {
@@ -44,7 +44,7 @@ function fakeWorkers({ delay = 5, crash = false } = {}) {
         sent.push(msg.job.name);
         setTimeout(() => {
           if (w.dead) return;
-          if (crash) {
+          if (crash && crashes-- > 0) {
             w.onerror({ message: 'boom', preventDefault() {} });
             return;
           }
@@ -131,6 +131,20 @@ test('paint pool: a worker that cannot start, or dies, hands its job and the que
   assert.equal(dies.broken, true);
   assert.equal(dies.onPage, 3);
   assert.ok(f.made[0].dead);
+});
+
+test('paint pool: one worker that dies hands its job back, and the others carry on', async () => {
+  const f = fakeWorkers({ crash: true, crashes: 1 });
+  const pool = new PaintPool({ size: 2, createWorker: f.create, idleMs: 1000 });
+  const jobs = ['a', 'b', 'c'].map((name) => ({ kind: 'ground', name, size: 32 }));
+  const out = await Promise.all(jobs.map((j) => pool.run(j)));
+  out.forEach((o, i) => assert.ok(mapsFit(jobs[i], o), jobs[i].name));
+  assert.equal(pool.broken, false, 'still workers');
+  assert.equal(pool.onPage, 0);
+  assert.equal(pool.deaths, 1);
+  assert.ok(f.made[0].dead, 'the dead one ended');
+  assert.equal(f.sent.filter((n) => n === 'a').length, 2, 'its job painted again');
+  pool.dispose();
 });
 
 test('loadAll: each job comes once, painted where the cache has none (node has no cache)', async () => {

@@ -58,6 +58,8 @@ export const LOOK = {
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
+  /** The renderer the look draws with (look.js sets it): painted surfaces are uploaded as they come. */
+  renderer: null,
   /** Texture size factor (surfaces.js surfaceSize): 1; the tests paint at an eighth. */
   textureScale: 1,
 };
@@ -283,36 +285,31 @@ export function surfaceTextures(name) {
     map: dataTexture(fillPixels(new Uint8Array(px * 4), stand.albedo), size, true),
     normalMap: dataTexture(fillPixels(new Uint8Array(px * 4), stand.normal), size, false),
     orm: dataTexture(fillPixels(new Uint8Array(px * 4), stand.orm), size, false),
+    name,
     metres,
     size,
     maps: null,
     ready: false,
     /** Copies of these textures made elsewhere (waterMaterial's ripples): they share the bytes, and take the upload too. */
     copies: [],
-    disposed: false,
   };
   t.whenReady = new Promise((resolve) => { t.resolveReady = resolve; });
   // UVs are in metres: one repeat of the texture covers `metres`.
   for (const k of ['map', 'normalMap', 'orm']) t[k].repeat.set(1 / metres, 1 / metres);
-  // Freed while it was still being painted (a scene torn down): the maps are
-  // dropped when they come, and the next to ask for the surface gets new textures.
-  const freed = () => {
-    if (t.disposed) return;
-    t.disposed = true;
-    if (TEXTURES.get(name) === t) TEXTURES.delete(name);
-  };
-  for (const k of ['map', 'normalMap', 'orm']) t[k].addEventListener('dispose', freed);
+  // (Kept for the page, as the materials made on them are: a texture freed by
+  // a scene torn down still takes its painted maps, and three uploads them
+  // again if a material on it is drawn after.)
   TEXTURES.set(name, t);
-  asked.push(name);
+  asked.push(t);
   if (asked.length === 1) queueMicrotask(sendAsked);
   return t;
 }
 
 /** Send the surfaces asked for to the pool (via the cache). */
 function sendAsked() {
-  const ts = asked.map((name) => TEXTURES.get(name));
-  const jobs = asked.map((name, i) => ({ kind: 'surface', name, size: ts[i].size }));
+  const ts = asked;
   asked = [];
+  const jobs = ts.map((t) => ({ kind: 'surface', name: t.name, size: t.size }));
   loadAll(jobs, (i, maps) => {
     arrived.push([ts[i], maps]);
     drain();
@@ -342,8 +339,6 @@ function drain() {
 
 /** A surface's painted maps into its textures (and their copies). */
 function fillTextures(t, maps) {
-  // A surface given up on meanwhile (its textures freed): drop the maps, never upload again.
-  if (t.disposed) return;
   const put = (tex, data) => {
     tex.image = { data, width: t.size, height: t.size };
     tex.needsUpdate = true;
@@ -352,6 +347,10 @@ function fillTextures(t, maps) {
   put(t.normalMap, maps.normal);
   put(t.orm, maps.orm);
   for (const c of t.copies) c.needsUpdate = true;
+  // Uploaded now, in this surface's own frame: three would otherwise send every
+  // texture that came before the first draw (all of them, from the cache) in that draw.
+  const r = LOOK.renderer;
+  if (r) for (const tex of [t.map, t.normalMap, t.orm, ...t.copies]) r.initTexture(tex);
   t.maps = {
     albedo: maps.albedo, normal: maps.normal, orm: maps.orm, size: t.size, metres: t.metres,
     height: maps.height ? Field.wrap(t.size, maps.height) : null,

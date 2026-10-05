@@ -45,6 +45,8 @@ export function textureKey(job, version = RECIPE_VERSION) {
 export const cacheStats = { hits: 0, misses: 0, writes: 0, failures: 0, enabled: !!RECIPE_VERSION };
 
 let dbPromise = null;
+/** The database once open (so a write can take its copy at once, not after an await). */
+let dbOpen = null;
 let off = !RECIPE_VERSION;
 
 /** Run `fn` and swallow what it throws (storage that is there but refuses). */
@@ -71,6 +73,7 @@ function openDb() {
       }
       settled = true;
       clearTimeout(timer);
+      dbOpen = db;
       if (!db) {
         off = true;
         cacheStats.enabled = false;
@@ -93,6 +96,7 @@ function openDb() {
         db.onversionchange = () => {
           quietly(() => db.close());
           dbPromise = null;
+          dbOpen = null;
         };
         finish(db);
       };
@@ -150,10 +154,18 @@ export async function cacheGetAll(jobs) {
   });
 }
 
-/** Keep a job's painted maps (a copy is taken now: the arrays stay the caller's). Never throws, never waits. */
-export async function cachePut(job, maps) {
-  const db = await openDb();
-  if (!db) return;
+/**
+ * Keep a job's painted maps. Never throws, never waits. The copy is taken
+ * at once when the database is open, else when it opens: until then the
+ * caller must not change the arrays (no one does: they become textures'
+ * bytes as they are).
+ */
+export function cachePut(job, maps) {
+  if (dbOpen) write(dbOpen, job, maps);
+  else openDb().then((db) => { if (db) write(db, job, maps); });
+}
+
+function write(db, job, maps) {
   quietly(() => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).put({ v: RECIPE_VERSION, albedo: maps.albedo, normal: maps.normal, orm: maps.orm, height: maps.height || null }, textureKey(job));
@@ -169,11 +181,22 @@ function cacheDelete(job) {
   });
 }
 
+/** A promise of start(resolve) that settles with fallback after ms instead (a transaction held up by another tab). */
+function within(ms, fallback, start) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    start((v) => {
+      clearTimeout(timer);
+      resolve(v);
+    });
+  });
+}
+
 /** Delete the entries of other recipe versions (left by an older build). Resolves to how many went. */
 export async function pruneCache() {
   const db = await openDb();
   if (!db) return 0;
-  return new Promise((resolve) => {
+  return within(READ_MS, 0, (resolve) => {
     let gone = 0;
     const ok = quietly(() => {
       const tx = db.transaction(STORE, 'readwrite');
@@ -201,7 +224,7 @@ export async function pruneCache() {
 export async function clearCache() {
   const db = await openDb();
   if (!db) return false;
-  return new Promise((resolve) => {
+  return within(READ_MS, false, (resolve) => {
     const ok = quietly(() => {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).clear();

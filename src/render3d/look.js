@@ -296,6 +296,7 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
   renderer.shadowMap.type = PCFShadowMap;
   renderer.info.autoReset = false;
   LOOK.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  LOOK.renderer = renderer;
 
   const scene = new Scene();
   const sun = new DirectionalLight(0xffffff, 3);
@@ -390,6 +391,7 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
     if (envRT) envRT.dispose();
     skyParts.dispose();
     pmrem.dispose();
+    if (LOOK.renderer === renderer) LOOK.renderer = null;
     renderer.dispose();
   };
   return look;

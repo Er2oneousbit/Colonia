@@ -17,10 +17,10 @@
  * maps back as transferred buffers, and is ended after a few idle seconds
  * (a worker holds a copy of the recipes and their scratch fields).
  *
- * Where there are no workers (the unbundled dev server, a page that forbids
- * them, node), or a worker fails to start or dies, the pool goes over to
- * painting on the page, one job a frame: slower and with hitches, but the
- * textures still come.
+ * A worker that dies hands its job back and the others carry on. Where
+ * there are no workers (the unbundled dev server, a page that forbids them,
+ * node), or they keep dying, the pool goes over to painting on the page,
+ * one job a frame: slower and with hitches, but the textures still come.
  * ----------------------------------------------------------------------------
  */
 
@@ -77,6 +77,7 @@ export class PaintPool {
     this.broken = !this.createWorker;
     this.paging = false;
     this.disposed = false;
+    this.deaths = 0; // workers that died (three give the pool up)
   }
 
   blobWorker() {
@@ -144,7 +145,9 @@ export class PaintPool {
         if (this.workers.length >= this.size) return;
         wk = this.spawn();
         if (!wk) {
-          this.giveUp();
+          // None at all: paint on the page. Some already: make do with them.
+          if (!this.workers.length) this.giveUp();
+          else this.size = this.workers.length;
           return;
         }
       }
@@ -173,9 +176,9 @@ export class PaintPool {
     w.onmessage = (e) => this.answer(wk, e.data);
     w.onerror = (e) => {
       if (e && e.preventDefault) e.preventDefault();
-      this.giveUp();
+      this.died(wk);
     };
-    w.onmessageerror = () => this.giveUp();
+    w.onmessageerror = () => this.died(wk);
     this.workers.push(wk);
     this.started++;
     return wk;
@@ -199,9 +202,31 @@ export class PaintPool {
   }
 
   /**
-   * A worker failed to start or died (a page that forbids Blob workers, out
-   * of memory): end them all, and paint what they had and what is queued on
-   * the page instead.
+   * One worker died (out of memory, say): its job goes back to the front of
+   * the queue and the others carry on. A third death (a page that forbids
+   * Blob workers kills each one as it starts) gives the pool up.
+   */
+  died(wk) {
+    const i = this.workers.indexOf(wk);
+    if (i < 0 || this.broken) return;
+    this.workers.splice(i, 1);
+    clearTimeout(wk.timer);
+    try {
+      wk.w.terminate();
+    } catch {
+      // (Already gone.)
+    }
+    if (wk.entry) this.queue.unshift(wk.entry);
+    wk.entry = null;
+    this.deaths++;
+    if (this.deaths >= 3) this.giveUp();
+    else this.pump();
+  }
+
+  /**
+   * No workers to be had (none can be started, or they keep dying): end
+   * them all, and paint what they had and what is queued on the page
+   * instead.
    */
   giveUp() {
     if (this.broken) return;
