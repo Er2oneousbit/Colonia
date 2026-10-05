@@ -348,12 +348,12 @@ async function main() {
   window.__lab = {
     ready: Promise.resolve(true),
     setMood, setView, setTurn, stats, bench, wells100,
-    orbit(az, el, dist, ty = 0.9) {
+    orbit(az, el, dist, ty = 0.9, tx = 0, tz = 0) {
       setView('orbit');
       const a = (az * Math.PI) / 180;
       const e = (el * Math.PI) / 180;
-      controls.target.set(0, ty, 0);
-      persp.position.set(Math.sin(a) * Math.cos(e) * dist, ty + Math.sin(e) * dist, Math.cos(a) * Math.cos(e) * dist);
+      controls.target.set(tx, ty, tz);
+      persp.position.set(tx + Math.sin(a) * Math.cos(e) * dist, ty + Math.sin(e) * dist, tz + Math.cos(a) * Math.cos(e) * dist);
       controls.update();
     },
     look,

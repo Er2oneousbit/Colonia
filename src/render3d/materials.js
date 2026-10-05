@@ -51,7 +51,7 @@ export const LOOK = {
     uLookFade: { value: new Vector4(0, 0, 1e4, 1e4 + 1) },
     uLookFadeColor: { value: new Color(0x000000) },
     uLookWind: { value: new Vector2(0.6, 0.3) },
-    uLookGrass: { value: new Color(0xffffff) },
+    uLookGrass: { value: new Vector4(1, 1, 1, 0) },
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
@@ -68,7 +68,7 @@ uniform float uLookDirectAO;
 uniform vec4 uLookFade;
 uniform vec3 uLookFadeColor;
 uniform vec2 uLookWind;
-uniform vec3 uLookGrass;
+uniform vec4 uLookGrass;
 uniform float uLookSnowMul;
 uniform float uLookWetMul;
 varying vec3 vLookWPos;
@@ -121,6 +121,8 @@ const VERT_SWAY = /* glsl */ `
   vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * LOOK_SWAY;
   transformed.x += w.x;
   transformed.z += w.y;
+  // Under snow only the tips show.
+  transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * LOOK_SWAY_H;
 }
 #endif
 `;
@@ -130,7 +132,11 @@ float lookAO = 1.0;
 if ( uLookAOOn > 0.5 ) lookAO = texture2D( uLookAO, gl_FragCoord.xy / uLookRes ).r;
 float lookSnowAmt = 0.0;
 #ifdef LOOK_SWAY
-  diffuseColor.rgb *= uLookGrass;
+  // Grass in another season (winter's straw): the blade keeps its light and shade, takes the colour.
+  {
+    float lum = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) );
+    diffuseColor.rgb = mix( diffuseColor.rgb, uLookGrass.rgb * lum * 2.6, uLookGrass.a );
+  }
 #endif
 {
   vec3 gn = normalize( vLookWNormal );
@@ -147,7 +153,8 @@ float lookSnowAmt = 0.0;
     lookSnowAmt = smoothstep( lo, lo + 0.18, up ) * smoothstep( -0.1, 0.25, gn.y );
     // Where little sticks (a trodden street), it lies in patches: trampled and swept between.
     float patchN = lookNoise( vLookWPos * 0.55 ) * 0.6 + lookNoise( vLookWPos * 2.7 + 7.0 ) * 0.4;
-    lookSnowAmt *= smoothstep( 1.0 - uLookSnowMul, 1.15 - uLookSnowMul, patchN + 0.15 );
+    // Trodden patches keep a thin dusting: the stone shows through, never a hole cut in the snow.
+    lookSnowAmt *= mix( 0.3, 1.0, smoothstep( 0.9 - uLookSnowMul, 1.3 - uLookSnowMul, patchN + 0.15 ) );
     lookSnowAmt *= clamp( cover * 1.6, 0.0, 1.0 );
     vec3 snowCol = vec3( 0.83, 0.87, 0.93 ) * ( 0.94 + 0.06 * n3 );
     diffuseColor.rgb = mix( diffuseColor.rgb, snowCol, lookSnowAmt );
@@ -155,11 +162,11 @@ float lookSnowAmt = 0.0;
     metalnessFactor = mix( metalnessFactor, 0.0, lookSnowAmt );
     // Snow fills the small dips: its surface follows the shape, not the stone's grain.
     vec3 vgn = normalize( ( viewMatrix * vec4( gn, 0.0 ) ).xyz );
-    normal = normalize( mix( normal, vgn, lookSnowAmt * 0.85 ) );
+    normal = normalize( mix( normal, vgn, lookSnowAmt ) );
   }
   // Wet with melt: darker and glossier where no snow lies.
   float wet = uLookWet * uLookWetMul * ( 1.0 - lookSnowAmt );
-  diffuseColor.rgb *= 1.0 - wet * 0.35;
+  diffuseColor.rgb *= 1.0 - wet * 0.22;
   roughnessFactor = mix( roughnessFactor, roughnessFactor * 0.55, wet );
 }
 #include <emissivemap_fragment>
@@ -169,7 +176,8 @@ const FRAG_AO = /* glsl */ `
 {
   float ambientOcclusion = lookAO;
   #ifdef USE_AOMAP
-    ambientOcclusion *= ( texture2D( aoMap, vAoMapUv ).r - 1.0 ) * aoMapIntensity + 1.0;
+    // Snow fills the joints and pits the occlusion map darkens.
+    ambientOcclusion *= mix( ( texture2D( aoMap, vAoMapUv ).r - 1.0 ) * aoMapIntensity + 1.0, 1.0, lookSnowAmt );
   #endif
   reflectedLight.indirectDiffuse *= ambientOcclusion;
   reflectedLight.directDiffuse *= mix( 1.0, lookAO, uLookDirectAO );

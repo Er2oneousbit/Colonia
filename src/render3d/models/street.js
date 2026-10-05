@@ -251,7 +251,8 @@ function house(seed) {
   const wall = [];
   // Plaster: wall pieces either side of the doorway and over it, v measured from the pavement.
   const piece = (xa, xb, ya, yb) => {
-    const g = block(xb - xa, yb - ya, T, { bevel: 0.015, seed: 3, wobble: 0, grime: 0, seg: 1 });
+    // No bevel: the pieces meet flush and their UVs are in world metres, so the wall shows no seam.
+    const g = block(xb - xa, yb - ya, T, { bevel: 0.0005, seed: 3, wobble: 0, grime: 0, seg: 1 });
     g.translate((xa + xb) / 2, ya, z - T / 2);
     boxUV(g, 0, -y0);
     wall.push(g);
@@ -339,7 +340,8 @@ function house(seed) {
     }
     // The imbrex over the joint: a half pipe along the slope.
     const imL = ROWS * (tegL - 0.08) + 0.06;
-    const im = new CylinderGeometry(0.075, 0.08, imL, 10, 1, true, -Math.PI / 2, Math.PI);
+    // The half of the pipe on -z: turned down the slope it is the half facing up (a ridge, not a gutter).
+    const im = new CylinderGeometry(0.075, 0.08, imL, 10, 1, true, Math.PI / 2, Math.PI);
     im.rotateX(Math.PI / 2 - slope);
     im.rotateX(0);
     const cz = z + over - (imL / 2) * Math.cos(slope) + 0.02;

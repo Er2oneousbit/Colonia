@@ -133,7 +133,7 @@ function basalt(n, seed) {
   const c = cell();
   const stoneId = new Int32Array(n * n);
   const edgeF = new Field(n);
-  const GROUT = 0.02; // joint half width, cell units (about 1 cm)
+  const GROUT = 0.012; // joint half width, cell units (about 6 mm): Roman paviors fitted the blocks tight
   // The mesh gets only each stone's own level and tilt (`plate`): the joints
   // are too fine for a mesh a game would draw, and a blurred joint in the
   // mesh makes every stone a pillow. Joints, arrises and chips are left to
@@ -153,7 +153,7 @@ function basalt(n, seed) {
     const level = 0.8 + (r1 - 0.5) * 0.12 + tx * (wu * 9 - c.cx) + tz * (wv * 9 - c.cy);
     plate.data[i] = level;
     // A worn, rounded arris: the stone falls into the joint over 2 to 3 cm.
-    const bevel = smoothstep(GROUT, GROUT + 0.05, e);
+    const bevel = smoothstep(GROUT, GROUT + 0.035, e);
     const top = level + (fbm(u, v, 22, 3, seed + 2) - 0.5) * 0.04;
     const joint = 0.2 + fbm(u, v, 60, 2, seed + 3) * 0.08;
     // Chips knocked out of the arrises.
@@ -164,8 +164,8 @@ function basalt(n, seed) {
   const high = new Field(n);
   for (let i = 0; i < n * n; i++) high.data[i] = h.data[i] - low.data[i];
   const cav = cavity(h, 4, 3);
-  const tones = [rgb('#3d3c3a'), rgb('#47433d'), rgb('#37393b'), rgb('#423e39'), rgb('#4d4840')];
-  const grit = rgb('#4a4136');
+  const tones = [rgb('#45403a'), rgb('#4d463d'), rgb('#3f3d3a'), rgb('#4a4339'), rgb('#554c41')];
+  const grit = rgb('#2f2a24');
   const dust = rgb('#8c8172');
   const speck = rgb('#bdb6a8');
   const col = [0, 0, 0];
@@ -175,7 +175,7 @@ function basalt(n, seed) {
     const r2 = hash2(id, 2, seed);
     const r3 = hash2(id, 3, seed);
     const base = tones[Math.floor(r2 * tones.length)];
-    const inJoint = 1 - smoothstep(GROUT * 0.6, GROUT + 0.03, e);
+    const inJoint = 1 - smoothstep(GROUT * 0.5, GROUT + 0.015, e);
     const wear = smoothstep(GROUT + 0.08, 0.32, e) * (0.6 + r3 * 0.4);
     // Stone: mottled, darker and smoother where polished, dusty near the joints.
     mixRgb(base, dust, (1 - wear) * 0.18 + fbm(u, v, 9, 3, seed + 6) * 0.1, col);
@@ -185,10 +185,10 @@ function basalt(n, seed) {
     mixRgb(col, speck, sp * (1 - inJoint), col);
     mixRgb(col, grit, inJoint, col);
     mixRgb(col, rgb('#3a3632'), cav.data[i] * 0.5, col);
-    const rough = lerp(0.6 - wear * 0.22, 0.95, inJoint) + (fbm(u, v, 50, 2, seed + 9) - 0.5) * 0.08;
+    const rough = lerp(0.72 - wear * 0.2, 0.95, inJoint) + (fbm(u, v, 50, 2, seed + 9) - 0.5) * 0.08;
     m.set(i, col, 1 - Math.max(inJoint * 0.45, cav.data[i] * 0.6), rough);
   });
-  m.normal = normalMap(high, 0.03 / 4.8);
+  m.normal = normalMap(high, 0.018 / 4.8);
   m.height = low;
   return m;
 }
@@ -284,7 +284,7 @@ function plaster(n, seed) {
   loss.fill((u, v) => {
     const y = v * H;
     const t = fbm(u, v, 3, 5, seed + 1) + smoothstep(1.2, 0.1, y) * 0.12 - smoothstep(2.0, 3.0, y) * 0.05;
-    return smoothstep(0.73, 0.755, t);
+    return smoothstep(0.73, 0.745, t);
   });
   const stones = new Int32Array(n * n);
   const stoneE = new Field(n);
@@ -303,8 +303,8 @@ function plaster(n, seed) {
   const band = rgb('#3a2a22');
   const cream = rgb('#d6c29c');
   const ochre = rgb('#c7a26d');
-  const mortar = rgb('#9b917f');
-  const rub = [rgb('#7d746a'), rgb('#6a5c4e'), rgb('#8e8068'), rgb('#57534f')];
+  const mortar = rgb('#6f675a');
+  const rub = [rgb('#6d655b'), rgb('#5a4c3e'), rgb('#86765c'), rgb('#4a4744'), rgb('#7a5f45')];
   const damp = rgb('#4f4a3c');
   const col = [0, 0, 0];
   eachPixel(n, (u, v, i) => {
@@ -331,8 +331,10 @@ function plaster(n, seed) {
     // Rising damp: darker and greener at the foot, with an irregular tide line.
     const tide = 0.45 + fbm(u, v, 8, 3, seed + 10) * 0.35;
     mixRgb(col, damp, smoothstep(tide, 0, y) * 0.55, col);
-    mixRgb(col, rgb('#3b342c'), cav.data[i] * 0.6, col);
-    m.set(i, col, 1 - cav.data[i] * 0.6, 0.86 + loss.data[i] * 0.08);
+    // The broken edge of the plaster casts a dark rim into the hole.
+    const rim = loss.data[i] > 0 && loss.data[i] < 1 ? 1 - Math.abs(loss.data[i] - 0.5) * 2 : 0;
+    mixRgb(col, rgb('#2e2924'), Math.max(cav.data[i] * 0.7, rim * 0.6), col);
+    m.set(i, col, 1 - Math.max(cav.data[i] * 0.6, rim * 0.5), 0.86 + loss.data[i] * 0.08);
   });
   m.normal = normalMap(h, 0.02 / 4);
   return m;

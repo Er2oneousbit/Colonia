@@ -66,7 +66,7 @@ export const MOODS = {
     label: 'Day',
     sun: { elev: 44, toward: [-1, 0.5], color: '#fff0da', intensity: 4.2 },
     sky: { turbidity: 3.5, rayleigh: 0.7, mie: 0.005, g: 0.8, clouds: 0.3 },
-    bounce: '#9a8466', bounceLevel: 1.2,
+    bounce: '#a08868', bounceLevel: 2.4,
     env: 0.32, exposure: 1.0, fade: '#5e594e',
     bloom: [0.1, 0.5, 6],
     grade: { contrast: 1.0, saturation: 1.0, lift: [0.0, 0.0, 0.0], gain: [1.0, 1.0, 1.0], vignette: 0.3 },
@@ -84,8 +84,8 @@ export const MOODS = {
   },
   night: {
     label: 'Night',
-    sun: { elev: 38, toward: [-0.6, -0.8], color: '#9db4ff', intensity: 0.6 },
-    sky: { night: true, zenith: '#070b1e', horizon: '#1c2846', moon: '#6a7cab' },
+    sun: { elev: 38, toward: [-0.6, -0.8], color: '#b9c6e4', intensity: 0.45 },
+    sky: { night: true, zenith: '#080b18', horizon: '#1d2436', moon: '#6f7b98' },
     bounce: '#2a2620', bounceLevel: 0.08,
     env: 1.0, exposure: 1.2, fade: '#06080e',
     bloom: [0.55, 0.6, 1.6],
@@ -100,7 +100,7 @@ export const MOODS = {
     env: 0.5, exposure: 1.0, fade: '#8e9398',
     bloom: [0.08, 0.5, 6],
     grade: { contrast: 1.0, saturation: 0.9, lift: [0.0, 0.0, 0.008], gain: [0.99, 1.0, 1.02], vignette: 0.3 },
-    lamps: 0, snow: 1, wet: 1, ice: true, grass: '#b49a6c',
+    lamps: 0, snow: 1, wet: 1, ice: true, grass: '#a88f62',
   },
 };
 
@@ -303,7 +303,8 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
     renderer.toneMappingExposure = m.exposure;
     LOOK.uniforms.uLookSnow.value = m.snow;
     LOOK.uniforms.uLookWet.value = m.wet;
-    LOOK.uniforms.uLookGrass.value.set(m.grass || '#ffffff');
+    if (m.grass) LOOK.uniforms.uLookGrass.value.set(...new Color(m.grass).toArray(), 1);
+    else LOOK.uniforms.uLookGrass.value.set(1, 1, 1, 0);
     for (const l of look.lamps) l.set(m.lamps);
     if (look.passes) applyPost(look.passes, m);
   };
