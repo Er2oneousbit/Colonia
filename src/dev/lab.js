@@ -198,6 +198,11 @@ async function main() {
   const tex = liveGroundArrays(groundSrc, LOOK.anisotropy);
   // On the GPU now (stand-ins and what has come), so each layer that comes later uploads alone.
   for (let k = 0; k < 3; k++) tex.upload(look.renderer, k);
+  // A lost context lost them: whole again (three listens first, so its new context is up by now).
+  canvas.addEventListener('webglcontextrestored', () => {
+    tex.lost();
+    for (let k = 0; k < 3; k++) tex.upload(look.renderer, k);
+  });
   const gs = buildGroundScene(tex, 'high');
   const groundGroup = gs.ground.group;
   groundGroup.visible = false;
