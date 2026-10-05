@@ -135,7 +135,7 @@ export function groundTextures() {
 
 /**
  * Texture arrays on the shared layers that follow them as they are painted
- * (groundArrays, plus `upload(renderer, k)`, `lost()`): a layer that comes
+ * (groundArrays, plus `upload(renderer, k)`, `lost()`, `flush(most)`): a layer that comes
  * after an array went to the GPU is uploaded alone (three's layer updates);
  * one that comes before rides with the array's first, whole upload. Only
  * an array known to be on the GPU may be given layer updates: three's
@@ -158,13 +158,27 @@ export function liveGroundArrays(src, anisotropy = 4) {
     for (const a of arrays) a.clearLayerUpdates();
     onGpu.fill(false);
   };
-  const off = src.listen((i) => {
-    arrays.forEach((a, k) => {
-      if (onGpu[k]) a.addLayerUpdate(i);
-      a.needsUpdate = true;
-    });
-    if (tex.onLayer) tex.onLayer(i);
-  });
+  /** Layers come, waiting for flush() (a cached load brings all 14 at once: 11 MB to upload). */
+  const waiting = [];
+  /**
+   * Send up to `most` layers that came to the GPU's arrays (at the next
+   * draw): the owner calls it once a frame, so a cached load uploads its
+   * layers over a few frames, not in one long one. Returns how many went.
+   */
+  tex.flush = (most = 4) => {
+    const n = Math.min(most, waiting.length);
+    for (const i of waiting.splice(0, n)) {
+      arrays.forEach((a, k) => {
+        if (onGpu[k]) a.addLayerUpdate(i);
+        a.needsUpdate = true;
+      });
+      if (tex.onLayer) tex.onLayer(i);
+    }
+    return n;
+  };
+  /** How many layers came and wait for flush(). */
+  tex.pendingLayers = () => waiting.length;
+  const off = src.listen((i) => waiting.push(i));
   const free = tex.dispose;
   tex.dispose = function dispose() {
     off();

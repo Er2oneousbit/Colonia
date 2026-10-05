@@ -190,7 +190,7 @@ export class GroundPass {
   get ready() { return !this.failed; }
 
   /** Are all the layers painted and in the arrays? */
-  get texturesReady() { return this.layers.done; }
+  get texturesReady() { return this.layers.done && (!this.tex || !this.tex.pendingLayers()); }
 
   /** Draw at another quality: the material is remade (the textures are kept) and compiled again in the background. */
   setQuality(q) {
@@ -265,6 +265,8 @@ export class GroundPass {
       // A painted layer changes what Low's kept picture shows.
       this.tex.onLayer = () => { this.cacheDirty = true; };
     }
+    // Painted layers that came, a few a frame (each uploads at the next draw).
+    this.tex.flush(4);
     // Upload the arrays one a frame (each with its mipmaps), not all at the first draw.
     if (this.stage < 3) {
       const t0 = performance.now();

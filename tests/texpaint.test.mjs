@@ -443,13 +443,19 @@ test('ground textures: a layer painted after its array went to the GPU uploads a
   const vAlbedo = tex.albedo.version;
   const vNormal = tex.normal.version;
   for (const fn of listeners) fn(3);
+  for (const fn of listeners) fn(4);
+  assert.equal(tex.albedo.version, vAlbedo, 'nothing sent before the owner flushes');
+  assert.equal(tex.pendingLayers(), 2);
+  assert.equal(tex.flush(1), 1, 'a few a frame');
   assert.deepEqual([...tex.albedo.layerUpdates], [3], 'on the GPU: only the new layer');
   assert.equal(tex.normal.layerUpdates.size, 0, 'not yet on the GPU: no layer updates (the first upload sends the whole array)');
   assert.ok(tex.albedo.version > vAlbedo && tex.normal.version > vNormal, 'both marked for upload');
   // A lost context: the next upload of each array is whole again.
   tex.lost();
   assert.equal(tex.albedo.layerUpdates.size, 0);
+  tex.flush(4);
   for (const fn of listeners) fn(5);
+  tex.flush(4);
   assert.equal(tex.albedo.layerUpdates.size, 0);
   tex.dispose();
   assert.equal(listeners.size, 0, 'freed arrays stop listening');

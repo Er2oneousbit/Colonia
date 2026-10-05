@@ -452,6 +452,7 @@ async function main() {
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
     gs.ground.material.userData.ground.uGTime.value = t;
+    tex.flush(4); // (painted ground layers that came, a few a frame)
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
     if (lit) {
