@@ -32,7 +32,7 @@
 import {
   WebGLRenderer, Scene, DirectionalLight, Vector3, Vector2, Color, ACESFilmicToneMapping, SRGBColorSpace, PCFShadowMap,
   PMREMGenerator, WebGLRenderTarget, HalfFloatType, Mesh, SphereGeometry, ShaderMaterial,
-  BackSide, CircleGeometry, MeshBasicMaterial,
+  BackSide, CircleGeometry, MeshBasicMaterial, ColorManagement,
 } from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -59,7 +59,8 @@ export const TILE_M = 4;
  * contrast, saturation, lift (shadows' tint), gain (highlights' tint),
  * vignette. lamps: the lantern and the torch, 0 off. snow, wet: the
  * materials' winter (materials.js); grass: a tint for the grass (winter's
- * is dry straw).
+ * is dry straw). water, waterRefl: the sky as still water shows it (linear
+ * rgb) and how strongly (the 3D ground, ground/groundMaterial.js).
  */
 export const MOODS = {
   day: {
@@ -71,6 +72,7 @@ export const MOODS = {
     bloom: [0.1, 0.5, 6],
     grade: { contrast: 1.0, saturation: 1.0, lift: [0.0, 0.0, 0.0], gain: [1.0, 1.0, 1.0], vignette: 0.3 },
     lamps: 0, snow: 0, wet: 0, ice: false,
+    water: [0.5, 0.64, 0.82], waterRefl: 0.3,
   },
   golden: {
     label: 'Golden hour',
@@ -81,6 +83,7 @@ export const MOODS = {
     bloom: [0.14, 0.55, 5],
     grade: { contrast: 1.02, saturation: 1.0, lift: [0.0, 0.0, 0.01], gain: [1.02, 1.0, 0.96], vignette: 0.4 },
     lamps: 0, snow: 0, wet: 0, ice: false,
+    water: [0.95, 0.66, 0.42], waterRefl: 0.35,
   },
   night: {
     label: 'Night',
@@ -92,6 +95,7 @@ export const MOODS = {
     bloom: [0.55, 0.6, 1.6],
     grade: { contrast: 1.02, saturation: 0.95, lift: [0.0, 0.003, 0.012], gain: [1.0, 1.0, 1.0], vignette: 0.5 },
     lamps: 1, snow: 0, wet: 0, ice: false,
+    water: [0.05, 0.065, 0.11], waterRefl: 0.3,
   },
   winter: {
     label: 'Winter',
@@ -102,6 +106,7 @@ export const MOODS = {
     bloom: [0.08, 0.5, 6],
     grade: { contrast: 1.0, saturation: 0.9, lift: [0.0, 0.0, 0.008], gain: [0.99, 1.0, 1.02], vignette: 0.3 },
     lamps: 0, snow: 1, wet: 1, ice: true, grass: '#a88f62',
+    water: [0.62, 0.66, 0.72], waterRefl: 0.25,
   },
 };
 
@@ -170,6 +175,71 @@ function nightSky(sky, moonDir) {
       }`,
   });
   return new Mesh(new SphereGeometry(10, 32, 16), mat);
+}
+
+/**
+ * A colour from a mood's table (sRGB hex) as linear light, whether or not
+ * three's colour management is on (the game's WebGL back end turns it off:
+ * its sprites are plain bytes).
+ */
+export function moodColor(hex, out = new Color()) {
+  out.set(hex);
+  if (!ColorManagement.enabled) out.convertSRGBToLinear();
+  return out;
+}
+
+/** What the sky's light is rendered from: three's Sky and a disc of ground under it. */
+export function makeSkyParts() {
+  const scene = new Scene();
+  const sky = new Sky();
+  sky.scale.setScalar(50);
+  scene.add(sky);
+  // The ground under the sky: light bounced off sunlit earth and stone comes
+  // back warm from below. Without it the scene is lit by a blue dome alone,
+  // and every warm stone turns grey-green in the shade.
+  const ground = new Mesh(new CircleGeometry(40, 32), new MeshBasicMaterial({ color: 0x000000 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.5;
+  scene.add(ground);
+  return {
+    scene, sky, ground,
+    dispose() {
+      sky.geometry.dispose();
+      sky.material.dispose();
+      ground.geometry.dispose();
+      ground.material.dispose();
+    },
+  };
+}
+
+/**
+ * The sky of a mood as image-based light: a PMREM render target (dispose it
+ * when done) from `parts` (makeSkyParts), the sun or moon toward `dir`.
+ */
+export function skyEnvironment(pmrem, mood, dir, parts) {
+  const m = mood;
+  moodColor(m.bounce, parts.ground.material.color).multiplyScalar(m.bounceLevel);
+  if (m.sky.night) {
+    const ns = new Scene();
+    const night = nightSky(m.sky, dir);
+    ns.add(night);
+    ns.add(parts.ground);
+    const rt = pmrem.fromScene(ns, 0, 0.1, 100);
+    night.geometry.dispose();
+    night.material.dispose();
+    parts.scene.add(parts.ground);
+    return rt;
+  }
+  const u = parts.sky.material.uniforms;
+  u.turbidity.value = m.sky.turbidity;
+  u.rayleigh.value = m.sky.rayleigh;
+  u.mieCoefficient.value = m.sky.mie;
+  u.mieDirectionalG.value = m.sky.g;
+  u.cloudCoverage.value = m.sky.clouds;
+  u.showSunDisc.value = 0;
+  u.sunPosition.value.copy(dir);
+  parts.scene.add(parts.ground);
+  return pmrem.fromScene(parts.scene, 0, 0.1, 100);
 }
 
 /** The direction toward the sun for a mood at a view turn (quarter turns). */
@@ -245,17 +315,7 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
   scene.add(sun, sun.target);
 
   const pmrem = new PMREMGenerator(renderer);
-  const skyScene = new Scene();
-  const sky = new Sky();
-  sky.scale.setScalar(50);
-  skyScene.add(sky);
-  // The ground under the sky: light bounced off sunlit earth and stone comes
-  // back warm from below. Without it the scene is lit by a blue dome alone,
-  // and every warm stone turns grey-green in the shade.
-  const ground = new Mesh(new CircleGeometry(40, 32), new MeshBasicMaterial({ color: 0x000000 }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.5;
-  skyScene.add(ground);
+  const skyParts = makeSkyParts();
   let envRT = null;
 
   const look = {
@@ -278,24 +338,7 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
     sun.target.position.copy(focus);
     // The sky as light.
     if (envRT) envRT.dispose();
-    ground.material.color.set(m.bounce).multiplyScalar(m.bounceLevel);
-    if (m.sky.night) {
-      const ns = new Scene();
-      ns.add(nightSky(m.sky, dir));
-      ns.add(ground);
-      envRT = pmrem.fromScene(ns, 0, 0.1, 100);
-    } else {
-      const u = sky.material.uniforms;
-      u.turbidity.value = m.sky.turbidity;
-      u.rayleigh.value = m.sky.rayleigh;
-      u.mieCoefficient.value = m.sky.mie;
-      u.mieDirectionalG.value = m.sky.g;
-      u.cloudCoverage.value = m.sky.clouds;
-      u.showSunDisc.value = 0;
-      u.sunPosition.value.copy(dir);
-      skyScene.add(ground);
-      envRT = pmrem.fromScene(skyScene, 0, 0.1, 100);
-    }
+    envRT = skyEnvironment(pmrem, m, dir, skyParts);
     scene.environment = envRT.texture;
     scene.environmentIntensity = m.env;
     scene.background = new Color(m.fade);
@@ -345,6 +388,7 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
   look.dispose = () => {
     disposePost(look);
     if (envRT) envRT.dispose();
+    skyParts.dispose();
     pmrem.dispose();
     renderer.dispose();
   };

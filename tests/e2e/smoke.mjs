@@ -3862,6 +3862,116 @@ try {
       check('WebGL renderer: Settings shows it, and switches back to Classic (kept in the settings)', shown === 'webgl' && switched.backend === '2d' && switched.kind === '2d' && switched.setting === 'classic' && switched.stored === 'classic', JSON.stringify({ shown, switched }));
       check('WebGL renderer: no page errors', gerrors.length === 0, gerrors.join(' | '));
       await gp.close();
+
+      // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
+      //     software GL (this browser's), so the console asks for Low. It
+      //     draws, keeps its picture while nothing moves, a click still picks
+      //     a tile and a building, an overlay's tint shows over it, and a view
+      //     turn draws it again with picking still true.
+      const gq = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+      const qerrors = [];
+      gq.on('pageerror', (e) => qerrors.push(`pageerror: ${e.message}`));
+      gq.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) qerrors.push(m.text()); });
+      await gq.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d`);
+      await gq.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+      const autoGround = await gq.evaluate(() => window.colonia.renderer.stats.ground);
+      check('3D ground: Auto keeps the flat sprites on a software GL', autoGround === 'off', String(autoGround));
+      const site = await gq.evaluate(() => {
+        const app = window.colonia;
+        app.ui.console.run('demo 2');
+        app.paused = true;
+        app.renderer.fixedTime = 0.3;
+        app.ui.console.run('ground low');
+        const g = app.game;
+        const w = [...g.buildings.values()].find((b) => b.type === 'well');
+        // An open tile near the well: no building, no road, dry land.
+        let open = null;
+        for (let r = 2; r < 12 && !open; r++) {
+          for (let dy = -r; dy <= r && !open; dy++) {
+            for (let dx = -r; dx <= r && !open; dx++) {
+              const x = w.x + dx;
+              const y = w.y + dy;
+              const i = g.map.idx(x, y);
+              if (g.map.inBounds(x, y) && !g.map.building[i] && !g.map.road[i] && g.map.terrain[i] !== 4 && g.map.terrain[i] !== 2 && g.map.terrain[i] !== 3) open = { x, y };
+            }
+          }
+        }
+        app.renderer.camera.zoomIndex = 3;
+        app.renderer.camera.centerOnTile(w.x, w.y);
+        return { well: { id: w.id, x: w.x, y: w.y }, open };
+      });
+      await gq.waitForFunction(() => window.colonia.renderer.stats.ground === 'low', null, { timeout: 60000 }).catch(() => {});
+      await gq.waitForTimeout(500);
+      const lowDrawn = await gq.evaluate(() => {
+        const r = window.colonia.renderer;
+        const d = r.ctx.getImageData(0, 0, r.canvas.width, r.canvas.height).data;
+        const seen = new Set();
+        for (let i = 0; i < d.length; i += 4 * 997) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+        return { ground: r.stats.ground, backend: r.stats.backend, colours: seen.size, redraws: r.stats.groundRedraws, objects: r.stats.objects };
+      });
+      if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d.png') });
+      check('3D ground: the console\'s "ground low" draws the 3D ground under the city', lowDrawn.ground === 'low' && lowDrawn.backend === 'webgl' && lowDrawn.colours > 50 && lowDrawn.redraws >= 1 && lowDrawn.objects > 50, JSON.stringify(lowDrawn));
+      await gq.waitForTimeout(400);
+      const still = await gq.evaluate(() => window.colonia.renderer.stats.groundRedraws);
+      check('3D ground: a still view keeps its picture (Low draws the ground again only when something changed)', still === lowDrawn.redraws, `${lowDrawn.redraws} -> ${still}`);
+      const onPageQ = (fx, fy) => gq.evaluate(([x, y]) => {
+        const app = window.colonia;
+        const cam = app.renderer.camera;
+        const w = cam.mapToWorld(x, y);
+        const r = app.canvas.getBoundingClientRect();
+        return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+      }, [fx, fy]);
+      const pickAt = async (fx, fy) => {
+        await gq.evaluate(() => window.colonia.ui.info.close());
+        const p = await onPageQ(fx, fy);
+        await gq.mouse.click(p.x, p.y);
+        await gq.waitForTimeout(200);
+        return gq.evaluate(() => window.colonia.ui.info.target);
+      };
+      const picks3d = [];
+      for (let t = 0; t < 2; t++) {
+        const tile = site.open ? await pickAt(site.open.x + 0.5, site.open.y + 0.5) : null;
+        const bld = await pickAt(site.well.x + 0.5, site.well.y + 0.5);
+        picks3d.push({ turn: await gq.evaluate(() => window.colonia.renderer.viewTurn), tile, bld, ground: await gq.evaluate(() => window.colonia.renderer.stats.ground) });
+        await gq.evaluate(() => window.colonia.ui.info.close());
+        await gq.mouse.move(300, 12);
+        await gq.keyboard.press('q');
+        await gq.waitForTimeout(600);
+      }
+      check('3D ground: a click picks the open tile and the well under it, unturned and turned',
+        !!site.open && picks3d.length === 2 && picks3d.every((o, t) => o.turn === t && o.ground === 'low' && o.tile?.kind === 'tile' && o.tile.x === site.open.x && o.tile.y === site.open.y && o.bld?.kind === 'building' && o.bld.id === site.well.id),
+        JSON.stringify({ site, picks3d }));
+      const turned = await gq.evaluate(() => window.colonia.renderer.stats.groundRedraws);
+      check('3D ground: a view turn draws the ground again', turned > still, `${still} -> ${turned}`);
+      // An overlay's tint over the 3D ground: the water overlay paints the well's tiles blue.
+      const tint = async () => {
+        const p = await onPageQ(site.well.x + 1.5, site.well.y + 0.5);
+        return gq.evaluate(([x, y]) => {
+          const app = window.colonia;
+          const r = app.canvas.getBoundingClientRect();
+          const px = Math.round((x - r.left) * app.renderer.camera.dpr);
+          const py = Math.round((y - r.top) * app.renderer.camera.dpr);
+          const d = app.renderer.ctx.getImageData(px - 2, py - 2, 5, 5).data;
+          let rr = 0, gg = 0, bb = 0;
+          for (let i = 0; i < d.length; i += 4) { rr += d[i]; gg += d[i + 1]; bb += d[i + 2]; }
+          return [rr / 25, gg / 25, bb / 25].map(Math.round);
+        }, [p.x, p.y]);
+      };
+      await gq.evaluate(() => window.colonia.turnView(-window.colonia.renderer.viewTurn));
+      await gq.waitForTimeout(600);
+      const tintBefore = await tint();
+      await gq.evaluate(() => window.colonia.setOverlay('water'));
+      await gq.waitForTimeout(600);
+      const tintAfter = await tint();
+      await gq.evaluate(() => window.colonia.setOverlay('none'));
+      if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d-overlay.png') });
+      check('3D ground: an overlay\'s tint shows over it (the water overlay turns the well\'s tiles blue)', tintAfter[2] - tintAfter[0] > tintBefore[2] - tintBefore[0] + 15, JSON.stringify({ tintBefore, tintAfter }));
+      await gq.evaluate(() => window.colonia.ui.console.run('ground off'));
+      await gq.waitForTimeout(400);
+      const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
+      check('3D ground: "ground off" goes back to the flat sprites', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50, JSON.stringify(off));
+      check('3D ground: no page errors', qerrors.length === 0, qerrors.join(' | '));
+      await gq.close();
     } finally {
       await glBrowser.close();
     }

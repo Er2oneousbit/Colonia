@@ -454,6 +454,7 @@ export function settingsMenu(app) {
       h('select', { onchange: (e) => { s.theme = e.target.value; app.applySettings(); } },
         [['auto', 'Match system'], ['light', 'Marble (light)'], ['dark', 'Basalt (dark)']].map(([k, n]) => h('option', { value: k, selected: s.theme === k }, n)))),
     rendererField(app),
+    groundField(app),
   ], [h('button', { class: 'btn primary', onclick: () => app.ui.closeModal() }, 'Done')], 'narrow', () => app.ui.closeModal());
 }
 
@@ -465,7 +466,7 @@ export function settingsMenu(app) {
 function rendererField(app) {
   const s = app.settings;
   const now = (app.flags.renderer || s.renderer) === 'webgl' ? 'webgl' : 'classic';
-  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, and shows the well as a 3D model, the first of more to come. The Classic renderer stays the default while WebGL is in beta.');
+  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), and shows the well as a 3D model, the first of more to come. The Classic renderer stays the default while WebGL is in beta.');
   return h('div', { class: 'field' }, h('label', {}, 'Renderer'),
     h('select', {
       'aria-label': 'Renderer',
@@ -477,6 +478,27 @@ function rendererField(app) {
       },
     }, [['classic', 'Classic (2D)'], ['webgl', 'WebGL (beta)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
     note);
+}
+
+/**
+ * Settings > Ground (WebGL renderer): the 3D ground at high or low quality,
+ * or the ground's sprites as the Classic renderer draws them. Auto picks Low
+ * on a phone or tablet, and the flat ground without a graphics card. The
+ * URL's ground= flag gives way once the player picks here.
+ */
+function groundField(app) {
+  const s = app.settings;
+  const now = app.flags.ground || s.ground || 'auto';
+  return h('div', { class: 'field' }, h('label', {}, 'Ground (WebGL renderer)'),
+    h('select', {
+      'aria-label': 'Ground',
+      onchange: (e) => {
+        s.ground = e.target.value;
+        app.flags.ground = null;
+        app.applySettings();
+      },
+    }, [['auto', 'Auto'], ['high', '3D, high quality'], ['low', '3D, low quality'], ['off', 'Flat (as Classic)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
+    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections. Low quality is lighter for phones and tablets, where Auto picks it; without a graphics card Auto keeps the ground flat, which is faster there.'));
 }
 
 /**

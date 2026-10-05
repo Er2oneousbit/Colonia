@@ -29,6 +29,12 @@
  *      stand up on the ground line of their depth (projection.js
  *      standDepth): a walker in front of a model's base shows whole and the
  *      model's top does not cut his head off.
+ *   0. First of all, the 3D ground (ground/groundPass.js) when it is on
+ *      and its textures are painted: one lit mesh per chunk of the map,
+ *      tone mapped, in place of the ground's sprites (the renderer asks
+ *      `drawsGround` and leaves them out). Settings > Ground: High, Low
+ *      (phones; Auto picks it there) or Off (the sprites; Auto's choice
+ *      without a GPU).
  *   4. The picture is copied onto the 2D canvas (present), and the renderer
  *      goes on there: particles, clouds, the night (which so darkens models
  *      too), the weather, signs, previews, outlines. So input, picking and
@@ -58,6 +64,8 @@ import { MODELS, hasModel, disposeModel, modelHolder, standModel } from './model
 import { liveBox } from './liveBox.js';
 import { aimCamera, groundDepth, standDepth } from './projection.js';
 import { AMBIENT, SUN, SUN_DIR } from './light.js';
+import { GroundPass, GROUND_CLIP } from './ground/groundPass.js';
+import { tileOfWorld } from '../render/camera.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -143,7 +151,15 @@ export class WebGLBackend {
     gl.info.autoReset = false; // (both renders of a frame are counted: stats.drawCalls)
     this.lost = false;
     this.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; }, false);
-    this.canvas.addEventListener('webglcontextrestored', () => { this.lost = false; }, false);
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      this.lost = false;
+      if (this.groundPass) this.groundPass.restored();
+    }, false);
+    // The 3D ground (setGround): null while it is off.
+    this.groundPass = null;
+    this.groundMode = 'off';
+    this.drawsGround = false;
+    this.modelShadows = false;
 
     this.camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
     this.zA = 0;
@@ -189,6 +205,24 @@ export class WebGLBackend {
 
   /** Can it draw? Not while its WebGL context is lost. */
   get ready() { return !this.lost; }
+
+  /**
+   * The 3D ground: 'high', 'low', 'off' (the ground's sprites, as before),
+   * or 'auto' (low on a software GL or a touch screen, else high). Off frees
+   * its textures; the painted layers stay in memory for the next time.
+   */
+  setGround(mode = 'auto') {
+    const q = mode === 'auto' ? autoGround(this.gl) : mode;
+    this.groundMode = q;
+    if (q === 'off') {
+      if (this.groundPass) this.groundPass.dispose();
+      this.groundPass = null;
+      return q;
+    }
+    if (!this.groundPass) this.groundPass = new GroundPass(this.gl, q);
+    else this.groundPass.setQuality(q);
+    return q;
+  }
 
   hasModel(type) { return hasModel(type); }
 
@@ -252,6 +286,9 @@ export class WebGLBackend {
     this.atlasW = Math.min(this.maxTex, Math.max(1024, 2 ** Math.ceil(Math.log2(cam.viewW + 2))));
     this.dropped = 0;
     this.placed.length = 0;
+    // The renderer leaves the ground's sprites out while this draws the ground.
+    this.drawsGround = !!this.groundPass && this.groundPass.sync(r, this.camera);
+    this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
   }
 
   /** The slot of texture `tex` in the batch being filled (a new batch when it is full). */
@@ -478,6 +515,8 @@ export class WebGLBackend {
   /** Stand this frame's models on their footprints (pooled copies of one model per look). */
   placeModels() {
     for (const p of this.pools.values()) p.used = 0;
+    const casters = this.casters || (this.casters = []);
+    casters.length = 0;
     for (const m of this.placed) {
       const S = m.b.size;
       const key = `${m.b.type}:${S}:${m.state}:${m.snow}`;
@@ -496,6 +535,7 @@ export class WebGLBackend {
       pool.used++;
       inst.visible = true;
       standModel(inst, m.vx, m.vy, S, m.T, m.rise || 0);
+      casters.push({ key, holder: inst });
     }
     for (const [key, p] of this.pools) {
       for (let i = p.used; i < p.instances.length; i++) p.instances[i].visible = false;
@@ -504,6 +544,7 @@ export class WebGLBackend {
         for (const inst of p.instances) this.modelScene.remove(inst);
         disposeModel(p.template);
         this.pools.delete(key);
+        if (this.groundPass) this.groundPass.dropCaster(key);
       }
     }
     return this.placed.length;
@@ -556,7 +597,23 @@ export class WebGLBackend {
     gl.info.reset();
     gl.clear(true, true, true);
     const models = this.placeModels();
-    if (models) gl.render(this.modelScene, this.camera);
+    if (this.drawsGround) {
+      const gp = this.groundPass;
+      const cam = r.camera;
+      const vw = cam.viewW / cam.scale;
+      const vh = cam.viewH / cam.scale;
+      const c = [tileOfWorld(cam.x, cam.y), tileOfWorld(cam.x + vw, cam.y), tileOfWorld(cam.x, cam.y + vh), tileOfWorld(cam.x + vw, cam.y + vh)];
+      // (Casters first: the fit hides them again when the shadow map is cleared rather than drawn.)
+      gp.syncCasters(this.casters);
+      gp.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
+      gp.render(this.camera, `${cam.x},${cam.y},${cam.scale},${cam.viewW},${cam.viewH},${cam.turn}`);
+    }
+    if (models) {
+      // Over the 3D ground (which writes no depth), a rising model is cut off at the ground.
+      gl.clippingPlanes = this.drawsGround ? GROUND_CLIP : [];
+      gl.render(this.modelScene, this.camera);
+      gl.clippingPlanes = [];
+    }
     gl.render(this.quadScene, this.camera);
     // Onto the 2D canvas, under everything the renderer draws after the scene.
     const ctx = r.ctx;
@@ -577,6 +634,11 @@ export class WebGLBackend {
     st.live = this.lives.length;
     st.liveDropped = this.dropped;
     st.liveTexture = `${this.atlas.width}x${this.atlas.height}`;
+    st.ground = this.groundPass ? (this.drawsGround ? this.groundMode : this.groundPass.failed ? 'failed' : 'loading') : 'off';
+    st.groundMs = this.groundPass ? Math.round(this.groundPass.loadMs) : 0;
+    st.groundRedraws = this.groundPass ? this.groundPass.redraws : 0;
+    st.groundCompileMs = this.groundPass ? Math.round(this.groundPass.compileMs) : 0;
+    st.groundSteps = this.groundPass ? this.groundPass.steps : null;
   }
 
   /** Free everything on the GPU (the player went back to the Classic renderer). */
@@ -590,6 +652,8 @@ export class WebGLBackend {
     this.geometry.dispose();
     for (const p of this.pools.values()) disposeModel(p.template);
     this.pools.clear();
+    if (this.groundPass) this.groundPass.dispose();
+    this.groundPass = null;
     this.gl.dispose();
     this.gl.forceContextLoss();
   }
@@ -604,6 +668,30 @@ function liveTexture(canvas) {
   t.minFilter = LinearFilter;
   t.magFilter = LinearFilter;
   return t;
+}
+
+/**
+ * The 3D ground's quality on this device when the player leaves it to the
+ * game: off (the flat sprites) on a software GL (no GPU: SwiftShader,
+ * llvmpipe, as on the CI), low on touch screens (phones and tablets), high
+ * elsewhere.
+ */
+function autoGround(renderer) {
+  try {
+    const c = renderer.getContext();
+    const ext = c.getExtension('WEBGL_debug_renderer_info');
+    const name = String(c.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : c.RENDERER));
+    // Without a GPU the ground's shader is a slideshow (groundPass.js): the flat sprites then.
+    if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)) return 'off';
+  } catch {
+    // No name to go by: judge by the screen.
+  }
+  try {
+    if (window.matchMedia('(pointer: coarse)').matches) return 'low';
+  } catch {
+    // No media queries.
+  }
+  return 'high';
 }
 
 /** Stands for the live-art texture in a batch: it is only made, or remade bigger, once the frame's art is all in. */

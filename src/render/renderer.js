@@ -788,6 +788,7 @@ export class Renderer {
     if (this.follow) this.followWalker(alpha);
     const k = cam.scale;
     const env = this.updateEnvironment(dt);
+    this.env = env; // (the WebGL back end's 3D ground reads the weather and the light from it)
     const pal = env.pal;
     // Sprites are drawn for the zoom LEVEL; while the zoom eases they are scaled a little.
     const changing = this.palPrev !== null || this.snowPrev !== null;
@@ -797,6 +798,10 @@ export class Renderer {
     this.be = be;
     this.stats.backend = be.kind;
     be.begin();
+    // The WebGL back end may draw the ground itself, in 3D (render3d/ground/):
+    // then the ground's sprites (terrain, shores, roads, plazas, rubble,
+    // glints) are left out, and only what lies over the ground is told.
+    const ownGround = !!be.drawsGround;
     const { map } = game;
     const ov = this.overlay;
     const overlayOn = ov.key !== 'none';
@@ -851,7 +856,9 @@ export class Renderer {
         const bid = map.building[i];
         if (wy <= groundBottom) {
           tiles++;
-          if (terr === Terrain.WATER) {
+          if (ownGround) {
+            // (The 3D ground has it all.)
+          } else if (terr === Terrain.WATER) {
             drawSpr(this.sprites.get(`w${variant}.${waterFrame}`, () => waterTileSpec(variant, waterFrame)), wx, wy);
             const mask = rotMask(this.shoreMask(x, y), vt);
             if (mask) drawSpr(this.sprites.get(`sh${mask}`, () => shoreSpec(mask)), wx, wy);
@@ -873,14 +880,14 @@ export class Renderer {
             if (code > 0) drawSpr(this.sprites.get(`g${terr}.${gv}.${code}~${pal.key}`, () => groundBlendSpec(terr, gv, code, pal), pp === null ? null : `g${terr}.${gv}.${code}~${pp}`), wx, wy);
             else drawSpr(this.sprites.get(`g${terr}.${gv}~${pal.key}`, () => groundTileSpec(terr, gv, pal), pp === null ? null : `g${terr}.${gv}~${pp}`), wx, wy);
           }
-          const road = map.road[i];
+          const road = ownGround ? Road.NONE : map.road[i];
           if (road === Road.ROAD) {
             const mask = rotMask(this.roadMask(x, y), vt);
             drawSpr(this.sprites.get(`r${mask}.${variant}`, () => roadSpec(mask, variant)), wx, wy);
           } else if (road === Road.PLAZA) {
             drawSpr(this.sprites.get(`pz${variant & 1}`, () => plazaSpec(variant & 1)), wx, wy);
           }
-          if (map.rubble[i] && !bid) drawSpr(this.sprites.get(`rb${variant}`, () => rubbleSpec(variant)), wx, wy);
+          if (map.rubble[i] && !bid && !ownGround) drawSpr(this.sprites.get(`rb${variant}`, () => rubbleSpec(variant)), wx, wy);
           if (overlayOn && ov.tile) {
             const c = ov.tile(game, i);
             if (c) be.groundFill(wx, wy, c);
@@ -961,7 +968,10 @@ export class Renderer {
     // --- building shadows (on the ground, under every object) --------------
     // Sun shadows fade at night and under a cloudy sky.
     const shadowA = env.sun * (1 - env.overcast * 0.75);
-    if (!overlayOn && shadowA > 0.03) for (const b of visibleBuildings) this.drawBuildingShadow(b, shadowA);
+    // (A building with a 3D model casts its own shadow on the 3D ground: be.modelShadows.)
+    if (!overlayOn && shadowA > 0.03) {
+      for (const b of visibleBuildings) if (!(be.modelShadows && be.hasModel(b.type))) this.drawBuildingShadow(b, shadowA);
+    }
 
     // --- walkers ------------------------------------------------------------
     this.walkerSpots = [];

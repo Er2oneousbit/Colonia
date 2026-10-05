@@ -31,6 +31,9 @@
  *   mute=1         start with sound off
  *   renderer=3d    draw with the WebGL renderer (beta; render3d/), or
  *                  renderer=2d with the Classic one, whatever Settings say
+ *   ground=high    the WebGL renderer's 3D ground at high or low quality, or off
+ *                  (the ground's sprites), or auto (render3d/ground/), whatever
+ *                  Settings say
  *
  * The logger keeps the last 300 lines in memory so the crash screen can offer
  * a "copy error report" button with recent context.
@@ -62,6 +65,7 @@ export function parseFlags(source) {
     events: null,
     mute: false,
     renderer: null,
+    ground: null,
   };
   let params;
   try {
@@ -104,6 +108,9 @@ export function parseFlags(source) {
   const rd = String(get('renderer') ?? '').toLowerCase();
   if (['3d', 'webgl', 'gl'].includes(rd)) flags.renderer = 'webgl';
   else if (['2d', 'classic', 'canvas'].includes(rd)) flags.renderer = 'classic';
+  // The WebGL renderer's ground (null: as Settings say).
+  const gd = String(get('ground') ?? '').toLowerCase();
+  if (['auto', 'high', 'low', 'off'].includes(gd)) flags.ground = gd;
   return flags;
 }
 

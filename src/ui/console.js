@@ -85,6 +85,7 @@ export const CONSOLE_HELP = [
   ['weather <kind>', 'Change the weather now: clear | cloudy | rain | storm | snow'],
   ['snow <0-3>', 'Set the snow lying on the ground (0 none .. 3 deep); it melts again by itself'],
   ['sky <0-1>|off', 'Freeze the time of day (0.3 noon, 0.67 sunset, 0.8 night) or let it run'],
+  ['ground [auto|high|low|off]', 'The WebGL renderer\'s ground: 3D at high or low quality, or flat sprites (off), to compare'],
   ['music [on|off|next]', 'Music status, switch it, or skip to a new piece'],
   ['music tracks', 'List the music tracks (and the moods they play in)'],
   ['music play <track>', 'Play a track now, by name (e.g. music play prima lux)'],
@@ -562,6 +563,17 @@ export class DebugConsole {
         if (!(t >= 0 && t <= 1)) throw new Error('usage: sky <0-1> | off');
         r.fixedTime = t;
         return `Time of day frozen at ${t} (sky off to release).`;
+      }
+      case 'ground': {
+        // The WebGL renderer's ground, for comparing the 3D ground with the sprites while it is in beta.
+        const be = app.renderer.backend;
+        if (be.kind !== 'webgl') return 'The ground is 3D only with the WebGL renderer (Settings > Renderer, or ?renderer=3d).';
+        const mode = (args[0] || '').toLowerCase();
+        if (!mode) return `Ground: ${app.renderer.stats.ground || be.groundMode} (ground auto | high | low | off)`;
+        if (!['auto', 'high', 'low', 'off'].includes(mode)) throw new Error('usage: ground auto | high | low | off');
+        app.flags.ground = mode;
+        app.applyGround();
+        return `Ground: ${be.groundMode}${mode === 'auto' ? ' (auto)' : ''}. Settings > Ground keeps the choice for next time.`;
       }
       case 'music': {
         const mu = app.music;

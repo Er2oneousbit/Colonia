@@ -30,6 +30,9 @@
  * days of snowfall) and melts after, slowly in winter, fast in spring. It is
  * quantized to `coverLevel` 0..3, which seasonPalette() folds into the sprite
  * keys, so white ground, trees and roofs cost no extra draws per frame.
+ * WETNESS (`wet` 0..1, render only, read by the WebGL back end's 3D ground:
+ * darker soil, puddles) soaks in while it rains and dries over some days
+ * after, as snow melting does too.
  * The renderer uses `overcast` to dim the scene (and hide sun shadows),
  * draws rain/snow in screen space with draw(), and adds lightning `flash`.
  * ----------------------------------------------------------------------------
@@ -165,6 +168,8 @@ const EASE = 0.25;
  * in winter, fast once spring comes, faster still in the rain.
  */
 const COVER = Object.freeze({ build: 0.18, meltWinter: 0.03, meltWarm: 0.15, meltRain: 0.12, stillSnowing: 0.3 });
+/** Wetness, per second of game time: soaks in with the rain (full in about 2 s of a downpour), dries in about 15 (some nine days). */
+export const WETNESS = Object.freeze({ soak: 0.5, dry: 0.065 });
 /** Cover at which each snow level starts (levels 1..3), and the hysteresis on the way down. */
 export const SNOW_STEPS = Object.freeze([0.12, 0.45, 0.8]);
 const STEP_HYST = 0.04;
@@ -221,6 +226,7 @@ export class Weather {
   clearCover() {
     this.cover = 0; // snow lying on the ground 0..1 (render only, not saved)
     this.coverLevel = 0; // cover quantized for the art: 0..SNOW_LEVELS
+    this.wet = 0; // how wet the ground is 0..1 (render only, not saved)
   }
 
   /** Pick the next weather for a season. */
@@ -288,8 +294,15 @@ export class Weather {
     // Snow cover builds while it snows and melts after.
     // (It starts to melt as soon as the snowfall thins out.)
     const melt = this.snow > COVER.stillSnowing ? 0 : (season === 'winter' ? COVER.meltWinter : COVER.meltWarm) + COVER.meltRain * this.rain;
+    const coverBefore = this.cover;
     this.cover = Math.max(0, Math.min(1, this.cover + dt * (COVER.build * this.snow - melt)));
     this.coverLevel = coverLevelOf(this.cover, this.coverLevel);
+    // The ground soaks up rain and melting snow, and dries when neither comes.
+    const melting = Math.max(0, coverBefore - this.cover) / Math.max(dt, 1e-6);
+    const soak = Math.min(1, this.rain + melting * 4);
+    this.wet = soak > 0.05
+      ? Math.min(1, this.wet + dt * WETNESS.soak * soak)
+      : Math.max(0, this.wet - dt * WETNESS.dry);
     // Lightning: a flash (sometimes two) every few seconds in a storm.
     this.flash = Math.max(0, this.flash - dt * 4);
     if (this.secondBolt >= 0) {
