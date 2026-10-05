@@ -13,6 +13,13 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.4)
+
+* **Every kind of ground in 3D**: farms now grow on the 3D ground, wheat, vegetables and flax from ploughed to sprouting, growing, ripening and ripe (wheat turns gold, flax flowers blue), stubble while resting in winter and weeds when nobody works them; orchards, olive groves and vineyards hoed round each tree and vine; a pig pen's mud and straw and a ranch's grazed paddock; trodden yards round buildings; worn grass along walls and aqueducts; a burned ruin of ash and charred beams with scorched grass round it, embers while it burns, the snow melted round a fire; native villages' yards and plots. Pasture, meadow and scrub flower in spring, the forest floor is oak leaves, needles and moss turning russet in autumn, beaches are warmer sand, and only the sea has surf. A new tiling hides repeats even at the closest zoom. Frame time unchanged; the 3D ground first appears about half a second later (a longer shader to prepare)
+* The look lab's **Ground types** gallery (Y): 25 labelled cards, every kind of ground and the transitions worth checking, through the seasons, snow, rain and the times of day
+* Headless sim: identical to v0.20.3 on every difficulty
+* 1125 unit tests, 233 browser checks
+
 ## Done (v0.20.3)
 
 * **Textures painted on the graphics card**: every texture of the 3D look (the well's stone, wood, bronze and paving, and the ground's fourteen layers) is now painted by the GPU in well under a second, the same textures as before (on average within a fifth of a shade). The lab opens with its first picture in 1.2 s on a first visit, even in a sandboxed frame where browser storage is blocked (was 4.9 s), and the WebGL renderer's 3D ground first draws at 2.2 s (was 2.75) without a stall. The CPU worker pool and the browser texture cache are gone
