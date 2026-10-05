@@ -106,6 +106,72 @@ export function revolve(profile, { segments = 64, metres = 1, deform = null, tin
   return g;
 }
 
+/**
+ * A profile swept round a rectangle, the way a mason runs a moulding round
+ * a basin or the cap of a pillar: the rectangle's half sizes are `hx` and
+ * `hz`, each profile point [d, y] lies `d` metres outside it (negative:
+ * inside), and the four sides meet in mitres at the corners (each side is
+ * its own strip, so the corners stay sharp). The profile is walked as for
+ * revolve() (up the outside, inward across a top, down the inside), and a
+ * last point at d = -min(hx, hz) closes a solid top. UVs: along each side in
+ * metres (the side's own coordinate), and along the profile.
+ *   deform, tint   as revolve's, with (p, side, i): side 0..3 is +z, +x, -z, -x
+ *   steps          columns along each side (more, for a deform that carves a side: a notch)
+ */
+export function frameSweep(profile, hx, hz, { deform = null, tint = null, steps = 1 } = {}) {
+  const P = profile.length;
+  const arc = [0];
+  for (let i = 1; i < P; i++) arc.push(arc[i - 1] + Math.hypot(profile[i][0] - profile[i - 1][0], profile[i][1] - profile[i - 1][1]));
+  // Each side from one corner to the next, turning as revolve's theta turns (+z, then +x, -z, -x).
+  const sides = [
+    (d) => [[-(hx + d), hz + d], [hx + d, hz + d]],
+    (d) => [[hx + d, hz + d], [hx + d, -(hz + d)]],
+    (d) => [[hx + d, -(hz + d)], [-(hx + d), -(hz + d)]],
+    (d) => [[-(hx + d), -(hz + d)], [-(hx + d), hz + d]],
+  ];
+  const pos = [];
+  const uv = [];
+  const col = [];
+  const idx = [];
+  const p = { x: 0, y: 0, z: 0 };
+  sides.forEach((side, s) => {
+    const base = pos.length / 3;
+    for (let j = 0; j <= steps; j++) {
+      const f = j / steps;
+      for (let i = 0; i < P; i++) {
+        const [d, y] = profile[i];
+        const [a, b] = side(d);
+        const x = a[0] + (b[0] - a[0]) * f;
+        const z = a[1] + (b[1] - a[1]) * f;
+        p.x = x;
+        p.y = y;
+        p.z = z;
+        if (deform) deform(p, s, i);
+        pos.push(p.x, p.y, p.z);
+        // Along the side: x on the z sides, z on the x sides (so the stone's grain runs on round the corner).
+        uv.push(s % 2 === 0 ? p.x : p.z, arc[i]);
+        const t = tint ? tint(p, s, i) : 1;
+        if (typeof t === 'number') col.push(t, t, t);
+        else col.push(t[0], t[1], t[2]);
+      }
+    }
+    for (let j = 0; j < steps; j++) {
+      for (let i = 0; i < P - 1; i++) {
+        const a = base + j * P + i;
+        const b = a + P;
+        idx.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    }
+  });
+  const g = new BufferGeometry();
+  g.setIndex(idx);
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 function writeTint(col, k, t) {
   if (typeof t === 'number') {
     col[k * 3] = t;

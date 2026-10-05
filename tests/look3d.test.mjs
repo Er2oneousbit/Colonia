@@ -29,6 +29,7 @@ import { gnoise, fbm, Field } from '../src/render3d/texgen.js';
 import { revolve, profileOf, block } from '../src/render3d/shapes.js';
 import { LOOK } from '../src/render3d/materials.js';
 import { buildWell, WELL } from '../src/render3d/models/well.js';
+import { buildFountain, FOUNTAIN } from '../src/render3d/models/fountain.js';
 import { gameCamera, sunDirection, MOODS, TILE_M } from '../src/render3d/look.js';
 import { BACK } from '../src/render3d/projection.js';
 import { HALF_W, HALF_H } from '../src/config.js';
@@ -92,6 +93,28 @@ test('look3d: the well fits its tile, stands on the street and keeps its budget'
   assert.ok(puteal.max.x > 0.6 && puteal.max.x < 0.7, 'the curb is about 1.2 m across');
   assert.ok(well.triangles < 70000, `triangles ${well.triangles}`);
   assert.ok(well.meshes.length <= 16, `draw calls ${well.meshes.length}`);
+});
+
+test('look3d: the fountain\'s four looks fit their tile, rise in finery and keep their budgets at each level of detail', () => {
+  const budget = [[16000, 6000, 1500], [16000, 6000, 1500], [32000, 12000, 2500], [48000, 22000, 5000]];
+  let last = 0;
+  for (let tier = 1; tier <= FOUNTAIN.tiers; tier++) {
+    for (let lod = 0; lod < 3; lod++) {
+      const f = buildFountain({ tier, lod });
+      f.group.updateMatrixWorld(true);
+      const box = new Box3().setFromObject(f.group);
+      const half = FOUNTAIN.tile / 2;
+      assert.ok(box.min.x >= -half && box.max.x <= half && box.min.z >= -half && box.max.z <= half, `tier ${tier} lod ${lod} inside its 4 m tile`);
+      assert.ok(f.triangles < budget[tier - 1][lod], `tier ${tier} lod ${lod}: ${f.triangles} triangles`);
+      assert.ok(f.meshes.length <= 20, `tier ${tier} lod ${lod}: ${f.meshes.length} draw calls`);
+      // The water stands a little under the rim, the spout above it.
+      assert.ok(f.spout.y > f.waterY + 0.15, `tier ${tier}: the stream falls into the tank`);
+    }
+    // Each look is a bigger piece of work than the one before (more stone, more carving).
+    const t = buildFountain({ tier, lod: 0 }).triangles;
+    assert.ok(t > last, `tier ${tier} is finer than tier ${tier - 1}`);
+    last = t;
+  }
 });
 
 test('look3d: the game camera draws a tile as the 2D art does, and the sun keeps its place on the screen', () => {

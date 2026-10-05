@@ -419,6 +419,69 @@ const terracotta = {
 };
 
 /**
+ * Lava stone of a plain street fountain's slabs (Pompeii's oldest lacus are
+ * of the grey Vesuvian lava the streets are paved with, cut in big slabs):
+ * dark grey, close grained, small gas bubbles (vesicles) open on the
+ * sawn faces, a few pale leucite specks, and dull: no polish but where
+ * hands and jars wore it, which the model's vertex colours add.
+ */
+const lava = {
+  fields: {
+    noise: { ves: cells(70, 1, 0.95), ves2: cells(150, 2, 0.95), body: fbm(6, 5, 0), grain: fbm(40, 3, 3) },
+    glsl: `
+      float v1 = hash2( int( ves.id ), 1, uSeed ) < 0.05 ? sstep( 0.24, 0.1, ves.f1 * ( 0.7 + hash2( int( ves.id ), 2, uSeed ) * 0.7 ) ) : 0.0;
+      float v2 = hash2( int( ves2.id ), 3, uSeed ) < 0.07 ? sstep( 0.26, 0.12, ves2.f1 ) : 0.0;
+      float hole = max( v1, v2 * 0.8 );
+      return vec4( body * 0.4 + grain * 0.3 - hole * 0.8, hole, 0.0, 0.0 );`,
+  },
+  blur: [2],
+  colour: {
+    noise: { tone: fbm(4, 4, 5), mott: fbm(24, 3, 6) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 5.0 );
+      col = mix( ${rgb('#66625b')}, ${rgb('#57534d')}, sstep( 0.35, 0.7, tone ) );
+      col *= 0.9 + mott * 0.2;
+      float sp = hash2( px.x >> 1, px.y >> 1, uSeed + 4 ) < 0.004 ? 0.45 : 0.0;
+      col = mix( col, ${rgb('#c6c0b2')}, sp );
+      col = mix( col, ${rgb('#2e2b27')}, max( F.y * 0.75, cav * 0.45 ) );
+      orm = vec3( 1.0 - max( F.y * 0.5, cav * 0.5 ), 0.78 + mott * 0.12 + F.y * 0.1, 0.0 );`,
+  },
+  normal: { depth: 0.005 / 1.0 },
+};
+
+/**
+ * White marble of the finer fountains (Luna's, the Carrara quarries the
+ * Romans opened): a warm white with a crystalline sparkle in the
+ * roughness, soft grey veins that wander and branch, faint cloudy tone.
+ * Smooth (honed, not glossy): Roman marble basins were rubbed with sand
+ * and pumice, then worn by use.
+ */
+const marble = {
+  fields: {
+    noise: {
+      warp: fbm(2, 4, 3), cloud: fbm(3, 5, 1), xtal: cells(110, 4, 0.9),
+      vein: ridge(2, 5, 7, { warp: { u: ['warp', 0.6], v: ['warp', 0.35] } }),
+      vein2: ridge(5, 4, 9, { warp: { u: ['warp', 0.3], v: ['warp', 0.5] } }),
+    },
+    glsl: `
+      float v = pow( vein, 14.0 ) * 0.8 + pow( vein2, 24.0 ) * 0.4;
+      return vec4( cloud * 0.25 - v * 0.05, v, hash2( int( xtal.id ), 1, uSeed ), cloud );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { tone: fbm(3, 4, 11) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 8.0 );
+      col = mix( ${rgb('#ece8e0')}, ${rgb('#ddd7cc')}, sstep( 0.4, 0.75, F.w ) * 0.7 );
+      col = mix( col, ${rgb('#f4f1ea')}, sstep( 0.55, 0.35, tone ) * 0.4 );
+      col = mix( col, ${rgb('#9c9a96')}, min( 1.0, F.y ) * 0.4 );
+      col = mix( col, ${rgb('#9a9286')}, cav * 0.4 );
+      orm = vec3( 1.0 - cav * 0.3, 0.3 + F.z * 0.12 + F.y * 0.08, 0.0 );`,
+  },
+  normal: { depth: 0.0012 / 0.9 },
+};
+
+/**
  * Every surface: how much of the world one repeat covers (metres), the
  * texture size, and its recipe; `height`: the paving's mesh is displaced by
  * its low-passed height, read back from the GPU.
@@ -438,6 +501,8 @@ export const SURFACES = Object.freeze({
   wool: { metres: 0.12, size: 128, ...wool },
   ripples: { metres: 1.2, size: 256, ...ripples },
   terracotta: { metres: 0.6, size: 256, ...terracotta },
+  lava: { metres: 1.0, size: 512, ...lava },
+  marble: { metres: 1.6, size: 512, ...marble },
 });
 
 /** The surfaces as one set of recipes (one program paints them all: paint/painter.js). */

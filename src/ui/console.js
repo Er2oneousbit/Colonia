@@ -585,7 +585,8 @@ export class DebugConsole {
         if (!gp) return 'Textures: no 3D ground (the WebGL renderer with ground high or low paints them).';
         const s = painterFor(be.gl).stats;
         const ground = gp.texturesReady ? `ground ${GROUND_LAYERS.length}/${GROUND_LAYERS.length} layers in, ${Math.round(gp.loadMs)} ms after the ground started` : 'ground layers painting';
-        return `Textures: ${ground}; ${s.textures} painted on the GPU by ${s.programs} programs `
+        // (The models' surfaces, render3d/materials.js, are painted by the same painter.)
+        return `Textures: ${ground}; ${s.textures} painted on the GPU (${GROUND_LAYERS.length} ground layers, ${s.textures - GROUND_LAYERS.length} for the models) by ${s.programs} programs `
           + `(compiled in ${Math.round(s.compileMs)} ms, the page busy ${s.submitMs.toFixed(1)} ms sending them).`;
       }
       case 'music': {

@@ -10,8 +10,12 @@
  *   - depth: one measure for sprites and models, a model's points nearer
  *     the higher they are, a walker standing in front of a model in front
  *     of it at every height, ground behind whatever stands on it
- *   - the example model (the well) fits its footprint and art height, and
- *     stays on its footprint at every turn
+ *   - the models (the lab's well and the fountain's four looks, at every
+ *     level of detail) fit their footprint at every turn, turn as the art
+ *     turns, rise out of the ground as a new sprite does; a kit keeps every
+ *     triangle; a fountain's state shows the right parts
+ *   - the fountain's look from its neighbourhood, and its hysteresis
+ *   - the level of detail by the zoom
  *   - the shared sprite placement (render/items.js spriteRect): 1:1 at
  *     whole pixels, stretched strips meeting without gaps
  *   - the live-art boxes hold what the art paints
@@ -29,10 +33,14 @@ import { Camera } from '../src/render/camera.js';
 import { SpriteCache } from '../src/render/sprites.js';
 import { spriteRect, K_WALKER, K_UNIT, K_FIRE, K_EXTRA } from '../src/render/items.js';
 import { aimCamera, groundDepth, standDepth, depthOf, worldPxOf, ART_PX, KAPPA, TILE_LEN } from '../src/render3d/projection.js';
-import { MODELS, hasModel, modelHolder, standModel, disposeModel } from '../src/render3d/models.js';
-import { liveBox } from '../src/render3d/liveBox.js';
-import { TOP, AMBIENT, SUN, SUN_DIR } from '../src/render3d/light.js';
+import { MODELS, hasModel, modelMatrix, partShows, fountainState, TILE_M } from '../src/render3d/models.js';
+import { kitOf } from '../src/render3d/kit.js';
+import { lodFor, LOD0_PX, LOD1_PX, ModelPass } from '../src/render3d/modelPass.js';
+import { Group } from 'three';
+import { fountainTier, tierOf, TIER_FLOORS, HYSTERESIS } from '../src/render3d/fountainTier.js';
+import { triangles } from '../src/render3d/shapes.js';
 import { heightFor } from '../src/render/buildingArt.js';
+import { liveBox } from '../src/render3d/liveBox.js';
 import { parseFlags } from '../src/core/debug.js';
 
 /** A 2D camera over a W x H map at a zoom level, view turn and scroll. */
@@ -117,56 +125,150 @@ test('render3d: a walker in front of a tall model is in front at every height; o
   assert.ok(groundDepth(Yfoot) <= depthOf(21, 0, 21) + 1e-9);
 });
 
-test('render3d: the well model fits its footprint and its art height, and stays on its footprint at every turn', () => {
-  assert.ok(hasModel('well'));
+/** Every look a building can show, as the game asks for them (models.js MODELS[type].build). */
+const LOOKS = [['well', 'well'], ['well', 'well:ice'], ...[1, 2, 3, 4].map((t) => ['fountain', `fountain:${t}`]), ['fountain', 'fountain:4:ice']];
+
+test('render3d: every model fits its tile at every turn and level of detail, standing on the ground', () => {
+  assert.ok(hasModel('well') && hasModel('fountain'));
   assert.ok(!hasModel('house') && !hasModel('toString'), 'only types with a model');
-  for (const snow of [0, 3]) {
-    const S = 1;
-    const m = MODELS.well(S, 0, snow);
-    const box = new Box3().setFromObject(m);
-    assert.ok(box.min.x >= 0 && box.min.z >= 0 && box.max.x <= S && box.max.z <= S, `inside the footprint: ${JSON.stringify(box)}`);
-    assert.ok(box.min.y >= 0 && box.max.y <= heightFor('well', S) * ART_PX, `no taller than its sprite's art (${heightFor('well', S)} px)`);
-    for (let T = 0; T < 4; T++) {
-      const h = modelHolder(m, S);
-      standModel(h, 30, 12, S, T);
-      h.updateMatrixWorld(true);
-      const b = new Box3().setFromObject(h);
-      assert.ok(b.min.x >= 30 - 1e-9 && b.max.x <= 31 + 1e-9 && b.min.z >= 12 - 1e-9 && b.max.z <= 13 + 1e-9, `turn ${T}: ${JSON.stringify(b)}`);
+  const S = 1;
+  for (const [type, key] of LOOKS) {
+    for (let lod = 0; lod < 3; lod++) {
+      const g = MODELS[type].build(key, lod);
+      g.updateMatrixWorld(true);
+      const local = new Box3().setFromObject(g);
+      for (let T = 0; T < 4; T++) {
+        const m = modelMatrix(30, 12, S, T, 0);
+        const b = local.clone().applyMatrix4(m);
+        const e = 1e-6;
+        assert.ok(b.min.x >= 30 - e && b.max.x <= 30 + S + e && b.min.z >= 12 - e && b.max.z <= 12 + S + e, `${key} lod ${lod} turn ${T}: ${JSON.stringify(b)}`);
+        // (Only a pipe or a shaft goes under the street, which the game does not draw.)
+        assert.ok(b.min.y > -0.5 && b.max.y < 0.75, `${key} lod ${lod}: from ${b.min.y} to ${b.max.y} tiles high`);
+      }
     }
-    // Rising out of the ground as a new sprite does (drawn `rise` px lower on the screen): it starts sunk.
-    const h = modelHolder(m, S);
-    standModel(h, 30, 12, S, 0, 14);
-    h.updateMatrixWorld(true);
-    const [, Y0] = worldPxOf(30.5, 0, 12.5);
-    const [, Y1] = worldPxOf(h.position.x, h.position.y, h.position.z);
-    assert.ok(Math.abs(Y1 - (Y0 + 14)) < 1e-9, `14 px lower on the screen: ${Y1 - Y0}`);
-    disposeModel(m);
   }
 });
 
-test('render3d: a model turns as the art turns (u, v) -> (S - v, u) per quarter turn', () => {
-  // A marker at the footprint's (u, v) = (0.2, 0.7) of a 3 x 3 model.
-  const S = 3;
-  const model = MODELS.well(1, 0, 0); // any model will do as a carrier
-  model.position.set(0.2 - 0.5, 0, 0.7 - 0.5); // (the well's middle moved onto the marker)
+test('render3d: a model turns as the art turns (u, v) -> (S - v, u) per quarter turn, and rises out of the ground', () => {
+  // A point of the model 0.8 m toward +x and 1.2 m toward -z of its middle: (0.7, 0.2) of its tile at turn 0.
+  const p0 = [0.8, 0, -1.2];
+  const S = 1;
   const turnUV = (u, v, t) => [[u, v], [S - v, u], [S - u, S - v], [v, S - u]][t];
   for (let T = 0; T < 4; T++) {
-    const h = modelHolder(model, S);
-    standModel(h, 0, 0, S, T);
-    h.updateMatrixWorld(true);
-    const p = new Vector3(0.5, 0, 0.5).applyMatrix4(h.children[0].children[0].matrixWorld);
-    const [u, v] = turnUV(0.2, 0.7, T);
+    const p = new Vector3(...p0).applyMatrix4(modelMatrix(0, 0, S, T));
+    const [u, v] = turnUV(0.5 + p0[0] / TILE_M, 0.5 + p0[2] / TILE_M, T);
     assert.ok(Math.abs(p.x - u) < 1e-9 && Math.abs(p.z - v) < 1e-9, `turn ${T}: (${p.x}, ${p.z}) vs (${u}, ${v})`);
+  }
+  // Rising out of the ground as a new sprite does (drawn `rise` px lower on the screen): it starts sunk.
+  const top = new Vector3(0, 2, 0);
+  const [, Y0] = worldPxOf(...new Vector3().copy(top).applyMatrix4(modelMatrix(30, 12, 1, 0, 0)).toArray());
+  const [, Y1] = worldPxOf(...new Vector3().copy(top).applyMatrix4(modelMatrix(30, 12, 1, 0, 14)).toArray());
+  assert.ok(Math.abs(Y1 - (Y0 + 14)) < 1e-9, `14 px lower on the screen: ${Y1 - Y0}`);
+});
+
+test('render3d: a kit keeps every triangle of its model, one part a material, RGB and RGBA colours apart', () => {
+  for (const [type, key] of LOOKS.slice(0, 6)) {
+    const g = MODELS[type].build(key, 1);
+    let tris = 0;
+    g.traverse((o) => { if (o.isMesh) tris += triangles(o.geometry); });
+    const kit = kitOf(g);
+    assert.equal(kit.triangles, tris, key);
+    const seen = new Set();
+    for (const p of kit.parts) {
+      const k = `${p.material.uuid}|${p.when}|${p.cast}|${p.geometry.attributes.color.itemSize}`;
+      assert.ok(!seen.has(k), `${key}: one part per material and state`);
+      seen.add(k);
+    }
+    // See-through parts after the opaque (three draws them so anyway; the order within is the model's).
+    const firstClear = kit.parts.findIndex((p) => p.material.transparent);
+    assert.ok(firstClear < 0 || kit.parts.slice(firstClear).every((p) => p.material.transparent), key);
   }
 });
 
-test('render3d: the light matches the sprites\' shading (tops x1.15, +v faces x1.0, +u faces x0.8)', () => {
-  const lit = (n) => AMBIENT + SUN * Math.max(0, n[0] * SUN_DIR[0] + n[1] * SUN_DIR[1] + n[2] * SUN_DIR[2]);
-  assert.ok(Math.abs(lit([0, 1, 0]) - 1.15) < 0.01, `top ${lit([0, 1, 0])}`);
-  assert.ok(Math.abs(lit([0, 0, 1]) - 1.0) < 0.01, `+v ${lit([0, 0, 1])}`);
-  assert.ok(Math.abs(lit([1, 0, 0]) - 0.8) < 0.01, `+u ${lit([1, 0, 0])}`);
-  assert.equal(TOP, lit([0, 1, 0]));
-  assert.ok(Math.abs(Math.hypot(...SUN_DIR) - 1) < 1e-12);
+test('render3d: a fountain shows its stream only running, its puddle only dry, icicles only running in a frost', () => {
+  assert.equal(fountainState({ hasWater: true, efficiency: 0.5 }), 'flowing');
+  assert.equal(fountainState({ hasWater: true, efficiency: 0 }), 'still');
+  assert.equal(fountainState({ hasWater: false, efficiency: 1 }), 'dry');
+  const show = (when, state, ice = false) => partShows(when, state, ice);
+  for (const st of ['flowing', 'still', 'dry']) assert.ok(show('always', st));
+  assert.ok(show('flow', 'flowing') && !show('flow', 'still') && !show('flow', 'dry'));
+  assert.ok(show('full', 'flowing') && show('full', 'still') && !show('full', 'dry'));
+  assert.ok(show('dry', 'dry') && !show('dry', 'flowing'));
+  assert.ok(show('ice', 'flowing', true) && !show('ice', 'flowing', false) && !show('ice', 'dry', true));
+  // The model's own parts carry those tags: a stream that runs, a puddle that stays.
+  const g = MODELS.fountain.build('fountain:2', 0);
+  const tags = new Set();
+  g.traverse((o) => { if (o.isMesh) tags.add(`${o.name}:${o.userData.when}`); });
+  for (const t of ['stream:flow', 'water:full', 'puddle:dry', 'icicles:ice', 'stone:always']) assert.ok(tags.has(t), t);
+});
+
+test('render3d: a fountain looks as fine as its neighbourhood, and only changes its look past a margin', () => {
+  // The bands: below 8, 8 to 19, 20 to 36, 37 and up.
+  assert.deepEqual([-40, 0, 7, 8, 19, 20, 36, 37, 100].map(tierOf), [1, 1, 1, 2, 2, 3, 3, 4, 4]);
+  assert.deepEqual(TIER_FLOORS, [8, 20, 37]);
+  // A fountain seen for the first time takes its band.
+  assert.equal(fountainTier(25, null), 3);
+  // Up: past the band's floor by the margin, not before.
+  assert.equal(fountainTier(20, 2), 2);
+  assert.equal(fountainTier(20 + HYSTERESIS - 1, 2), 2);
+  assert.equal(fountainTier(20 + HYSTERESIS, 2), 3);
+  // Down: below its own floor by the margin.
+  assert.equal(fountainTier(19, 3), 3);
+  assert.equal(fountainTier(20 - HYSTERESIS, 3), 3);
+  assert.equal(fountainTier(20 - HYSTERESIS - 1, 3), 2);
+  // A big jump goes straight to where it lands.
+  assert.equal(fountainTier(60, 1), 4);
+  assert.equal(fountainTier(-10, 4), 1);
+  // Wavering about an edge never flickers: from either side it holds its look.
+  for (const start of [2, 3]) {
+    let t = start;
+    for (const d of [18, 21, 19, 22, 20, 18, 22, 19]) {
+      t = fountainTier(d, t);
+      assert.equal(t, start, `held at ${start} through ${d}`);
+    }
+  }
+});
+
+test('render3d: instanced parts keep their draw order as they grow, and a new city forgets the fountains\' tiers', () => {
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  const k = mp.kitFor('fountain:1', 1);
+  const order = () => rig.modelSlot.children.map((im) => im.userData.part);
+  const before = order();
+  // (Three's sorting is off: the water must stay under the rings and foam, kit.js.)
+  const i = k.meshes.findIndex((im) => im.userData.part.when === 'full');
+  mp.grow(k, i, 50);
+  assert.deepEqual(order(), before, 'the grown part keeps its place');
+  assert.ok(k.meshes[i].instanceMatrix.count >= 50);
+  // Tiers are kept by building id: a new map (a new game, a load) starts afresh.
+  const map = (d) => ({ desirability: [d], idx: () => 0 });
+  const r = (m) => ({ game: { map: m }, weather: {}, time: 0 });
+  mp.update(r(map(45)), [], 1);
+  assert.equal(mp.fountainTier({ id: 7, x: 0, y: 0 }), 4);
+  mp.update(r(map(30)), [], 1);
+  assert.equal(mp.fountainTier({ id: 7, x: 0, y: 0 }), 3, 'not the old city\'s nymphaeum');
+  mp.dispose();
+});
+
+test('render3d: the level of detail follows the size of a tile on the screen', () => {
+  // Device px per world px: the game's zoom times the device's pixel ratio.
+  assert.equal(lodFor(LOD0_PX / CONFIG.TILE_W), 0);
+  assert.equal(lodFor((LOD0_PX - 1) / CONFIG.TILE_W), 1);
+  assert.equal(lodFor(LOD1_PX / CONFIG.TILE_W), 1);
+  assert.equal(lodFor((LOD1_PX - 1) / CONFIG.TILE_W), 2);
+  // The game's closest zoom on a high-density screen shows the full models; its farthest on a plain one the simplest.
+  assert.equal(lodFor(2 * 2), 0);
+  assert.equal(lodFor(0.5), 2);
+  let last = 0;
+  for (let k = 4; k > 0.2; k -= 0.05) {
+    assert.ok(lodFor(k) >= last, 'never finer zoomed out');
+    last = lodFor(k);
+  }
+  // Each level is lighter than the one before it.
+  for (const [type, key] of LOOKS) {
+    const t = [0, 1, 2].map((l) => kitOf(MODELS[type].build(key, l)).triangles);
+    assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
+  }
 });
 
 test('render3d: sprites land on whole pixels 1:1, and stretched strips meet without gaps or overlaps', () => {

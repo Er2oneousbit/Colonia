@@ -28,7 +28,7 @@
  *              (warmLook): on a cold GPU cache compiling is most of a start.
  *
  * The sun keeps its place on the SCREEN as the view turns (the 2D art is lit
- * from the upper left at every turn; light.js), so a view turn turns the
+ * from the upper left at every turn), so a view turn turns the
  * sun with the camera.
  * ----------------------------------------------------------------------------
  */

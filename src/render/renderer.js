@@ -1078,6 +1078,8 @@ export class Renderer {
     // --- pass 2: sorted objects --------------------------------------------
     items.sort((a, b) => a.d - b.d || a.kind - b.kind);
     be.items(items);
+    // A building being placed that the back end draws as a 3D model: its ghost is that model.
+    this.placeGhostModels(be);
     // The scene is whole: the WebGL back end copies its picture onto the 2D canvas.
     be.present();
 
@@ -1524,7 +1526,8 @@ export class Renderer {
     if (b.house && b.house.pop > 0 && b.house.tier >= 4 && b.house.tier <= 12 && this.camera.zoom >= 1 && Math.random() < 0.0015) {
       this.effects.smoke(wx + (Math.random() - 0.5) * 8, wy + b.size * HALF_H - 14 - b.size * 10);
     }
-    if (kind === 'fountain' && b.hasWater && b.efficiency > 0 && this.motionOn) {
+    // (A fountain drawn as a 3D model runs its own water: no sprite's spray over it.)
+    if (kind === 'fountain' && b.hasWater && b.efficiency > 0 && this.motionOn && !model) {
       items.push({ d: front + 0.0006, kind: K_EXTRA, b, wx, wy, spray: true });
     }
     // Live details. Flag cloth always (the sprite only has the poles).
@@ -2204,6 +2207,29 @@ export class Renderer {
     }
   }
 
+  /**
+   * The build ghost as a 3D model (the WebGL back end, for a type it draws
+   * as one): each spot of the plan that can be built hands the back end its
+   * footprint, turn and whether it is fine (green) or not (red: no road in
+   * reach); drawToolPreview then leaves the sprite out and keeps the tint
+   * under it. The spots it took are kept in `modelGhosts`.
+   */
+  placeGhostModels(be) {
+    this.modelGhosts = null;
+    const plan = this.plan;
+    if (!plan || plan.kind !== 'building' || !be.ghostModel) return;
+    const type = plan.items[0]?.type || plan.tool;
+    if (!be.hasModel(type)) return;
+    const vt = this.viewTurn;
+    for (const it of plan.items) {
+      if (!it.ok) continue;
+      const S = it.size || 1;
+      const foot = this.footAt(it.x, it.y, S);
+      be.ghostModel({ type: it.type || plan.tool, x: it.x, y: it.y, size: S, T: ((it.turn || 0) + vt) & 3, vx: foot.vx, vy: foot.vy, ok: !it.noRoad, snow: this.pal.snow });
+      (this.modelGhosts ??= new Set()).add(it);
+    }
+  }
+
   /** Construction previews: water hints, ghost building, tile markers, coverage radius. */
   drawToolPreview() {
     const { game, plan } = this;
@@ -2304,9 +2330,12 @@ export class Renderer {
           : this.sprites.get(`b:${type}:${it.size}:0:${st}${tk}${this.snowKey}`, () => buildingSpec(type, it.size, 0, st, true, snow, false, T));
         this.stats.ghostTurn = turn;
         this.fillDiamond(wx, wy, color, it.size);
-        this.ctx.globalAlpha = 0.72;
-        this.blit(spr, wx, wy);
-        this.ctx.globalAlpha = 1;
+        // (Drawn as a 3D model by the WebGL back end: placeGhostModels.)
+        if (!this.modelGhosts || !this.modelGhosts.has(it)) {
+          this.ctx.globalAlpha = 0.72;
+          this.blit(spr, wx, wy);
+          this.ctx.globalAlpha = 1;
+        }
       } else {
         this.fillDiamond(wx, wy, color, it.size);
       }
