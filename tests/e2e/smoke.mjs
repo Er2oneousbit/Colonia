@@ -3741,6 +3741,132 @@ try {
   check('phone: one tap on the title gate starts the menu music', tapped.playing && tapped.mood === 'menu' && !tapped.gate && !tapped.modal, JSON.stringify(tapped));
   await tapPage.close();
 
+  // 8. The WebGL renderer (beta, render3d/), on a browser of its own that is
+  //    told to give WebGL without a GPU (SwiftShader): the demo city draws
+  //    with it, the well as a 3D model, clicks still pick a building (the
+  //    well by its footprint) and a walker, the view turns, a lost WebGL
+  //    context hands the drawing to the Classic renderer until it is back,
+  //    and Settings switches back to Classic.
+  {
+    const glBrowser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+    try {
+      const gp = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+      const gerrors = [];
+      gp.on('pageerror', (e) => gerrors.push(`pageerror: ${e.message}`));
+      gp.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) gerrors.push(m.text()); });
+      await gp.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d`);
+      await gp.waitForFunction(() => window.colonia && window.colonia.game, null, { timeout: 30000 });
+      await gp.evaluate(() => { const app = window.colonia; app.ui.console.run('demo 2'); app.ui.console.run('days 30'); app.paused = true; });
+      // Onto a well, with walkers about.
+      const well = await gp.evaluate(() => {
+        const app = window.colonia;
+        const w = [...app.game.buildings.values()].find((b) => b.type === 'well');
+        app.renderer.camera.zoomIndex = 3;
+        app.renderer.camera.centerOnTile(w.x, w.y);
+        return { id: w.id, x: w.x, y: w.y };
+      });
+      // (The first frames at a new zoom make its sprites and their textures: under a software GL that takes a while.)
+      await gp.waitForFunction(() => window.colonia.renderer.stats.models > 0 && !window.colonia.renderer.stats.pending, null, { timeout: 15000 }).catch(() => {});
+      const drawn = await gp.evaluate(() => {
+        const r = window.colonia.renderer;
+        // Is there a picture? Many colours in a sample of the canvas, not one flat fill.
+        const d = r.ctx.getImageData(0, 0, r.canvas.width, r.canvas.height).data;
+        const seen = new Set();
+        for (let i = 0; i < d.length; i += 4 * 997) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
+        return { backend: r.stats.backend, objects: r.stats.objects, models: r.stats.models, drawCalls: r.stats.drawCalls, textures: r.stats.textures, colours: seen.size };
+      });
+      if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl.png') });
+      check('WebGL renderer: ?renderer=3d draws the city with WebGL', drawn.backend === 'webgl' && drawn.objects > 50 && drawn.drawCalls > 0 && drawn.textures > 20 && drawn.colours > 50, JSON.stringify(drawn));
+      check('WebGL renderer: the well is drawn as a 3D model', drawn.models >= 1, JSON.stringify(drawn));
+      const onPage = (fx, fy) => gp.evaluate(([x, y]) => {
+        const app = window.colonia;
+        const cam = app.renderer.camera;
+        const w = cam.mapToWorld(x, y);
+        const r = app.canvas.getBoundingClientRect();
+        return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+      }, [fx, fy]);
+      // A click on the well (a model: picked by its footprint), at every view turn.
+      const picks = [];
+      for (let t = 0; t < 4; t++) {
+        await gp.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.centerOnTile(v.x, v.y); }, well);
+        await gp.waitForTimeout(150);
+        const p = await onPage(well.x + 0.5, well.y + 0.5);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        picks.push(await gp.evaluate(() => ({ turn: window.colonia.renderer.camera.turn, target: window.colonia.ui.info.target, models: window.colonia.renderer.stats.models, backend: window.colonia.renderer.stats.backend })));
+        if (shots) await gp.screenshot({ path: path.join(shots, `smoke-webgl-turn${t}.png`) });
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        await gp.mouse.move(300, 12);
+        await gp.keyboard.press('q');
+        await gp.waitForTimeout(150);
+      }
+      check('WebGL renderer: at every view turn the well is a model and a click on it opens its panel', picks.every((o, t) => o.turn === t && o.models >= 1 && o.backend === 'webgl' && o.target?.kind === 'building' && o.target.id === well.id), JSON.stringify(picks));
+      // A walker in view, clicked on its body (painted into the frame's live-art texture).
+      await gp.evaluate(() => { const app = window.colonia; app.renderer.camera.zoomIndex = 2; app.game.runDays(1); });
+      await gp.waitForTimeout(300);
+      const walker = await gp.evaluate(() => {
+        const app = window.colonia;
+        const r = app.renderer;
+        const cam = r.camera;
+        const rect = app.canvas.getBoundingClientRect();
+        const g = app.game;
+        const pick = () => {
+          for (const s of r.walkerSpots) {
+            const q = cam.toScreen(s.wx, s.wy - 9);
+            const x = rect.left + q.x / cam.dpr;
+            const y = rect.top + q.y / cam.dpr;
+            if (x < rect.left + 360 || x > rect.right - 40 || y < rect.top + 80 || y > rect.bottom - 120) continue;
+            if (r.pickWalker(x - rect.left, y - rect.top) !== s.id) continue;
+            return { id: s.id, x, y };
+          }
+          return null;
+        };
+        const found = pick();
+        if (found) return found;
+        const w = [...g.walkers.values()].find((v) => g.map.road[g.map.idx(v.x, v.y)] && v.kind === 'roamer');
+        if (w) cam.centerOnTile(w.x, w.y);
+        r.render(0, 0);
+        return pick();
+      });
+      let wpick = null;
+      if (walker) {
+        await gp.mouse.click(walker.x, walker.y);
+        await gp.waitForTimeout(150);
+        wpick = await gp.evaluate(() => ({ target: window.colonia.ui.info.target, ring: window.colonia.renderer.selectedWalker, live: window.colonia.renderer.stats.live }));
+      }
+      check('WebGL renderer: a click on a walker opens its panel', !!walker && wpick.target?.kind === 'walker' && wpick.target.id === walker.id && wpick.ring === walker.id && wpick.live > 0, JSON.stringify({ walker, wpick }));
+      await gp.evaluate(() => window.colonia.ui.info.close());
+      // A lost WebGL context: the Classic renderer draws meanwhile; restored, WebGL again.
+      const lose = await gp.evaluate(() => {
+        const ext = window.colonia.renderer.backend.gl.getContext().getExtension('WEBGL_lose_context');
+        if (!ext) return false;
+        window.__loseExt = ext;
+        ext.loseContext();
+        return true;
+      });
+      await gp.waitForTimeout(400);
+      const during = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
+      if (lose) await gp.evaluate(() => window.__loseExt.restoreContext());
+      await gp.waitForTimeout(600);
+      const after = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, models: window.colonia.renderer.stats.models, drawCalls: window.colonia.renderer.stats.drawCalls }));
+      check('WebGL renderer: a lost context hands the drawing to Classic, and WebGL takes it back when restored', lose && during.backend === '2d' && during.objects > 50 && after.backend === 'webgl' && after.drawCalls > 0, JSON.stringify({ lose, during, after }));
+      // Settings > Renderer: back to Classic, the setting kept.
+      await gp.mouse.move(640, 400);
+      await gp.keyboard.press('Escape'); // the game menu
+      await gp.click('.modal .btn:has-text("Settings")');
+      const shown = await gp.evaluate(() => document.querySelector('select[aria-label="Renderer"]')?.value || null);
+      await gp.selectOption('select[aria-label="Renderer"]', 'classic');
+      await gp.waitForTimeout(300);
+      const switched = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, kind: window.colonia.renderer.backend.kind, setting: window.colonia.settings.renderer, stored: JSON.parse(localStorage.getItem('colonia.settings')).renderer }));
+      await gp.click('.modal .btn:has-text("Done")');
+      check('WebGL renderer: Settings shows it, and switches back to Classic (kept in the settings)', shown === 'webgl' && switched.backend === '2d' && switched.kind === '2d' && switched.setting === 'classic' && switched.stored === 'classic', JSON.stringify({ shown, switched }));
+      check('WebGL renderer: no page errors', gerrors.length === 0, gerrors.join(' | '));
+      await gp.close();
+    } finally {
+      await glBrowser.close();
+    }
+  }
+
   check('no page errors overall', errors.length === 0, errors.join(' | '));
 } finally {
   await browser.close();

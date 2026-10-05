@@ -49,8 +49,9 @@ import {
   WebGLRenderer, Scene, OrthographicCamera, Mesh, BufferGeometry, BufferAttribute, RawShaderMaterial,
   GLSL3, CanvasTexture, DataTexture, LinearFilter, CustomBlending, OneFactor, OneMinusSrcAlphaFactor,
   LessEqualDepth, AmbientLight, DirectionalLight, Vector3, ColorManagement, LinearSRGBColorSpace, DynamicDrawUsage,
-  DoubleSide,
+  DoubleSide, Box2, Vector2,
 } from 'three';
+import { HALF_W, HALF_H, CONFIG } from '../config.js';
 import { K_STRIP, spriteRect } from '../render/items.js';
 import { makeCanvas } from '../render/sprites.js';
 import { MODELS, hasModel, disposeModel, modelHolder, standModel } from './models.js';
@@ -178,6 +179,8 @@ export class WebGLBackend {
     this.atlas = makeCanvas(1, 1);
     this.actx = this.atlas.getContext('2d');
     this.atlasTex = null;
+    this.atlasSrc = null; // the same canvas as a source for uploading part of it (never drawn)
+    this.region = new Box2(new Vector2(), new Vector2());
     this.atlasUsed = 0; // rows painted last frame (cleared before this frame's)
     this.lives = []; // this frame's: { draw, x, y, w, h, cx, cy }
     this.atlasVerts = []; // first vertex of each live quad (its uv is in px until the atlas size is known)
@@ -271,12 +274,8 @@ export class WebGLBackend {
   texOf(spr) {
     let t = this.textures.get(spr);
     if (!t) {
-      t = new CanvasTexture(spr.canvas);
-      t.flipY = false;
-      t.premultiplyAlpha = true; // the canvas's own premultiplied pixels, as drawImage blends them
-      t.generateMipmaps = false;
-      t.minFilter = LinearFilter;
-      t.magFilter = LinearFilter;
+      // (Premultiplied: the canvas's own pixels, blended as drawImage blends them.)
+      t = liveTexture(spr.canvas);
       this.textures.set(spr, t);
     }
     return t;
@@ -389,7 +388,7 @@ export class WebGLBackend {
     const x = (wx - cam.x) * k;
     const y = (wy - cam.y) * k;
     // (The four corners of Renderer.fillDiamond's tile, from the top round.)
-    this.poly([[x, y], [x + 32 * k, y + 16 * k], [x, y + 32 * k], [x - 32 * k, y + 16 * k]], color, -1);
+    this.poly([[x, y], [x + HALF_W * k, y + HALF_H * k], [x, y + CONFIG.TILE_H * k], [x - HALF_W * k, y + HALF_H * k]], color, -1);
   }
 
   groundLive(draw, box) { this.live(draw, box, -1); }
@@ -414,27 +413,28 @@ export class WebGLBackend {
 
   // --------------------------------------------------------------- drawing
 
-  /** Paint the frame's live art into its texture, sized to fit (a new texture when it grows). */
+  /**
+   * Paint the frame's live art into its texture. The canvas only grows (a
+   * new texture then, uploaded whole); otherwise only the rows used this
+   * frame are uploaded (copyTextureToTexture from the canvas, through a
+   * texture that is never drawn): uploading a 2048 px wide canvas whole
+   * every frame was most of a frame's cost under SwiftShader.
+   */
   paintLive() {
     const used = this.lives.length ? this.shelfY + this.shelfH : 0;
     const W = this.atlasW;
-    const H = Math.max(256, Math.ceil(used / 256) * 256);
     const a = this.atlas;
-    if (a.width !== W || a.height < H) {
+    let fresh = false;
+    if (a.width !== W || a.height < used || !this.atlasTex) {
+      let H = 256;
+      while (H < used) H *= 2;
       a.width = W;
       a.height = H;
       if (this.atlasTex) this.atlasTex.dispose();
-      this.atlasTex = null;
+      this.atlasTex = liveTexture(a);
+      this.atlasSrc = liveTexture(a);
       this.atlasUsed = 0;
-    }
-    if (!this.atlasTex) {
-      const t = new CanvasTexture(a);
-      t.flipY = false;
-      t.premultiplyAlpha = true;
-      t.generateMipmaps = false;
-      t.minFilter = LinearFilter;
-      t.magFilter = LinearFilter;
-      this.atlasTex = t;
+      fresh = true;
     }
     const ctx = this.actx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -458,7 +458,7 @@ export class WebGLBackend {
     }
     origin[0] = 0;
     origin[1] = 0;
-    if (this.lives.length) this.atlasTex.needsUpdate = true;
+    if (used && !fresh) this.gl.copyTextureToTexture(this.atlasSrc, this.atlasTex, this.region.set(this.region.min.set(0, 0), this.region.max.set(W, used)));
     // The live quads' texture coordinates were in px: now the size is known.
     const uv = this.uv;
     for (const v0 of this.atlasVerts) {
@@ -586,6 +586,17 @@ export class WebGLBackend {
     this.gl.dispose();
     this.gl.forceContextLoss();
   }
+}
+
+/** A texture of a canvas painted as the 2D canvas paints: premultiplied, top row first, no mipmaps. */
+function liveTexture(canvas) {
+  const t = new CanvasTexture(canvas);
+  t.flipY = false;
+  t.premultiplyAlpha = true;
+  t.generateMipmaps = false;
+  t.minFilter = LinearFilter;
+  t.magFilter = LinearFilter;
+  return t;
 }
 
 /** Stands for the live-art texture in a batch: it is only made, or remade bigger, once the frame's art is all in. */
