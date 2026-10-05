@@ -300,7 +300,11 @@ void groundSurface() {
         float acr = links == 5 ? q.x : q.y;
         float wobR = ( gNoise( p * 3.1 ) - 0.5 ) * 0.03;
         float rut = 0.0;
-        for ( int s = -1; s <= 1; s += 2 ) rut = max( rut, exp( -pow( ( acr - 0.5 - float( s ) * 0.17 + wobR ) / 0.035, 2.0 ) ) );
+        // (Squared by hand: pow() of a negative number is undefined in GLSL, NaN on some GPUs.)
+        for ( int s = -1; s <= 1; s += 2 ) {
+          float k = ( acr - 0.5 - float( s ) * 0.17 + wobR ) / 0.035;
+          rut = max( rut, exp( -k * k ) );
+        }
         rc *= 1.0 - 0.22 * rut;
         rh -= rut * 0.4;
         rr *= 1.0 - 0.15 * rut;
@@ -411,7 +415,8 @@ void groundSurface() {
         vec2 ci = floor( cellP );
         vec2 cf = cellP - ci - 0.5;
         float ph = fract( uGTime * 0.9 + gHash( ci ) );
-        float ring = exp( -pow( ( length( cf ) - ph * 0.45 ) * 30.0, 2.0 ) ) * ( 1.0 - ph ) * uGRain;
+        float rk = ( length( cf ) - ph * 0.45 ) * 30.0;
+        float ring = exp( -rk * rk ) * ( 1.0 - ph ) * uGRain;
         nrm.xy += normalize( cf + 1e-4 ) * ring * 0.4;
       }
     }

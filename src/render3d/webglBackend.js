@@ -603,8 +603,9 @@ export class WebGLBackend {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
       const c = [tileOfWorld(cam.x, cam.y), tileOfWorld(cam.x + vw, cam.y), tileOfWorld(cam.x, cam.y + vh), tileOfWorld(cam.x + vw, cam.y + vh)];
-      gp.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
+      // (Casters first: the fit hides them again when the shadow map is cleared rather than drawn.)
       gp.syncCasters(this.casters);
+      gp.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
       gp.render(this.camera, `${cam.x},${cam.y},${cam.scale},${cam.viewW},${cam.viewH},${cam.turn}`);
     }
     if (models) {

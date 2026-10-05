@@ -483,8 +483,8 @@ function rendererField(app) {
 /**
  * Settings > Ground (WebGL renderer): the 3D ground at high or low quality,
  * or the ground's sprites as the Classic renderer draws them. Auto picks Low
- * on a phone or without a graphics card. The URL's ground= flag gives way
- * once the player picks here.
+ * on a phone or tablet, and the flat ground without a graphics card. The
+ * URL's ground= flag gives way once the player picks here.
  */
 function groundField(app) {
   const s = app.settings;
@@ -498,7 +498,7 @@ function groundField(app) {
         app.applySettings();
       },
     }, [['auto', 'Auto'], ['high', '3D, high quality'], ['low', '3D, low quality'], ['off', 'Flat (as Classic)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
-    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections. Low quality is lighter on phones and computers without a graphics card; Auto picks it there.'));
+    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections. Low quality is lighter for phones and tablets, where Auto picks it; without a graphics card Auto keeps the ground flat, which is faster there.'));
 }
 
 /**

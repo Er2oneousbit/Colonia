@@ -156,6 +156,18 @@ export class GroundPass {
     // The models' lights cast no shadow, so their shaders do not change.)
     gl.shadowMap.enabled = true;
     gl.shadowMap.type = PCFShadowMap;
+    // A ground shader that does not compile on this GPU: the ground's sprites come back (ready
+    // false), rather than a map drawn as the bare background. (three reports it at its first use.)
+    const report = gl.debug.onShaderError;
+    this.shaderErrorWas = report;
+    gl.debug.onShaderError = (ctx, program, vs, fs) => {
+      if (/groundSurface/.test(ctx.getShaderSource(fs) || '')) {
+        this.failed = true;
+        console.warn('3D ground: its shader failed on this GPU; the flat ground is drawn instead.');
+      }
+      if (report) report(ctx, program, vs, fs);
+      else console.error('THREE.WebGLProgram: shader error', ctx.getProgramInfoLog(program));
+    };
     this.steps = []; // [what, ms] of the start-up steps (stats, measuring)
     const t0 = performance.now();
     groundLayers()
@@ -174,8 +186,29 @@ export class GroundPass {
     if (q === this.quality) return;
     this.quality = q;
     this.sun.castShadow = q === 'high';
-    this.warmed = false;
     this.dropGround();
+    this.warmed = false;
+    this.warming = null;
+    this.compiled = false;
+    this.compiling = null;
+    // What the other quality used: Low's kept picture, High's shadow map.
+    if (q !== 'low') this.dropCache();
+    if (q !== 'high' && this.sun.shadow.map) {
+      this.sun.shadow.map.dispose();
+      this.sun.shadow.map = null;
+    }
+  }
+
+  /** Free Low's kept picture and its copy. */
+  dropCache() {
+    if (this.cache) this.cache.dispose();
+    this.cache = null;
+    if (this.blit) {
+      this.blit.mesh.geometry.dispose();
+      this.blit.material.dispose();
+      this.blit = null;
+    }
+    this.cacheDirty = true;
   }
 
   dropGround() {
@@ -185,8 +218,7 @@ export class GroundPass {
     }
     this.ground = null;
     this.map = null;
-    this.compiled = false;
-    this.compiling = null;
+    // (A new map's ground has the same shader, already compiled: no need to compile again.)
     this.cacheDirty = true;
   }
 
@@ -194,6 +226,14 @@ export class GroundPass {
   restored() {
     this.envDirty = true;
     this.cacheDirty = true;
+    // Everything on the GPU is gone: upload the arrays again a frame at a time, compile in the
+    // background again, and draw the shadow map at once (a map with no texture reads as all shadow).
+    this.stage = 0;
+    this.warmed = false;
+    this.warming = null;
+    this.compiled = false;
+    this.compiling = null;
+    this.shadowLive = true;
   }
 
   /**
@@ -327,12 +367,14 @@ export class GroundPass {
       this.root.remove(stand.group);
       stand.dispose();
       tex.dispose();
+      // (A quality changed or the context was lost meanwhile: the next frame warms that up.)
+      if (this.warming !== job) return;
       this.warming = null;
-      // (A quality changed meanwhile: warm that one up too.)
       if (quality === this.quality) this.warmed = true;
       this.steps.push(['warm-up', Math.round(performance.now() - t0)]);
     };
-    this.warming = this.withOutput(() => this.gl.compileAsync(this.scene, camera)).then(done, done);
+    const job = this.withOutput(() => this.gl.compileAsync(this.scene, camera)).then(done, done);
+    this.warming = job;
   }
 
   /**
@@ -342,6 +384,7 @@ export class GroundPass {
    */
   syncCasters(placed) {
     for (const c of this.casters.values()) c.used = 0;
+    if (!this.sun.castShadow) placed = []; // (Low: no shadow map, no copies drawn)
     for (const p of placed) {
       let c = this.casters.get(p.key);
       if (!c) {
@@ -493,13 +536,8 @@ export class GroundPass {
 
   dispose() {
     this.dropGround();
-    if (this.cache) this.cache.dispose();
-    this.cache = null;
-    if (this.blit) {
-      this.blit.mesh.geometry.dispose();
-      this.blit.material.dispose();
-      this.blit = null;
-    }
+    this.dropCache();
+    this.gl.debug.onShaderError = this.shaderErrorWas;
     if (this.tex) this.tex.dispose();
     this.tex = null;
     if (this.env) this.env.dispose();
