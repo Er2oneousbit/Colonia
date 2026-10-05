@@ -414,6 +414,8 @@ async function main() {
   const lp = new Vector3();
   function placeLabels() {
     if (state.scene !== 'types') return;
+    // (In the overview the names only: the notes would cover each other.)
+    labels.classList.toggle('compact', state.overview);
     const cam = state.view === 'orbit' ? persp : ortho;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
