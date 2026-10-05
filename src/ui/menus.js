@@ -453,7 +453,30 @@ export function settingsMenu(app) {
     h('div', { class: 'field' }, h('label', {}, 'Theme'),
       h('select', { onchange: (e) => { s.theme = e.target.value; app.applySettings(); } },
         [['auto', 'Match system'], ['light', 'Marble (light)'], ['dark', 'Basalt (dark)']].map(([k, n]) => h('option', { value: k, selected: s.theme === k }, n)))),
+    rendererField(app),
   ], [h('button', { class: 'btn primary', onclick: () => app.ui.closeModal() }, 'Done')], 'narrow', () => app.ui.closeModal());
+}
+
+/**
+ * Settings > Renderer: the Classic 2D canvas, or WebGL (beta), which draws the
+ * same city with the graphics card and some buildings as 3D models. The URL's
+ * renderer= flag gives way once the player picks here.
+ */
+function rendererField(app) {
+  const s = app.settings;
+  const now = (app.flags.renderer || s.renderer) === 'webgl' ? 'webgl' : 'classic';
+  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, and shows the well as a 3D model, the first of more to come. The Classic renderer stays the default while WebGL is in beta.');
+  return h('div', { class: 'field' }, h('label', {}, 'Renderer'),
+    h('select', {
+      'aria-label': 'Renderer',
+      onchange: (e) => {
+        s.renderer = e.target.value;
+        app.flags.renderer = null;
+        app.applySettings();
+        note.textContent = app.rendererNote || note.textContent;
+      },
+    }, [['classic', 'Classic (2D)'], ['webgl', 'WebGL (beta)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
+    note);
 }
 
 /**
@@ -477,6 +500,7 @@ export function creditsMenu(app) {
     h('p', {}, `${CONFIG.GAME_TITLE} is an original city builder inspired by the classic Roman city-building games of the late 1990s. All art is drawn procedurally in code, the sound effects and music are synthesized live (the music is composed as you play), and all text is original.`),
     h('p', {}, 'Developed with Claude (Anthropic) using Claude Code.'),
     h('p', {}, 'Roman gods, places and history belong to everyone.'),
+    h('p', {}, 'The WebGL renderer (beta) is built on three.js (MIT License, copyright the three.js authors).'),
     h('p', { class: 'muted' }, FOOTER),
   ], [h('button', { class: 'btn primary', onclick: () => app.ui.closeModal() }, 'Close')], 'narrow', () => app.ui.closeModal());
 }
