@@ -52,6 +52,16 @@
  * keys are those of a turn-0 tile of that shape, and a building is drawn with
  * its art turned by `b.turn + view turn` (render/turn.js) at its footprint's
  * view corner (`viewFoot`).
+ *
+ * Back ends: this file works out WHAT to draw (the visible range, the ground
+ * sprites, the depth-sorted items with their sprites and strips, render/
+ * items.js) and hands it to a back end that draws it: the Classic one on the
+ * 2D canvas (canvasBackend.js, the default), or the WebGL one (render3d/
+ * webglBackend.js), which can draw a building as a 3D model. Everything after
+ * the sorted objects (particles, gulls, clouds, the night, the weather, the
+ * signs, tool previews and selection outlines) is drawn here on the 2D
+ * canvas whichever back end drew the scene; the WebGL one copies its picture
+ * onto the 2D canvas first (`present`).
  * ----------------------------------------------------------------------------
  */
 
@@ -85,22 +95,14 @@ import { toView, viewTileOf, viewSize, tileAxes, viewFoot, viewDir, rotMask, rot
 import { spanOrigin } from '../sim/entities.js';
 import { overlayByKey, columnColor } from './overlays.js';
 import { THERMAE_REACH } from '../data/monuments.js';
+import { K_STRIP, K_WALKER, K_FIRE, K_COLUMN, K_EXTRA, K_UNIT, K_PROJ, K_FLAG, K_GATE, spriteRect } from './items.js';
+import { CanvasBackend } from './canvasBackend.js';
 
 /** A fort's or naval station's color: its rally standard and the ghost one while deploying. */
 function forceColor(b) {
   if (b.def.kind === 'station') return UNIT_TYPES.liburnian.color;
   return UNIT_TYPES[b.def.unit]?.color || '#a8322b';
 }
-
-const K_STRIP = 0;
-const K_WALKER = 1;
-const K_FIRE = 2;
-const K_COLUMN = 3;
-const K_EXTRA = 4;
-const K_UNIT = 5;
-const K_PROJ = 6;
-const K_FLAG = 7;
-const K_GATE = 8; // the gateway at the map entrance / exit
 
 /** The build ghost on a spot with no road it could use: the warning color. */
 const NO_ROAD_FILL = 'rgba(245,140,30,0.55)';
@@ -577,6 +579,29 @@ export class Renderer {
     // [dx, dy]): the sim keeps only which way it faces on the unturned
     // screen, so a turned view works its facing out from this (unitFace).
     this.headings = new Map();
+    // Who draws the scene (see the header): the Classic back end, unless
+    // setBackend() gave another. `be` is the one drawing this frame (the
+    // Classic one stands in while another cannot draw: a lost WebGL context).
+    this.canvasBackend = new CanvasBackend(this);
+    this.backend = this.canvasBackend;
+    this.be = this.canvasBackend;
+    // Where live art lands on its canvas, from screen device px: [0, 0] on
+    // the 2D canvas; the WebGL back end paints live art into cells of a
+    // texture and shifts it there (drawExtra's warehouse stock needs it).
+    this.liveOrigin = [0, 0];
+    this.frameInfo = { tick: 0, selFort: 0, motion: true, pal: this.pal };
+  }
+
+  /**
+   * Draw with another back end (render3d/webglBackend.js), or null for the
+   * Classic one. The one replaced is disposed.
+   */
+  setBackend(be) {
+    const next = be || this.canvasBackend;
+    if (next === this.backend) return;
+    if (this.backend !== this.canvasBackend) this.backend.dispose();
+    this.backend = next;
+    this.be = next.ready ? next : this.canvasBackend;
   }
 
   /** The view turn being drawn (0..3, view.js). */
@@ -767,6 +792,11 @@ export class Renderer {
     // Sprites are drawn for the zoom LEVEL; while the zoom eases they are scaled a little.
     const changing = this.palPrev !== null || this.snowPrev !== null;
     this.sprites.beginFrame(cam.spriteScale, changing ? Math.min(this.spriteBudgetMs, this.lookBudgetMs) : this.spriteBudgetMs);
+    // The back end drawing this frame (the Classic one while WebGL cannot).
+    const be = this.backend.ready ? this.backend : this.canvasBackend;
+    this.be = be;
+    this.stats.backend = be.kind;
+    be.begin();
     const { map } = game;
     const ov = this.overlay;
     const overlayOn = ov.key !== 'none';
@@ -804,7 +834,7 @@ export class Renderer {
     const seenBuildings = new Set();
     let tiles = 0;
 
-    const drawSpr = (spr, wx, wy) => this.blit(spr, wx, wy);
+    const drawSpr = (spr, wx, wy) => be.ground(spr, wx, wy);
 
     // --- pass 1: ground -----------------------------------------------------
     // Row by row of the view; (x, y) is the map tile seen at view tile (vx, vy).
@@ -829,7 +859,11 @@ export class Renderer {
               // Sun glints: brief flashes at a fixed spot per tile.
               const h = (Math.imul(i, 40503) >>> 0) % 997;
               const a = Math.sin(this.time * 2.1 + h);
-              if (a > 0.82) drawGlint(ctx, (wx + ((h % 30) - 15) - cam.x) * k, (wy + HALF_H + (((h >> 3) % 12) - 6) - cam.y) * k, k, (a - 0.82) * 4.5);
+              if (a > 0.82) {
+                const gx = (wx + ((h % 30) - 15) - cam.x) * k;
+                const gy = (wy + HALF_H + (((h >> 3) % 12) - 6) - cam.y) * k;
+                be.groundLive((c) => drawGlint(c, gx, gy, k, (a - 0.82) * 4.5), [gx - 3 * k, gy - 2 * k, gx + 3 * k, gy + 2 * k]);
+              }
             }
           } else {
             const gv = map.variant[i] & 7;
@@ -849,7 +883,7 @@ export class Renderer {
           if (map.rubble[i] && !bid) drawSpr(this.sprites.get(`rb${variant}`, () => rubbleSpec(variant)), wx, wy);
           if (overlayOn && ov.tile) {
             const c = ov.tile(game, i);
-            if (c) this.fillDiamond(wx, wy, c);
+            if (c) be.groundFill(wx, wy, c);
           }
         }
         // --- collect objects on this tile ---
@@ -1029,58 +1063,13 @@ export class Renderer {
     // The selected fort's soldiers or naval station's ships are ringed.
     const selKind = this.selectedId ? game.buildings.get(this.selectedId)?.def.kind : null;
     const selFort = selKind === 'fort' || selKind === 'station' ? this.selectedId : 0;
+    this.frameInfo = { tick, selFort, motion, pal };
 
     // --- pass 2: sorted objects --------------------------------------------
     items.sort((a, b) => a.d - b.d || a.kind - b.kind);
-    for (const it of items) {
-      switch (it.kind) {
-        case K_STRIP:
-          if (it.alpha) ctx.globalAlpha = it.alpha;
-          if (it.full) this.blit(it.spr, it.wx, it.wy);
-          else this.blitStrip(it.spr, it.wx, it.wy, it.j, it.n);
-          if (it.alpha) ctx.globalAlpha = 1;
-          break;
-        case K_WALKER:
-          if (it.w.id === this.selectedWalker) this.drawWalkerRing(it);
-          if (it.clipY != null) this.clipBelow(it.clipY);
-          drawWalker(ctx, it.w, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, it.dirX, it.dirY, it.stride, it.origin, it.aim);
-          if (it.clipY != null) ctx.restore();
-          break;
-        case K_FIRE:
-          drawFlames(ctx, (it.wx - cam.x) * k, (it.wy - cam.y) * k, k, this.time, it.seed);
-          break;
-        case K_COLUMN:
-          this.drawColumn(it);
-          break;
-        case K_EXTRA:
-          this.drawExtra(it);
-          break;
-        case K_UNIT:
-          if (it.clipY != null) this.clipBelow(it.clipY);
-          drawUnit(ctx, it.u, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, tick, (selFort !== 0 && (it.u.fort === selFort || it.u.station === selFort)) || it.u.id === this.selectedUnit, it.stride, it.face);
-          if (it.clipY != null) ctx.restore();
-          break;
-        case K_PROJ:
-          drawProjectile(ctx, it.p, (it.wx - cam.x) * k, (it.wy - cam.y) * k, k, it.vel[0], it.vel[1]);
-          break;
-        case K_FLAG: {
-          // The flag being dragged stays where it is, faded, until it is dropped.
-          const dragged = this.flagDrag && this.flagDrag.id === it.id;
-          if (dragged) ctx.globalAlpha = 0.35;
-          const fx = Math.round((it.wx - cam.x) * k);
-          const fy = Math.round((it.wy - cam.y) * k);
-          drawRallyFlag(ctx, fx, fy, k, it.color, this.time);
-          if (it.num) drawStandardNumber(ctx, fx, fy, k, it.num, cam.dpr);
-          if (dragged) ctx.globalAlpha = 1;
-          break;
-        }
-        case K_GATE:
-          drawMapGate(ctx, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, it.ox * k, it.oy * k, it.color, motion ? this.time : 0, it.seed, it.part, pal.snow);
-          break;
-        default:
-          break;
-      }
-    }
+    be.items(items);
+    // The scene is whole: the WebGL back end copies its picture onto the 2D canvas.
+    be.present();
 
     // --- particles (dust, smoke), under the night and the weather ----------
     this.effects.update(dt);
@@ -1375,37 +1364,69 @@ export class Renderer {
    * zoom level) is stretched to fit.
    */
   blit(spr, wx, wy) {
-    const cam = this.camera;
-    const k = cam.scale;
-    if (spr.s === k) {
-      this.ctx.drawImage(spr.canvas, Math.round((wx - cam.x) * k) - spr.ax, Math.round((wy - cam.y) * k) - spr.ay);
-      return;
-    }
-    const f = k / spr.s;
-    this.ctx.drawImage(spr.canvas, (wx - cam.x) * k - spr.ax * f, (wy - cam.y) * k - spr.ay * f, spr.w * f, spr.h * f);
+    const r = spriteRect(spr, wx, wy, this.camera);
+    if (r.exact) this.ctx.drawImage(spr.canvas, r.dx, r.dy);
+    else this.ctx.drawImage(spr.canvas, r.dx, r.dy, r.dw, r.dh);
   }
 
-  /** Draw strip j of n (a vertical slice) of a building sprite; see blit(). */
+  /** Draw strip j of n (a vertical slice) of a building sprite; see blit() and items.js spriteRect. */
   blitStrip(spr, wx, wy, j, n) {
+    const r = spriteRect(spr, wx, wy, this.camera, j, n);
+    if (r) this.ctx.drawImage(spr.canvas, r.sx, 0, r.sw, spr.h, r.dx, r.dy, r.dw, r.dh);
+  }
+
+  /**
+   * Draw one sorted item that is painted live each frame (anything but a
+   * cached sprite: walkers, soldiers, ships, fires, missiles, standards,
+   * gateways, a building's live details, an overlay's columns) onto `ctx`
+   * in screen device px. The Classic back end gives the 2D canvas; the
+   * WebGL one a cell of its texture of live art (with `liveOrigin` set).
+   */
+  drawLive(ctx, it) {
     const cam = this.camera;
     const k = cam.scale;
-    const sx0 = Math.round((j * spr.w) / n);
-    const sx1 = Math.round(((j + 1) * spr.w) / n);
-    if (sx1 <= sx0) return;
-    if (spr.s === k) {
-      const dx = Math.round((wx - cam.x) * k) - spr.ax;
-      const dy = Math.round((wy - cam.y) * k) - spr.ay;
-      this.ctx.drawImage(spr.canvas, sx0, 0, sx1 - sx0, spr.h, dx + sx0, dy, sx1 - sx0, spr.h);
-      return;
+    const { tick, selFort, motion, pal } = this.frameInfo;
+    switch (it.kind) {
+      case K_WALKER:
+        if (it.w.id === this.selectedWalker) this.drawWalkerRing(it, ctx);
+        if (it.clipY != null) this.clipBelow(it.clipY, ctx);
+        drawWalker(ctx, it.w, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, it.dirX, it.dirY, it.stride, it.origin, it.aim);
+        if (it.clipY != null) ctx.restore();
+        break;
+      case K_FIRE:
+        drawFlames(ctx, (it.wx - cam.x) * k, (it.wy - cam.y) * k, k, this.time, it.seed);
+        break;
+      case K_COLUMN:
+        this.drawColumn(it, ctx);
+        break;
+      case K_EXTRA:
+        this.drawExtra(it, ctx);
+        break;
+      case K_UNIT:
+        if (it.clipY != null) this.clipBelow(it.clipY, ctx);
+        drawUnit(ctx, it.u, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, tick, (selFort !== 0 && (it.u.fort === selFort || it.u.station === selFort)) || it.u.id === this.selectedUnit, it.stride, it.face);
+        if (it.clipY != null) ctx.restore();
+        break;
+      case K_PROJ:
+        drawProjectile(ctx, it.p, (it.wx - cam.x) * k, (it.wy - cam.y) * k, k, it.vel[0], it.vel[1]);
+        break;
+      case K_FLAG: {
+        // The flag being dragged stays where it is, faded, until it is dropped.
+        const dragged = this.flagDrag && this.flagDrag.id === it.id;
+        if (dragged) ctx.globalAlpha = 0.35;
+        const fx = Math.round((it.wx - cam.x) * k);
+        const fy = Math.round((it.wy - cam.y) * k);
+        drawRallyFlag(ctx, fx, fy, k, it.color, this.time);
+        if (it.num) drawStandardNumber(ctx, fx, fy, k, it.num, cam.dpr);
+        if (dragged) ctx.globalAlpha = 1;
+        break;
+      }
+      case K_GATE:
+        drawMapGate(ctx, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, it.ox * k, it.oy * k, it.color, motion ? this.time : 0, it.seed, it.part, pal.snow);
+        break;
+      default:
+        break;
     }
-    // Stretched: snap each strip's edges to whole pixels so neighbouring
-    // strips meet exactly (no hairline seams through buildings).
-    const f = k / spr.s;
-    const X = (wx - cam.x) * k - spr.ax * f;
-    const Y = Math.round((wy - cam.y) * k - spr.ay * f);
-    const d0 = Math.round(X + sx0 * f);
-    const d1 = Math.round(X + sx1 * f);
-    if (d1 > d0) this.ctx.drawImage(spr.canvas, sx0, 0, sx1 - sx0, spr.h, d0, Y, d1 - d0, Math.round(spr.h * f));
   }
 
   /** Queue a building's strips (or its overlay stand-in). */
@@ -1447,6 +1468,11 @@ export class Renderer {
     const spr = this.sprites.get(key + this.snowKey, () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T), this.snowPrev === null ? null : key + this.snowPrev);
     if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
     if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
+    // A building the back end draws as a 3D model (render3d/models.js): its
+    // strips are not drawn, but they are still kept for clicks, so a figure
+    // behind it is hidden where its sprite would be (coverDepthAt).
+    // (`be` is missing on a renderer made without its constructor, as some tests do: no model then.)
+    const model = !!this.be?.hasModel(b.type);
     const n = depths.length;
     // Just built: rise out of the ground and fade in (half a second).
     let alpha;
@@ -1464,15 +1490,16 @@ export class Renderer {
     // (Each strip is kept for clicks too: coverDepthAt reads what it painted.)
     if (b.size === 1) {
       const it = { d: front, kind: K_STRIP, spr, wx, wy: wy + rise, full: true, alpha };
-      items.push(it);
+      if (!model) items.push(it);
       this.coverStrips.push(it);
     } else {
       for (let j = 0; j < n; j++) {
         const it = { d: depths[j], kind: K_STRIP, spr, wx, wy: wy + rise, j, n, alpha };
-        items.push(it);
+        if (!model) items.push(it);
         this.coverStrips.push(it);
       }
     }
+    if (model) this.be.model(b, { T, state, snow, vx: foot.vx, vy: foot.vy, rise });
     const kind = b.def.kind;
     if (kind === 'warehouse' || kind === 'granary') {
       items.push({ d: front + 0.0005, kind: K_EXTRA, b, wx, wy, stock: true });
@@ -1636,10 +1663,10 @@ export class Renderer {
    * caller's ctx.restore(): a ship under a bridge's deck, cut off at its
    * far parapet (bridgeProfile.js mastClip).
    */
-  clipBelow(pts) {
-    const { ctx, camera: cam } = this;
+  clipBelow(pts, ctx = this.ctx) {
+    const cam = this.camera;
     const k = cam.scale;
-    const bottom = ctx.canvas.height + 1;
+    const bottom = cam.viewH + 1; // (the screen's bottom edge: the 2D canvas is as tall)
     ctx.save();
     ctx.beginPath();
     for (const p of pts) ctx.lineTo((p.x - cam.x) * k, (p.y - cam.y) * k);
@@ -1678,7 +1705,7 @@ export class Renderer {
   drawBuildingShadow(b, strength = 1) {
     const L = shadowLength(b) * 1.25;
     if (L <= 0.03) return;
-    const { ctx, camera: cam } = this;
+    const cam = this.camera;
     const k = cam.scale;
     const S = b.size;
     // (u, v) from the footprint's view corner: the sun stays where it is on the screen.
@@ -1686,13 +1713,9 @@ export class Renderer {
     const pt = (u, v) => [((X + u - (Y + v)) * HALF_W - cam.x) * k, ((X + u + Y + v) * HALF_H - cam.y) * k];
     for (const [len, alpha] of [[L, 0.14], [L * 0.55, 0.12]]) {
       const dv = len * 0.4;
+      // (Star-shaped from its last point, the footprint's front corner, as back ends' fill() asks.)
       const pts = [pt(S, 0), pt(S + len, dv), pt(S + len, S + dv), pt(len, S + dv), pt(0, S), pt(S, S)];
-      ctx.fillStyle = `rgba(16,22,10,${(alpha * strength).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let q = 1; q < pts.length; q++) ctx.lineTo(pts[q][0], pts[q][1]);
-      ctx.closePath();
-      ctx.fill();
+      this.be.fill(pts, `rgba(16,22,10,${(alpha * strength).toFixed(3)})`);
     }
   }
 
@@ -1874,8 +1897,8 @@ export class Renderer {
   }
 
   /** Fill a tile diamond (world coords of its top corner) with a color. */
-  fillDiamond(wx, wy, color, S = 1) {
-    const { ctx, camera: cam } = this;
+  fillDiamond(wx, wy, color, S = 1, ctx = this.ctx) {
+    const cam = this.camera;
     const k = cam.scale;
     const x = (wx - cam.x) * k;
     const y = (wy - cam.y) * k;
@@ -1906,8 +1929,8 @@ export class Renderer {
     ctx.stroke();
   }
 
-  drawColumn(it) {
-    const { ctx, camera: cam } = this;
+  drawColumn(it, ctx = this.ctx) {
+    const cam = this.camera;
     const k = cam.scale;
     const x = (it.wx - cam.x) * k;
     const y = (it.wy - cam.y) * k;
@@ -1990,8 +2013,8 @@ export class Renderer {
     });
   }
 
-  drawExtra(it) {
-    const { ctx, camera: cam } = this;
+  drawExtra(it, ctx = this.ctx) {
+    const cam = this.camera;
     const k = cam.scale;
     const b = it.b;
     const t = this.motionOn ? this.time : 0; // reduced motion: everything holds still
@@ -2024,12 +2047,13 @@ export class Renderer {
       return;
     }
     if (it.flat) {
-      this.fillDiamond(it.wx, it.wy, it.flat, b.size);
+      this.fillDiamond(it.wx, it.wy, it.flat, b.size, ctx);
       return;
     }
     if (it.stock) {
       ctx.save();
-      ctx.setTransform(k, 0, 0, k, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k));
+      // (liveOrigin: [0, 0] on the 2D canvas, a texture cell's offset under WebGL.)
+      ctx.setTransform(k, 0, 0, k, Math.round((it.wx - cam.x) * k) + this.liveOrigin[0], Math.round((it.wy - cam.y) * k) + this.liveOrigin[1]);
       // (Turned with the building: its own walls drawn again over what they hide.)
       if (b.def.kind === 'warehouse') drawWarehouseStock(ctx, b.stock, T, this.pal.snow);
       else {
@@ -2119,8 +2143,8 @@ export class Renderer {
   }
 
   /** A ring at the feet of the selected walker. */
-  drawWalkerRing(it) {
-    const { ctx, camera: cam } = this;
+  drawWalkerRing(it, ctx = this.ctx) {
+    const cam = this.camera;
     const k = cam.scale;
     const x = Math.round((it.wx - cam.x) * k);
     const y = Math.round((it.wy - cam.y) * k);

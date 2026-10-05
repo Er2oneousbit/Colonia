@@ -25,6 +25,10 @@
  * still missing in `pending`. Once a frame ends with nothing pending, the
  * renderer drops the old look and the next frame shows the new one whole
  * (no patchwork of old and new tiles, no one-frame hitch).
+ *
+ * `onDrop(spr)`, when set, hears of every sprite the cache lets go of (a
+ * zoom level dropped, an old look, a cleared cache): the WebGL back end
+ * keeps a texture per sprite and frees it then.
  * ----------------------------------------------------------------------------
  */
 
@@ -41,6 +45,12 @@ export class SpriteCache {
     this.spentMs = 0;
     this.borrowed = 0; // sprites borrowed from another zoom level this frame
     this.pending = 0; // new-look sprites still missing this frame (their old look was drawn)
+    this.onDrop = null; // (spr) => void: a sprite the cache let go of (see the header)
+  }
+
+  /** Tell onDrop about every sprite of a map about to go. */
+  dropAll(m) {
+    if (this.onDrop) for (const spr of m.values()) this.onDrop(spr);
   }
 
   /** Start a frame: pick the scale and reset the new-sprite time budget. */
@@ -65,12 +75,14 @@ export class SpriteCache {
         if (m === this.current) continue;
         if (victim === null || m.size < this.byScale.get(victim).size) victim = k;
       }
+      this.dropAll(this.byScale.get(victim));
       this.byScale.delete(victim);
     }
   }
 
   /** Drop everything (e.g. after a device pixel ratio change). */
   clear() {
+    for (const m of this.byScale.values()) this.dropAll(m);
     this.byScale.clear();
     this.current = new Map();
     this.byScale.set(this.scale, this.current);
@@ -79,15 +91,21 @@ export class SpriteCache {
   /** Remove sprites whose key starts with a prefix (dynamic art refresh). */
   invalidate(prefix) {
     for (const m of this.byScale.values()) {
-      for (const k of [...m.keys()]) if (k.startsWith(prefix)) m.delete(k);
+      for (const k of [...m.keys()]) if (k.startsWith(prefix)) this.drop(m, k);
     }
   }
 
   /** Remove sprites whose key matches a test (e.g. last season's ground). */
   invalidateWhere(test) {
     for (const m of this.byScale.values()) {
-      for (const k of [...m.keys()]) if (test(k)) m.delete(k);
+      for (const k of [...m.keys()]) if (test(k)) this.drop(m, k);
     }
+  }
+
+  /** Let go of one sprite. */
+  drop(m, key) {
+    if (this.onDrop) this.onDrop(m.get(key));
+    m.delete(key);
   }
 
   /** The same art from the other kept zoom level, or null. */
