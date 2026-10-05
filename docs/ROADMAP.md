@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.13)
+
+* **The sim is layered, with no import cycles**: the toolbox every sim module leaned on, which lived in `military.js` beside the orchestration, moved into leaf modules (`units`, `unitMove`, `combat`, `damage`, `field`, `demand`, `berths`, `forts`, `away`, `vendorNeed`), every function body as it was; `military.js` (2,147 lines, now 1,253) keeps the raids and the per-tick orchestration and imports the rest. The one upward call (a wolf's death counted by the wildlife module) goes through the `unitDied` event. The old modules re-export the moved names for the UI, dev tools and tests. A test (`tests/imports.test.mjs`) now fails on any new cycle, or on a sim module importing through a re-export
+* Headless sim: identical to v0.19.12 on every run (twelve compared, from Easy to the garrison, navy, harbor, monument and games runs)
+* 1083 unit tests, 214 browser checks
+
 ## Done (v0.19.12)
 
 * **A once-over of the code**: nine helpers and tables nothing used are gone (`REQ_LABELS`, `GROWTH_TIERS`, `tileTop`, `asTurned`, `houseLabel`, `legionOnMap`, `barracksStatus`, `coverageWord`, `MONUMENT_TYPE_KEYS`), two unused imports with them, and the three identical `plural` helpers of the UI are one in `ui/dom.js`. Nothing else: no `Math.random` in the sim, no em dashes, no `var`, no `eval`, `innerHTML` only on static text, storage reads guarded
