@@ -56,7 +56,7 @@ Pompeii's streets and fountains). Everything here is made in code: geometry, tex
 <h3>How it is drawn</h3>
 <ul>
 <li>Physically based materials on procedural textures (colour, normal, roughness, occlusion), made at start-up.</li>
-<li>Sky light from a physical sky model, a sun with soft shadow maps, filmic (AgX) tone mapping.</li>
+<li>Sky light from a physical sky model with warm light bounced from the ground, a sun with soft shadow maps, filmic (ACES) tone mapping.</li>
 <li>Screen-space ambient occlusion (GTAO) on the sky's light, bloom on flames, a colour grade, MSAA and SMAA.</li>
 <li>Winter: snow settles by the surface's facing, thicker in nooks; the water freezes.</li>
 </ul>
