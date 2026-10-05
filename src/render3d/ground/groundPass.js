@@ -45,8 +45,10 @@
  * SwiftShader about 450 ms a frame on a 1600 x 900 view, against 75 ms for
  * a plain material, so Auto shows the flat sprites there.)
  *
- * Start-up never stalls the game: the textures are painted in a worker
- * (groundTextures.js), uploaded one array a frame, and the ground's shader
+ * Start-up never stalls the game: the texture arrays hold stand-ins at
+ * once (groundTextures.js) and are uploaded one a frame, the painted layers
+ * (from the browser's cache, or the paint pool's workers) going in a layer
+ * at a time as they come, and the ground's shader
  * (a big one: compiled at its first draw it froze a desktop for 2 s on
  * ANGLE's D3D11) is compiled in the background (compileAsync, the
  * KHR_parallel_shader_compile extension) as soon as the back end starts,
@@ -54,7 +56,8 @@
  * depend on them), so the one frame that still waits on it (ANGLE links
  * the program on the GPU process's own thread: about 0.6 s on that
  * desktop) falls among the start-up's own slow frames. The ground's
- * sprites are drawn until all of it is ready. High keeps the sun's shadow map on always (it
+ * sprites are drawn until the shader is ready (not the painted layers: the
+ * stand-ins do meanwhile). High keeps the sun's shadow map on always (it
  * is only redrawn while a model is in view), so the first well to come into
  * view never asks for another compile.
  * ----------------------------------------------------------------------------
@@ -68,7 +71,8 @@ import {
 import { MOODS, sunDirection, makeSkyParts, skyEnvironment, moodColor } from '../look.js';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
-import { groundLayers, groundArrays } from './groundTextures.js';
+import { groundTextures, groundArrays, liveGroundArrays } from './groundTextures.js';
+import { pruneCache } from '../paint/cache.js';
 import { GROUND_LAYERS } from './groundSurfaces.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
@@ -145,7 +149,7 @@ export class GroundPass {
     this.stateKey = '';
     this.blit = null;
     this.redraws = 0; // pictures drawn into the cache (stats, tests)
-    // Start-up steps once the layers are painted: the three arrays uploaded one a frame, then the compile.
+    // Start-up steps: the three arrays uploaded one a frame (stand-ins and what has come), then the compile.
     this.stage = 0;
     this.compiled = false;
     this.compileMs = 0;
@@ -169,17 +173,24 @@ export class GroundPass {
       else console.error('THREE.WebGLProgram: shader error', ctx.getProgramInfoLog(program));
     };
     this.steps = []; // [what, ms] of the start-up steps (stats, measuring)
+    // The layers: stand-ins at once, painted ones as they come (from the
+    // cache, or the paint pool's workers). The ground is drawn from the
+    // stand-ins as soon as its shader is compiled; it never waits for them.
     const t0 = performance.now();
-    groundLayers()
-      .then((layers) => {
-        this.layers = layers;
-        this.loadMs = performance.now() - t0;
-      })
-      .catch(() => { this.failed = true; });
+    this.layers = groundTextures();
+    this.layers.whenDone.then(() => {
+      this.loadMs = performance.now() - t0;
+      if (!this.loadMs) this.loadMs = 1; // (all there already: a renderer switched off and on)
+      // Textures kept by an older build: free their space now that this one's are in.
+      pruneCache();
+    });
   }
 
-  /** Can the ground be drawn this frame (its textures painted and a map set)? */
-  get ready() { return !!this.layers && !this.failed; }
+  /** Can the ground be drawn (its shader did not fail)? */
+  get ready() { return !this.failed; }
+
+  /** Are all the layers painted and in the arrays? */
+  get texturesReady() { return this.layers.done && (!this.tex || !this.tex.pendingLayers()); }
 
   /** Draw at another quality: the material is remade (the textures are kept) and compiled again in the background. */
   setQuality(q) {
@@ -229,6 +240,8 @@ export class GroundPass {
     // Everything on the GPU is gone: upload the arrays again a frame at a time, compile in the
     // background again, and draw the shadow map at once (a map with no texture reads as all shadow).
     this.stage = 0;
+    // (Layer updates pending from before the loss would make the new upload a partial one.)
+    if (this.tex) this.tex.lost();
     this.warmed = false;
     this.warming = null;
     this.compiled = false;
@@ -248,12 +261,16 @@ export class GroundPass {
     const game = r.game;
     if (!this.tex) {
       const aniso = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
-      this.tex = groundArrays(this.layers, aniso);
+      this.tex = liveGroundArrays(this.layers, aniso);
+      // A painted layer changes what Low's kept picture shows.
+      this.tex.onLayer = () => { this.cacheDirty = true; };
     }
+    // Painted layers that came, a few a frame (each uploads at the next draw).
+    this.tex.flush(4);
     // Upload the arrays one a frame (each with its mipmaps), not all at the first draw.
     if (this.stage < 3) {
       const t0 = performance.now();
-      this.gl.initTexture([this.tex.albedo, this.tex.normal, this.tex.orm][this.stage]);
+      this.tex.upload(this.gl, this.stage);
       this.steps.push([`upload ${this.stage}`, Math.round(performance.now() - t0)]);
       this.stage++;
       return false;

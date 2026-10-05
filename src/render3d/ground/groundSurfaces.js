@@ -25,8 +25,8 @@
  *           plants (the season's colour tints only those: the soil between
  *           the blades stays brown in every month)
  *
- * Pure arithmetic (texgen.js): runs in node:test and in a worker
- * (groundTextures.js).
+ * Pure arithmetic (texgen.js): runs in node:test and in the paint pool's
+ * workers (paint/pool.js).
  * ----------------------------------------------------------------------------
  */
 

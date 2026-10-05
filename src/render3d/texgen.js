@@ -36,7 +36,11 @@ export function artRng(seed) {
   };
 }
 
-const mod = (a, n) => ((a % n) + n) % n;
+/** a mod n, never negative (one division: this runs for every lattice corner of every pixel). */
+const mod = (a, n) => {
+  const m = a % n;
+  return m < 0 ? m + n : m;
+};
 const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 export const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 export const smoothstep = (a, b, x) => {
@@ -55,15 +59,49 @@ export function gnoise(x, y, px, py, seed) {
   const yi = Math.floor(y);
   const fx = x - xi;
   const fy = y - yi;
-  const x0 = mod(xi, px);
+  // Wrapped onto the lattice in integers (a % on doubles is a slow library
+  // call), and only when off it: most samples lie on it already.
+  let x0 = xi | 0;
+  if (x0 < 0 || x0 >= px) {
+    x0 %= px;
+    if (x0 < 0) x0 += px;
+  }
   const x1 = x0 + 1 === px ? 0 : x0 + 1;
-  const y0 = mod(yi, py);
+  let y0 = yi | 0;
+  if (y0 < 0 || y0 >= py) {
+    y0 %= py;
+    if (y0 < 0) y0 += py;
+  }
   const y1 = y0 + 1 === py ? 0 : y0 + 1;
-  const u = fade(fx);
-  const v = fade(fy);
-  const a = lerp(grad(x0, y0, seed, fx, fy), grad(x1, y0, seed, fx - 1, fy), u);
-  const b = lerp(grad(x0, y1, seed, fx, fy - 1), grad(x1, y1, seed, fx - 1, fy - 1), u);
-  return lerp(a, b, v);
+  const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+  const v = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+  // The four corners' gradients, hashed as grad() does, written out: this
+  // is the innermost loop of every texture, and the same arithmetic in the
+  // same order gives the same bits as the calls did.
+  const sx = Math.imul(seed, 0x9e3779b1);
+  const hx0 = Math.imul(x0, 0x27d4eb2d);
+  const hx1 = Math.imul(x1, 0x27d4eb2d);
+  const hy0 = Math.imul(y0, 0x165667b1) ^ sx;
+  const hy1 = Math.imul(y1, 0x165667b1) ^ sx;
+  let h = hx0 ^ hy0;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  let k = ((h ^ (h >>> 13)) >>> 24) * 2;
+  const g00 = GRAD[k] * fx + GRAD[k + 1] * fy;
+  h = hx1 ^ hy0;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  k = ((h ^ (h >>> 13)) >>> 24) * 2;
+  const g10 = GRAD[k] * (fx - 1) + GRAD[k + 1] * fy;
+  h = hx0 ^ hy1;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  k = ((h ^ (h >>> 13)) >>> 24) * 2;
+  const g01 = GRAD[k] * fx + GRAD[k + 1] * (fy - 1);
+  h = hx1 ^ hy1;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  k = ((h ^ (h >>> 13)) >>> 24) * 2;
+  const g11 = GRAD[k] * (fx - 1) + GRAD[k + 1] * (fy - 1);
+  const a = g00 + (g10 - g00) * u;
+  const b = g01 + (g11 - g01) * u;
+  return a + (b - a) * v;
 }
 
 /** 256 unit gradients: a table lookup by hash bits is many times cheaper than a cos and sin per lattice corner. */
@@ -76,15 +114,6 @@ const GRAD = (() => {
   }
   return g;
 })();
-
-/** The gradient at a lattice point dotted with the offset (dx, dy). */
-function grad(ix, iy, seed, dx, dy) {
-  let h = Math.imul(ix, 0x27d4eb2d) ^ Math.imul(iy, 0x165667b1) ^ Math.imul(seed, 0x9e3779b1);
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h ^= h >>> 13;
-  const k = (h >>> 24) * 2;
-  return GRAD[k] * dx + GRAD[k + 1] * dy;
-}
 
 /**
  * Fractal noise at texture coordinates (u, v) in [0, 1): `cells` lattice
@@ -106,6 +135,105 @@ export function fbm(u, v, cells, octaves, seed, gain = 0.5, sx = 1) {
     cv *= 2;
   }
   return 0.5 + (sum / norm) * 0.9;
+}
+
+/**
+ * fbm() at every pixel centre of an n x n texture at once: out[y * n + x]
+ * is fbm((x + 0.5) / n, (y + 0.5) / n, ...), to the last bit (the same
+ * arithmetic in the same order), several times faster: a row's lattice
+ * row, its hashes and its fade are worked out once for the row, and a
+ * corner's gradient once for the run of pixels that share it, where fbm()
+ * per pixel does all of it four times over. For the big recipes, whose
+ * noises are read at the pixel centres (warped or swapped noise is still
+ * fbm() per pixel).
+ */
+export function fbmField(n, cells, octaves, seed, gain = 0.5, sx = 1) {
+  const out = new Float64Array(n * n);
+  let amp = 1;
+  let norm = 0;
+  let cu = Math.max(1, Math.round(cells / sx));
+  let cv = cells;
+  // The u of each column (as fbm's callers make it).
+  const us = new Float64Array(n);
+  for (let x = 0; x < n; x++) us[x] = (x + 0.5) / n;
+  for (let o = 0; o < octaves; o++) {
+    const s = seed + o * 1013;
+    const hs = Math.imul(s, 0x9e3779b1);
+    for (let y = 0; y < n; y++) {
+      const yy = ((y + 0.5) / n) * cv;
+      const yi = Math.floor(yy);
+      const fy = yy - yi;
+      let y0 = yi | 0;
+      if (y0 < 0 || y0 >= cv) {
+        y0 %= cv;
+        if (y0 < 0) y0 += cv;
+      }
+      const y1 = y0 + 1 === cv ? 0 : y0 + 1;
+      const v = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+      const hy0 = Math.imul(y0, 0x165667b1) ^ hs;
+      const hy1 = Math.imul(y1, 0x165667b1) ^ hs;
+      const row = y * n;
+      let lastX = -1;
+      // The gradients at the cell's four corners: (x0, y0), (x1, y0), (x0, y1), (x1, y1).
+      let a0x = 0; let a0y = 0; let b0x = 0; let b0y = 0; let a1x = 0; let a1y = 0; let b1x = 0; let b1y = 0;
+      for (let x = 0; x < n; x++) {
+        const xx = us[x] * cu;
+        const xi = Math.floor(xx);
+        const fx = xx - xi;
+        if (xi !== lastX) {
+          lastX = xi;
+          let x0 = xi | 0;
+          if (x0 < 0 || x0 >= cu) {
+            x0 %= cu;
+            if (x0 < 0) x0 += cu;
+          }
+          const x1 = x0 + 1 === cu ? 0 : x0 + 1;
+          const hx0 = Math.imul(x0, 0x27d4eb2d);
+          const hx1 = Math.imul(x1, 0x27d4eb2d);
+          let h = hx0 ^ hy0;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          let k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          a0x = GRAD[k]; a0y = GRAD[k + 1];
+          h = hx1 ^ hy0;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          b0x = GRAD[k]; b0y = GRAD[k + 1];
+          h = hx0 ^ hy1;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          a1x = GRAD[k]; a1y = GRAD[k + 1];
+          h = hx1 ^ hy1;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          b1x = GRAD[k]; b1y = GRAD[k + 1];
+        }
+        const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+        const g00 = a0x * fx + a0y * fy;
+        const g10 = b0x * (fx - 1) + b0y * fy;
+        const g01 = a1x * fx + a1y * (fy - 1);
+        const g11 = b1x * (fx - 1) + b1y * (fy - 1);
+        const a = g00 + (g10 - g00) * u;
+        const b = g01 + (g11 - g01) * u;
+        out[row + x] += amp * (a + (b - a) * v);
+      }
+    }
+    norm += amp;
+    amp *= gain;
+    cu *= 2;
+    cv *= 2;
+  }
+  for (let i = 0; i < n * n; i++) out[i] = 0.5 + (out[i] / norm) * 0.9;
+  return out;
+}
+
+/** ridge() at every pixel centre at once (as fbmField). */
+export function ridgeField(n, cells, octaves, seed, sx = 1) {
+  const f = fbmField(n, cells, octaves, seed, 0.5, sx);
+  for (let i = 0; i < f.length; i++) {
+    const d = f[i] - 0.5;
+    f[i] = 1 - Math.min(1, Math.abs(d) * 2);
+  }
+  return f;
 }
 
 /** Ridged noise: sharp creases where the noise crosses zero (veins, cracks). 0..1, 1 on the crease. */
@@ -158,7 +286,13 @@ export function voronoi(u, v, cells, seed, jitter, out, sy = 1) {
   }
   // Then the distance to the nearest bisector with any other point: every
   // neighbour of the winning cell can share a border with it.
+  // A border lies at least len / 2 - f1 away (half the gap between the two
+  // points, less how far the pixel is from its own), so a point further
+  // than 2 (edge + f1) cannot bring a nearer border: skipped before its
+  // square root, without changing the answer.
+  const f1 = Math.sqrt(best);
   let edge = 1e9;
+  let far = 1e18;
   for (let j = -2; j <= 2; j++) {
     for (let i = -2; i <= 2; i++) {
       if (i === 0 && j === 0) continue;
@@ -169,16 +303,23 @@ export function voronoi(u, v, cells, seed, jitter, out, sy = 1) {
       const fy = gy + pts[k + 1];
       const dx = fx - bx;
       const dy = fy - by;
-      const len = Math.hypot(dx, dy);
+      const len2 = dx * dx + dy * dy;
+      if (len2 >= far) continue;
+      const len = Math.sqrt(len2);
       if (len < 1e-6) continue;
       const mx = (fx + bx) / 2;
       const my = (fy + by) / 2;
       const d = ((mx - x) * dx + (my - y) * dy) / len;
-      if (d < edge) edge = d;
+      if (d < edge) {
+        edge = d;
+        // (A hair of margin, so rounding never skips a point the exact sums would keep.)
+        const r = Math.max(0, edge + f1) + 1e-7;
+        far = 4 * r * r;
+      }
     }
   }
   out.id = bid;
-  out.f1 = Math.sqrt(best);
+  out.f1 = f1;
   out.edge = edge;
   out.cx = bx;
   out.cy = by;
@@ -187,16 +328,24 @@ export function voronoi(u, v, cells, seed, jitter, out, sy = 1) {
 
 /** Each cell's feature point (offset inside the cell), kept per layout: a recipe asks for the same cells a million times. */
 const POINTS = new Map();
-let lastPts = null;
-let lastArgs = [0, 0, 0, 0];
+/**
+ * The last few layouts asked for, compared by their numbers before any key
+ * is built: a recipe often asks for two or three layouts in turn for every
+ * pixel, which a single "last one" missed every time.
+ */
+const RECENT = [];
+const RECENT_MAX = 6;
 function cellPoints(cx, cy, seed, jitter) {
-  // The same layout is asked for pixel after pixel: compare the numbers before building a key.
-  const la = lastArgs;
-  if (lastPts && la[0] === cx && la[1] === cy && la[2] === seed && la[3] === jitter) return lastPts;
+  for (let i = 0; i < RECENT.length; i++) {
+    const r = RECENT[i];
+    if (r.cx === cx && r.cy === cy && r.seed === seed && r.jitter === jitter) return r.p;
+  }
   const key = `${cx},${cy},${seed},${jitter}`;
   let p = POINTS.get(key);
-  lastArgs = [cx, cy, seed, jitter];
-  if (p) return (lastPts = p);
+  if (p) {
+    remember(cx, cy, seed, jitter, p);
+    return p;
+  }
   p = new Float32Array(cx * cy * 2);
   for (let y = 0; y < cy; y++) {
     for (let x = 0; x < cx; x++) {
@@ -207,8 +356,13 @@ function cellPoints(cx, cy, seed, jitter) {
   }
   if (POINTS.size > 64) POINTS.clear();
   POINTS.set(key, p);
-  lastPts = p;
+  remember(cx, cy, seed, jitter, p);
   return p;
+}
+
+function remember(cx, cy, seed, jitter, p) {
+  RECENT.unshift({ cx, cy, seed, jitter, p });
+  if (RECENT.length > RECENT_MAX) RECENT.pop();
 }
 
 /** A square float field that wraps at its edges. */
@@ -216,6 +370,13 @@ export class Field {
   constructor(size) {
     this.size = size;
     this.data = new Float32Array(size * size);
+  }
+  /** A field on values made elsewhere (a height field sent back from a worker), not copied. */
+  static wrap(size, data) {
+    const f = Object.create(Field.prototype);
+    f.size = size;
+    f.data = data;
+    return f;
   }
   /** Fill from f(u, v, i) with u, v at pixel centres. */
   fill(f) {
@@ -249,12 +410,14 @@ export class Field {
     const n = this.size;
     const tmp = new Float32Array(n * n);
     const w = 2 * r + 1;
+    const d = this.data;
     for (let y = 0; y < n; y++) {
+      const row = y * n;
       let s = 0;
-      for (let k = -r; k <= r; k++) s += this.at(k, y);
+      for (let k = -r; k <= r; k++) s += d[row + mod(k, n)];
       for (let x = 0; x < n; x++) {
-        tmp[y * n + x] = s / w;
-        s += this.at(x + r + 1, y) - this.at(x - r, y);
+        tmp[row + x] = s / w;
+        s += d[row + mod(x + r + 1, n)] - d[row + mod(x - r, n)];
       }
     }
     for (let x = 0; x < n; x++) {
@@ -280,23 +443,31 @@ export function normalMap(field, depth) {
   const n = field.size;
   const out = new Uint8Array(n * n * 4);
   const k = depth * n; // height per px step, in px
+  const d = field.data;
   for (let y = 0; y < n; y++) {
+    // The rows above and below, wrapped (indexed directly: at() per tap was most of the cost).
+    const rt = (y === 0 ? n - 1 : y - 1) * n;
+    const rm = y * n;
+    const rb = (y === n - 1 ? 0 : y + 1) * n;
     for (let x = 0; x < n; x++) {
+      const xl = x === 0 ? n - 1 : x - 1;
+      const xr = x === n - 1 ? 0 : x + 1;
       // Sobel: smoother than a plain difference, so a 1 px pore is not a spike.
-      const tl = field.at(x - 1, y - 1);
-      const t = field.at(x, y - 1);
-      const tr = field.at(x + 1, y - 1);
-      const l = field.at(x - 1, y);
-      const r = field.at(x + 1, y);
-      const bl = field.at(x - 1, y + 1);
-      const b = field.at(x, y + 1);
-      const br = field.at(x + 1, y + 1);
+      const tl = d[rt + xl];
+      const t = d[rt + x];
+      const tr = d[rt + xr];
+      const l = d[rm + xl];
+      const r = d[rm + xr];
+      const bl = d[rb + xl];
+      const b = d[rb + x];
+      const br = d[rb + xr];
       const dx = (tr + 2 * r + br - tl - 2 * l - bl) / 8;
       const dy = (bl + 2 * b + br - tl - 2 * t - tr) / 8;
       let nx = -dx * k;
       let ny = -dy * k;
       let nz = 1;
-      const len = Math.hypot(nx, ny, nz);
+      // (sqrt, not Math.hypot: several times faster, and the two differ only in the last bit.)
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
       nx /= len;
       ny /= len;
       nz /= len;
@@ -331,13 +502,15 @@ const RGB = new Map();
  * sRGB hex to 0..1 sRGB components (colours are mixed in sRGB, as a
  * painter mixes). Kept per hex: recipes name their colours where they use
  * them, inside the pixel loops, and parsing a million times is not free.
- * The array is shared: never change it.
+ * The array is shared: never change it. (Not frozen: a frozen array is
+ * another kind of array to V8, and mixRgb, handed both kinds, ran at a
+ * fraction of its speed.)
  */
 export function rgb(hex) {
   let c = RGB.get(hex);
   if (!c) {
     const v = parseInt(hex.replace('#', ''), 16);
-    c = Object.freeze([((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255]);
+    c = [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
     RGB.set(hex, c);
   }
   return c;

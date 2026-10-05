@@ -32,6 +32,7 @@ import { buildWell, WELL } from '../src/render3d/models/well.js';
 import { gameCamera, sunDirection, MOODS, TILE_M } from '../src/render3d/look.js';
 import { BACK } from '../src/render3d/projection.js';
 import { HALF_W, HALF_H } from '../src/config.js';
+import { bundleTexWorker } from '../scripts/texWorker.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -152,7 +153,7 @@ test('look3d: the game camera draws a tile as the 2D art does, and the sun keeps
   }
 });
 
-test('look3d: the lab builds into one page with nothing to fetch', () => {
+test('look3d: the lab builds into one page with nothing to fetch', async () => {
   const out = path.join(os.tmpdir(), `colonia-lab-test-${process.pid}.html`);
   execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'build.mjs'), '--lab', '--out', out], { stdio: 'pipe' });
   const html = fs.readFileSync(out, 'utf8');
@@ -163,4 +164,8 @@ test('look3d: the lab builds into one page with nothing to fetch', () => {
   assert.doesNotMatch(html, /<link[^>]+href=/, 'no outside stylesheets or fonts');
   assert.ok(!html.includes('<!--LAB_SCRIPT-->'), 'the bundle went in');
   assert.ok(html.length > 300000 && html.length < 3000000, `size ${html.length}`);
+  // The paint pool's worker is inlined, with the recipes' version that keys the texture cache.
+  const { version } = await bundleTexWorker(await import('esbuild'));
+  assert.ok(html.includes(`"${version}"`), 'the recipes\' version is in the page');
+  assert.ok(!/__TEX_WORKER__|__TEX_RECIPES__/.test(html), 'both defines replaced');
 });

@@ -20,7 +20,7 @@
  */
 
 import {
-  Field, MapSet, fbm, ridge, voronoi, hash2, normalMap, cavity, rgb, mixRgb, clamp01, smoothstep, lerp,
+  Field, MapSet, fbm, fbmField, ridge, ridgeField, voronoi, hash2, normalMap, cavity, rgb, mixRgb, clamp01, smoothstep, lerp,
 } from './texgen.js';
 
 /** Scratch cell result for voronoi() (one per recipe call is enough: recipes are synchronous). */
@@ -44,15 +44,17 @@ function limestone(n, seed) {
   const h = new Field(n);
   const c = cell();
   const vein = new Field(n);
-  h.fill((u, v) => {
-    const grain = fbm(u, v, 24, 4, seed + 1);
-    const body = fbm(u, v, 5, 5, seed);
+  // (The noises read at the pixel centres are made a texture at a time: fbmField.)
+  const grain = fbmField(n, 24, 4, seed + 1);
+  const body = fbmField(n, 5, 5, seed);
+  h.fill((u, v, i) => {
     voronoi(u, v, 36, seed + 2, 0.9, c);
     const pit = hash2(c.id, 3, seed) < 0.05 ? smoothstep(0.12, 0.03, c.f1) : 0;
-    return body * 0.45 + grain * 0.45 - pit * 0.6;
+    return body[i] * 0.45 + grain[i] * 0.45 - pit * 0.6;
   });
-  vein.fill((u, v) => {
-    const w = fbm(u, v, 3, 3, seed + 5);
+  const warp = fbmField(n, 3, 3, seed + 5);
+  vein.fill((u, v, i) => {
+    const w = warp[i];
     return Math.pow(ridge(u + w * 0.35, v + w * 0.2, 3, 4, seed + 6), 14);
   });
   const cav = cavity(h, 3, 6);
@@ -62,12 +64,15 @@ function limestone(n, seed) {
   const veinCol = rgb('#a08a66');
   const dirt = rgb('#7a6a50');
   const col = [0, 0, 0];
+  const tone = fbmField(n, 3, 4, seed + 9);
+  const coolN = fbmField(n, 6, 3, seed + 11);
+  const speckN = fbmField(n, 64, 2, seed + 13);
   eachPixel(n, (u, v, i) => {
-    const t = fbm(u, v, 3, 4, seed + 9);
+    const t = tone[i];
     mixRgb(base, warm, smoothstep(0.45, 0.75, t) * 0.8, col);
-    mixRgb(col, cool, smoothstep(0.5, 0.25, fbm(u, v, 6, 3, seed + 11)) * 0.6, col);
+    mixRgb(col, cool, smoothstep(0.5, 0.25, coolN[i]) * 0.6, col);
     mixRgb(col, veinCol, vein.data[i] * 0.45, col);
-    const speck = fbm(u, v, 64, 2, seed + 13);
+    const speck = speckN[i];
     const k = 0.94 + speck * 0.1;
     col[0] *= k; col[1] *= k; col[2] *= k;
     mixRgb(col, dirt, cav.data[i] * 0.45, col);
@@ -94,23 +99,24 @@ function travertine(n, seed) {
     const q = hash2(c.id, 5, seed) < 0.18 ? smoothstep(0.24, 0.06, c.f1) : 0;
     return Math.max(p, q * 0.8);
   });
-  h.fill((u, v, i) => {
-    const band = fbm(u, v, 10, 5, seed, 0.55, 8);
-    const grain = fbm(u, v, 40, 3, seed + 1);
-    return band * 0.35 + grain * 0.3 - pore.data[i] * 0.9;
-  });
+  const strata = fbmField(n, 10, 5, seed, 0.55, 8);
+  const grain = fbmField(n, 40, 3, seed + 1);
+  h.fill((u, v, i) => strata[i] * 0.35 + grain[i] * 0.3 - pore.data[i] * 0.9);
   const cav = cavity(h, 2, 5);
   const a = rgb('#c4ad86');
   const b = rgb('#ad9470');
   const lite = rgb('#d6c8aa');
   const hole = rgb('#806b50');
   const col = [0, 0, 0];
+  const bandN = fbmField(n, 12, 4, seed + 7, 0.5, 10);
+  const liteN = fbmField(n, 4, 3, seed + 8);
+  const grit = fbmField(n, 80, 2, seed + 9);
   eachPixel(n, (u, v, i) => {
-    const band = fbm(u, v, 12, 4, seed + 7, 0.5, 10);
+    const band = bandN[i];
     mixRgb(a, b, smoothstep(0.4, 0.7, band), col);
-    mixRgb(col, lite, smoothstep(0.55, 0.8, fbm(u, v, 4, 3, seed + 8)) * 0.5, col);
+    mixRgb(col, lite, smoothstep(0.55, 0.8, liteN[i]) * 0.5, col);
     mixRgb(col, hole, Math.max(pore.data[i] * 0.6, cav.data[i] * 0.35), col);
-    const g = 0.95 + fbm(u, v, 80, 2, seed + 9) * 0.1;
+    const g = 0.95 + grit[i] * 0.1;
     col[0] *= g; col[1] *= g; col[2] *= g;
     m.set(i, col, 1 - Math.max(pore.data[i] * 0.7, cav.data[i] * 0.4), 0.78 + pore.data[i] * 0.2);
   });
@@ -139,10 +145,16 @@ function basalt(n, seed) {
   // mesh makes every stone a pillow. Joints, arrises and chips are left to
   // the normal map, the occlusion and the colour.
   const plate = new Field(n);
+  // (The noises read at the pixel centres are made a texture at a time: fbmField.)
+  const warpU = fbmField(n, 3, 3, seed + 11);
+  const warpV = fbmField(n, 3, 3, seed + 12);
+  const topN = fbmField(n, 22, 3, seed + 2);
+  const jointN = fbmField(n, 60, 2, seed + 3);
+  const chipN = fbmField(n, 30, 3, seed + 4);
   h.fill((u, v, i) => {
     // Warp the cells a little so the stones come in many sizes and their edges are not ruler-straight.
-    const wu = u + (fbm(u, v, 3, 3, seed + 11) - 0.5) * 0.09;
-    const wv = v + (fbm(u, v, 3, 3, seed + 12) - 0.5) * 0.09;
+    const wu = u + (warpU[i] - 0.5) * 0.09;
+    const wv = v + (warpV[i] - 0.5) * 0.09;
     voronoi(wu, wv, 9, seed, 1.0, c);
     stoneId[i] = c.id;
     edgeF.data[i] = c.edge;
@@ -154,10 +166,10 @@ function basalt(n, seed) {
     plate.data[i] = level;
     // A worn, rounded arris: the stone falls into the joint over 2 to 3 cm.
     const bevel = smoothstep(GROUT, GROUT + 0.035, e);
-    const top = level + (fbm(u, v, 22, 3, seed + 2) - 0.5) * 0.04;
-    const joint = 0.2 + fbm(u, v, 60, 2, seed + 3) * 0.08;
+    const top = level + (topN[i] - 0.5) * 0.04;
+    const joint = 0.2 + jointN[i] * 0.08;
     // Chips knocked out of the arrises.
-    const chip = smoothstep(0.64, 0.8, fbm(u, v, 30, 3, seed + 4)) * (1 - smoothstep(GROUT + 0.03, GROUT + 0.14, e));
+    const chip = smoothstep(0.64, 0.8, chipN[i]) * (1 - smoothstep(GROUT + 0.03, GROUT + 0.14, e));
     return lerp(joint, top, bevel) - chip * 0.2;
   });
   const low = plate.blur(2);
@@ -169,6 +181,9 @@ function basalt(n, seed) {
   const dust = rgb('#8c8172');
   const speck = rgb('#bdb6a8');
   const col = [0, 0, 0];
+  const dustN = fbmField(n, 9, 3, seed + 6);
+  const mottN = fbmField(n, 40, 3, seed + 7);
+  const roughN = fbmField(n, 50, 2, seed + 9);
   eachPixel(n, (u, v, i) => {
     const id = stoneId[i];
     const e = edgeF.data[i];
@@ -178,14 +193,14 @@ function basalt(n, seed) {
     const inJoint = 1 - smoothstep(GROUT * 0.5, GROUT + 0.015, e);
     const wear = smoothstep(GROUT + 0.08, 0.32, e) * (0.6 + r3 * 0.4);
     // Stone: mottled, darker and smoother where polished, dusty near the joints.
-    mixRgb(base, dust, (1 - wear) * 0.18 + fbm(u, v, 9, 3, seed + 6) * 0.1, col);
-    const mott = 0.88 + fbm(u, v, 40, 3, seed + 7) * 0.24;
+    mixRgb(base, dust, (1 - wear) * 0.18 + dustN[i] * 0.1, col);
+    const mott = 0.88 + mottN[i] * 0.24;
     col[0] *= mott; col[1] *= mott; col[2] *= mott;
     const sp = hash2(Math.floor(u * n * 0.5), Math.floor(v * n * 0.5), seed + 8) < 0.005 ? 0.3 : 0;
     mixRgb(col, speck, sp * (1 - inJoint), col);
     mixRgb(col, grit, inJoint, col);
     mixRgb(col, rgb('#3a3632'), cav.data[i] * 0.5, col);
-    const rough = lerp(0.72 - wear * 0.2, 0.95, inJoint) + (fbm(u, v, 50, 2, seed + 9) - 0.5) * 0.08;
+    const rough = lerp(0.72 - wear * 0.2, 0.95, inJoint) + (roughN[i] - 0.5) * 0.08;
     m.set(i, col, 1 - Math.max(inJoint * 0.45, cav.data[i] * 0.6), rough);
   });
   m.normal = normalMap(high, 0.018 / 4.8);
@@ -244,11 +259,19 @@ function cocciopesto(n, seed) {
     return smoothstep(s + 0.0015, s, Math.max(du, dv));
   });
   const crack = new Field(n);
-  crack.fill((u, v) => Math.pow(ridge(u, v, 3, 4, seed + 5), 30) * smoothstep(0.45, 0.6, fbm(u, v, 3, 2, seed + 6)));
+  const crackN = ridgeField(n, 3, 4, seed + 5);
+  const crackMask = fbmField(n, 3, 2, seed + 6);
+  crack.fill((u, v, i) => Math.pow(crackN[i], 30) * smoothstep(0.45, 0.6, crackMask[i]));
+  // The aggregate's cells, kept: the colour reads the same ones.
+  const aggId = new Int32Array(n * n);
+  const aggF1 = new Float64Array(n * n);
+  const mortar = fbmField(n, 10, 4, seed);
   h.fill((u, v, i) => {
     voronoi(u, v, 90, seed + 3, 0.9, c);
+    aggId[i] = c.id;
+    aggF1[i] = c.f1;
     const agg = hash2(c.id, 1, seed) < 0.3 ? smoothstep(0.4, 0.2, c.f1) * 0.25 : 0;
-    return fbm(u, v, 10, 4, seed) * 0.4 + agg + tess.data[i] * 0.15 - crack.data[i] * 0.5;
+    return mortar[i] * 0.4 + agg + tess.data[i] * 0.15 - crack.data[i] * 0.5;
   });
   const cav = cavity(h, 3, 5);
   const red = rgb('#8a5644');
@@ -256,10 +279,10 @@ function cocciopesto(n, seed) {
   const frag = rgb('#7a3e30');
   const white = rgb('#e2ddd0');
   const col = [0, 0, 0];
+  const paleN = fbmField(n, 5, 4, seed + 7);
   eachPixel(n, (u, v, i) => {
-    mixRgb(red, pale, smoothstep(0.45, 0.75, fbm(u, v, 5, 4, seed + 7)) * 0.7, col);
-    voronoi(u, v, 90, seed + 3, 0.9, c);
-    if (hash2(c.id, 2, seed) < 0.25) mixRgb(col, frag, smoothstep(0.42, 0.25, c.f1) * 0.7, col);
+    mixRgb(red, pale, smoothstep(0.45, 0.75, paleN[i]) * 0.7, col);
+    if (hash2(aggId[i], 2, seed) < 0.25) mixRgb(col, frag, smoothstep(0.42, 0.25, aggF1[i]) * 0.7, col);
     mixRgb(col, white, tess.data[i] * 0.9, col);
     mixRgb(col, rgb('#4e3a30'), Math.max(cav.data[i] * 0.6, crack.data[i] * 0.7), col);
     m.set(i, col, 1 - cav.data[i] * 0.5, 0.82 - tess.data[i] * 0.2);
@@ -281,15 +304,17 @@ function plaster(n, seed) {
   const loss = new Field(n);
   const c = cell();
   const H = 4; // metres the texture spans vertically
-  loss.fill((u, v) => {
+  const lossN = fbmField(n, 3, 5, seed + 1);
+  loss.fill((u, v, i) => {
     const y = v * H;
-    const t = fbm(u, v, 3, 5, seed + 1) + smoothstep(1.2, 0.1, y) * 0.12 - smoothstep(2.0, 3.0, y) * 0.05;
+    const t = lossN[i] + smoothstep(1.2, 0.1, y) * 0.12 - smoothstep(2.0, 3.0, y) * 0.05;
     return smoothstep(0.73, 0.745, t);
   });
   const stones = new Int32Array(n * n);
   const stoneE = new Field(n);
+  const skin = fbmField(n, 30, 3, seed + 4);
   h.fill((u, v, i) => {
-    const plasterH = 0.75 + fbm(u, v, 30, 3, seed + 4) * 0.05;
+    const plasterH = 0.75 + skin[i] * 0.05;
     if (loss.data[i] <= 0) return plasterH;
     voronoi(u, v, 22, seed + 2, 0.95, c);
     stones[i] = c.id;
@@ -307,18 +332,25 @@ function plaster(n, seed) {
   const rub = [rgb('#6d655b'), rgb('#5a4c3e'), rgb('#86765c'), rgb('#4a4744'), rgb('#7a5f45')];
   const damp = rgb('#4f4a3c');
   const col = [0, 0, 0];
+  const wobN = fbmField(n, 12, 2, seed + 5);
+  const dadoN = fbmField(n, 6, 4, seed + 6);
+  const creamN = fbmField(n, 5, 4, seed + 7);
+  const fadeN = fbmField(n, 3, 3, seed + 8);
+  // The streaks' noise is read with u and v swapped (stretched down the wall): pixel (x, y) is (y, x) of the field.
+  const streakN = fbmField(n, 40, 3, seed + 9, 0.5, 0.06);
+  const tideN = fbmField(n, 8, 3, seed + 10);
   eachPixel(n, (u, v, i) => {
     const y = v * H;
     // The painted zones, with brushy edges.
-    const wob = (fbm(u, v, 12, 2, seed + 5) - 0.5) * 0.02;
+    const wob = (wobN[i] - 0.5) * 0.02;
     if (y < 0.28 + wob) col.splice(0, 3, ...socle);
-    else if (y < 1.3 + wob) mixRgb(red, rgb('#a4473a'), fbm(u, v, 6, 4, seed + 6) * 0.6, col);
+    else if (y < 1.3 + wob) mixRgb(red, rgb('#a4473a'), dadoN[i] * 0.6, col);
     else if (y < 1.36 + wob) col.splice(0, 3, ...band);
-    else mixRgb(cream, ochre, smoothstep(0.35, 0.75, fbm(u, v, 5, 4, seed + 7)) * 0.6, col);
+    else mixRgb(cream, ochre, smoothstep(0.35, 0.75, creamN[i]) * 0.6, col);
     // Faded by sun: a soft wash of chalky pale over everything painted.
-    mixRgb(col, rgb('#e3d8c6'), 0.08 + fbm(u, v, 3, 3, seed + 8) * 0.12, col);
+    mixRgb(col, rgb('#e3d8c6'), 0.08 + fadeN[i] * 0.12, col);
     // Rain streaks run down from the top.
-    const streak = smoothstep(0.55, 0.8, fbm(v, u, 40, 3, seed + 9, 0.5, 0.06)) * smoothstep(1.2, 3.8, y);
+    const streak = smoothstep(0.55, 0.8, streakN[(i % n) * n + ((i / n) | 0)]) * smoothstep(1.2, 3.8, y);
     mixRgb(col, rgb('#8b7f6c'), streak * 0.25, col);
     // Rubble where the plaster is gone.
     if (loss.data[i] > 0) {
@@ -329,7 +361,7 @@ function plaster(n, seed) {
       mixRgb(col, rc, loss.data[i], col);
     }
     // Rising damp: darker and greener at the foot, with an irregular tide line.
-    const tide = 0.45 + fbm(u, v, 8, 3, seed + 10) * 0.35;
+    const tide = 0.45 + tideN[i] * 0.35;
     mixRgb(col, damp, smoothstep(tide, 0, y) * 0.55, col);
     // The broken edge of the plaster casts a dark rim into the hole.
     const rim = loss.data[i] > 0 && loss.data[i] < 1 ? 1 - Math.abs(loss.data[i] - 0.5) * 2 : 0;
@@ -348,25 +380,31 @@ function wood(n, seed) {
   const m = new MapSet(n);
   const h = new Field(n);
   const ring = new Field(n);
-  ring.fill((u, v) => {
-    const w = fbm(u, v, 4, 3, seed, 0.5, 0.15);
+  const bend = fbmField(n, 4, 3, seed, 0.5, 0.15);
+  ring.fill((u, v, i) => {
+    const w = bend[i];
     const r = Math.sin((u * 26 + w * 3.5) * Math.PI * 2);
     return r * 0.5 + 0.5;
   });
   const check = new Field(n);
-  check.fill((u, v) => Math.pow(ridge(u, v, 6, 3, seed + 3, 0.08), 40) * smoothstep(0.45, 0.65, fbm(u, v, 3, 2, seed + 4)));
-  h.fill((u, v, i) => ring.data[i] * 0.25 + fbm(u, v, 60, 3, seed + 1, 0.5, 0.1) * 0.35 - check.data[i] * 0.8);
+  const checkN = ridgeField(n, 6, 3, seed + 3, 0.08);
+  const checkMask = fbmField(n, 3, 2, seed + 4);
+  check.fill((u, v, i) => Math.pow(checkN[i], 40) * smoothstep(0.45, 0.65, checkMask[i]));
+  const grainN = fbmField(n, 60, 3, seed + 1, 0.5, 0.1);
+  h.fill((u, v, i) => ring.data[i] * 0.25 + grainN[i] * 0.35 - check.data[i] * 0.8);
   const cav = cavity(h, 2, 6);
   const grey = rgb('#7f705f');
   const brown = rgb('#5e4836');
   const dark = rgb('#3a2e24');
   const col = [0, 0, 0];
+  const greyN = fbmField(n, 5, 3, seed + 6);
+  const fibN = fbmField(n, 120, 2, seed + 7, 0.5, 0.05);
   eachPixel(n, (u, v, i) => {
-    mixRgb(brown, grey, 0.15 + fbm(u, v, 5, 3, seed + 6) * 0.45, col);
+    mixRgb(brown, grey, 0.15 + greyN[i] * 0.45, col);
     const late = smoothstep(0.6, 0.95, ring.data[i]);
     mixRgb(col, dark, late * 0.3, col);
     mixRgb(col, dark, Math.max(check.data[i] * 0.9, cav.data[i] * 0.5), col);
-    const fib = 0.92 + fbm(u, v, 120, 2, seed + 7, 0.5, 0.05) * 0.16;
+    const fib = 0.92 + fibN[i] * 0.16;
     col[0] *= fib; col[1] *= fib; col[2] *= fib;
     m.set(i, col, 1 - Math.max(check.data[i] * 0.7, cav.data[i] * 0.4), 0.82 + late * 0.08);
   });
@@ -437,20 +475,24 @@ function earth(n, seed) {
     return hash2(c.id, 1, seed) < 0.28 ? smoothstep(0.42, 0.18, c.f1 * (0.7 + hash2(c.id, 2, seed) * 0.6)) : 0;
   });
   const crack = new Field(n);
-  crack.fill((u, v) => {
+  const crackMask = fbmField(n, 4, 2, seed + 3);
+  crack.fill((u, v, i) => {
     voronoi(u, v, 9, seed + 2, 0.8, c);
-    return smoothstep(0.03, 0.0, c.edge) * smoothstep(0.5, 0.65, fbm(u, v, 4, 2, seed + 3));
+    return smoothstep(0.03, 0.0, c.edge) * smoothstep(0.5, 0.65, crackMask[i]);
   });
-  h.fill((u, v, i) => fbm(u, v, 6, 5, seed) * 0.5 + peb.data[i] * 0.45 - crack.data[i] * 0.3);
+  const ground = fbmField(n, 6, 5, seed);
+  h.fill((u, v, i) => ground[i] * 0.5 + peb.data[i] * 0.45 - crack.data[i] * 0.3);
   const cav = cavity(h, 3, 4);
   const soil = rgb('#7a6142');
   const dry = rgb('#98805a');
   const dampC = rgb('#5a4630');
   const stones = [rgb('#8d8577'), rgb('#a39079'), rgb('#6b655c'), rgb('#b0a38c')];
   const col = [0, 0, 0];
+  const dryN = fbmField(n, 4, 4, seed + 4);
+  const dampN = fbmField(n, 3, 3, seed + 5);
   eachPixel(n, (u, v, i) => {
-    mixRgb(soil, dry, smoothstep(0.4, 0.7, fbm(u, v, 4, 4, seed + 4)), col);
-    mixRgb(col, dampC, smoothstep(0.55, 0.75, fbm(u, v, 3, 3, seed + 5)) * 0.5, col);
+    mixRgb(soil, dry, smoothstep(0.4, 0.7, dryN[i]), col);
+    mixRgb(col, dampC, smoothstep(0.55, 0.75, dampN[i]) * 0.5, col);
     if (peb.data[i] > 0) mixRgb(col, stones[Math.floor(hash2(pebId[i], 3, seed) * 4)], peb.data[i], col);
     mixRgb(col, rgb('#3e3027'), Math.max(cav.data[i] * 0.6, crack.data[i] * 0.5), col);
     m.set(i, col, 1 - cav.data[i] * 0.6, 0.93 - peb.data[i] * 0.15);
@@ -533,11 +575,15 @@ function terracotta(n, seed) {
   return m;
 }
 
-/** Every surface: how much of the world one repeat covers (metres), the texture size, and its recipe. */
+/**
+ * Every surface: how much of the world one repeat covers (metres), the
+ * texture size, its recipe, and whether it keeps its height field (`height`:
+ * the paving's mesh is displaced by it).
+ */
 export const SURFACES = Object.freeze({
   limestone: { metres: 0.8, size: 512, make: limestone },
   travertine: { metres: 1.0, size: 512, make: travertine },
-  basalt: { metres: 4.8, size: 1024, make: basalt },
+  basalt: { metres: 4.8, size: 1024, make: basalt, height: true },
   tufa: { metres: 1.0, size: 256, make: tufa },
   cocciopesto: { metres: 2.0, size: 512, make: cocciopesto },
   plaster: { metres: 4.0, size: 1024, make: plaster },
@@ -552,20 +598,33 @@ export const SURFACES = Object.freeze({
 });
 
 /**
- * Make a surface's maps (seeded by its name unless a seed is given).
- * `scale` shrinks the texture (0.5: a quarter of the pixels and of the
- * time, for a phone); the pattern is the same, only less sharp.
+ * A surface's texture size at `scale` (0.125 in the tests: the pattern is
+ * the same, only less sharp), never under 32 px.
  */
-export function makeSurface(name, seed, scale = 1) {
+export function surfaceSize(name, scale = 1) {
   const s = SURFACES[name];
   if (!s) throw new Error(`Unknown surface: ${name}`);
-  let k = seed;
-  if (k === undefined) {
-    k = 0;
-    for (let i = 0; i < name.length; i++) k = (k * 31 + name.charCodeAt(i)) | 0;
-  }
-  const maps = s.make(Math.max(32, Math.round(s.size * scale)), k);
+  return Math.max(32, Math.round(s.size * scale));
+}
+
+/** The seed a surface is painted with: a hash of its name. */
+function nameSeed(name) {
+  let k = 0;
+  for (let i = 0; i < name.length; i++) k = (k * 31 + name.charCodeAt(i)) | 0;
+  return k;
+}
+
+/** Make a surface's maps, `size` px square, seeded by its name unless a seed is given. */
+export function makeSurfaceAt(name, size, seed = nameSeed(name)) {
+  const s = SURFACES[name];
+  if (!s) throw new Error(`Unknown surface: ${name}`);
+  const maps = s.make(size, seed);
   maps.metres = s.metres;
   return maps;
+}
+
+/** Make a surface's maps at `scale` of its size (seeded by its name unless a seed is given). */
+export function makeSurface(name, seed, scale = 1) {
+  return makeSurfaceAt(name, surfaceSize(name, scale), seed === undefined ? nameSeed(name) : seed);
 }
 

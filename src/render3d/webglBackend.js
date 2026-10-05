@@ -635,7 +635,10 @@ export class WebGLBackend {
     st.liveDropped = this.dropped;
     st.liveTexture = `${this.atlas.width}x${this.atlas.height}`;
     st.ground = this.groundPass ? (this.drawsGround ? this.groundMode : this.groundPass.failed ? 'failed' : 'loading') : 'off';
+    // (The ground draws from its stand-ins before this: groundMs is when the last painted layer came.)
     st.groundMs = this.groundPass ? Math.round(this.groundPass.loadMs) : 0;
+    st.groundTexReady = this.groundPass ? this.groundPass.texturesReady : false;
+    st.groundTexCached = this.groundPass ? this.groundPass.layers.cached : 0;
     st.groundRedraws = this.groundPass ? this.groundPass.redraws : 0;
     st.groundCompileMs = this.groundPass ? Math.round(this.groundPass.compileMs) : 0;
     st.groundSteps = this.groundPass ? this.groundPass.steps : null;

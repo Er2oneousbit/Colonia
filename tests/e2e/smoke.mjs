@@ -3901,6 +3901,14 @@ try {
         return { well: { id: w.id, x: w.x, y: w.y }, open };
       });
       await gq.waitForFunction(() => window.colonia.renderer.stats.ground === 'low', null, { timeout: 60000 }).catch(() => {});
+      // The ground draws from stand-ins at once; its painted layers come from the paint pool's
+      // workers (each one redraws Low's kept picture, so wait for all before judging a still view).
+      await gq.waitForFunction(() => window.colonia.renderer.stats.groundTexReady, null, { timeout: 60000 }).catch(() => {});
+      const painted = await gq.evaluate(() => {
+        const r = window.colonia.renderer;
+        return { ready: r.stats.groundTexReady, cached: r.stats.groundTexCached, layers: r.backend.groundPass.layers.count, out: window.colonia.ui.console.run('textures') };
+      });
+      check('3D ground: its texture layers are painted in the workers and all go in', painted.ready === true && painted.layers === 14 && /14\/14 layers in/.test(painted.out), JSON.stringify(painted));
       await gq.waitForTimeout(500);
       const lowDrawn = await gq.evaluate(() => {
         const r = window.colonia.renderer;
