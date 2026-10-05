@@ -35,7 +35,8 @@ import { spriteRect, K_WALKER, K_UNIT, K_FIRE, K_EXTRA } from '../src/render/ite
 import { aimCamera, groundDepth, standDepth, depthOf, worldPxOf, ART_PX, KAPPA, TILE_LEN } from '../src/render3d/projection.js';
 import { MODELS, hasModel, modelMatrix, partShows, fountainState, TILE_M } from '../src/render3d/models.js';
 import { kitOf } from '../src/render3d/kit.js';
-import { lodFor, LOD0_PX, LOD1_PX } from '../src/render3d/modelPass.js';
+import { lodFor, LOD0_PX, LOD1_PX, ModelPass } from '../src/render3d/modelPass.js';
+import { Group } from 'three';
 import { fountainTier, tierOf, TIER_FLOORS, HYSTERESIS } from '../src/render3d/fountainTier.js';
 import { triangles } from '../src/render3d/shapes.js';
 import { heightFor } from '../src/render/buildingArt.js';
@@ -226,6 +227,27 @@ test('render3d: a fountain looks as fine as its neighbourhood, and only changes 
       assert.equal(t, start, `held at ${start} through ${d}`);
     }
   }
+});
+
+test('render3d: instanced parts keep their draw order as they grow, and a new city forgets the fountains\' tiers', () => {
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  const k = mp.kitFor('fountain:1', 1);
+  const order = () => rig.modelSlot.children.map((im) => im.userData.part);
+  const before = order();
+  // (Three's sorting is off: the water must stay under the rings and foam, kit.js.)
+  const i = k.meshes.findIndex((im) => im.userData.part.when === 'full');
+  mp.grow(k, i, 50);
+  assert.deepEqual(order(), before, 'the grown part keeps its place');
+  assert.ok(k.meshes[i].instanceMatrix.count >= 50);
+  // Tiers are kept by building id: a new map (a new game, a load) starts afresh.
+  const map = (d) => ({ desirability: [d], idx: () => 0 });
+  const r = (m) => ({ game: { map: m }, weather: {}, time: 0 });
+  mp.update(r(map(45)), [], 1);
+  assert.equal(mp.fountainTier({ id: 7, x: 0, y: 0 }), 4);
+  mp.update(r(map(30)), [], 1);
+  assert.equal(mp.fountainTier({ id: 7, x: 0, y: 0 }), 3, 'not the old city\'s nymphaeum');
+  mp.dispose();
 });
 
 test('render3d: the level of detail follows the size of a tile on the screen', () => {
