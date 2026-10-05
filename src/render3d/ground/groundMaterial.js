@@ -544,6 +544,9 @@ const FRAG_AO = /* glsl */ `
   float nv = saturate( dot( normal, geometryViewDir ) );
   vec3 sky = uGSkyColor * uGSkyRefl * ( 0.02 + 0.98 * pow( 1.0 - nv, 5.0 ) ) * 4.0;
   reflectedLight.indirectSpecular = mix( reflectedLight.indirectSpecular, sky, gSpecBoost );
+  // The moon's (or a low sun's) sharp highlights on every ripple bloomed into a starfield: open
+  // water takes the light's direct gloss by the glitter's strength (uGSun: 0 at night).
+  reflectedLight.directSpecular *= mix( 1.0, 0.25 + 0.75 * uGSun, gSpecBoost );
 }
 `;
 
