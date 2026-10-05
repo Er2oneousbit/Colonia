@@ -45,21 +45,17 @@
  * SwiftShader about 450 ms a frame on a 1600 x 900 view, against 75 ms for
  * a plain material, so Auto shows the flat sprites there.)
  *
- * Start-up never stalls the game: the texture arrays hold stand-ins at
- * once (groundTextures.js) and are uploaded one a frame, the painted layers
- * (from the browser's cache, or the paint pool's workers) going in a layer
- * at a time as they come, and the ground's shader
- * (a big one: compiled at its first draw it froze a desktop for 2 s on
- * ANGLE's D3D11) is compiled in the background (compileAsync, the
- * KHR_parallel_shader_compile extension) as soon as the back end starts,
- * on a stand-in ground with placeholder textures (the program does not
- * depend on them), so the one frame that still waits on it (ANGLE links
- * the program on the GPU process's own thread: about 0.6 s on that
- * desktop) falls among the start-up's own slow frames. The ground's
- * sprites are drawn until the shader is ready (not the painted layers: the
- * stand-ins do meanwhile). High keeps the sun's shadow map on always (it
- * is only redrawn while a model is in view), so the first well to come into
- * view never asks for another compile.
+ * Start-up never stalls the game: the texture arrays are painted on the
+ * GPU (groundTextures.js, paint/painter.js: their programs compiled in the
+ * background, the 14 layers then sent in one go, about 12 ms of the page's
+ * time), and the ground's shader (a big one: compiled at its first draw it
+ * froze a desktop for 2 s on ANGLE's D3D11) is compiled in the background
+ * too (compileAsync, the KHR_parallel_shader_compile extension) as soon as
+ * the back end starts, on a stand-in ground on the same arrays (the program
+ * does not depend on their pixels). The ground's sprites are drawn until
+ * both are ready. High keeps the sun's shadow map on always (it is only
+ * redrawn while a model is in view), so the first well to come into view
+ * never asks for another compile.
  * ----------------------------------------------------------------------------
  */
 

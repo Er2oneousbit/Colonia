@@ -22,6 +22,10 @@
  *              the 2D art's angle (render3d/projection.js: 30 degrees down,
  *              turned 45) at a game zoom, in metres (a tile is 4 m), turned
  *              by quarter turns as the view turns.
+ *   Warm-up    look.warm(): every program a frame needs (the sky's light,
+ *              the scene's materials, the post chain, the shadow maps)
+ *              compiled at once in the background before the first frame
+ *              (warmLook): on a cold GPU cache compiling is most of a start.
  *
  * The sun keeps its place on the SCREEN as the view turns (the 2D art is lit
  * from the upper left at every turn; light.js), so a view turn turns the

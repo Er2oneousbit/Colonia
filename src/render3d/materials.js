@@ -21,7 +21,17 @@
  *     the height of the vertex in the blade).
  *
  * Uniforms in LOOK.uniforms are shared by every material (one update moves
- * them all); per-material numbers sit in each material's own uniforms.
+ * them all); per-material numbers sit in each material's own uniforms
+ * (how much snow sticks, how wet it gets, how far it sways), never in
+ * defines: every program costs a few hundred milliseconds to make on
+ * ANGLE's D3D11 (it is most of a cold start), so materials that differ only
+ * in numbers share one. A plain material takes 1 x 1 maps (PLAIN), water
+ * and ice the same features: the well's street is three programs (the
+ * stone and everything opaque, the water, the instanced grass), plus the
+ * flame's.
+ *
+ * The surfaces' textures are painted on the GPU (paint/painter.js) as soon
+ * as the look's renderer exists.
  * ----------------------------------------------------------------------------
  */
 

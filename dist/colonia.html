@@ -5776,6 +5776,7 @@ uniform highp sampler2DArray uOrm;
 uniform vec2 uMapSize;
 uniform float uScale[${fs.length}];
 uniform float uGTime;
+// Always 0: a loop bound the compiler cannot know, so it keeps the loop (see the header).
 uniform int uGZero;
 uniform float uGSnow;
 uniform float uGWet;

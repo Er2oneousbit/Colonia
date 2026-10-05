@@ -39,7 +39,11 @@
  * the shader reads the type map at the map tile under the pixel whatever
  * the view turn. Textures are sampled with textureGrad and derivatives
  * taken once at the top: the kind loop branches per pixel, and implicit
- * derivatives inside such branches are undefined.
+ * derivatives inside such branches are undefined. The value noises are
+ * computed in three batches (NOISE_BATCHES) of one loop each, whose bound
+ * the compiler cannot see (uGZero), so the noise's code is in the program
+ * three times instead of some forty: ANGLE's D3D compiler unrolls a loop
+ * whose bound it knows, and the copies were half the shader's compile.
  * ----------------------------------------------------------------------------
  */
 
@@ -122,6 +126,7 @@ uniform highp sampler2DArray uOrm;
 uniform vec2 uMapSize;
 uniform float uScale[${GROUND_LAYERS.length}];
 uniform float uGTime;
+// Always 0: a loop bound the compiler cannot know, so it keeps the loop (see the header).
 uniform int uGZero;
 uniform float uGSnow;
 uniform float uGWet;
