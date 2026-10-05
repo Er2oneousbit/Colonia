@@ -33,6 +33,9 @@ Thumbs.db
 # Artifact variant of the build (regenerate with: npm run build -- --artifact)
 dist/colonia.artifact.html
 
+# The look lab's page (regenerate with: node scripts/build.mjs --lab)
+dist/colonia-lab.html
+
 # NOTE: dist/colonia.html IS committed on purpose, so players can download
 # and double-click it without installing anything. Rebuild with `npm run build`.
 

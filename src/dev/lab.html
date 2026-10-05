@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Colonia Look Lab</title>
+<meta name="description" content="The look lab for Colonia's 3D art: a Roman public well in its street, lit and finished as the game's 3D look will be.">
+<style>
+:root {
+  --bg: #12100d;
+  --panel: rgba(24, 21, 17, 0.78);
+  --panel-solid: #1b1814;
+  --line: rgba(255, 240, 215, 0.14);
+  --text: #f1e8d8;
+  --muted: #b6aa94;
+  --accent: #d8a24a;
+  --accent-text: #1b1408;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0b09;
+    --panel: rgba(18, 16, 13, 0.8);
+    --panel-solid: #15130f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0b09;
+  --panel: rgba(18, 16, 13, 0.8);
+  --panel-solid: #15130f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+#app { position: fixed; inset: 0; }
+canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.hud { position: absolute; left: 16px; top: 12px; right: 16px; pointer-events: none; display: flex; flex-direction: column; gap: 4px; }
+.hud h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: 0.02em; text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+.stats { font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8); white-space: pre-wrap; }
+.bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; pointer-events: none; }
+.group { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; pointer-events: auto; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.group button { appearance: none; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px;
+  padding: 8px 11px; min-height: 36px; cursor: pointer; white-space: nowrap; }
+.group button + button { border-left: 1px solid var(--line); }
+.group button:hover { background: rgba(255,255,255,0.06); }
+.group button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.group button kbd { font: 11px ui-monospace, monospace; opacity: 0.6; margin-left: 4px; }
+.info { position: absolute; right: 16px; top: 12px; width: min(420px, calc(100% - 32px)); max-height: calc(100% - 120px);
+  overflow: auto; background: var(--panel-solid); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 16px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+.info.open { display: block; }
+.info h2 { margin: 0 0 6px; font-size: 15px; }
+.info h3 { margin: 12px 0 4px; font-size: 13px; color: var(--accent); }
+.info p, .info li { margin: 0 0 6px; color: var(--text); font-size: 13px; }
+.info ul { margin: 0; padding-left: 18px; }
+.info .close { float: right; appearance: none; border: 1px solid var(--line); background: transparent; color: var(--text);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; font: inherit; }
+.loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: var(--bg); color: var(--muted); font-size: 13px; }
+.loading .track { width: min(320px, 70vw); height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.loading .fill { height: 100%; width: 0; background: var(--accent); transition: width 0.15s; }
+.loading.done { display: none; }
+@media (max-width: 560px) {
+  .group button { padding: 8px 9px; font-size: 12px; }
+  .group button kbd { display: none; }
+  .hud h1 { font-size: 14px; }
+  .stats { font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<noscript><p style="padding:16px">The look lab needs JavaScript and WebGL 2.</p></noscript>
+<!--LAB_SCRIPT-->
+</body>
+</html>
