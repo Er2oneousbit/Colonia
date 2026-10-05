@@ -186,7 +186,10 @@ export function updateServiceSpawns(game, b) {
   const w = spawnWalker(game, def.walker, b.accessRoad, b, init);
   if (w) {
     b.roamDir = ((b.roamDir || 0) + 1) % 4;
-    startRoaming(game, w, b.roamDir);
+    // The Great Arena's performers walk farther than its walker type does
+    // elsewhere (data/buildings.js `roam`); the walker carries what is left
+    // of his round in roamLeft, which saves keep.
+    if (startRoaming(game, w, b.roamDir) && def.roam) w.roamLeft = def.roam;
   }
   b.spawnTimer = def.spawnDays;
 }

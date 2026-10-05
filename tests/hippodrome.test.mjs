@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIG } from '../src/config.js';
-import { BUILDINGS, VENUE_POINTS, ENT_BASE_MAX, ENT_SEATS_MAX } from '../src/data/buildings.js';
+import { BUILDINGS, VENUE_POINTS, ENT_BASE_MAX, ENT_SEATS_MAX, ARENA_ENT_BONUS } from '../src/data/buildings.js';
 import { WALKER_TYPES } from '../src/data/walkers.js';
 import { checkBuilding, planAction, applyPlan, undoLast, rebuildPlan } from '../src/sim/construction.js';
 import { linkedGroup, computeAccessRoad } from '../src/sim/entities.js';
@@ -209,10 +209,12 @@ test('entertainment: a working hippodrome seats the whole city (+6 to every home
     }
   }
   updateEntertainmentBase(game);
-  assert.equal(game.city.entBase, 26);
+  // 26 from the seats and the races, and the staffed Great Arena's flat 5 after the cap.
+  assert.equal(game.city.entBase, ENT_BASE_MAX + ARENA_ENT_BONUS);
+  assert.equal(ENT_BASE_MAX + ARENA_ENT_BONUS, 31);
   main.efficiency = 0;
   updateEntertainmentBase(game);
-  assert.equal(game.city.entBase, 20, 'unstaffed: back to the three seat kinds');
+  assert.equal(game.city.entBase, 20 + ARENA_ENT_BONUS, 'unstaffed: back to the three seat kinds (and the Arena)');
 });
 
 test('entertainment: a home the charioteer passed gets 30, and the top score is 116', () => {

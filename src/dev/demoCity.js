@@ -30,6 +30,8 @@ import { BUILDINGS } from '../data/buildings.js';
 import { deployFort, recallFort } from '../sim/military.js';
 import { holdFestival, festivalBlocked, festivalTempleBlocked, festivalMeans, festivalNeeds, SMALL_TOWN } from '../sim/religion.js';
 import { GOD_KEYS } from '../data/gods.js';
+import { GAME_KINDS } from '../data/games.js';
+import { gamesBlocked, gamesCost, holdGames } from '../sim/games.js';
 import { FOOD_TYPES } from '../data/goods.js';
 
 /** Undo records of the builds made inside the current attempt() (null outside one). */
@@ -330,6 +332,24 @@ export function holdDemoFestival(game) {
   const after = festivalMeans(game).food - festivalNeeds(game, 0).food + market;
   if (after < c.population * CONFIG.FOOD_PER_PERSON_MONTH) return null;
   return holdFestival(game, god, 0).ok ? god : null;
+}
+
+/**
+ * The demo city's games (simulate.mjs --games, at the start of every month):
+ * Ludi and Circenses whenever each can be held (sim/games.js gamesBlocked:
+ * the cooldown, a staffed venue with shows, the money), at the best venue
+ * for each. A free-spending player, for measuring what games add at most.
+ * Draws no random numbers.
+ * @returns {{kind:string, cost:number}[]} the games held this month and what each cost
+ */
+export function holdDemoGames(game) {
+  const held = [];
+  for (const kind of GAME_KINDS) {
+    if (gamesBlocked(game, kind)) continue;
+    const cost = gamesCost(game, kind);
+    if (holdGames(game, kind).ok) held.push({ kind, cost });
+  }
+  return held;
 }
 
 /**

@@ -112,7 +112,7 @@
  */
 
 import { CONFIG } from '../config.js';
-import { BUILDINGS, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_BOTH_SHOWS, VENUE_SEATS, VENUE_SUPPLIERS, ENT_BASE_MAX, ENT_SEATS_MAX, ENT_SEAT_KINDS } from '../data/buildings.js';
+import { BUILDINGS, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_BOTH_SHOWS, VENUE_SEATS, VENUE_SUPPLIERS, ENT_BASE_MAX, ENT_SEATS_MAX, ENT_SEAT_KINDS, ARENA_ENT_BONUS } from '../data/buildings.js';
 import { HOUSE_TIERS } from '../data/housing.js';
 import { FOOD_TYPES, houseGoodUse } from '../data/goods.js';
 import { GOD_KEYS } from '../data/gods.js';
@@ -241,10 +241,12 @@ function trainerOf(keys, performer) {
  * Entertainment a home gets from a set of venue kinds, all visiting it: their
  * points, the both-shows bonus where both performers can be trained, and the
  * seat base (sim/entertainment.js: the average seat coverage over EVERY venue
- * kind, over 5) at `seatShare` coverage of each kind in the set.
+ * kind, over 5) at `seatShare` coverage of each kind in the set, and the
+ * Great Arena's flat ARENA_ENT_BONUS when the set has one (it is staffed).
  */
 function entertainmentOf(keys, set, seatShare = 1) {
   let score = Math.min(ENT_SEATS_MAX, Math.floor((set.length * seatShare * 100) / ENT_SEAT_KINDS / 5));
+  if (set.includes('colosseum')) score += ARENA_ENT_BONUS;
   for (const v of set) {
     score += VENUE_POINTS[v];
     if (bothShows(keys, v)) score += VENUE_BOTH_BONUS[v] || 0;
@@ -324,6 +326,12 @@ export function peoplePerTile(t) {
 
 /** Home tiles one building of `key` serves with its roaming walker. */
 function walkerReach(key, perStreetTile = HOMES_PER_STREET_TILE) {
+  // The walker type's round, not a building's own: the Great Arena's
+  // performers walk 52 in the game (data/buildings.js `roam`), but counting
+  // that here plans half the Arenas and lowers missions 5 to 10's job
+  // ceilings by 400 to 1,100 people (the sensible column of --capacity),
+  // which moves the campaign's goal checks. Left at 26 until the goals are
+  // looked at again.
   const roam = WALKER_TYPES[BUILDINGS[key].walker]?.roam ?? CONFIG.DEFAULT_ROAM;
   return roam * perStreetTile;
 }

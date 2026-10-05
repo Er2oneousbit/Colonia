@@ -440,5 +440,5 @@ test('save: a version 31 city loads with marble at 0 in homes and markets, and g
   const before = JSON.stringify([...fresh.buildings.values()].map((b) => (b.house ? b.house.goods : b.stock || null)));
   upgradeMarbleV31(fresh);
   assert.equal(JSON.stringify([...fresh.buildings.values()].map((b) => (b.house ? b.house.goods : b.stock || null))), before);
-  assert.equal(CONFIG.SAVE_VERSION, 32);
+  assert.ok(CONFIG.SAVE_VERSION >= 32, 'marble came with version 32');
 });

@@ -30,7 +30,9 @@
 import { h, mount, fmt, pct, bar, kv } from './dom.js';
 import { openMessage, clickHint } from './messages.js';
 import { CONFIG } from '../config.js';
-import { LABOR_CATEGORIES, ENT_BASE_MAX, VENUE_SEATS } from '../data/buildings.js';
+import { LABOR_CATEGORIES, ENT_BASE_MAX, VENUE_SEATS, ARENA_ENT_BONUS } from '../data/buildings.js';
+import { gamesCard } from './gamesInfo.js';
+import { arenaStaffed } from '../sim/entertainment.js';
 import { HOUSE_TIERS } from '../data/housing.js';
 import { GOODS, GOOD_KEYS, RECRUIT_SOURCE, formatAmount } from '../data/goods.js';
 import { UNIT_TYPES, FORT_CAPACITY, STATION_CAPACITY } from '../data/units.js';
@@ -101,6 +103,8 @@ const MOOD_LABELS = {
   gods: 'The gods\' moods',
   venus: 'Venus\'s blessing or wrath',
   festival: 'Recent festivals',
+  games: 'Games (Ludi at the Arena)',
+  races: 'Races (Circenses at the Circus)',
   monument: 'The Thermae (Great Baths)',
   newCity: 'New city optimism',
   difficulty: 'Difficulty',
@@ -444,7 +448,7 @@ export class Advisors {
     const est = h('span', { class: 'num' }, `${fmt(estTax())} Dn / month`);
     const ly = c.finance.lastYear;
     const ty = c.finance.thisYear;
-    const labels = { taxes: 'Taxes', exports: 'Exports', other: 'Other income/costs', wages: 'Wages', imports: 'Imports', construction: 'Construction', tribute: 'Tribute to Rome', festivals: 'Festivals', gifts: 'Requests sent to Rome', salary: 'Governor\'s salary', donations: 'Governor\'s donations', military: 'Army pay', monuments: 'Monument upkeep', plunder: 'Lost to raiders', stolen: 'Stolen by thieves', loans: 'Loan from Rome', repayments: 'Loan repayments' };
+    const labels = { taxes: 'Taxes', exports: 'Exports', other: 'Other income/costs', wages: 'Wages', imports: 'Imports', construction: 'Construction', tribute: 'Tribute to Rome', festivals: 'Festivals and games', gifts: 'Requests sent to Rome', salary: 'Governor\'s salary', donations: 'Governor\'s donations', military: 'Army pay', monuments: 'Monument upkeep', plunder: 'Lost to raiders', stolen: 'Stolen by thieves', loans: 'Loan from Rome', repayments: 'Loan repayments' };
     const income = ['taxes', 'exports', 'other', 'loans', 'donations'];
     return [
       h('div', { class: 'grid2' },
@@ -791,8 +795,8 @@ export class Advisors {
       h('div', { class: 'grid2' },
         h('div', { class: 'card' },
           h('h4', {}, 'City-wide entertainment'),
-          kv('Every home gets', `+${rep.base} of ${ENT_BASE_MAX}`), bar(rep.base, ENT_BASE_MAX),
-          h('div', { class: 'muted sub', style: { marginTop: '4px' } }, 'From the seats of venues with shows: the share of the people each kind of venue can seat, averaged over the three kinds and divided by 5.')),
+          kv('Every home gets', `+${rep.base} of ${ENT_BASE_MAX + ARENA_ENT_BONUS}`), bar(rep.base, ENT_BASE_MAX + ARENA_ENT_BONUS),
+          h('div', { class: 'muted sub', style: { marginTop: '4px' } }, `From the seats of venues with shows: the share of the people each kind of venue can seat, averaged over the three kinds and divided by 5 (a hippodrome with races seats everyone). A staffed Great Arena adds ${ARENA_ENT_BONUS} more${rep.arena ? ' (it does now)' : ''}.`)),
         h('div', { class: 'card' },
           h('h4', {}, 'Homes'),
           kv('Average entertainment', fmt(rep.average)),
@@ -802,6 +806,7 @@ export class Advisors {
             h('span', { class: 'muted sub', style: { flex: 1 } }, c.festivalCooldown > 0 ? `Festivals lift the mood: the next is possible in ${c.festivalCooldown} month${c.festivalCooldown === 1 ? '' : 's'}.` : festivalBlocked(g, 0) ? 'Festivals lift the mood: the city cannot pay for one yet (see Festivals).' : GOD_KEYS.every((k) => festivalTempleBlocked(g, k, 0)) ? 'Festivals lift the mood: they are held at a god\'s staffed temple, and the city has none yet.' : 'Festivals lift the mood: one can be held now.'),
             h('button', { class: 'btn small', onclick: () => this.switchTab('religion') }, 'Festivals')))),
       this.adviceBox(entertainmentAdviceText(rep.advice), rep.advice.key === 'fine' || rep.advice.key === 'noDemand'),
+      gamesCard(g, () => this.render(), (why) => this.app.ui.toastError(why)),
       h('h4', {}, 'Venues'),
       h('table', { class: 'tbl coverage' },
         h('tr', {}, h('th', {}, 'Venue'), h('th', { class: 'r' }, 'Staffed'), h('th', { class: 'r' }, 'Shows'), h('th', {}, 'Seats'), h('th', { class: 'r' }, 'Reach')),
@@ -885,7 +890,7 @@ export class Advisors {
       kv(name, `${Math.floor(r[key])}${goals[key] ? ` (goal ${goals[key]})` : ''}`), bar(r[key], 100),
       h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '3px' } }, tip));
     const seats = g.city.entCoverage || {};
-    const seatText = `Venue seats for ${seats.theater || 0}% (theaters), ${seats.amphitheater || 0}% (amphitheaters) and ${seats.colosseum || 0}% (arenas) of the city${seats.hippodrome ? ', and races at the hippodrome for everyone,' : ''} give every home +${g.city.entBase || 0} entertainment.`;
+    const seatText = `Venue seats for ${seats.theater || 0}% (theaters), ${seats.amphitheater || 0}% (amphitheaters) and ${seats.colosseum || 0}% (arenas) of the city${seats.hippodrome ? ', and races at the hippodrome for everyone,' : ''}${arenaStaffed(g) ? ` and a staffed Great Arena (+${ARENA_ENT_BONUS})` : ''} give every home +${g.city.entBase || 0} entertainment.`;
     // A finished monument (sim/ratings.js): culture while it stands, the Basilica's prosperity while it works.
     const mon = cityMonument(g);
     const monCulture = mon && isFinished(mon) ? ` The ${mon.def.name} adds ${MONUMENT_CULTURE}.` : '';

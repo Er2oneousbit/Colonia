@@ -364,7 +364,7 @@ export function entertainmentReport(game) {
   const average = people > 0 ? points / people : 0;
   const base = game.city.entBase ?? seat.base;
   return {
-    venues, trainers, base, people, short, average, needShows, missing,
+    venues, trainers, base, arena: seat.arena, people, short, average, needShows, missing,
     advice: pickEntertainmentAdvice({ short, average, needShows, missing }),
   };
 }

@@ -13,12 +13,13 @@
  * Every home also gets a city-wide base (0..ENT_BASE_MAX) for how well the
  * seats of working venues cover the population, averaged over the three
  * seat kinds: a big city needs more venues, not just one of each. A working
- * hippodrome seats the whole city (see VENUE_SEATS in data/buildings.js).
+ * hippodrome seats the whole city (see VENUE_SEATS in data/buildings.js),
+ * and a staffed Great Arena adds a flat ARENA_ENT_BONUS on top.
  * ----------------------------------------------------------------------------
  */
 
 import { CONFIG } from '../config.js';
-import { VENUE_SUPPLIERS, VENUE_SEATS, ENT_BASE_MAX, ENT_SEAT_KINDS, HIPPODROME_COVERAGE, SHOW_KINDS } from '../data/buildings.js';
+import { VENUE_SUPPLIERS, VENUE_SEATS, ENT_BASE_MAX, ENT_SEAT_KINDS, HIPPODROME_COVERAGE, SHOW_KINDS, ARENA_ENT_BONUS } from '../data/buildings.js';
 import { spawnWalker, killWalker, mainOf } from './entities.js';
 import { followPath } from './movement.js';
 import { venueActive } from './services.js';
@@ -84,12 +85,21 @@ export function racesRunning(game) {
   return false;
 }
 
+/** Is there a staffed Great Arena (shows or not: data/buildings.js ARENA_ENT_BONUS)? */
+export function arenaStaffed(game) {
+  for (const b of game.buildings.values()) {
+    if (b.def.venue === 'colosseum' && b.def.kind === 'venue' && b.efficiency > 0) return true;
+  }
+  return false;
+}
+
 /**
  * Daily: the city-wide entertainment base. For each of the three seat kinds,
  * the share of the population its working venues (staffed, shows booked) can
  * seat, capped at 100%; a working hippodrome adds 100% of its own. The sum
  * over the three seat kinds (ENT_SEAT_KINDS, whatever the hippodrome adds),
- * over 5, is the base: 0..20 without a hippodrome, up to 26 with one.
+ * over 5, is the seats' base: 0..20 without a hippodrome, up to 26 with one.
+ * A staffed Great Arena then adds a flat 5 (ARENA_ENT_BONUS): up to 31.
  */
 export function updateEntertainmentBase(game) {
   const { cover, base } = seatCoverage(game);
@@ -99,8 +109,9 @@ export function updateEntertainmentBase(game) {
 
 /**
  * The seats behind the city-wide base, read-only (the Entertainment advisor
- * shows them): { seats, cover, base } with seats and cover (0-100, % of the
- * population) by venue kind.
+ * shows them): { seats, cover, base, arena } with seats and cover (0-100, %
+ * of the population) by venue kind, and arena the Great Arena's flat part of
+ * the base (ARENA_ENT_BONUS while one is staffed, else 0).
  */
 export function seatCoverage(game) {
   const pop = game.city.population;
@@ -123,5 +134,8 @@ export function seatCoverage(game) {
     cover.hippodrome = HIPPODROME_COVERAGE;
     sum += HIPPODROME_COVERAGE;
   }
-  return { seats, cover, base: Math.min(ENT_BASE_MAX, Math.floor(sum / ENT_SEAT_KINDS / 5)) };
+  // The Arena's 5 comes after the cap: its seats are in the sum already
+  // (when it has shows), so the flat part is never counted as seats again.
+  const arena = arenaStaffed(game) ? ARENA_ENT_BONUS : 0;
+  return { seats, cover, arena, base: Math.min(ENT_BASE_MAX, Math.floor(sum / ENT_SEAT_KINDS / 5)) + arena };
 }

@@ -237,6 +237,10 @@
  *      and better start with MARBLE_GRACE_MONTHS of it, see
  *      upgradeMarbleV31(). (Buildings made of marble take it from the
  *      warehouses as they are placed, which changes nothing saved.)
+ *  33  games and races (sim/games.js): city.games holds, for Ludi and
+ *      Circenses, the lift to the city mood still felt, the months before
+ *      the next and how many were held. An older save starts with none held
+ *      and nothing to wait for, see upgradeGamesV32().
  *
  * Typed-array map layers are base64 encoded, run-length compressed first
  * when that is smaller (encodeLayer). Derived data (building tile layer,
@@ -279,6 +283,7 @@ import { NATIVE_ID_BASE } from '../data/natives.js';
 import { isFort, numberForts } from '../sim/fortNumbers.js';
 import { endDrill } from '../sim/training.js';
 import { newSiteState, newCampState } from '../sim/monumentEffects.js';
+import { newGamesState, gamesStateOf } from '../sim/games.js';
 
 /** Oldest save version this game can load (4: the 20-level housing ladder). */
 export const MIN_SAVE_VERSION = 4;
@@ -628,6 +633,9 @@ export function deserializeGame(data, flags = {}) {
   if (data.version < 29) upgradeSoldierTripsV28(game);
   if (data.version < 31) upgradeMonumentsV30(game);
   if (data.version < 32) upgradeMarbleV31(game);
+  if (data.version < 33) upgradeGamesV32(game);
+  // Games state out of shape (a hand-edited file) starts as in a new city.
+  gamesStateOf(game.city);
   // A monument's or camp's record missing a part (a hand-edited file) gets a
   // fresh one rather than stopping the game's daily update on it.
   for (const b of game.buildings.values()) {
@@ -1115,6 +1123,14 @@ export function upgradeMarbleV31(game) {
       if (b.incoming) b.incoming.marble ??= 0;
     }
   }
+}
+
+/**
+ * A save before version 33 (before Ludi and Circenses): the city has held
+ * none, and can hold either at once.
+ */
+export function upgradeGamesV32(game) {
+  game.city.games = newGamesState();
 }
 
 /**

@@ -11,7 +11,7 @@ import { h } from './dom.js';
 import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
-import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoCloth, buildDemoNavy, buildDemoAcademy, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoNavy, buildDemoAcademy, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -64,6 +64,7 @@ export const CONSOLE_HELP = [
   ['fishing', 'Build a shipyard (stocked with timber), two fishing wharves and a granary on the nearest water with fish'],
   ['grounds', 'List the fishing grounds, and every wharf and its boat'],
   ['hippodrome', 'Build a Circus (hippodrome) and a Factio (chariot stable) beside the city'],
+  ['arena', 'Build an Arena (Great Arena), an amphitheater, a gladiator school and a menagerie beside the city'],
   ['cloth', 'Build the cloth industry beside the city: a Linarium, a Textrinum, a Taberna Vestiaria and a Horreum'],
   ['navy', 'Build a naval station and a navalia on the shore, stocked for a squadron of liburnians (river/coast maps)'],
   ['academy', 'Build a Campus (military academy) near the city, and a Portus by the first Statio if there is one (they train only at full staff)'],
@@ -333,6 +334,15 @@ export class DebugConsole {
           for (const [good, n] of Object.entries(monumentTotals(site.def.mon).goods)) warehouse.stock[good] = (warehouse.stock[good] || 0) + n;
         }
         return `${site.def.name} site placed${camp ? `, a work camp at ${camp.x},${camp.y}` : ''}${args[1] === 'stock' ? ', its warehouse stocked with every stage\'s goods' : ''}.`;
+      }
+      case 'arena': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const res = buildDemoVenues(g, center);
+        if (res.colosseum) app.renderer.camera.centerOnTile(res.colosseum.x + 2, res.colosseum.y + 2);
+        const built = Object.entries(res).filter(([, b]) => b).map(([k]) => BUILDINGS[k].name);
+        return res.colosseum ? `Built: ${built.join(', ')}.` : 'No room for an Arena (5 x 5 clear tiles) near the city, or it is locked in this mission.';
       }
       case 'fishing':
       case 'cloth':

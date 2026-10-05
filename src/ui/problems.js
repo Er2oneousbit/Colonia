@@ -23,7 +23,7 @@
  */
 
 import { HOUSE_TIERS, MAX_TIER } from '../data/housing.js';
-import { BUILDINGS, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_BOTH_SHOWS, VENUE_SUPPLIERS, VENUE_SEATS, ENT_BASE_MAX, ENT_SEATS_MAX } from '../data/buildings.js';
+import { BUILDINGS, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_BOTH_SHOWS, VENUE_SUPPLIERS, VENUE_SEATS, ENT_BASE_MAX, ENT_SEATS_MAX, ARENA_ENT_BONUS } from '../data/buildings.js';
 import { FOOD_TYPES } from '../data/goods.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
 import { Terrain } from '../world/map.js';
@@ -100,9 +100,10 @@ function reachable(game, m) {
       // The best score: the city-wide base plus every venue that can get performers.
       const trained = (perf) => Object.keys(BUILDINGS).some((k) => BUILDINGS[k].kind === 'training' && BUILDINGS[k].venue === perf && has(k));
       // The seats: up to ENT_SEATS_MAX from the three seat kinds, and the
-      // rest of ENT_BASE_MAX from a hippodrome, which seats the whole city.
+      // rest of ENT_BASE_MAX from a hippodrome, which seats the whole city;
+      // a staffed Great Arena adds its flat ARENA_ENT_BONUS.
       const venues = Object.keys(VENUE_POINTS).filter((v) => has(v) && VENUE_SUPPLIERS[v].some(trained));
-      let best = (venues.some((v) => VENUE_SEATS[v]) ? ENT_SEATS_MAX : 0) + (venues.includes('hippodrome') ? ENT_BASE_MAX - ENT_SEATS_MAX : 0);
+      let best = (venues.some((v) => VENUE_SEATS[v]) ? ENT_SEATS_MAX : 0) + (venues.includes('hippodrome') ? ENT_BASE_MAX - ENT_SEATS_MAX : 0) + (venues.includes('colosseum') ? ARENA_ENT_BONUS : 0);
       for (const v of venues) best += VENUE_POINTS[v] + (VENUE_BOTH_SHOWS[v] && VENUE_BOTH_SHOWS[v].every(trained) ? VENUE_BOTH_BONUS[v] || 0 : 0);
       return best >= m.need;
     }

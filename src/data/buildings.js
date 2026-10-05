@@ -61,6 +61,9 @@
  *                  per PEOPLE_PER_TEMPLE" (default 1; a large temple 2, as the
  *                  original counted 1,500 people of coverage to a small one's 750)
  *   venue          entertainment venue type (venues/training)
+ *   roam           tiles its roamer walks before turning home, when not its
+ *                  walker type's own (the Great Arena's performers walk 52,
+ *                  twice an entertainer's 26, as the hippodrome's charioteer)
  *   needsPiped     requires piped water from a reservoir to operate
  *   inputs         goods a building accepts by cart for its own use
  *                  (barracks: weapons, arrows, horses; navalia: timber, iron,
@@ -352,8 +355,8 @@ export const BUILDINGS = Object.freeze({
   }),
   colosseum: B({
     name: 'Arena', en: 'Great Arena', category: 'entertainment', kind: 'venue', venue: 'colosseum', cost: 400, marble: MARBLE_LOADS.colosseum * BATCH, size: 5, workers: 25, labor: 'entertainment',
-    des: [-3, 2, 1, 6], walker: 'entertainer', spawnDays: 4,
-    desc: 'Grand spectacles with gladiators (Ludus Gladiatorius) and beasts (Vivarium). Worth 20 entertainment, 30 while it has both.',
+    des: [-3, 2, 1, 6], walker: 'entertainer', spawnDays: 4, roam: 52,
+    desc: 'Grand spectacles with gladiators (Ludus Gladiatorius) and beasts (Vivarium). Worth 20 entertainment, 30 while it has both, to the homes its performers pass (they walk twice as far as other entertainers). While staffed, every home in the city gets 5 more. Holds Ludi (games) that lift the city\'s mood.',
   }),
   actor_troupe: B({
     name: 'Grex', en: 'Actor Troupe', category: 'entertainment', kind: 'training', venue: 'theater', cost: 50, size: 2, workers: 5, labor: 'entertainment',
@@ -377,7 +380,7 @@ export const BUILDINGS = Object.freeze({
   hippodrome: B({
     name: 'Circus', en: 'Hippodrome', category: 'entertainment', kind: 'venue', venue: 'hippodrome', cost: 900, marble: MARBLE_LOADS.hippodrome * BATCH, size: 5, span: 3, limit: 1, workers: 40, labor: 'entertainment',
     des: [-3, 2, 1, 6], walker: 'charioteer', spawnDays: 8,
-    desc: 'Chariot races: 15 x 5 tiles, one per city. While races run (a Factio sends the teams), its charioteer gives the homes he passes 30 entertainment, its seats hold the whole city (up to 6 more for every home) and prosperity rises a little.',
+    desc: 'Chariot races: 15 x 5 tiles, one per city. While races run (a Factio sends the teams), its charioteer gives the homes he passes 30 entertainment, its seats hold the whole city (up to 6 more for every home) and prosperity rises a little. Holds Circenses (great races) that lift the city\'s mood.',
   }),
   hippodrome_part: B({
     name: 'Circus', en: 'Hippodrome', category: null, kind: 'part', cost: 0, size: 5, workers: 0, needsRoad: false,
@@ -842,6 +845,21 @@ export const ENT_SEAT_KINDS = 3;
 export const ENT_SEATS_MAX = 20; // the base from the three seat kinds alone
 export const ENT_BASE_MAX = 26; // with a working hippodrome too
 export const HIPPODROME_COVERAGE = 100; // % of the city a working hippodrome seats
+
+/**
+ * A staffed Great Arena gives every home in the city a flat ARENA_ENT_BONUS
+ * on top of the seats' base (the community engine's finished colosseum gives
+ * +5). It is added after the seats' base is worked out and capped, not as
+ * more seats: the Arena's 2,000 seats already count in the colosseum seat
+ * kind (when it has shows), and a second Arena adds its seats, never a
+ * second 5. In the base's own terms it is 75% more coverage in the sum
+ * (75 / ENT_SEAT_KINDS / 5 = 5 exactly), so it is always 5, never rounded to
+ * 4 or 6 as the hippodrome's 100% can be (6 or 7, capped at ENT_BASE_MAX).
+ * The whole base is then 0..ENT_BASE_MAX + ARENA_ENT_BONUS (31). Staffed is
+ * enough (efficiency above 0), shows or not: the decided rule, unlike the
+ * seats, which need shows booked.
+ */
+export const ARENA_ENT_BONUS = 5;
 
 /** Performer display names by venue they train for. */
 export const PERFORMER_NAMES = Object.freeze({ theater: 'Actor', amphitheater: 'Gladiator', colosseum: 'Beast Tamer', hippodrome: 'Charioteer' });
