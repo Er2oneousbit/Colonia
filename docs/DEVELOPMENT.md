@@ -37,6 +37,7 @@ npm i --no-save playwright && npx playwright install chromium
 | `npm run build` | Builds `dist/colonia.html`, the whole game in one file (reproducible byte for byte) |
 | `npm run test:e2e` | Plays the built game in headless Chromium (`--file <html>` tests another build, `--shots <dir>` saves screenshots) |
 | `npm run check` | test + build + e2e, the same as CI |
+| `node scripts/build.mjs --lab --out <file>` | Builds the look lab (`src/dev/lab.js`): the 3D look on one building, the well, in one self-contained page (default `dist/colonia-lab.html`, not committed). See ARCHITECTURE.md, "The look lab and the 3D look" |
 | `npm run sim -- --years 5 --type lakes` | Headless balance run, one line of stats per month (`--help` lists the options: difficulty, raids, garrison, size, seed...) |
 | `npm run sim -- --type coast --fishing 2` | Also a shipyard (stocked with 400 timber: the demo city fells none) and 2 fishing wharves: fish a year per wharf against a pig farm's harvest, the timber used and the days the yard waited for timber |
 | `npm run sim -- --level 3 --venues --hippodrome` | Also an amphitheater, a colosseum (and their schools), a hippodrome and a chariot maker |
@@ -144,13 +145,17 @@ src/
                         (what to draw) and its Classic back end (the 2D canvas),
                         day/night lighting, seasons + weather, live details
   render3d/             the WebGL back end (three.js, beta): the 3D camera and
-                        depth (projection.js), light, live-art cells, 3D models
+                        depth (projection.js), light, live-art cells, 3D models;
+                        and the 3D look of the look lab: look.js (light, sky,
+                        post), materials.js, surfaces.js + texgen.js (procedural
+                        PBR textures), shapes.js, models/ (well, street, figure)
   ui/                   DOM widgets: HUD, sidebar, info panel, advisors, empire map,
                         menus, help, console
   input/                mouse / touch / keyboard
   audio/                sound effects; music: composer.js (writes the notes and
                         holds the track library), instruments.js (synth), music.js
   dev/demoCity.js       builds a sample city through the public construction API
+  dev/lab.js, lab.html  the look lab page (build with --lab)
 scripts/                serve.mjs, build.mjs, simulate.mjs, sweep.mjs, run.ps1, run.sh
 tests/                  *.test.mjs, e2e/ (smoke test, screenshots, art sheet,
                         render and music pages)
