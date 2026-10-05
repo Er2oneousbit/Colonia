@@ -13,6 +13,11 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.6)
+
+* **Streets wrap round their blocks in 3D**: a road is paved as a town street when a building stands on any of its eight sides, not only its four, so a block's corners and the crossings at its ends are basalt like the streets beside them instead of gravel islands; a short straight gap between two blocks is paved too
+* 1131 unit tests, 234 browser checks
+
 ## Done (v0.20.5)
 
 * **The fountain in 3D, in four looks that follow its neighbourhood** (under WebGL): a plain lava lacus like most of Pompeii's street fountains, a limestone lacus with a carved water-god head, a marble basin with a bronze lion's-head spout, and a small nymphaeum with a mosaic niche, columns and a nymph pouring water. The look comes from the desirability of the fountain's tile, as fountains looked finer in finer quarters in the original (render only: the rules do not change). Water runs from the spout with rings and an overflow; a fountain with water but no workers stands still, one without water is dry and stained; in hard frost the water keeps running under icicles
