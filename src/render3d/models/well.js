@@ -26,6 +26,12 @@
  *
  * Meshes are merged by material (one draw call each); the bucket and the
  * rope's hanging run are their own meshes so they can sway (wellLife).
+ *
+ * Levels of detail (`lod`, for the game's zooms): 0 all of it; 1 the
+ * puteal's flutes and the small iron (nails, the lantern's rods) left out,
+ * round things coarser; 2 for a city seen from far out: the curb a plain
+ * drum, each course of the platform one slab, the frame, the bucket on its
+ * rope and the trough, a few thousand triangles.
  * ----------------------------------------------------------------------------
  */
 
@@ -54,7 +60,13 @@ export const WELL = Object.freeze({
 const D = (deg) => (deg * Math.PI) / 180;
 
 /** Build the puteal (the turned curb) on y = 0. */
-function puteal(seed) {
+function puteal(seed, lod = 0) {
+  if (lod === 2) {
+    // From far out: a drum with a lip, the bore dark inside.
+    return revolve(profileOf([
+      [0.605, 0.0], [0.605, 0.14], [0.553, 0.2], [0.553, 0.66], [0.604, 0.72], [0.604, 0.84], [0.5, 0.86], [0.385, 0.84], [0.385, 0.2],
+    ]), { segments: 20, metres: 0.8, tint: (p) => (Math.hypot(p.x, p.z) < 0.4 ? Math.max(0.05, (p.y - 0.2) / 0.64) * 0.9 : 0.68 + 0.32 * smoothstep(0.0, 0.24, p.y)) });
+  }
   const rnd = artRng(seed);
   const P = profileOf([
     [0.598, 0.0],
@@ -99,14 +111,15 @@ function puteal(seed) {
     const mask = Math.pow(Math.sin(Math.PI * t), 0.35);
     return 0.015 * Math.pow(c, 0.8) * mask;
   };
+  const fine = lod === 0;
   const geo = revolve(P, {
-    segments: 216,
+    segments: fine ? 216 : 48,
     metres: 0.8,
     deform: (p, th) => {
       const r = Math.hypot(p.x, p.z);
       let dr = 0;
       let dy = 0;
-      if (r > 0.54 && p.y > 0.24 && p.y < 0.65) dr -= flute(th, p.y);
+      if (fine && r > 0.54 && p.y > 0.24 && p.y < 0.65) dr -= flute(th, p.y);
       // Rope grooves worn through the inner arris and across the lip top.
       if (p.y > 0.7 && r < 0.52) {
         for (const g of grooves) {
@@ -131,7 +144,7 @@ function puteal(seed) {
       // Dirt and splash at the foot.
       t *= 0.68 + 0.32 * smoothstep(0.0, 0.24, p.y);
       // The flutes' troughs hold dirt.
-      if (r > 0.53 && p.y > 0.24 && p.y < 0.65) t *= 1 - (flute(th, p.y) / 0.015) * 0.3;
+      if (fine && r > 0.53 && p.y > 0.24 && p.y < 0.65) t *= 1 - (flute(th, p.y) / 0.015) * 0.3;
       // Down the shaft it gets dark.
       if (r < 0.4 && p.y < 0.82) t *= Math.max(0.03, smoothstep(-1.4, 0.8, p.y)) * 0.9;
       // The lip's top is polished by hands: a touch lighter.
@@ -143,11 +156,18 @@ function puteal(seed) {
 }
 
 /** The two courses of the platform, as a list of block geometries (positioned). */
-function platform(seed) {
+function platform(seed, lod = 0) {
   const rnd = artRng(seed);
   const L = WELL.lowerHalf;
   const U = WELL.upperHalf;
   const H = WELL.stepH;
+  if (lod === 2) {
+    // Each course one slab.
+    const lower = block(2 * L, H, 2 * L, { bevel: 0.03, seed, wobble: 0, grime: 0.45, seg: 1 });
+    const upper = block(2 * U, H, 2 * U, { bevel: 0.03, seed: seed + 1, wobble: 0, grime: 0.3, seg: 1 });
+    upper.translate(0, H, 0);
+    return { blocks: [lower, upper], core: null };
+  }
   const W = L - U + 0.06; // the lower ring's width: tucked 6 cm under the upper course
   const gap = 0.007;
   const out = [];
@@ -156,7 +176,7 @@ function platform(seed) {
     const w = x1 - x0 - gap;
     const d = z1 - z0 - gap;
     const g = block(w, h + (rnd() - 0.5) * 0.008, d, {
-      bevel: 0.022 + rnd() * 0.012, seed: seed * 97 + ++n, wobble: 0.006, grime: 0.45, topSag: 0.012, seg: 2, tone: 0.1,
+      bevel: 0.022 + rnd() * 0.012, seed: seed * 97 + ++n, wobble: 0.006, grime: 0.45, topSag: 0.012, seg: lod ? 1 : 2, tone: 0.1,
     });
     g.translate((x0 + x1) / 2, y, (z0 + z1) / 2);
     out.push(g);
@@ -198,8 +218,9 @@ function platform(seed) {
 }
 
 /** The timber frame: posts, beam, braces; and its iron: shoes, straps, the pulley's fork and axle. */
-function frame(seed) {
+function frame(seed, lod = 0) {
   const rnd = artRng(seed);
+  const sg = lod ? 1 : 2;
   const wood = [];
   const iron = [];
   const X = WELL.postX;
@@ -207,37 +228,37 @@ function frame(seed) {
   const S = 0.15;
   const top = WELL.beamY;
   for (const s of [-1, 1]) {
-    const post = block(S, top - base + 0.02, S, { bevel: 0.018, seed: seed + (s > 0 ? 1 : 2), wobble: 0.004, grime: 0.3 });
+    const post = block(S, top - base + 0.02, S, { seg: sg, bevel: 0.018, seed: seed + (s > 0 ? 1 : 2), wobble: 0.004, grime: 0.3 });
     post.rotateY((rnd() - 0.5) * 0.04);
     post.translate(s * X, base, 0);
     wood.push(post);
     // Iron shoe at the foot, and a strap where the post meets the beam.
-    const shoe = block(S + 0.024, 0.13, S + 0.024, { bevel: 0.006, seed: seed + 10 + s, wobble: 0.001, grime: 0.4 });
+    const shoe = block(S + 0.024, 0.13, S + 0.024, { seg: sg, bevel: 0.006, seed: seed + 10 + s, wobble: 0.001, grime: 0.4 });
     shoe.translate(s * X, base, 0);
     iron.push(shoe);
-    const strap = block(S + 0.014, 0.045, S + 0.014, { bevel: 0.004, seed: seed + 20 + s, wobble: 0.001, grime: 0 });
+    const strap = block(S + 0.014, 0.045, S + 0.014, { seg: sg, bevel: 0.004, seed: seed + 20 + s, wobble: 0.001, grime: 0 });
     strap.translate(s * X, top - 0.12, 0);
     iron.push(strap);
     // Knee brace: from the post 0.45 m below the beam to the beam 0.45 m in.
-    const brace = block(0.085, 0.62, 0.085, { bevel: 0.012, seed: seed + 30 + s, wobble: 0.003, grime: 0 });
+    const brace = block(0.085, 0.62, 0.085, { seg: sg, bevel: 0.012, seed: seed + 30 + s, wobble: 0.003, grime: 0 });
     brace.translate(0, -0.31, 0);
     brace.rotateZ(s * D(45));
     brace.translate(s * (X - S / 2 - 0.22), top - 0.22, 0);
     wood.push(brace);
   }
   // The beam, laid along x with the grain along it: built upright, then turned.
-  const beam = block(0.16, 2 * X + 0.36, 0.17, { bevel: 0.02, seed: seed + 40, wobble: 0.004, grime: 0 });
+  const beam = block(0.16, 2 * X + 0.36, 0.17, { seg: sg, bevel: 0.02, seed: seed + 40, wobble: 0.004, grime: 0 });
   beam.translate(0, -(2 * X + 0.36) / 2, 0);
   beam.rotateZ(D(90));
   beam.translate(0, top + 0.08, 0);
   wood.push(beam);
   // The pulley's fork: two straps down from the beam either side of the sheave, a plate over the beam.
-  for (const s of [-1, 1]) {
-    const f = block(0.05, top - WELL.pulleyY + 0.03, 0.012, { bevel: 0.003, seed: seed + 50 + s, wobble: 0.0005, grime: 0 });
+  if (lod < 2) for (const s of [-1, 1]) {
+    const f = block(0.05, top - WELL.pulleyY + 0.03, 0.012, { seg: sg, bevel: 0.003, seed: seed + 50 + s, wobble: 0.0005, grime: 0 });
     f.translate(0, WELL.pulleyY - 0.03, s * 0.042);
     iron.push(f);
   }
-  const plate = block(0.06, 0.012, 0.2, { bevel: 0.003, seed: seed + 60, wobble: 0.0005, grime: 0 });
+  const plate = block(0.06, 0.012, 0.2, { seg: sg, bevel: 0.003, seed: seed + 60, wobble: 0.0005, grime: 0 });
   plate.translate(0, top + 0.16, 0);
   iron.push(plate);
   const axle = new CylinderGeometry(0.012, 0.012, 0.11, 12);
@@ -245,7 +266,7 @@ function frame(seed) {
   axle.translate(0, WELL.pulleyY, 0);
   iron.push(tintGeometry(axle));
   // Nail heads on the straps.
-  for (const s of [-1, 1]) {
+  if (lod === 0) for (const s of [-1, 1]) {
     for (const zz of [-1, 1]) {
       const nail = new SphereGeometry(0.009, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
       nail.rotateX(zz * D(90));
@@ -257,7 +278,7 @@ function frame(seed) {
 }
 
 /** The pulley's sheave: a grooved wooden wheel on the z axis. */
-function sheave() {
+function sheave(lod = 0) {
   const R = WELL.pulleyR;
   // Profile in (radius, axial): the wheel's face, its rims, the groove the rope runs in.
   const P = profileOf([
@@ -271,14 +292,14 @@ function sheave() {
     [0.13, 0.03],
     [0.016, 0.03],
   ]);
-  const g = revolve(P, { segments: 40, metres: 1, tint: (p) => 1 - 0.25 * smoothstep(0.14, 0.11, Math.hypot(p.x, p.z)) });
+  const g = revolve(P, { segments: lod ? 16 : 40, metres: 1, tint: (p) => 1 - 0.25 * smoothstep(0.14, 0.11, Math.hypot(p.x, p.z)) });
   g.rotateX(D(90));
   g.translate(0, WELL.pulleyY, 0);
   return g;
 }
 
 /** The bronze bucket (situla), its bottom at y 0, with its bail up over it. */
-function bucket() {
+function bucket(lod = 0) {
   const P = profileOf([
     [0.0, 0.0],
     [0.082, 0.0],
@@ -300,7 +321,7 @@ function bucket() {
   ]);
   const dentTh = 1.1;
   const geo = revolve(P, {
-    segments: 48,
+    segments: lod === 2 ? 8 : lod ? 14 : 48,
     metres: 0.3,
     deform: (p, th) => {
       let d = Math.abs(th - dentTh);
@@ -316,7 +337,7 @@ function bucket() {
   });
   // Lugs at the rim and the bail between them.
   const parts = [geo];
-  for (const s of [-1, 1]) {
+  if (lod === 0) for (const s of [-1, 1]) {
     const lug = new TorusGeometry(0.014, 0.004, 6, 14);
     lug.translate(s * 0.146, 0.29, 0);
     parts.push(tintGeometry(lug));
@@ -326,15 +347,16 @@ function bucket() {
     const a = Math.PI - (k / 12) * Math.PI;
     bail.push([Math.cos(a) * 0.146, 0.3 + Math.sin(a) * 0.13, 0]);
   }
-  parts.push(tube(bail, 0.0045, { radial: 6, around: 0.3 }));
+  parts.push(tube(bail, 0.0045, { radial: lod ? 4 : 6, segments: lod ? 8 : 0, around: 0.3 }));
   return merge(parts);
 }
 
 /** The rope: the hanging run (bail to pulley) and the rest (over the pulley, to the post, the coil). */
-function ropes(bucketTop) {
+function ropes(bucketTop, lod = 0) {
   const rr = WELL.pulleyR + WELL.ropeR + 0.004;
   const cy = WELL.pulleyY;
-  const hang = tube([[-rr, bucketTop, 0], [-rr, (bucketTop + cy) / 2, 0], [-rr, cy, 0]], WELL.ropeR, { radial: 8 });
+  const radial = lod ? 4 : 8;
+  const hang = tube([[-rr, bucketTop, 0], [-rr, (bucketTop + cy) / 2, 0], [-rr, cy, 0]], WELL.ropeR, { radial, segments: lod ? 4 : 0 });
   const pts = [];
   // Over the pulley.
   for (let k = 0; k <= 10; k++) {
@@ -364,12 +386,13 @@ function ropes(bucketTop) {
     const rad = 0.12 - k * 0.0018;
     pts.push([cx + Math.cos(a) * rad, base + (k > 12 ? WELL.ropeR * 1.6 : 0), cz + Math.sin(a) * rad]);
   }
-  const rest = tube(pts, WELL.ropeR, { radial: 8, tension: 0.5 });
+  const rest = tube(pts, WELL.ropeR, { radial, tension: 0.5, segments: lod ? Math.ceil(pts.length * 1.5) : 0 });
   return { hang, rest };
 }
 
 /** The trough on the -x side: four slabs on a base slab, iron cramps, water. */
-function trough(seed) {
+function trough(seed, lod = 0) {
+  const sg = lod ? 1 : 2;
   const parts = [];
   const iron = [];
   const x0 = -1.96;
@@ -383,15 +406,15 @@ function trough(seed) {
     g.translate(x, y, z);
     parts.push(g);
   };
-  add(block(x1 - x0, 0.12, z1 - z0, { bevel: 0.02, seed: seed + 1, wobble: 0.004, grime: 0.4 }), cx, 0, 0);
-  add(block(T, H - 0.12, z1 - z0, { bevel: 0.018, seed: seed + 2, wobble: 0.004, grime: 0.3 }), x0 + T / 2, 0.12, 0);
-  add(block(T, H - 0.12, z1 - z0, { bevel: 0.018, seed: seed + 3, wobble: 0.004, grime: 0.3 }), x1 - T / 2, 0.12, 0);
-  add(block(x1 - x0 - 2 * T - 0.006, H - 0.12, T, { bevel: 0.016, seed: seed + 4, wobble: 0.003, grime: 0.3 }), cx, 0.12, z0 + T / 2);
-  add(block(x1 - x0 - 2 * T - 0.006, H - 0.12, T, { bevel: 0.016, seed: seed + 5, wobble: 0.003, grime: 0.3 }), cx, 0.12, z1 - T / 2);
+  add(block(x1 - x0, 0.12, z1 - z0, { seg: sg, bevel: 0.02, seed: seed + 1, wobble: 0.004, grime: 0.4 }), cx, 0, 0);
+  add(block(T, H - 0.12, z1 - z0, { seg: sg, bevel: 0.018, seed: seed + 2, wobble: 0.004, grime: 0.3 }), x0 + T / 2, 0.12, 0);
+  add(block(T, H - 0.12, z1 - z0, { seg: sg, bevel: 0.018, seed: seed + 3, wobble: 0.004, grime: 0.3 }), x1 - T / 2, 0.12, 0);
+  add(block(x1 - x0 - 2 * T - 0.006, H - 0.12, T, { seg: sg, bevel: 0.016, seed: seed + 4, wobble: 0.003, grime: 0.3 }), cx, 0.12, z0 + T / 2);
+  add(block(x1 - x0 - 2 * T - 0.006, H - 0.12, T, { seg: sg, bevel: 0.016, seed: seed + 5, wobble: 0.003, grime: 0.3 }), cx, 0.12, z1 - T / 2);
   // Iron cramps across the joints at the top corners, leaded in.
-  for (const z of [z0 + T / 2, z1 - T / 2]) {
+  if (lod < 2) for (const z of [z0 + T / 2, z1 - T / 2]) {
     for (const x of [x0 + T / 2, x1 - T / 2]) {
-      const c = block(0.035, 0.012, 0.13, { bevel: 0.003, seed: seed + 9, wobble: 0.0005, grime: 0 });
+      const c = block(0.035, 0.012, 0.13, { seg: sg, bevel: 0.003, seed: seed + 9, wobble: 0.0005, grime: 0 });
       c.translate(x, H - 0.004, z + (z < 0 ? 0.03 : -0.03));
       iron.push(c);
     }
@@ -405,10 +428,11 @@ function trough(seed) {
 }
 
 /** A small bronze lantern on an iron arm from the right post; its glass glows when lit. */
-function lantern() {
+function lantern(lod = 0) {
   const X = WELL.postX;
   const bronze = [];
   const iron = [];
+  if (lod === 2) return { bronze, iron, pane: null, light: new Vector3(X + 0.36, 1.8, 0) };
   const arm = block(0.3, 0.02, 0.02, { bevel: 0.004, seed: 71, wobble: 0.0005, grime: 0 });
   arm.translate(X + 0.075 + 0.15, 1.98, 0);
   iron.push(arm);
@@ -428,7 +452,7 @@ function lantern() {
     g.translate(lx, ly, 0);
     bronze.push(g);
   }
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < (lod ? 0 : 4); k++) {
     const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
     const rod = new CylinderGeometry(0.005, 0.005, 0.125, 6);
     rod.translate(lx + Math.cos(a) * 0.071, ly + 0.107, Math.sin(a) * 0.071);
@@ -443,8 +467,8 @@ function lantern() {
   return { bronze, iron, pane: tintGeometry(pane), light: new Vector3(lx, ly + 0.1, 0) };
 }
 
-/** The well as a Group, with handles to its moving parts and its lights. */
-export function buildWell({ seed = 7 } = {}) {
+/** The well as a Group, with handles to its moving parts and its lights; `lod` 0..2 (see the header). */
+export function buildWell({ seed = 7, lod = 0 } = {}) {
   const group = new Group();
   group.name = 'well';
   const meshes = [];
@@ -466,25 +490,28 @@ export function buildWell({ seed = 7 } = {}) {
   const troughMat = material('limestone-trough', { surface: 'limestone', vertexColors: true, color: 0xd9d2c4, snow: 1 });
   const paneMat = material('lantern-pane', { color: 0xc89a5a, roughness: 0.45, emissive: 0xffb25c, emissiveIntensity: 0, snow: 0 });
 
-  const pt = puteal(seed);
+  const pt = puteal(seed, lod);
   pt.translate(0, WELL.stepH * 2, 0);
-  const { blocks, core } = platform(seed + 1);
-  const fr = frame(seed + 2);
-  const tr = trough(seed + 3);
-  const ln = lantern();
+  const { blocks, core } = platform(seed + 1, lod);
+  const fr = frame(seed + 2, lod);
+  const tr = trough(seed + 3, lod);
+  const ln = lantern(lod);
   add(merge([pt]), stoneMat, 'puteal');
-  add(merge([...blocks, core]), travMat, 'platform');
-  add(merge([...fr.wood, sheave()]), woodMat, 'frame');
+  add(merge(core ? [...blocks, core] : blocks), travMat, 'platform');
+  add(merge([...fr.wood, sheave(lod)]), woodMat, 'frame');
   add(merge([...fr.iron, ...tr.iron, ...ln.iron]), ironMat, 'iron');
   add(merge(tr.stone), troughMat, 'trough');
   const tw = add(tr.water, shallowWaterMaterial(), 'trough-water');
   tw.castShadow = false;
-  const lb = add(merge(ln.bronze), bronzeMat, 'lantern');
-  lb.castShadow = false;
-  const pane = add(ln.pane, paneMat, 'lantern-pane');
-  pane.castShadow = false;
+  let pane = null;
+  if (lod < 2) {
+    const lb = add(merge(ln.bronze), bronzeMat, 'lantern');
+    lb.castShadow = false;
+    pane = add(ln.pane, paneMat, 'lantern-pane');
+    pane.castShadow = false;
+  }
   // The water in the shaft (WELL.waterY).
-  const wellWater = new CylinderGeometry(WELL.boreR, WELL.boreR, 0.001, 32);
+  const wellWater = new CylinderGeometry(WELL.boreR, WELL.boreR, 0.001, lod ? 16 : 32);
   wellWater.translate(0, WELL.waterY, 0);
   const ww = add(tintGeometry(wellWater), waterMaterial(), 'well-water');
   ww.castShadow = false;
@@ -497,16 +524,16 @@ export function buildWell({ seed = 7 } = {}) {
   pivot.position.set(-rr, WELL.pulleyY, 0);
   group.add(pivot);
   const bucketBottom = 1.24;
-  const bk = bucket();
+  const bk = bucket(lod);
   bk.translate(0, bucketBottom - WELL.pulleyY, 0);
   const bucketMesh = add(bk, bronzeMat, 'bucket', pivot);
   bucketMesh.position.x = 0;
   const bucketTop = bucketBottom + 0.43;
-  const rp = ropes(bucketTop);
+  const rp = ropes(bucketTop, lod);
   rp.hang.translate(rr, -WELL.pulleyY, 0);
   add(rp.hang, ropeMat, 'rope-hang', pivot);
   add(rp.rest, ropeMat, 'rope');
-  const bw = new CylinderGeometry(0.122, 0.122, 0.001, 24);
+  const bw = new CylinderGeometry(0.122, 0.122, 0.001, lod ? 10 : 24);
   bw.translate(0, bucketBottom - WELL.pulleyY + 0.235, 0);
   const bucketWater = add(tintGeometry(bw), waterMaterial(), 'bucket-water', pivot);
   bucketWater.castShadow = false;

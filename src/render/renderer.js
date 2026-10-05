@@ -1524,7 +1524,8 @@ export class Renderer {
     if (b.house && b.house.pop > 0 && b.house.tier >= 4 && b.house.tier <= 12 && this.camera.zoom >= 1 && Math.random() < 0.0015) {
       this.effects.smoke(wx + (Math.random() - 0.5) * 8, wy + b.size * HALF_H - 14 - b.size * 10);
     }
-    if (kind === 'fountain' && b.hasWater && b.efficiency > 0 && this.motionOn) {
+    // (A fountain drawn as a 3D model runs its own water: no sprite's spray over it.)
+    if (kind === 'fountain' && b.hasWater && b.efficiency > 0 && this.motionOn && !model) {
       items.push({ d: front + 0.0006, kind: K_EXTRA, b, wx, wy, spray: true });
     }
     // Live details. Flag cloth always (the sprite only has the poles).

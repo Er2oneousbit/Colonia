@@ -3,7 +3,7 @@
  * ----------------------------------------------------------------------------
  * The WebGL back end (three.js): draws what Renderer.render() collected, the
  * same picture as the Classic back end, and can draw a building as a 3D model
- * (render3d/models.js) where it has one. Opt-in (Settings > Renderer, or
+ * (render3d/models.js: the look lab's well and fountain) where it has one. Opt-in (Settings > Renderer, or
  * ?renderer=3d); the Classic 2D canvas stays the default. It takes the calls
  * render/canvasBackend.js describes.
  *
@@ -19,7 +19,10 @@
  *      is painted by the very functions the 2D canvas uses, into a cell of
  *      one texture of live art (liveBox.js says how big), uploaded once a
  *      frame and drawn as a quad like a sprite.
- *   3. Models are drawn first, opaque, with the depth buffer on. Then the
+ *   3. Models are drawn first, with the depth buffer on (modelPass.js:
+ *      instanced, a level of detail by the zoom, in the 3D world's light,
+ *      sunRig.js; with the 3D ground at High in the same draw as the ground,
+ *      casting their shadows on it). Then the
  *      quads, in the 2D renderer's order (back to front), each tested
  *      against the depth the models wrote but writing none: among
  *      themselves quads keep the painter's order exactly, so with no model
@@ -54,17 +57,19 @@
 import {
   WebGLRenderer, Scene, OrthographicCamera, Mesh, BufferGeometry, BufferAttribute, RawShaderMaterial,
   GLSL3, CanvasTexture, DataTexture, LinearFilter, CustomBlending, OneFactor, OneMinusSrcAlphaFactor,
-  LessEqualDepth, AmbientLight, DirectionalLight, Vector3, ColorManagement, LinearSRGBColorSpace, DynamicDrawUsage,
+  LessEqualDepth, Vector3, ColorManagement, LinearSRGBColorSpace, DynamicDrawUsage,
   DoubleSide, Box2, Vector2,
 } from 'three';
 import { HALF_W, HALF_H, CONFIG } from '../config.js';
 import { K_STRIP, spriteRect } from '../render/items.js';
 import { makeCanvas } from '../render/sprites.js';
-import { MODELS, hasModel, disposeModel, modelHolder, standModel } from './models.js';
+import { hasModel } from './models.js';
 import { liveBox } from './liveBox.js';
 import { aimCamera, groundDepth, standDepth } from './projection.js';
-import { AMBIENT, SUN, SUN_DIR } from './light.js';
-import { GroundPass, GROUND_CLIP } from './ground/groundPass.js';
+import { GroundPass } from './ground/groundPass.js';
+import { SunRig } from './sunRig.js';
+import { ModelPass, lodFor } from './modelPass.js';
+import { LOOK, paintSurfaces, resetLook } from './materials.js';
 import { tileOfWorld } from '../render/camera.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
@@ -73,6 +78,8 @@ const BACKGROUND = 0x2a241c;
 const GROUND_BIAS = 0.02;
 /** Textures one batch (one draw call) can hold; WebGL 2 promises 16 to a fragment shader. */
 const MAX_SLOTS = 16;
+/** Models draw nothing under this height (tiles): what rises out of the ground is hidden under it (materials.js uLookClipY). */
+const MODEL_CLIP = -0.002;
 
 const VERTEX = `
 in vec3 position;
@@ -150,11 +157,27 @@ export class WebGLBackend {
     gl.setClearColor(BACKGROUND, 1);
     gl.info.autoReset = false; // (both renders of a frame are counted: stats.drawCalls)
     this.lost = false;
-    this.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.lost = true; }, false);
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.lost = true;
+      this.models.lose();
+    }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
+      this.rig.restored();
+      this.models.restored();
       if (this.groundPass) this.groundPass.restored();
     }, false);
+    // The look's materials (render3d/materials.js) paint their textures on this GPU; smaller on a
+    // software GL (no GPU: SwiftShader on the CI), where painting them full size is slow.
+    LOOK.renderer = gl;
+    LOOK.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    LOOK.textureScale = softwareGL(gl) ? 0.25 : 1;
+    LOOK.uniforms.uLookClipY.value = MODEL_CLIP;
+    paintSurfaces();
+    // The 3D world's scene and light (the ground and the models share them), and the models.
+    this.rig = new SunRig(gl);
+    this.models = new ModelPass(gl, this.rig);
     // The 3D ground (setGround): null while it is off.
     this.groundPass = null;
     this.groundMode = 'off';
@@ -164,14 +187,6 @@ export class WebGLBackend {
     this.camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
     this.zA = 0;
     this.zB = 0;
-    // Models: lit as the sprites are shaded (light.js), depth-tested and
-    // depth-written. (three.js divides diffuse light by pi, hence the pi.)
-    this.modelScene = new Scene();
-    this.modelScene.add(new AmbientLight(0xffffff, AMBIENT * Math.PI));
-    const sun = new DirectionalLight(0xffffff, SUN * Math.PI);
-    sun.position.set(SUN_DIR[0], SUN_DIR[1], SUN_DIR[2]);
-    this.modelScene.add(sun);
-    this.pools = new Map(); // model key -> { template, S, instances: [], used, seen }
     this.placed = []; // this frame's models: { b, T, state, snow, vx, vy, rise }
 
     // Quads: one mesh, its groups drawn in order, each group a batch of up to `slots` textures.
@@ -219,12 +234,13 @@ export class WebGLBackend {
       this.groundPass = null;
       return q;
     }
-    if (!this.groundPass) this.groundPass = new GroundPass(this.gl, q);
+    if (!this.groundPass) this.groundPass = new GroundPass(this.gl, q, this.rig);
     else this.groundPass.setQuality(q);
     return q;
   }
 
-  hasModel(type) { return hasModel(type); }
+  /** Is a building type drawn as a 3D model now (it has one, and its textures and programs are ready)? */
+  hasModel(type) { return hasModel(type) && this.models.ready; }
 
   /** Room for `n` vertices (a new geometry: three.js keeps a buffer's size once uploaded). */
   grow(n) {
@@ -286,9 +302,14 @@ export class WebGLBackend {
     this.atlasW = Math.min(this.maxTex, Math.max(1024, 2 ** Math.ceil(Math.log2(cam.viewW + 2))));
     this.dropped = 0;
     this.placed.length = 0;
+    // The 3D world's light for this hour and sky (the ground's and the models').
+    this.rig.ensureEnv();
+    this.rig.light(r);
     // The renderer leaves the ground's sprites out while this draws the ground.
     this.drawsGround = !!this.groundPass && this.groundPass.sync(r, this.camera);
     this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
+    // The models' programs, compiled in the background for the light they are drawn in.
+    this.models.warm(this.camera, this.rig.sun.castShadow);
   }
 
   /** The slot of texture `tex` in the batch being filled (a new batch when it is full). */
@@ -512,44 +533,6 @@ export class WebGLBackend {
     }
   }
 
-  /** Stand this frame's models on their footprints (pooled copies of one model per look). */
-  placeModels() {
-    for (const p of this.pools.values()) p.used = 0;
-    const casters = this.casters || (this.casters = []);
-    casters.length = 0;
-    for (const m of this.placed) {
-      const S = m.b.size;
-      const key = `${m.b.type}:${S}:${m.state}:${m.snow}`;
-      let pool = this.pools.get(key);
-      if (!pool) {
-        pool = { template: MODELS[m.b.type](S, m.state, m.snow), S, instances: [], used: 0, seen: 0 };
-        this.pools.set(key, pool);
-      }
-      pool.seen = this.frame;
-      let inst = pool.instances[pool.used];
-      if (!inst) {
-        inst = modelHolder(pool.template, S);
-        this.modelScene.add(inst);
-        pool.instances.push(inst);
-      }
-      pool.used++;
-      inst.visible = true;
-      standModel(inst, m.vx, m.vy, S, m.T, m.rise || 0);
-      casters.push({ key, holder: inst });
-    }
-    for (const [key, p] of this.pools) {
-      for (let i = p.used; i < p.instances.length; i++) p.instances[i].visible = false;
-      // A look nobody has drawn for a while (last winter's snow): free it.
-      if (this.frame - p.seen > 600) {
-        for (const inst of p.instances) this.modelScene.remove(inst);
-        disposeModel(p.template);
-        this.pools.delete(key);
-        if (this.groundPass) this.groundPass.dropCaster(key);
-      }
-    }
-    return this.placed.length;
-  }
-
   present() {
     const r = this.r;
     this.closeBatch();
@@ -596,23 +579,26 @@ export class WebGLBackend {
     const gl = this.gl;
     gl.info.reset();
     gl.clear(true, true, true);
-    const models = this.placeModels();
-    if (this.drawsGround) {
-      const gp = this.groundPass;
-      const cam = r.camera;
+    const cam = r.camera;
+    // This frame's models, instanced, at the level of detail of this zoom (modelPass.js).
+    const models = this.models.update(r, this.placed, lodFor(cam.scale));
+    if (this.drawsGround || models) {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
       const c = [tileOfWorld(cam.x, cam.y), tileOfWorld(cam.x + vw, cam.y), tileOfWorld(cam.x, cam.y + vh), tileOfWorld(cam.x + vw, cam.y + vh)];
-      // (Casters first: the fit hides them again when the shadow map is cleared rather than drawn.)
-      gp.syncCasters(this.casters);
-      gp.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
-      gp.render(this.camera, `${cam.x},${cam.y},${cam.scale},${cam.viewW},${cam.viewH},${cam.turn}`);
+      // The sun's shadow over the view (High), the models casting into it, or left out while it is
+      // cleared. (Fitted even while the ground is still loading: a lit program samples the map, and
+      // one never drawn is no texture at all.)
+      const shadows = this.rig.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
+      this.models.setCasting(shadows);
     }
-    if (models) {
-      // Over the 3D ground (which writes no depth), a rising model is cut off at the ground.
-      gl.clippingPlanes = this.drawsGround ? GROUND_CLIP : [];
-      gl.render(this.modelScene, this.camera);
-      gl.clippingPlanes = [];
+    if (this.drawsGround) {
+      const gp = this.groundPass;
+      // High: the ground and the models in one draw. Low: the ground's kept picture, the models over it.
+      gp.render(this.camera, `${cam.x},${cam.y},${cam.scale},${cam.viewW},${cam.viewH},${cam.turn}`);
+      if (gp.quality === 'low' && models) this.rig.renderModels(this.camera);
+    } else if (models) {
+      this.rig.renderModels(this.camera);
     }
     gl.render(this.quadScene, this.camera);
     // Onto the 2D canvas, under everything the renderer draws after the scene.
@@ -629,6 +615,8 @@ export class WebGLBackend {
     ctx.restore();
     const st = r.stats;
     st.models = models;
+    // (By type, their triangles, the level of detail: the smoke test and the console read them.)
+    st.modelPass = this.models.stats;
     st.drawCalls = gl.info.render.calls;
     st.textures = this.textures.size;
     st.live = this.lives.length;
@@ -652,10 +640,13 @@ export class WebGLBackend {
     this.white.dispose();
     for (const m of this.materials) m.dispose();
     this.geometry.dispose();
-    for (const p of this.pools.values()) disposeModel(p.template);
-    this.pools.clear();
+    this.models.dispose();
     if (this.groundPass) this.groundPass.dispose();
     this.groundPass = null;
+    this.rig.dispose();
+    // The look's textures were painted on this renderer: a new one paints its own.
+    resetLook();
+    if (LOOK.renderer === this.gl) LOOK.renderer = null;
     this.gl.dispose();
     this.gl.forceContextLoss();
   }
@@ -679,21 +670,27 @@ function liveTexture(canvas) {
  * elsewhere.
  */
 function autoGround(renderer) {
-  try {
-    const c = renderer.getContext();
-    const ext = c.getExtension('WEBGL_debug_renderer_info');
-    const name = String(c.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : c.RENDERER));
-    // Without a GPU the ground's shader is a slideshow (groundPass.js): the flat sprites then.
-    if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)) return 'off';
-  } catch {
-    // No name to go by: judge by the screen.
-  }
+  // Without a GPU the ground's shader is a slideshow (groundPass.js): the flat sprites then.
+  if (softwareGL(renderer)) return 'off';
   try {
     if (window.matchMedia('(pointer: coarse)').matches) return 'low';
   } catch {
     // No media queries.
   }
   return 'high';
+}
+
+/** Does this renderer draw without a GPU (SwiftShader, llvmpipe: the CI)? False when it cannot tell. */
+function softwareGL(renderer) {
+  try {
+    const c = renderer.getContext();
+    const ext = c.getExtension('WEBGL_debug_renderer_info');
+    const name = String(c.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : c.RENDERER));
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+  } catch {
+    // No name to go by.
+    return false;
+  }
 }
 
 /** Stands for the live-art texture in a batch: it is only made, or remade bigger, once the frame's art is all in. */

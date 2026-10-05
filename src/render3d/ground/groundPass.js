@@ -6,42 +6,34 @@
  * models and sprite quads over it as before.
  *
  * What is 3D now, and what stays 2D (and why):
- *   - The ground is lit by the 3D look's light: a sun (from the upper left
- *     of the screen at every view turn, as the art's light is), the sky as
- *     image-based light (three's Sky in a PMREM, made once), ACES tone
- *     mapping and sRGB output. Only the ground goes through them: the quads
- *     on top are the art's own bytes, never tone mapped (their shader
- *     writes its colour as it is, whatever the renderer's output settings).
+ *   - The ground is lit by the 3D world's light (render3d/sunRig.js: the
+ *     sun, the sky's light, ACES and sRGB, in one scene with the models).
+ *     The quads on top are the art's own bytes, never tone mapped (their
+ *     shader writes its colour as it is, whatever the renderer's output).
  *   - The time of day moves the sun (high at noon, low and raking at
  *     morning and evening, so the ground's relief shows), and the season,
- *     snow cover, wetness and rain are uniforms that change smoothly.
- *   - The darkness of night and of an overcast sky stays 2D: the renderer
- *     multiplies the whole picture by its light map after the scene
- *     (render/lighting.js), with its warm pools of lamplight. Done twice the
- *     ground would sink into black under sprites tinted once; so the ground
- *     keeps its daylight key at every hour and in every weather: as the sun
- *     sinks or clouds come, a sky light (a hemisphere light) makes up the
- *     light the sun no longer gives, and only the light's direction and
- *     softness change (no hard shadows under cloud or at night).
+ *     snow cover, wetness and rain are uniforms that change smoothly. The
+ *     night's darkness stays 2D (sunRig.js says why).
  *   - Building shadows stay the 2D art's shapes (drawn over the ground as
- *     before), except for buildings with a 3D model (the well), which cast
- *     their real shadow from the sun's shadow map onto the ground (their 2D
- *     shape is then left out).
+ *     before), except for buildings with a 3D model (the well, the
+ *     fountain), which cast their real shadow from the sun's shadow map onto
+ *     the ground (their 2D shape is then left out).
  *
  * Depth: the ground writes none, as the ground's sprites wrote none. The
  * sprite quads stand up like cutouts on the ground line of their depth
  * (projection.js), and some paint in front of that line (a walker's feet
  * and shadow, the flat footprints of an overlay): the ground's depth would
  * hide those pixels. What the depth did for the sprites' ground (hiding the
- * part of a rising model still under the ground) a clipping plane at the
- * ground does for the models instead (GROUND_CLIP, webglBackend.js).
+ * part of a rising model still under the ground) the models' own shader
+ * does instead: nothing under the ground is drawn (materials.js uLookClipY).
  *
  * Quality: 'high' (two samples a kind against tiling, puddles, glitter,
- * model shadows, water moving) or 'low' (one sample a kind, no shadow map,
- * still water: for phones). Low keeps its picture: the ground is drawn into
- * a texture only when what it shows changed (the camera, the map, the
- * light, the weather), and each frame copies that texture, so a still view
- * costs a copy. (The ground's shader is most of a frame without a GPU: on
+ * model shadows, water moving: the ground and the models drawn in one go)
+ * or 'low' (one sample a kind, no shadow map, still water: for phones). Low
+ * keeps its picture: the ground alone is drawn into a texture only when what
+ * it shows changed (the camera, the map, the light, the weather), and each
+ * frame copies that texture (the back end then draws the models over it),
+ * so a still view costs a copy. (The ground's shader is most of a frame without a GPU: on
  * SwiftShader about 450 ms a frame on a 1600 x 900 view, against 75 ms for
  * a plain material, so Auto shows the flat sprites there.)
  *
@@ -60,35 +52,16 @@
  */
 
 import {
-  Scene, Group, DirectionalLight, HemisphereLight, PMREMGenerator, ACESFilmicToneMapping, SRGBColorSpace, Vector3,
-  MeshBasicMaterial, PCFShadowMap, Plane, WebGLRenderTarget, UnsignedByteType, NoColorSpace, Mesh, PlaneGeometry,
+  Scene, Group, Vector3, WebGLRenderTarget, UnsignedByteType, NoColorSpace, Mesh, PlaneGeometry,
   RawShaderMaterial, GLSL3, OrthographicCamera, NearestFilter,
 } from 'three';
-import { MOODS, sunDirection, makeSkyParts, skyEnvironment, moodColor } from '../look.js';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
 import { groundTextures } from './groundTextures.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
 import { gameSiteHooks } from './groundSites.js';
-
-/** Models are cut off here (a building rising out of the ground shows nothing under it). */
-export const GROUND_CLIP = Object.freeze([new Plane(new Vector3(0, 1, 0), 0)]);
-/** Model shadows only when the view is narrower than this (tiles across the shadow's square): far out a well is a few pixels. */
-const SHADOW_MAX = 96;
-
-/**
- * The sun's height over the horizon (degrees) at a time of day (render/
- * lighting.js dayTime: sunrise about 0.94, sunset about 0.68), never under
- * a low morning or evening sun: at night the sun has no say (sunLight 0).
- */
-export function sunElevation(t) {
-  const rise = 0.94;
-  const span = 0.74; // to sunset
-  const f = ((((t - rise) % 1) + 1) % 1) / span;
-  if (f >= 1) return 10;
-  return 10 + 42 * Math.sin(Math.PI * f);
-}
+import { SunRig } from '../sunRig.js';
 
 /**
  * The season's position along the 2D art's looks (weather.js MONTH_LOOK:
@@ -105,8 +78,12 @@ export function seasonPos(month, dayFrac = 0) {
 }
 
 export class GroundPass {
-  /** @param {import('three').WebGLRenderer} gl */
-  constructor(gl, quality = 'high') {
+  /**
+   * @param {import('three').WebGLRenderer} gl
+   * @param {string} quality 'high' or 'low'
+   * @param {SunRig} [rig] the 3D world's light and scene (the back end's; one of its own without)
+   */
+  constructor(gl, quality = 'high', rig = null) {
     this.gl = gl;
     this.quality = quality;
     this.tex = null;
@@ -114,29 +91,13 @@ export class GroundPass {
     this.map = null;
     this.failed = false;
     this.loadMs = 0;
-    this.scene = new Scene();
+    this.ownRig = !rig;
+    this.rig = rig || new SunRig(gl);
+    this.scene = this.rig.scene;
+    this.sun = this.rig.sun;
+    this.fill = this.rig.fill;
     this.root = new Group();
-    this.scene.add(this.root);
-    const day = MOODS.day;
-    this.sunDay = day.sun.intensity;
-    this.envDay = day.env;
-    this.sun = new DirectionalLight(0xffffff, this.sunDay);
-    moodColor(day.sun.color, this.sun.color);
-    this.sun.shadow.mapSize.set(2048, 2048);
-    this.sun.shadow.bias = -0.0004;
-    this.sun.shadow.normalBias = 0.02;
-    this.sun.shadow.radius = 2;
-    this.scene.add(this.sun, this.sun.target);
-    // Makes up the light the sun no longer gives (see the header).
-    this.fill = new HemisphereLight(0xffffff, 0xffffff, 0);
-    this.fill.color.setRGB(0.78, 0.86, 1.0);
-    this.fill.groundColor.setRGB(0.55, 0.47, 0.38);
-    this.scene.add(this.fill);
-    this.env = null;
-    this.envDirty = true;
-    this.casters = new Map(); // model pool key -> { template, proxies: [] }
-    this.hidden = new MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false });
-    this.hidden.name = 'shadow-only';
+    this.rig.groundSlot.add(this.root);
     // Low's kept picture (see the header): its texture, what it showed, and the copy's quad.
     this.cache = null;
     this.cacheKey = '';
@@ -147,13 +108,7 @@ export class GroundPass {
     this.liveAt = -Infinity; // when the live tiles were last read (sync)
     this.compiled = false;
     this.compileMs = 0;
-    this.sun.castShadow = quality === 'high';
-    this.sun.shadow.autoUpdate = false;
-    this.shadowLive = false;
-    // (On from the start: the shader is compiled for the state it is drawn in.
-    // The models' lights cast no shadow, so their shaders do not change.)
-    gl.shadowMap.enabled = true;
-    gl.shadowMap.type = PCFShadowMap;
+    this.rig.setShadows(quality === 'high');
     // A ground shader that does not compile on this GPU: the ground's sprites come back (ready
     // false), rather than a map drawn as the bare background. (three reports it at its first use.)
     const report = gl.debug.onShaderError;
@@ -198,10 +153,7 @@ export class GroundPass {
     this.compiling = null;
     // What the other quality used: Low's kept picture, High's shadow map.
     if (q !== 'low') this.dropCache();
-    if (q !== 'high' && this.sun.shadow.map) {
-      this.sun.shadow.map.dispose();
-      this.sun.shadow.map = null;
-    }
+    this.rig.setShadows(q === 'high');
   }
 
   /** Free Low's kept picture and its copy. */
@@ -227,18 +179,15 @@ export class GroundPass {
     this.cacheDirty = true;
   }
 
-  /** The WebGL context came back: the sky's light was a render target, make it again. */
+  /** The WebGL context came back: everything on the GPU is gone. */
   restored() {
-    this.envDirty = true;
     this.cacheDirty = true;
-    // Everything on the GPU is gone: compile in the background again (the painter paints the
-    // layers again on its own), and draw the shadow map at once (a map with no texture reads
-    // as all shadow).
+    // Compile in the background again (the painter paints the layers again on its own; the
+    // back end has the rig make the sky's light and the shadow map again).
     this.warmed = false;
     this.warming = null;
     this.compiled = false;
     this.compiling = null;
-    this.shadowLive = true;
   }
 
   /**
@@ -247,7 +196,7 @@ export class GroundPass {
    * of year and the weather, the light.
    */
   sync(r, camera) {
-    this.ensureEnv();
+    this.rig.ensureEnv();
     if (!this.warmed && !this.warming) this.warmUp(camera);
     if (!this.ready) return false;
     const game = r.game;
@@ -285,7 +234,7 @@ export class GroundPass {
           this.compileMs = performance.now() - t0;
         };
         // Under the very state it is drawn in (render(): tone mapping, output), or three compiles another program at the first draw.
-        const job = this.withOutput(() => this.gl.compileAsync(this.scene, camera)).then(done, done);
+        const job = this.withOutput(() => this.withoutModels(() => this.gl.compileAsync(this.scene, camera))).then(done, done);
         this.compiling = job;
         this.steps.push(['compile call', Math.round(performance.now() - t0)]);
       }
@@ -295,7 +244,7 @@ export class GroundPass {
     return this.tex.ready;
   }
 
-  /** The time of year, the weather and the light (see the header: the night's darkness is the 2D tint's). */
+  /** The time of year and the weather (the sun is the rig's: sunRig.js light()). */
   light(r) {
     const game = r.game;
     const env = r.env || { sun: 1, overcast: 0, rain: 0 };
@@ -312,34 +261,7 @@ export class GroundPass {
       // (Low keeps its picture: its water stands still.)
       time: r.motionOn && this.quality !== 'low' ? r.time : 0,
     });
-    // The sun: its height by the time of day, its strength by the sky's.
-    const sky = r.sky;
-    const elev = sunElevation(sky.t);
-    const sunK = Math.max(0, Math.min(1, sky.sun)) * (1 - 0.85 * (env.overcast || 0));
-    const mood = { ...MOODS.day, sun: { ...MOODS.day.sun, elev } };
-    const dir = sunDirection(mood, 0);
-    // The light the ground gets from straight above at noon on a clear day,
-    // kept at every hour: what the sun does not give, the fill does.
-    const noon = this.sunDay * Math.sin((52 * Math.PI) / 180);
-    const now = this.sunDay * sunK * dir.y;
-    this.sun.intensity = this.sunDay * sunK;
-    this.fill.intensity = Math.max(0, noon - now) * 0.95;
-    this.sunDir = dir;
-    this.ground.setReflection([0.5, 0.64, 0.82], 0.3, sunK);
-  }
-
-  /** The sky's light (made once; again after a lost context). */
-  ensureEnv() {
-    if (!this.envDirty) return;
-    if (this.env) this.env.dispose();
-    const pmrem = new PMREMGenerator(this.gl);
-    const parts = makeSkyParts();
-    this.env = skyEnvironment(pmrem, MOODS.day, sunDirection(MOODS.day, 0), parts);
-    parts.dispose();
-    pmrem.dispose();
-    this.scene.environment = this.env.texture;
-    this.scene.environmentIntensity = this.envDay;
-    this.envDirty = false;
+    this.ground.setReflection([0.5, 0.64, 0.82], 0.3, this.rig.light(r));
   }
 
   /**
@@ -364,91 +286,28 @@ export class GroundPass {
       if (quality === this.quality) this.warmed = true;
       this.steps.push(['warm-up', Math.round(performance.now() - t0)]);
     };
-    const job = this.withOutput(() => this.gl.compileAsync(this.scene, camera)).then(done, done);
+    const job = this.withOutput(() => this.withoutModels(() => this.gl.compileAsync(this.scene, camera))).then(done, done);
     this.warming = job;
   }
 
-  /**
-   * Shadow casters for this frame's models: a copy of each placed model,
-   * drawn into the sun's shadow map only (a material that writes nothing).
-   * `placed` lists { key, holder } of the back end's models.
-   */
-  syncCasters(placed) {
-    for (const c of this.casters.values()) c.used = 0;
-    if (!this.sun.castShadow) placed = []; // (Low: no shadow map, no copies drawn)
-    for (const p of placed) {
-      let c = this.casters.get(p.key);
-      if (!c) {
-        c = { proxies: [], used: 0 };
-        this.casters.set(p.key, c);
-      }
-      let proxy = c.proxies[c.used];
-      if (!proxy) {
-        proxy = p.holder.clone();
-        proxy.traverse((o) => {
-          if (!o.isMesh) return;
-          o.material = this.hidden;
-          o.castShadow = true;
-        });
-        this.scene.add(proxy);
-        c.proxies.push(proxy);
-      }
-      c.used++;
-      proxy.visible = true;
-      proxy.position.copy(p.holder.position);
-      proxy.rotation.copy(p.holder.rotation);
+  /** Run `fn` with the models' slot hidden (the ground's own compile and Low's picture). */
+  withoutModels(fn) {
+    const slot = this.rig.modelSlot;
+    const was = slot.visible;
+    slot.visible = false;
+    try {
+      return fn();
+    } finally {
+      slot.visible = was;
     }
-    for (const c of this.casters.values()) for (let i = c.used; i < c.proxies.length; i++) c.proxies[i].visible = false;
-  }
-
-  /** The back end freed a model's look: forget its copies (they share its geometry, freed with it). */
-  dropCaster(key) {
-    const c = this.casters.get(key);
-    if (!c) return;
-    for (const p of c.proxies) this.scene.remove(p);
-    this.casters.delete(key);
-  }
-
-  /**
-   * Fit the sun's shadow to the part of the ground in view (view tiles
-   * u0..u1, v0..v1): shadows only for what can be seen, and none when the
-   * view is so wide that a model is a few pixels.
-   */
-  fitShadow(u0, v0, u1, v1, models) {
-    if (!this.sun.castShadow) return;
-    const span = Math.max(u1 - u0, v1 - v0);
-    const want = models > 0 && span < SHADOW_MAX;
-    // The map is redrawn only while it has something to show, and once more when that ends (cleared).
-    // (Drawn once at the start too: a light with no map yet would shade the ground as all shadow.)
-    this.sun.shadow.needsUpdate = want || this.shadowLive || !this.sun.shadow.map;
-    this.shadowLive = want;
-    if (!want) {
-      for (const c of this.casters.values()) for (const p of c.proxies) p.visible = false;
-      return;
-    }
-    const cu = (u0 + u1) / 2;
-    const cv = (v0 + v1) / 2;
-    const r = span * 0.75 + 3;
-    const sc = this.sun.shadow.camera;
-    sc.left = -r;
-    sc.right = r;
-    sc.top = r;
-    sc.bottom = -r;
-    sc.near = 0.5;
-    sc.far = 4 * r + 40;
-    sc.updateProjectionMatrix();
-    const d = this.sunDir || new Vector3(0, 1, 0);
-    this.sun.target.position.set(cu, 0, cv);
-    this.sun.position.set(cu + d.x * (2 * r + 20), d.y * (2 * r + 20), cv + d.z * (2 * r + 20));
-    this.sun.target.updateMatrixWorld();
-    this.sun.updateMatrixWorld();
   }
 
   /**
    * Draw the ground with `camera` (the back end's): tone mapped and in
-   * sRGB, which only it is. Low: from its kept picture, drawn again only
-   * when `view` (the 2D camera's place, scale and turn) or what the ground
-   * shows changed.
+   * sRGB. High: with the models, in one go (they share its light and its
+   * shadow map). Low: from its kept picture, drawn again only when `view`
+   * (the 2D camera's place, scale and turn) or what the ground shows
+   * changed; the back end draws the models over it.
    */
   render(camera, view = '') {
     if (this.quality === 'low') {
@@ -466,20 +325,7 @@ export class GroundPass {
    */
   withOutput(fn) {
     if (this.quality === 'low') return fn();
-    const gl = this.gl;
-    const tm = gl.toneMapping;
-    const cs = gl.outputColorSpace;
-    const ex = gl.toneMappingExposure;
-    gl.toneMapping = ACESFilmicToneMapping;
-    gl.outputColorSpace = SRGBColorSpace;
-    gl.toneMappingExposure = 1;
-    try {
-      return fn();
-    } finally {
-      gl.toneMapping = tm;
-      gl.outputColorSpace = cs;
-      gl.toneMappingExposure = ex;
-    }
+    return this.rig.withOutput(fn);
   }
 
   /** What the ground shows, rounded so that a change too small to see redraws nothing. */
@@ -489,7 +335,7 @@ export class GroundPass {
     return [
       this.ground.turn, q(u.uGSnow.value), q(u.uGWet.value, 50), q(u.uGVegAmt.value), q(u.uGDry.value), q(u.uGVeg.value.x, 400), q(u.uGVeg.value.y, 400),
       q(u.uGFlowers.value, 50), q(u.uGLeaves.value, 50),
-      q(this.sun.intensity, 50), q(this.fill.intensity, 50), q(this.sunDir ? this.sunDir.y : 1),
+      q(this.sun.intensity, 50), q(this.fill.intensity, 50), q(this.rig.sunDir.y),
     ].join(',');
   }
 
@@ -513,7 +359,7 @@ export class GroundPass {
       gl.clear(true, false, false);
       gl.autoClear = false;
       const t0 = this.redraws ? 0 : performance.now();
-      gl.render(this.scene, camera);
+      this.withoutModels(() => gl.render(this.scene, camera));
       if (!this.redraws) this.steps.push(['first draw', Math.round(performance.now() - t0)]);
       gl.autoClear = ac;
       gl.setRenderTarget(prev);
@@ -532,12 +378,10 @@ export class GroundPass {
     this.gl.debug.onShaderError = this.shaderErrorWas;
     if (this.tex) this.tex.dispose();
     this.tex = null;
-    if (this.env) this.env.dispose();
-    this.env = null;
-    this.hidden.dispose();
-    for (const c of this.casters.values()) for (const p of c.proxies) this.scene.remove(p);
-    this.casters.clear();
-    this.sun.shadow.dispose();
+    this.rig.groundSlot.remove(this.root);
+    // (The rig is the back end's: it lights the models too. Its shadow map goes with Low or Off.)
+    if (this.ownRig) this.rig.dispose();
+    else this.rig.setShadows(false);
   }
 }
 

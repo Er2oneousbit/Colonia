@@ -581,6 +581,19 @@ export function iceMaterial() {
   return m;
 }
 
+/**
+ * Forget every texture and material made so far, freeing them: the game's
+ * WebGL back end calls it when it is shut down, as its textures were
+ * painted on its renderer (a new renderer paints its own).
+ */
+export function resetLook() {
+  for (const t of TEXTURES.values()) for (const k of ['albedo', 'normal', 'orm']) t.out[k].dispose();
+  for (const m of CACHE.values()) m.dispose();
+  TEXTURES.clear();
+  CACHE.clear();
+  asked = [];
+}
+
 /** Every material made so far (the lab lists them, look.js frees them). */
 export function allMaterials() {
   return [...CACHE.values()];
