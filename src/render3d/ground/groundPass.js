@@ -144,6 +144,7 @@ export class GroundPass {
     this.stateKey = '';
     this.blit = null;
     this.redraws = 0; // pictures drawn into the cache (stats, tests)
+    this.liveAt = -Infinity; // when the live tiles were last read (sync)
     this.compiled = false;
     this.compileMs = 0;
     this.sun.castShadow = quality === 'high';
@@ -262,7 +263,13 @@ export class GroundPass {
       this.map = map;
     }
     const g = this.ground;
-    if (g.update()) this.cacheDirty = true;
+    // What changes between the map's revisions (a field growing, a fire going out) is read again
+    // at most four times a second, and once a second at Low: each change there redraws its kept
+    // picture, and twenty farms at a fast speed would otherwise redraw it nearly every frame.
+    const now = performance.now();
+    const live = now - this.liveAt >= (this.quality === 'low' ? 1000 : 250);
+    if (live) this.liveAt = now;
+    if (g.update(live)) this.cacheDirty = true;
     g.setTurn(r.viewTurn);
     this.light(r);
     if (!this.compiled) {

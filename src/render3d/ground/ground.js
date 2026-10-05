@@ -18,8 +18,9 @@
  * tracking ranges would. Then it repacks the tiles whose look changes
  * between the map's revisions (`live`: a farm's crop growing, a fire
  * burning out) and uploads the site map (or the type map) only if a byte
- * changed: a field crosses one of its 256 steps of growth every few game
- * days. Nothing else is made or freed as the map changes: roads, plazas,
+ * changed: a field crosses one of its 64 steps of growth about once a
+ * game day (groundSites.js GROWTH_STEPS). The caller says how often it
+ * wants them (`live`): Low redraws its kept picture for each change. Nothing else is made or freed as the map changes: roads, plazas,
  * rubble, yards and fields are bytes in those two textures.
  *
  * setSky() takes the time of year and the weather as numbers that move
@@ -133,14 +134,17 @@ export class Ground {
     this.setTurn(0);
   }
 
-  /** Repack what changed on the map and on its live tiles; true when either map was uploaded again. */
-  update() {
+  /**
+   * Repack what changed on the map, and (`live`) on its live tiles; true
+   * when either map was uploaded again.
+   */
+  update(live = true) {
     const h = this.hooks;
     if (h.prepare) h.prepare();
     let types = false;
     let sites = false;
     if (this.types.update(h)) types = sites = true;
-    if (h.live) {
+    if (live && h.live) {
       const r = this.types.refresh(h.live(), h);
       types ||= r.types;
       sites ||= r.sites;

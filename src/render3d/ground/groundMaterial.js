@@ -392,7 +392,8 @@ void groundSurface() {
   if ( site == ${SITE.YARD} || site == ${SITE.FOOTING} || site == ${SITE.PADDOCK} ) RQ[4] = ${LAYER.yard};
   else if ( site == ${SITE.PEN} ) { RQ[4] = ${LAYER.mud}; RQ[5] = ${LAYER.yard}; }
   else if ( site != 0 ) {
-    RQ[4] = ${LAYER.soil}; RP[4] = pr; RW[4] = swp;
+    // (Trees and vines stand in grass hoed round them: no ploughed soil to read.)
+    if ( site != ${SITE.ORCHARD} && site != ${SITE.OLIVE} && site != ${SITE.VINES} ) { RQ[4] = ${LAYER.soil}; RP[4] = pr; RW[4] = swp; }
     if ( site == ${SITE.GRAIN} || site == ${SITE.VEG} || site == ${SITE.FLAX} ) {
       RQ[5] = site == ${SITE.GRAIN} ? ${LAYER.grain} : site == ${SITE.VEG} ? ${LAYER.veg} : ${LAYER.flax};
       RP[5] = pr; RW[5] = swp;
@@ -502,8 +503,9 @@ void groundSurface() {
         GSmp Y = SM[4];
         // A wall's or an aqueduct's footing and a paddock are trodden ground: the grass worn through in patches.
         float k = site == ${SITE.YARD} ? 1.0 : smoothstep( 0.4, 0.7, ${N.rubble} * 0.6 + ( 1.0 - h ) * 0.5 + ( site == ${SITE.FOOTING} ? 0.12 : -0.12 ) );
-        if ( site == ${SITE.PADDOCK} ) col = mix( col, gLum( col ) * vec3( 1.15, 1.1, 0.75 ) * 1.1, 0.3 ); // cropped short, paler
-        sc = mix( col, Y.alb.rgb, k );
+        // (A paddock's grass is cropped short and paler: inside the plot only, or its margin steps.)
+        vec3 grass = site == ${SITE.PADDOCK} ? mix( col, gLum( col ) * vec3( 1.15, 1.1, 0.75 ) * 1.1, 0.3 ) : col;
+        sc = mix( grass, Y.alb.rgb, k );
         sh = mix( h, Y.alb.a, k );
         sn = mix( nrm, Y.n, k );
         sr = mix( rough, Y.orm.g, k );
@@ -575,12 +577,12 @@ void groundSurface() {
           if ( site == ${SITE.VINES} ) {
             float rv = ( art.y - 0.3 ) / 0.48;
             float dv = abs( rv - clamp( floor( rv + 0.5 ), 0.0, 5.0 ) ) * 0.48;
-            worked = smoothstep( 0.12, 0.08, dv + ( fh - 0.5 ) * 0.03 + edgeN * 0.03 ) * step( 0.95, art.x ) * step( art.x, SZ - 0.08 );
+            worked = smoothstep( 0.12, 0.08, dv + ( h - 0.5 ) * 0.03 + edgeN * 0.03 ) * step( 0.95, art.x ) * step( art.x, SZ - 0.08 );
           } else {
             vec2 cell = ( art - vec2( 1.2, 0.45 ) ) / vec2( 0.62, 0.95 );
             vec2 nearest = clamp( floor( cell + 0.5 ), vec2( 0.0 ), vec2( 2.0 ) );
             vec2 tree = vec2( 1.2, 0.45 ) + nearest * vec2( 0.62, 0.95 );
-            worked = smoothstep( 0.2, 0.15, length( art - tree ) + ( fh - 0.5 ) * 0.05 + edgeN * 0.06 + ( ${N.rubble} - 0.5 ) * 0.06 );
+            worked = smoothstep( 0.2, 0.15, length( art - tree ) + ( h - 0.5 ) * 0.05 + edgeN * 0.06 + ( ${N.rubble} - 0.5 ) * 0.06 );
           }
           vec3 sward = col;
           if ( site == ${SITE.OLIVE} ) sward = mix( col, gLum( col ) * vec3( 1.3, 1.15, 0.7 ), 0.35 ); // an olive grove's dry grass

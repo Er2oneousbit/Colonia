@@ -515,3 +515,18 @@ test('3D ground: the look lab\'s Ground types gallery has a card for every kind 
   }
   assert.ok(scrubCard);
 });
+
+test('3D ground: the live tiles are read again only when the caller asks (Low redraws its picture for each change)', () => {
+  const map = new GameMap(32, 32);
+  let growth = 0.2;
+  const field = map.idx(4, 4);
+  const hooks = { siteAt: (i) => (i === field ? siteWord(SITE.GRAIN, growth) : 0), ownerAt: (i) => (i === field ? 1 : 0), live: () => [field] };
+  const ground = new Ground(map, tex(), { quality: 'low', hooks });
+  assert.equal(ground.update(), false, 'nothing changed');
+  growth = 0.7;
+  assert.equal(ground.update(false), false, 'not asked: the growth waits');
+  assert.equal(ground.types.detail[field * 4 + 1], Math.round(0.2 * 255));
+  assert.equal(ground.update(true), true);
+  assert.equal(ground.types.detail[field * 4 + 1], Math.round(0.7 * 255));
+  ground.dispose();
+});
