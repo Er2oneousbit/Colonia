@@ -117,6 +117,22 @@ vec4 gType( ivec2 t ) {
   return texelFetch( uTypes, clamp( t, ivec2( 0 ), s ), 0 ) * 255.0;
 }
 float gLum( vec3 c ) { return dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ); }
+#ifdef GROUND_OWN_OUTPUT
+// ACES filmic (Stephen Hill's fit of the RRT and ODT, as three.js tone maps)
+// and the sRGB curve, done here when the ground is drawn into a texture (the
+// Low quality's cached picture), where three applies neither.
+vec3 gAces( vec3 c ) {
+  const mat3 IN = mat3( vec3( 0.59719, 0.07600, 0.02840 ), vec3( 0.35458, 0.90834, 0.13383 ), vec3( 0.04823, 0.01566, 0.83777 ) );
+  const mat3 OUT = mat3( vec3( 1.60475, -0.10208, -0.00327 ), vec3( -0.53108, 1.10813, -0.07276 ), vec3( -0.07367, -0.00605, 1.07602 ) );
+  c = IN * ( c / 0.6 );
+  vec3 a = c * ( c + 0.0245786 ) - 0.000090537;
+  vec3 b = c * ( 0.983729 * c + 0.4329510 ) + 0.238081;
+  return clamp( OUT * ( a / b ), 0.0, 1.0 );
+}
+vec3 gSrgb( vec3 c ) {
+  return mix( c * 12.92, 1.055 * pow( c, vec3( 1.0 / 2.4 ) ) - 0.055, step( 0.0031308, c ) );
+}
+#endif
 
 // A layer's sample: albedo (rgb) and height (a), normal (tangent space, xy), ORM (occlusion, roughness, plants).
 struct GSmp { vec4 alb; vec3 n; vec3 orm; };
@@ -532,15 +548,19 @@ const FRAG_FADE = /* glsl */ `
   vec2 fq = abs( vGroundW.xz - uLookFade.xy );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, uLookFadeColor, smoothstep( uLookFade.z, uLookFade.w, max( fq.x, fq.y ) ) );
 }
+#ifdef GROUND_OWN_OUTPUT
+gl_FragColor.rgb = gSrgb( gAces( gl_FragColor.rgb ) );
+#endif
 `;
 
 /**
  * The ground material on texture arrays `tex` (groundTextures.js) and the
  * type map texture `types`. `quality` 'high' or 'low' (low: one sample a
- * kind, no puddles: for software GL and small GPUs). Its uniforms are
- * `mat.userData.ground` (ground.js sets them each frame).
+ * kind, no puddles or glitter: for phones). `ownOutput`: tone map and
+ * encode sRGB in the shader (drawn into a texture, where three does
+ * neither). Its uniforms are `mat.userData.ground` (ground.js sets them).
  */
-export function groundMaterial(tex, types, quality = 'high') {
+export function groundMaterial(tex, types, quality = 'high', ownOutput = false) {
   const mat = new MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
   mat.name = `ground-${quality}`;
   const u = {
@@ -566,7 +586,9 @@ export function groundMaterial(tex, types, quality = 'high') {
     uGSkyColor: { value: new Vector3(0.6, 0.75, 1.0) },
   };
   mat.userData.ground = u;
-  if (quality === 'high') mat.defines = { GROUND_HIGH: '' };
+  mat.defines = {};
+  if (quality === 'high') mat.defines.GROUND_HIGH = '';
+  if (ownOutput) mat.defines.GROUND_OWN_OUTPUT = '';
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, LOOK.uniforms, u);
     shader.vertexShader = shader.vertexShader
@@ -581,6 +603,6 @@ export function groundMaterial(tex, types, quality = 'high') {
       .replace('#include <aomap_fragment>', FRAG_AO)
       .replace('#include <opaque_fragment>', FRAG_FADE);
   };
-  mat.customProgramCacheKey = () => `ground1-${quality}`;
+  mat.customProgramCacheKey = () => `ground1-${quality}${ownOutput ? '-own' : ''}`;
   return mat;
 }

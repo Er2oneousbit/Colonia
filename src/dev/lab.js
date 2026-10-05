@@ -199,7 +199,7 @@ async function main() {
   controls.enabled = false;
 
   // The Ground scene: every kind of the game's 3D ground on one patch.
-  const tex = groundArrays(layers, undefined, LOOK.anisotropy);
+  const tex = groundArrays(layers, LOOK.anisotropy);
   const gs = buildGroundScene(tex, 'high');
   const groundGroup = gs.ground.group;
   groundGroup.visible = false;

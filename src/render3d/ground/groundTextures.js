@@ -15,9 +15,10 @@
  * one per frame instead (a hitch of about a tenth of a second each, never a
  * hang).
  *
- * Memory: 14 layers x 256 x 256 x 4 bytes x 3 arrays, 11 MB, and the GPU's
- * copies with their mipmaps about 15 MB. The bytes are kept: three.js
- * uploads them again after a lost WebGL context.
+ * Memory: 14 layers x 256 x 256 x 4 bytes x 3 arrays, 11 MB, packed once
+ * (packLayers) and shared by every texture made from them; the GPU's copies
+ * with their mipmaps about 15 MB. The bytes are kept: three.js uploads them
+ * again after a lost WebGL context.
  * ----------------------------------------------------------------------------
  */
 
@@ -70,11 +71,19 @@ export function paintLayers(size = GROUND_SIZE, onLayer = null) {
   return onPage();
 }
 
-/** One texture array of `layers` (each a Uint8Array of size x size x 4). */
-function arrayTexture(layers, size, srgb, anisotropy) {
-  const data = new Uint8Array(size * size * 4 * layers.length);
-  layers.forEach((l, i) => data.set(l, i * size * size * 4));
-  const t = new DataArrayTexture(data, size, size, layers.length);
+/** Painted layers ([{ albedo, normal, orm }]) packed into one array of bytes per map, the layers one after another. */
+export function packLayers(layers, size = GROUND_SIZE) {
+  const pack = (k) => {
+    const data = new Uint8Array(size * size * 4 * layers.length);
+    layers.forEach((l, i) => data.set(l[k], i * size * size * 4));
+    return data;
+  };
+  return { albedo: pack('albedo'), normal: pack('normal'), orm: pack('orm'), size, count: layers.length };
+}
+
+/** One texture array on packed bytes (shared, not copied). */
+function arrayTexture(data, size, count, srgb, anisotropy) {
+  const t = new DataArrayTexture(data, size, size, count);
   t.format = RGBAFormat;
   t.type = UnsignedByteType;
   t.wrapS = t.wrapT = RepeatWrapping;
@@ -87,12 +96,13 @@ function arrayTexture(layers, size, srgb, anisotropy) {
   return t;
 }
 
-/** The three texture arrays from painted layers. */
-export function groundArrays(layers, size = GROUND_SIZE, anisotropy = 4) {
+/** The three texture arrays on packed layers (packLayers). */
+export function groundArrays(packed, anisotropy = 4) {
+  const { size, count } = packed;
   return {
-    albedo: arrayTexture(layers.map((l) => l.albedo), size, true, anisotropy),
-    normal: arrayTexture(layers.map((l) => l.normal), size, false, anisotropy),
-    orm: arrayTexture(layers.map((l) => l.orm), size, false, anisotropy),
+    albedo: arrayTexture(packed.albedo, size, count, true, anisotropy),
+    normal: arrayTexture(packed.normal, size, count, false, anisotropy),
+    orm: arrayTexture(packed.orm, size, count, false, anisotropy),
     size,
     dispose() {
       this.albedo.dispose();
@@ -105,8 +115,8 @@ export function groundArrays(layers, size = GROUND_SIZE, anisotropy = 4) {
 /** Painted once per page and shared (the lab and the game's back end, a renderer switched off and on). */
 let shared = null;
 
-/** The ground's painted layers, painted once: a promise of the layer list. */
+/** The ground's layers, painted once and packed (packLayers): a promise. */
 export function groundLayers(onLayer = null) {
-  if (!shared) shared = paintLayers(GROUND_SIZE, onLayer).catch((err) => { shared = null; throw err; });
+  if (!shared) shared = paintLayers(GROUND_SIZE, onLayer).then((layers) => packLayers(layers)).catch((err) => { shared = null; throw err; });
   return shared;
 }

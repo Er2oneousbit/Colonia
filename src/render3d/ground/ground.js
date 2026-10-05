@@ -70,9 +70,10 @@ export class Ground {
    * @param {object} map        a GameMap (or anything with its layers, the lab's)
    * @param {object} tex        groundTextures.js groundArrays()
    * @param {object} [opts]     { quality: 'high'|'low', scale: units per tile, farmAt(i), buildingAt(i),
-   *                            kindHook, waterHook (groundMap.js: the lab's own layout) }
+   *                            kindHook, waterHook (groundMap.js: the lab's own layout),
+   *                            ownOutput (groundMaterial.js: drawn into a texture) }
    */
-  constructor(map, tex, { quality = 'high', scale = 1, farmAt = () => false, buildingAt = () => false, kindHook = null, waterHook = null } = {}) {
+  constructor(map, tex, { quality = 'high', scale = 1, farmAt = () => false, buildingAt = () => false, kindHook = null, waterHook = null, ownOutput = false } = {}) {
     this.map = map;
     this.tex = tex;
     this.quality = quality;
@@ -88,7 +89,7 @@ export class Ground {
     this.typeTex.generateMipmaps = false;
     this.typeTex.colorSpace = NoColorSpace;
     this.typeTex.flipY = false;
-    this.material = groundMaterial(tex, this.typeTex, quality);
+    this.material = groundMaterial(tex, this.typeTex, quality, ownOutput);
     this.group = new Group();
     this.group.name = 'ground';
     this.inner = new Group(); // in map tiles; the outer group turns and scales it

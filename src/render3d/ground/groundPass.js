@@ -37,19 +37,40 @@
  * ground does for the models instead (GROUND_CLIP, webglBackend.js).
  *
  * Quality: 'high' (two samples a kind against tiling, puddles, glitter,
- * model shadows) or 'low' (one sample a kind, no shadow map: for software
- * GL, which the CI's smoke test runs on, and phones).
+ * model shadows, water moving) or 'low' (one sample a kind, no shadow map,
+ * still water: for phones). Low keeps its picture: the ground is drawn into
+ * a texture only when what it shows changed (the camera, the map, the
+ * light, the weather), and each frame copies that texture, so a still view
+ * costs a copy. (The ground's shader is most of a frame without a GPU: on
+ * SwiftShader about 450 ms a frame on a 1600 x 900 view, against 75 ms for
+ * a plain material, so Auto shows the flat sprites there.)
+ *
+ * Start-up never stalls the game: the textures are painted in a worker
+ * (groundTextures.js), uploaded one array a frame, and the ground's shader
+ * (a big one: compiled at its first draw it froze a desktop for 2 s on
+ * ANGLE's D3D11) is compiled in the background (compileAsync, the
+ * KHR_parallel_shader_compile extension) as soon as the back end starts,
+ * on a stand-in ground with placeholder textures (the program does not
+ * depend on them), so the one frame that still waits on it (ANGLE links
+ * the program on the GPU process's own thread: about 0.6 s on that
+ * desktop) falls among the start-up's own slow frames. The ground's
+ * sprites are drawn until all of it is ready. High keeps the sun's shadow map on always (it
+ * is only redrawn while a model is in view), so the first well to come into
+ * view never asks for another compile.
  * ----------------------------------------------------------------------------
  */
 
 import {
   Scene, Group, DirectionalLight, HemisphereLight, PMREMGenerator, ACESFilmicToneMapping, SRGBColorSpace, Vector3,
-  MeshBasicMaterial, PCFShadowMap, Plane,
+  MeshBasicMaterial, PCFShadowMap, Plane, WebGLRenderTarget, UnsignedByteType, NoColorSpace, Mesh, PlaneGeometry,
+  RawShaderMaterial, GLSL3, OrthographicCamera, NearestFilter,
 } from 'three';
 import { MOODS, sunDirection, makeSkyParts, skyEnvironment, moodColor } from '../look.js';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
 import { groundLayers, groundArrays } from './groundTextures.js';
+import { GROUND_LAYERS } from './groundSurfaces.js';
+import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
 
 /** Models are cut off here (a building rising out of the ground shows nothing under it). */
@@ -117,7 +138,25 @@ export class GroundPass {
     this.casters = new Map(); // model pool key -> { template, proxies: [] }
     this.hidden = new MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false });
     this.hidden.name = 'shadow-only';
-    this.shadowsLive = false;
+    // Low's kept picture (see the header): its texture, what it showed, and the copy's quad.
+    this.cache = null;
+    this.cacheKey = '';
+    this.cacheDirty = true;
+    this.stateKey = '';
+    this.blit = null;
+    this.redraws = 0; // pictures drawn into the cache (stats, tests)
+    // Start-up steps once the layers are painted: the three arrays uploaded one a frame, then the compile.
+    this.stage = 0;
+    this.compiled = false;
+    this.compileMs = 0;
+    this.sun.castShadow = quality === 'high';
+    this.sun.shadow.autoUpdate = false;
+    this.shadowLive = false;
+    // (On from the start: the shader is compiled for the state it is drawn in.
+    // The models' lights cast no shadow, so their shaders do not change.)
+    gl.shadowMap.enabled = true;
+    gl.shadowMap.type = PCFShadowMap;
+    this.steps = []; // [what, ms] of the start-up steps (stats, measuring)
     const t0 = performance.now();
     groundLayers()
       .then((layers) => {
@@ -130,10 +169,12 @@ export class GroundPass {
   /** Can the ground be drawn this frame (its textures painted and a map set)? */
   get ready() { return !!this.layers && !this.failed; }
 
-  /** Draw at another quality: the material is remade (the textures are kept). */
+  /** Draw at another quality: the material is remade (the textures are kept) and compiled again in the background. */
   setQuality(q) {
     if (q === this.quality) return;
     this.quality = q;
+    this.sun.castShadow = q === 'high';
+    this.warmed = false;
     this.dropGround();
   }
 
@@ -144,11 +185,15 @@ export class GroundPass {
     }
     this.ground = null;
     this.map = null;
+    this.compiled = false;
+    this.compiling = null;
+    this.cacheDirty = true;
   }
 
   /** The WebGL context came back: the sky's light was a render target, make it again. */
   restored() {
     this.envDirty = true;
+    this.cacheDirty = true;
   }
 
   /**
@@ -156,12 +201,22 @@ export class GroundPass {
    * game makes a new ground), what changed on it, the view turn, the time
    * of year and the weather, the light.
    */
-  sync(r) {
+  sync(r, camera) {
+    this.ensureEnv();
+    if (!this.warmed && !this.warming) this.warmUp(camera);
     if (!this.ready) return false;
     const game = r.game;
     if (!this.tex) {
       const aniso = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
-      this.tex = groundArrays(this.layers, undefined, aniso);
+      this.tex = groundArrays(this.layers, aniso);
+    }
+    // Upload the arrays one a frame (each with its mipmaps), not all at the first draw.
+    if (this.stage < 3) {
+      const t0 = performance.now();
+      this.gl.initTexture([this.tex.albedo, this.tex.normal, this.tex.orm][this.stage]);
+      this.steps.push([`upload ${this.stage}`, Math.round(performance.now() - t0)]);
+      this.stage++;
+      return false;
     }
     if (this.map !== game.map) {
       this.dropGround();
@@ -172,7 +227,7 @@ export class GroundPass {
         const b = game.buildings.get(id);
         return !!b && b.def.kind === 'farm';
       };
-      this.ground = new Ground(map, this.tex, { quality: this.quality, farmAt, buildingAt: (i) => map.building[i] !== 0 });
+      this.ground = new Ground(map, this.tex, { quality: this.quality, farmAt, buildingAt: (i) => map.building[i] !== 0, ownOutput: this.quality === 'low' });
       // (No depth: see the header.)
       this.ground.material.depthWrite = false;
       this.ground.material.depthTest = false;
@@ -180,9 +235,28 @@ export class GroundPass {
       this.map = map;
     }
     const g = this.ground;
-    g.update();
+    if (g.update()) this.cacheDirty = true;
     g.setTurn(r.viewTurn);
     this.light(r);
+    if (!this.compiled) {
+      // Compiled in the background; the sprites stand in meanwhile. (After
+      // the warm-up, and for a new map's ground, three finds the program
+      // made already.)
+      if (!this.compiling && this.warmed) {
+        const t0 = performance.now();
+        const done = () => {
+          if (this.compiling !== job) return; // (dropped meanwhile)
+          this.compiled = true;
+          this.compiling = null;
+          this.compileMs = performance.now() - t0;
+        };
+        // Under the very state it is drawn in (render(): tone mapping, output), or three compiles another program at the first draw.
+        const job = this.withOutput(() => this.gl.compileAsync(this.scene, camera)).then(done, done);
+        this.compiling = job;
+        this.steps.push(['compile call', Math.round(performance.now() - t0)]);
+      }
+      return false;
+    }
     return true;
   }
 
@@ -200,7 +274,8 @@ export class GroundPass {
       snow: weatherOn && seasons ? groundSnow(w.cover) : 0,
       wet: weatherOn ? w.wet || 0 : 0,
       rain: weatherOn ? env.rain : 0,
-      time: r.motionOn ? r.time : 0,
+      // (Low keeps its picture: its water stands still.)
+      time: r.motionOn && this.quality !== 'low' ? r.time : 0,
     });
     // The sun: its height by the time of day, its strength by the sky's.
     const sky = r.sky;
@@ -216,17 +291,48 @@ export class GroundPass {
     this.fill.intensity = Math.max(0, noon - now) * 0.95;
     this.sunDir = dir;
     this.ground.setReflection([0.5, 0.64, 0.82], 0.3, sunK);
-    if (this.envDirty) {
-      if (this.env) this.env.dispose();
-      const pmrem = new PMREMGenerator(this.gl);
-      const parts = makeSkyParts();
-      this.env = skyEnvironment(pmrem, MOODS.day, sunDirection(MOODS.day, 0), parts);
-      parts.dispose();
-      pmrem.dispose();
-      this.scene.environment = this.env.texture;
-      this.scene.environmentIntensity = this.envDay;
-      this.envDirty = false;
-    }
+  }
+
+  /** The sky's light (made once; again after a lost context). */
+  ensureEnv() {
+    if (!this.envDirty) return;
+    if (this.env) this.env.dispose();
+    const pmrem = new PMREMGenerator(this.gl);
+    const parts = makeSkyParts();
+    this.env = skyEnvironment(pmrem, MOODS.day, sunDirection(MOODS.day, 0), parts);
+    parts.dispose();
+    pmrem.dispose();
+    this.scene.environment = this.env.texture;
+    this.scene.environmentIntensity = this.envDay;
+    this.envDirty = false;
+  }
+
+  /**
+   * Compile the ground's shader now, on a stand-in: a small empty map on
+   * placeholder textures, in the very scene (lights, sky, shadow) and
+   * output state it will be drawn in (see the header).
+   */
+  warmUp(camera) {
+    const t0 = performance.now();
+    const blank = { albedo: new Uint8Array(4 * 4 * 4 * GROUND_LAYERS.length), size: 4, count: GROUND_LAYERS.length };
+    blank.normal = blank.albedo;
+    blank.orm = blank.albedo;
+    const tex = groundArrays(blank, 1);
+    const stand = new Ground(new GameMap(16, 16), tex, { quality: this.quality, ownOutput: this.quality === 'low' });
+    stand.material.depthWrite = false;
+    stand.material.depthTest = false;
+    this.root.add(stand.group);
+    const quality = this.quality;
+    const done = () => {
+      this.root.remove(stand.group);
+      stand.dispose();
+      tex.dispose();
+      this.warming = null;
+      // (A quality changed meanwhile: warm that one up too.)
+      if (quality === this.quality) this.warmed = true;
+      this.steps.push(['warm-up', Math.round(performance.now() - t0)]);
+    };
+    this.warming = this.withOutput(() => this.gl.compileAsync(this.scene, camera)).then(done, done);
   }
 
   /**
@@ -275,14 +381,17 @@ export class GroundPass {
    * view is so wide that a model is a few pixels.
    */
   fitShadow(u0, v0, u1, v1, models) {
+    if (!this.sun.castShadow) return;
     const span = Math.max(u1 - u0, v1 - v0);
-    const want = this.quality === 'high' && models > 0 && span < SHADOW_MAX;
-    if (want !== this.sun.castShadow) {
-      this.sun.castShadow = want;
-      this.gl.shadowMap.enabled = true;
-      this.gl.shadowMap.type = PCFShadowMap;
+    const want = models > 0 && span < SHADOW_MAX;
+    // The map is redrawn only while it has something to show, and once more when that ends (cleared).
+    // (Drawn once at the start too: a light with no map yet would shade the ground as all shadow.)
+    this.sun.shadow.needsUpdate = want || this.shadowLive || !this.sun.shadow.map;
+    this.shadowLive = want;
+    if (!want) {
+      for (const c of this.casters.values()) for (const p of c.proxies) p.visible = false;
+      return;
     }
-    if (!want) return;
     const cu = (u0 + u1) / 2;
     const cv = (v0 + v1) / 2;
     const r = span * 0.75 + 3;
@@ -301,8 +410,28 @@ export class GroundPass {
     this.sun.updateMatrixWorld();
   }
 
-  /** Draw the ground with `camera` (the back end's): tone mapped and in sRGB, which only it is. */
-  render(camera) {
+  /**
+   * Draw the ground with `camera` (the back end's): tone mapped and in
+   * sRGB, which only it is. Low: from its kept picture, drawn again only
+   * when `view` (the 2D camera's place, scale and turn) or what the ground
+   * shows changed.
+   */
+  render(camera, view = '') {
+    if (this.quality === 'low') {
+      this.renderCached(camera, view);
+      return;
+    }
+    this.withOutput(() => this.gl.render(this.scene, camera));
+  }
+
+  /**
+   * Run `fn` with the renderer set up as the ground is drawn: ACES and sRGB
+   * on the screen (High). Low draws into its own texture, where three
+   * applies neither (the shader does: GROUND_OWN_OUTPUT), so it changes
+   * nothing.
+   */
+  withOutput(fn) {
+    if (this.quality === 'low') return fn();
     const gl = this.gl;
     const tm = gl.toneMapping;
     const cs = gl.outputColorSpace;
@@ -311,7 +440,7 @@ export class GroundPass {
     gl.outputColorSpace = SRGBColorSpace;
     gl.toneMappingExposure = 1;
     try {
-      gl.render(this.scene, camera);
+      return fn();
     } finally {
       gl.toneMapping = tm;
       gl.outputColorSpace = cs;
@@ -319,8 +448,58 @@ export class GroundPass {
     }
   }
 
+  /** What the ground shows, rounded so that a change too small to see redraws nothing. */
+  groundState() {
+    const u = this.ground.material.userData.ground;
+    const q = (v, k = 100) => Math.round(v * k);
+    return [
+      this.ground.turn, q(u.uGSnow.value), q(u.uGWet.value, 50), q(u.uGVegAmt.value), q(u.uGDry.value), q(u.uGVeg.value.x, 400), q(u.uGVeg.value.y, 400),
+      q(this.sun.intensity, 50), q(this.fill.intensity, 50), q(this.sunDir ? this.sunDir.y : 1),
+    ].join(',');
+  }
+
+  renderCached(camera, view) {
+    const gl = this.gl;
+    const size = gl.getDrawingBufferSize(new Vector3());
+    const w = Math.max(1, size.x);
+    const h = Math.max(1, size.y);
+    if (!this.cache || this.cache.width !== w || this.cache.height !== h) {
+      if (this.cache) this.cache.dispose();
+      // Linear 8-bit: the shader writes its sRGB bytes itself (GROUND_OWN_OUTPUT).
+      this.cache = new WebGLRenderTarget(w, h, { type: UnsignedByteType, colorSpace: NoColorSpace, depthBuffer: false, minFilter: NearestFilter, magFilter: NearestFilter });
+      this.cacheDirty = true;
+    }
+    const key = `${view}|${this.groundState()}`;
+    if (this.cacheDirty || key !== this.cacheKey) {
+      const prev = gl.getRenderTarget();
+      const ac = gl.autoClear;
+      gl.setRenderTarget(this.cache);
+      gl.setClearColor(0x2a241c, 1);
+      gl.clear(true, false, false);
+      gl.autoClear = false;
+      const t0 = this.redraws ? 0 : performance.now();
+      gl.render(this.scene, camera);
+      if (!this.redraws) this.steps.push(['first draw', Math.round(performance.now() - t0)]);
+      gl.autoClear = ac;
+      gl.setRenderTarget(prev);
+      this.cacheKey = key;
+      this.cacheDirty = false;
+      this.redraws++;
+    }
+    if (!this.blit) this.blit = makeBlit();
+    this.blit.material.uniforms.map.value = this.cache.texture;
+    gl.render(this.blit.scene, this.blit.camera);
+  }
+
   dispose() {
     this.dropGround();
+    if (this.cache) this.cache.dispose();
+    this.cache = null;
+    if (this.blit) {
+      this.blit.mesh.geometry.dispose();
+      this.blit.material.dispose();
+      this.blit = null;
+    }
     if (this.tex) this.tex.dispose();
     this.tex = null;
     if (this.env) this.env.dispose();
@@ -330,4 +509,32 @@ export class GroundPass {
     this.casters.clear();
     this.sun.shadow.dispose();
   }
+}
+
+/** A quad over the whole picture that copies a texture's bytes as they are (Low's kept picture). */
+function makeBlit() {
+  const material = new RawShaderMaterial({
+    glslVersion: GLSL3,
+    uniforms: { map: { value: null } },
+    vertexShader: `
+in vec3 position;
+out vec2 vUv;
+void main() {
+  vUv = position.xy * 0.5 + 0.5;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}`,
+    fragmentShader: `
+precision highp float;
+uniform sampler2D map;
+in vec2 vUv;
+out vec4 outColor;
+void main() { outColor = texture(map, vUv); }`,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const mesh = new Mesh(new PlaneGeometry(2, 2), material);
+  mesh.frustumCulled = false;
+  const scene = new Scene();
+  scene.add(mesh);
+  return { scene, camera: new OrthographicCamera(-1, 1, 1, -1, 0, 1), mesh, material };
 }

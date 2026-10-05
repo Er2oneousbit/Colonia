@@ -33,7 +33,8 @@
  *      and its textures are painted: one lit mesh per chunk of the map,
  *      tone mapped, in place of the ground's sprites (the renderer asks
  *      `drawsGround` and leaves them out). Settings > Ground: High, Low
- *      (for software GL and phones, which Auto picks) or Off (the sprites).
+ *      (phones; Auto picks it there) or Off (the sprites; Auto's choice
+ *      without a GPU).
  *   4. The picture is copied onto the 2D canvas (present), and the renderer
  *      goes on there: particles, clouds, the night (which so darkens models
  *      too), the weather, signs, previews, outlines. So input, picking and
@@ -286,7 +287,7 @@ export class WebGLBackend {
     this.dropped = 0;
     this.placed.length = 0;
     // The renderer leaves the ground's sprites out while this draws the ground.
-    this.drawsGround = !!this.groundPass && this.groundPass.sync(r);
+    this.drawsGround = !!this.groundPass && this.groundPass.sync(r, this.camera);
     this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
   }
 
@@ -604,7 +605,7 @@ export class WebGLBackend {
       const c = [tileOfWorld(cam.x, cam.y), tileOfWorld(cam.x + vw, cam.y), tileOfWorld(cam.x, cam.y + vh), tileOfWorld(cam.x + vw, cam.y + vh)];
       gp.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
       gp.syncCasters(this.casters);
-      gp.render(this.camera);
+      gp.render(this.camera, `${cam.x},${cam.y},${cam.scale},${cam.viewW},${cam.viewH},${cam.turn}`);
     }
     if (models) {
       // Over the 3D ground (which writes no depth), a rising model is cut off at the ground.
@@ -634,6 +635,9 @@ export class WebGLBackend {
     st.liveTexture = `${this.atlas.width}x${this.atlas.height}`;
     st.ground = this.groundPass ? (this.drawsGround ? this.groundMode : this.groundPass.failed ? 'failed' : 'loading') : 'off';
     st.groundMs = this.groundPass ? Math.round(this.groundPass.loadMs) : 0;
+    st.groundRedraws = this.groundPass ? this.groundPass.redraws : 0;
+    st.groundCompileMs = this.groundPass ? Math.round(this.groundPass.compileMs) : 0;
+    st.groundSteps = this.groundPass ? this.groundPass.steps : null;
   }
 
   /** Free everything on the GPU (the player went back to the Classic renderer). */
@@ -667,15 +671,17 @@ function liveTexture(canvas) {
 
 /**
  * The 3D ground's quality on this device when the player leaves it to the
- * game: low on a software GL (no GPU: SwiftShader, llvmpipe, as on the CI)
- * and on touch screens (phones and tablets), high elsewhere.
+ * game: off (the flat sprites) on a software GL (no GPU: SwiftShader,
+ * llvmpipe, as on the CI), low on touch screens (phones and tablets), high
+ * elsewhere.
  */
 function autoGround(renderer) {
   try {
     const c = renderer.getContext();
     const ext = c.getExtension('WEBGL_debug_renderer_info');
     const name = String(c.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : c.RENDERER));
-    if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)) return 'low';
+    // Without a GPU the ground's shader is a slideshow (groundPass.js): the flat sprites then.
+    if (/swiftshader|llvmpipe|softpipe|software|basic render/i.test(name)) return 'off';
   } catch {
     // No name to go by: judge by the screen.
   }

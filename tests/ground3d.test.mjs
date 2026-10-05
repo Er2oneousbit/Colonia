@@ -28,7 +28,7 @@ import {
   shoreByte, shoreDist, shoreField, waterKinds, kindOf, roadByte,
 } from '../src/render3d/ground/groundMap.js';
 import { GROUND_LAYERS, LAYER, makeGroundLayer } from '../src/render3d/ground/groundSurfaces.js';
-import { groundArrays } from '../src/render3d/ground/groundTextures.js';
+import { groundArrays, packLayers } from '../src/render3d/ground/groundTextures.js';
 import { Ground, groundSnow, seasonAt, SEASON_LOOKS } from '../src/render3d/ground/ground.js';
 import { labGroundMap } from '../src/dev/labGround.js';
 
@@ -48,7 +48,7 @@ function testMap(n = 64) {
 /** Small texture arrays (the tests check structure, not sharpness). */
 let TEX = null;
 function tex() {
-  if (!TEX) TEX = groundArrays(GROUND_LAYERS.map((l) => makeGroundLayer(l.name, 16)), 16, 1);
+  if (!TEX) TEX = groundArrays(packLayers(GROUND_LAYERS.map((l) => makeGroundLayer(l.name, 16)), 16), 1);
   return TEX;
 }
 
