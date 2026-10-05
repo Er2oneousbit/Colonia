@@ -13,6 +13,15 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.10)
+
+* **Marble for the grand buildings**, taken from the warehouses when placed, all or nothing (the build menu shows it, greyed out with the reason when short; undo gives it back): a Statue 100, a Grand Statue, each large temple and the Oracle 200, the Governor's Palace 400, the Great Arena 600, the hippodrome 800. Not the Senate, the small statue or the monuments (which keep their stages)
+* **The top homes need marble**: from the Marble Villa up (levels 16 to 20), at half the usual rate of a good (about 2.7 a month for a Marble Villa: a quarry keeps some 35 supplied), carried by market vendors; the Peristyle Villa stocks it ahead of moving up
+* Every mission that needs marble has a source: the Marble Quarry now comes from mission 3 (Figlina, Firmum, Pons Aelius and Paestum have rock); a test holds every mission to it. Caesar may now ask those provinces for marble
+* Saves: version 32 (an older save's Peristyle Villas and up start with 6 months of marble)
+* Headless sim, sweep and capacity: identical to v0.19.9 (the demo towns never reach the Marble Villa)
+* 1070 unit tests, 213 browser checks
+
 ## Done (v0.19.9)
 
 * **Shift+1 to 9 pick up a fort's standard where you are looking**: one press opens fort N's panel and puts its standard in hand (deploy mode), without moving the view, so the next click on the map sends its men there; pressed twice quickly, the view glides to its standard (deployed) or the fort (playtest: the keys glided to the fort, which is what the player wanted to avoid)
