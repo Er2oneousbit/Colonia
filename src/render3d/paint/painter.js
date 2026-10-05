@@ -50,10 +50,28 @@ export const RECIPES_A_PROGRAM = 4;
 /** One painter per renderer (a WebGL context's targets and programs belong to it). */
 const PAINTERS = new WeakMap();
 
+/**
+ * Builds before the textures were painted on the GPU kept them in the
+ * browser (IndexedDB, `colonia-textures`: tens of megabytes). Nothing reads
+ * it now: delete it once, quietly (storage may be blocked or missing).
+ */
+let oldCacheGone = false;
+function dropOldCache() {
+  if (oldCacheGone) return;
+  oldCacheGone = true;
+  try {
+    const idb = globalThis.indexedDB;
+    if (idb) idb.deleteDatabase('colonia-textures');
+  } catch {
+    // (A sandboxed frame: there is nothing of ours there.)
+  }
+}
+
 /** The painter of `renderer`, made at its first use. */
 export function painterFor(renderer) {
   let p = PAINTERS.get(renderer);
   if (!p) {
+    dropOldCache();
     p = new Painter(renderer);
     PAINTERS.set(renderer, p);
   }
@@ -124,7 +142,10 @@ export class Painter {
     this.scratch = new Map();
     const canvas = renderer.domElement;
     if (canvas && canvas.addEventListener) {
-      canvas.addEventListener('webglcontextlost', () => { this.lost = true; }, false);
+      canvas.addEventListener('webglcontextlost', () => {
+        this.lost = true;
+        this.tell('lost');
+      }, false);
       // (three listens first and has its new context up by now.)
       canvas.addEventListener('webglcontextrestored', () => this.restored(), false);
     }
@@ -182,6 +203,25 @@ export class Painter {
     });
   }
 
+  /**
+   * Hear of the painter's doings: fn('lost') when the context is lost (its
+   * targets are blank from then until painted again), fn('painted') after
+   * each go. Returns a function that stops listening.
+   */
+  listen(fn) {
+    (this.listeners ??= new Set()).add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  tell(what) {
+    for (const fn of this.listeners || []) fn(what);
+  }
+
+  /** Are these targets' textures all painted (none waiting)? */
+  painting(out) {
+    return this.queue.some((j) => j.out === out);
+  }
+
   /** Are all the textures asked for painted? */
   get idle() { return !this.queue.length && !this.compiling; }
 
@@ -207,7 +247,8 @@ export class Painter {
   /** Compile what the queue needs (in the background), then paint it all. */
   run() {
     if (!this.queue.length || this.compiling || this.lost) return;
-    const want = [this.util, ...[...this.programs.values()].filter((p) => !p.ready).map((p) => p.material)];
+    const fresh = [...this.programs.values()].filter((p) => !p.ready);
+    const want = [this.util, ...fresh.map((p) => p.material)];
     const t0 = performance.now();
     const scene = new Scene();
     for (const m of want) {
@@ -222,8 +263,10 @@ export class Painter {
         if (this.compiling !== job) return;
         this.compiling = null;
         this.stats.compileMs += performance.now() - t0;
-        for (const p of this.programs.values()) p.ready = true;
+        // (Only these: a program made meanwhile is compiled by the next run.)
+        for (const p of fresh) p.ready = true;
         this.flush();
+        if (this.queue.length) this.schedule();
       });
     this.compiling = job;
   }
@@ -272,6 +315,7 @@ export class Painter {
       this.dropScratch();
     }
     this.stats.paints++;
+    this.tell('painted');
     this.stats.submitMs += performance.now() - t0;
     for (const [j, read] of reads) {
       read.then((h) => {
@@ -440,7 +484,6 @@ export class Painter {
       j.reject = () => {};
       this.queue.push(j);
     }
-    if (this.onRestore) this.onRestore();
     this.schedule();
   }
 

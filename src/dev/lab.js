@@ -218,6 +218,9 @@ async function main() {
   scene.add(groundGroup);
 
   const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false };
+  /** The scene last asked for, and the wait for the Ground scene's program (setScene). */
+  let wantScene = 'well';
+  let sceneWait = null;
   /** The torch lights the street only where the street is shown. */
   function torchOn() { return state.scene === 'well' ? 1 : 0; }
   const target = new Vector3(0, 0.4, 0);
@@ -289,8 +292,9 @@ async function main() {
   function setScene(name) {
     // (The Ground scene's program is compiled after the well's: wait for it rather than stall on it.
     // The night's too: a mood or a scene asked for meanwhile waits a moment.)
+    wantScene = name;
     if (name === 'ground' && !timings.groundCompiled) {
-      warm.later.then(() => setScene(name));
+      if (!sceneWait) sceneWait = warm.later.catch(() => {}).then(() => { timings.groundCompiled ||= performance.now(); setScene(wantScene); });
       return;
     }
     state.scene = name;

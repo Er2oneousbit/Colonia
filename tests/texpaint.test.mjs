@@ -34,6 +34,7 @@ import { MAX_NOISES, glf, rgb } from '../src/render3d/paint/glsl.js';
 import { Painter, RECIPES_A_PROGRAM, surfaceTargets, arrayTargets } from '../src/render3d/paint/painter.js';
 import { LOOK, material, surfaceTextures, waterMaterial, iceMaterial, shallowWaterMaterial } from '../src/render3d/materials.js';
 import { mapStats, seamless } from '../src/dev/texReport.js';
+import { groundTextures } from '../src/render3d/ground/groundTextures.js';
 
 const ALL = [...Object.entries(SURFACES), ...GROUND_LAYERS.map((l) => [l.name, l])];
 
@@ -181,6 +182,22 @@ test('painter: an array\'s mipmaps are made once, at its last layer; forgotten t
   await settle();
   await settle();
   assert.equal(r.draws.length, 0);
+});
+
+test('ground textures: not ready from a lost context until the painter has painted them again', async () => {
+  const r = fakeRenderer();
+  const g = groundTextures(r, 1);
+  assert.equal(g.ready, false);
+  await g.whenReady;
+  assert.equal(g.ready, true);
+  assert.equal(groundTextures(r, 1), g, 'one set a renderer');
+  r.fire('webglcontextlost');
+  assert.equal(g.ready, false, 'blank once the context is lost');
+  r.fire('webglcontextrestored');
+  for (let i = 0; i < 5 && !g.ready; i++) await settle();
+  assert.equal(g.ready, true, 'painted again');
+  g.dispose();
+  assert.notEqual(groundTextures(r, 1), g, 'a freed set is made again');
 });
 
 test('materials: a surface\'s textures are render targets at their final size: sRGB albedo, mipmaps, repeating every `metres`', () => {

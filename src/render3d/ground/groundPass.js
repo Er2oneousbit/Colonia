@@ -157,7 +157,8 @@ export class GroundPass {
     const report = gl.debug.onShaderError;
     this.shaderErrorWas = report;
     gl.debug.onShaderError = (ctx, program, vs, fs) => {
-      if (/groundSurface/.test(ctx.getShaderSource(fs) || '')) {
+      // (The ground's own shader, or a program painting its layers: either way its sprites stay.)
+      if (/groundSurface|paintNoises/.test(ctx.getShaderSource(fs) || '')) {
         this.failed = true;
         console.warn('3D ground: its shader failed on this GPU; the flat ground is drawn instead.');
       }

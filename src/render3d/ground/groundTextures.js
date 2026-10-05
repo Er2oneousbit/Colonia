@@ -56,10 +56,21 @@ export function groundTextures(renderer, anisotropy = 4) {
   g.whenReady = Promise.all(GROUND_LAYERS.map((l, i) => painter.paint({
     set: GROUND_SET, index: i, seed: nameSeed(l.name), size: GROUND_SIZE, out, layer: i, ground: true,
   }))).then(() => {
-    g.ready = true;
+    g.ready = !painter.lost && !painter.painting(out);
     g.ms = performance.now() - t0;
     return g;
   });
+  // A lost context blanks the arrays: not ready again until the painter has painted them anew.
+  const unlisten = painter.listen((what) => {
+    if (what === 'lost') g.ready = false;
+    else if (what === 'painted' && !g.ready && !painter.painting(out) && g.painted) g.ready = true;
+  });
+  g.whenReady.then(() => { g.painted = true; });
+  const free = g.dispose;
+  g.dispose = () => {
+    unlisten();
+    free();
+  };
   BY_RENDERER.set(renderer, g);
   return g;
 }

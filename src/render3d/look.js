@@ -525,7 +525,7 @@ function shadowProxies(scene) {
     for (const kind of ['depth', 'distance']) {
       if (!lights[kind]) continue;
       const side = m.shadowSide !== null && m.shadowSide !== undefined ? m.shadowSide : SHADOW_SIDE[m.side];
-      const key = [kind, side, !!m.map, !!m.alphaMap, m.alphaTest > 0, !!o.isInstancedMesh, !!o.geometry.attributes.color].join();
+      const key = [kind, side, !!m.map, !!m.alphaMap, m.alphaTest > 0, !!o.isInstancedMesh, !!o.instanceColor, !!o.geometry.attributes.color].join();
       if (seen.has(key)) continue;
       seen.add(key);
       const d = kind === 'depth' ? new MeshDepthMaterial() : new MeshDistanceMaterial();
@@ -534,7 +534,14 @@ function shadowProxies(scene) {
       d.alphaMap = m.alphaMap;
       d.alphaTest = m.alphaTest;
       made.push(d);
-      out.add(o.isInstancedMesh ? new InstancedMesh(o.geometry, d, 1) : new Mesh(o.geometry, d));
+      if (o.isInstancedMesh) {
+        const im = new InstancedMesh(o.geometry, d, 1);
+        // (Per-instance colours are part of the program, the grass's too.)
+        im.instanceColor = o.instanceColor;
+        out.add(im);
+      } else {
+        out.add(new Mesh(o.geometry, d));
+      }
     }
   });
   return { scene: out, dispose: () => made.forEach((d) => d.dispose()) };
