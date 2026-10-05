@@ -13,6 +13,14 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.1)
+
+* **3D ground under the WebGL renderer**: every kind of the map's ground is now lit 3D ground, each with its own look: pasture, a lusher meadow with flowers where farms can go, dry scrub far from water, the forest floor under the trees, limestone outcrops, dune sand and beaches with a wet band, a farm's ploughed soil, rivers and the sea deepening from clear shallows with ripples, sky reflections and foam at the shore. Country roads are rammed gravel with ruts; a road with a building beside it becomes a basalt street with kerbs, so a town paves itself as it grows; plazas are travertine, rubble a heap of stone and tile. The seasons colour what grows day by day, snow builds up and leaves the roads trodden, rain darkens the ground and fills the ruts. *Settings > Ground*: Auto, High, Low or Flat (the old ground). On a desktop GPU an Uber map zoomed out draws in 10.9 ms a frame against 15.2 ms with the old ground. Classic is unchanged
+* **Textures load fast**: the 3D look's textures are painted on every CPU core at once, drawn from the first frame in plain colours that sharpen as they arrive, and kept in the browser for the next visit (thrown away by themselves when a recipe changes; console `textures clear`). The ground's textures are in at 1.4 s on a first visit (was up to 3.1) and 0.4 s on the next; every texture is the same to the byte
+* The look lab (`node scripts/build.mjs --lab`): the 3D look's target, a Roman street well and every kind of ground, by day, golden hour, night and winter
+* Headless sim: identical to v0.20.0 on every difficulty
+* 1125 unit tests, 230 browser checks
+
 ## Done (v0.20.0)
 
 * **A WebGL renderer (beta), the start of 3D art**: *Settings > Renderer* now offers WebGL (beta) beside Classic (2D), switched live; `?renderer=3d` picks it for a page. It draws the same city through three.js, and buildings can now be 3D models one type at a time, everything else keeping its sprite. The well is the first: paving, a stone ring, water, posts and a bucket, turning with the view. Classic stays the default and draws exactly as before (0 differing pixels against v0.19.13 in 12 views). The renderer now works out what to draw once and hands it to a back end (`render/canvasBackend.js` or `render3d/webglBackend.js`); models register in `render3d/models.js`. Measured on a desktop GPU: a whole Large map zoomed out draws in 17 ms a frame with WebGL against 114 ms in Classic, a whole Uber map 29 ms against 231 ms. Without WebGL, or when its context is lost, Classic draws. three.js (MIT) is credited; the game file grew from 1.20 MB to 1.74 MB
