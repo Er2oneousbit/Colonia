@@ -143,7 +143,10 @@ async function main() {
   // Water and ice.
   const waters = well.water;
   const setIce = (ice) => {
-    for (const w of waters) w.material = ice ? iceMaterial() : waterMaterial();
+    for (const w of waters) {
+      w.userData.liquid ??= w.material; // each its own water (the trough's is shallow and clear)
+      w.material = ice ? iceMaterial() : w.userData.liquid;
+    }
   };
 
   // Cameras.

@@ -338,6 +338,32 @@ export function waterMaterial() {
   return m;
 }
 
+/**
+ * Shallow, clear water (the trough's): a green-blue tint over the stone
+ * below, which shows through. The well's own water is deep and dark
+ * (waterMaterial); this shares its ripples' normal map, so one offset
+ * moves both.
+ */
+export function shallowWaterMaterial() {
+  let m = CACHE.get('shallowWater');
+  if (m) return m;
+  const deep = waterMaterial();
+  m = new MeshPhysicalMaterial({
+    color: new Color('#4f8a86'),
+    roughness: 0.04,
+    metalness: 0,
+    ior: 1.333,
+    normalMap: deep.normalMap,
+    normalScale: new Vector2(0.3, 0.3),
+    transparent: true,
+    opacity: 0.62,
+  });
+  m.name = 'shallow-water';
+  patchLook(m, { snow: 0, wet: 0 });
+  CACHE.set('shallowWater', m);
+  return m;
+}
+
 /** Ice for winter: the water frozen, pale and dull, snow catching on it. */
 export function iceMaterial() {
   let m = CACHE.get('ice');

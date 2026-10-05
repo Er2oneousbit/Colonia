@@ -31,7 +31,7 @@
 
 import { Group, Mesh, TorusGeometry, CylinderGeometry, SphereGeometry, PointLight, Vector3 } from 'three';
 import { revolve, profileOf, block, tube, merge, tintGeometry, triangles } from '../shapes.js';
-import { material, waterMaterial } from '../materials.js';
+import { material, waterMaterial, shallowWaterMaterial } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
 
 /** The well's key measures (metres): tests and the lab read them. */
@@ -400,7 +400,7 @@ function trough(seed) {
   // A plain quad would do; a 4-sided cylinder turned 45 degrees is a box face with UVs we scale below.
   water.rotateY(D(45));
   water.scale((x1 - x0 - 2 * T) / Math.SQRT2, 1, (z1 - z0 - 2 * T) / Math.SQRT2);
-  water.translate(cx, H - 0.09, 0);
+  water.translate(cx, H - 0.045, 0); // filled near the brim, so it reads as a full trough from above
   return { stone: parts, iron, water: tintGeometry(water) };
 }
 
@@ -477,7 +477,7 @@ export function buildWell({ seed = 7 } = {}) {
   add(merge([...fr.wood, sheave()]), woodMat, 'frame');
   add(merge([...fr.iron, ...tr.iron, ...ln.iron]), ironMat, 'iron');
   add(merge(tr.stone), troughMat, 'trough');
-  const tw = add(tr.water, waterMaterial(), 'trough-water');
+  const tw = add(tr.water, shallowWaterMaterial(), 'trough-water');
   tw.castShadow = false;
   const lb = add(merge(ln.bronze), bronzeMat, 'lantern');
   lb.castShadow = false;
