@@ -329,29 +329,37 @@ function house(seed) {
   }
   const tegW = 0.5;
   const tegL = 0.62;
+  const lap = 0.08; // each row of tegulae laps over the one below it
   const ROWS = 6; // the roof runs 3 m back from the eave: it hides the room behind the door
+  // Tiles are laid out in the roof's own plane (x along the wall, -z up the slope, y off the
+  // roof), then the plane is tilted up toward the back and set on the eave.
+  const toRoof = (g) => {
+    g.rotateX(slope);
+    g.translate(0, eaveY + 0.02, z + over);
+    return g;
+  };
+  const imL = ROWS * (tegL - lap) + lap;
   for (let x = -E; x < E; x += tegW) {
     for (let row = 0; row < ROWS; row++) {
-      const t = block(tegW - 0.03, 0.025, tegL, { bevel: 0.006, seed: 60 + x * 7 + row, wobble: 0.004, grime: 0, seg: 1 });
-      t.translate(0, 0, 0);
-      t.rotateX(-slope);
-      t.translate(x + tegW / 2, eaveY + 0.02 + row * Math.sin(slope) * (tegL - 0.08), z + over - tegL / 2 - row * Math.cos(slope) * (tegL - 0.08));
-      tiles.push(t);
+      const t = block(tegW - 0.03, 0.025, tegL, { bevel: 0.006, seed: 60 + x * 7 + row, wobble: 0.004, grime: 0, seg: 1, tone: 0.08 });
+      // Each tile tipped a little more than the roof, its lower end resting on the row below.
+      t.translate(0, 0, -tegL / 2);
+      t.rotateX(0.04);
+      t.translate(x + tegW / 2, 0, -row * (tegL - lap));
+      tiles.push(toRoof(t));
     }
-    // The imbrex over the joint: a half pipe along the slope.
-    const imL = ROWS * (tegL - 0.08) + 0.06;
-    // The half of the pipe on -z: turned down the slope it is the half facing up (a ridge, not a gutter).
+    // The imbrex over the joint: a half pipe up the slope. Its -z half, turned to lie along -z,
+    // is the half facing up (a ridge, not a gutter).
     const im = new CylinderGeometry(0.075, 0.08, imL, 10, 1, true, Math.PI / 2, Math.PI);
-    im.rotateX(Math.PI / 2 - slope);
-    im.rotateX(0);
-    const cz = z + over - (imL / 2) * Math.cos(slope) + 0.02;
-    im.translate(x + tegW, eaveY + 0.045 + (imL / 2) * Math.sin(slope), cz);
+    im.rotateX(Math.PI / 2);
+    im.translate(x + tegW, 0.02, -imL / 2 + 0.02);
+    toRoof(im);
     boxUV(im);
     tiles.push(tintGeometry(im));
     // Antefix: a small upright palmette plate closing the imbrex at the eave.
     const af = revolve(profileOf([[0, 0], [0.07, 0], [0.085, 0.06], [0.06, 0.13], [0.02, 0.17], [0, 0.18]]), { segments: 6, metres: 0.6 });
     af.scale(1, 1, 0.12);
-    af.translate(x + tegW, eaveY + 0.02, z + over + 0.01);
+    af.translate(x + tegW, eaveY + 0.0, z + over + 0.03);
     tiles.push(af);
   }
   return { wall, stone, wood, iron, tiles, room: tintGeometry(room), recess: tintGeometry(recess) };

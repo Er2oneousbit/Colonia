@@ -88,6 +88,12 @@ async function main() {
     return;
   }
 
+  // A phone makes its textures at half size: a quarter of the start-up time.
+  try {
+    if (window.matchMedia('(pointer: coarse)').matches) LOOK.textureScale = 0.5;
+  } catch {
+    // No media queries: keep full size.
+  }
   // Textures first, one surface a frame, so the bar moves.
   const names = Object.keys(SURFACES);
   const fill = loading.querySelector('.fill');

@@ -524,8 +524,8 @@ function terracotta(n, seed) {
   const col = [0, 0, 0];
   eachPixel(n, (u, v, i) => {
     mixRgb(a, b, smoothstep(0.35, 0.7, fbm(u, v, 4, 4, seed + 2)), col);
-    mixRgb(col, pale, smoothstep(0.6, 0.8, fbm(u, v, 6, 3, seed + 3)) * 0.5, col);
-    mixRgb(col, lichen, smoothstep(0.66, 0.74, fbm(u, v, 12, 3, seed + 4)) * 0.6, col);
+    mixRgb(col, pale, smoothstep(0.6, 0.8, fbm(u, v, 6, 3, seed + 3)) * 0.3, col);
+    mixRgb(col, lichen, smoothstep(0.72, 0.8, fbm(u, v, 12, 3, seed + 4)) * 0.35, col);
     mixRgb(col, soot, cav.data[i] * 0.6, col);
     m.set(i, col, 1 - cav.data[i] * 0.5, 0.8);
   });
@@ -551,8 +551,12 @@ export const SURFACES = Object.freeze({
   terracotta: { metres: 0.6, size: 256, make: terracotta },
 });
 
-/** Make a surface's maps (seeded by its name unless a seed is given). */
-export function makeSurface(name, seed) {
+/**
+ * Make a surface's maps (seeded by its name unless a seed is given).
+ * `scale` shrinks the texture (0.5: a quarter of the pixels and of the
+ * time, for a phone); the pattern is the same, only less sharp.
+ */
+export function makeSurface(name, seed, scale = 1) {
   const s = SURFACES[name];
   if (!s) throw new Error(`Unknown surface: ${name}`);
   let k = seed;
@@ -560,7 +564,7 @@ export function makeSurface(name, seed) {
     k = 0;
     for (let i = 0; i < name.length; i++) k = (k * 31 + name.charCodeAt(i)) | 0;
   }
-  const maps = s.make(s.size, k);
+  const maps = s.make(Math.max(32, Math.round(s.size * scale)), k);
   maps.metres = s.metres;
   return maps;
 }

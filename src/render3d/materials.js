@@ -55,6 +55,8 @@ export const LOOK = {
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
+  /** Texture size factor (surfaces.js makeSurface): 1, or 0.5 where start-up time matters more than sharpness. */
+  textureScale: 1,
 };
 
 const PARS = /* glsl */ `
@@ -250,7 +252,7 @@ function dataTexture(bytes, size, srgb) {
 export function surfaceTextures(name) {
   let t = TEXTURES.get(name);
   if (t) return t;
-  const maps = makeSurface(name);
+  const maps = makeSurface(name, undefined, LOOK.textureScale);
   t = {
     map: dataTexture(maps.albedo, maps.size, true),
     normalMap: dataTexture(maps.normal, maps.size, false),
