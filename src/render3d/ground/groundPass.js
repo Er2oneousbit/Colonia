@@ -45,8 +45,10 @@
  * SwiftShader about 450 ms a frame on a 1600 x 900 view, against 75 ms for
  * a plain material, so Auto shows the flat sprites there.)
  *
- * Start-up never stalls the game: the textures are painted in a worker
- * (groundTextures.js), uploaded one array a frame, and the ground's shader
+ * Start-up never stalls the game: the texture arrays hold stand-ins at
+ * once (groundTextures.js) and are uploaded one a frame, the painted layers
+ * (from the browser's cache, or the paint pool's workers) going in a layer
+ * at a time as they come, and the ground's shader
  * (a big one: compiled at its first draw it froze a desktop for 2 s on
  * ANGLE's D3D11) is compiled in the background (compileAsync, the
  * KHR_parallel_shader_compile extension) as soon as the back end starts,
@@ -54,7 +56,8 @@
  * depend on them), so the one frame that still waits on it (ANGLE links
  * the program on the GPU process's own thread: about 0.6 s on that
  * desktop) falls among the start-up's own slow frames. The ground's
- * sprites are drawn until all of it is ready. High keeps the sun's shadow map on always (it
+ * sprites are drawn until the shader is ready (not the painted layers: the
+ * stand-ins do meanwhile). High keeps the sun's shadow map on always (it
  * is only redrawn while a model is in view), so the first well to come into
  * view never asks for another compile.
  * ----------------------------------------------------------------------------
@@ -69,6 +72,7 @@ import { MOODS, sunDirection, makeSkyParts, skyEnvironment, moodColor } from '..
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
 import { groundTextures, groundArrays, liveGroundArrays } from './groundTextures.js';
+import { pruneCache } from '../paint/cache.js';
 import { GROUND_LAYERS } from './groundSurfaces.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
@@ -145,7 +149,7 @@ export class GroundPass {
     this.stateKey = '';
     this.blit = null;
     this.redraws = 0; // pictures drawn into the cache (stats, tests)
-    // Start-up steps once the layers are painted: the three arrays uploaded one a frame, then the compile.
+    // Start-up steps: the three arrays uploaded one a frame (stand-ins and what has come), then the compile.
     this.stage = 0;
     this.compiled = false;
     this.compileMs = 0;
@@ -177,6 +181,8 @@ export class GroundPass {
     this.layers.whenDone.then(() => {
       this.loadMs = performance.now() - t0;
       if (!this.loadMs) this.loadMs = 1; // (all there already: a renderer switched off and on)
+      // Textures kept by an older build: free their space now that this one's are in.
+      pruneCache();
     });
   }
 

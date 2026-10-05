@@ -137,6 +137,105 @@ export function fbm(u, v, cells, octaves, seed, gain = 0.5, sx = 1) {
   return 0.5 + (sum / norm) * 0.9;
 }
 
+/**
+ * fbm() at every pixel centre of an n x n texture at once: out[y * n + x]
+ * is fbm((x + 0.5) / n, (y + 0.5) / n, ...), to the last bit (the same
+ * arithmetic in the same order), several times faster: a row's lattice
+ * row, its hashes and its fade are worked out once for the row, and a
+ * corner's gradient once for the run of pixels that share it, where fbm()
+ * per pixel does all of it four times over. For the big recipes, whose
+ * noises are read at the pixel centres (warped or swapped noise is still
+ * fbm() per pixel).
+ */
+export function fbmField(n, cells, octaves, seed, gain = 0.5, sx = 1) {
+  const out = new Float64Array(n * n);
+  let amp = 1;
+  let norm = 0;
+  let cu = Math.max(1, Math.round(cells / sx));
+  let cv = cells;
+  // The u of each column (as fbm's callers make it).
+  const us = new Float64Array(n);
+  for (let x = 0; x < n; x++) us[x] = (x + 0.5) / n;
+  for (let o = 0; o < octaves; o++) {
+    const s = seed + o * 1013;
+    const hs = Math.imul(s, 0x9e3779b1);
+    for (let y = 0; y < n; y++) {
+      const yy = ((y + 0.5) / n) * cv;
+      const yi = Math.floor(yy);
+      const fy = yy - yi;
+      let y0 = yi | 0;
+      if (y0 < 0 || y0 >= cv) {
+        y0 %= cv;
+        if (y0 < 0) y0 += cv;
+      }
+      const y1 = y0 + 1 === cv ? 0 : y0 + 1;
+      const v = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+      const hy0 = Math.imul(y0, 0x165667b1) ^ hs;
+      const hy1 = Math.imul(y1, 0x165667b1) ^ hs;
+      const row = y * n;
+      let lastX = -1;
+      // The gradients at the cell's four corners: (x0, y0), (x1, y0), (x0, y1), (x1, y1).
+      let a0x = 0; let a0y = 0; let b0x = 0; let b0y = 0; let a1x = 0; let a1y = 0; let b1x = 0; let b1y = 0;
+      for (let x = 0; x < n; x++) {
+        const xx = us[x] * cu;
+        const xi = Math.floor(xx);
+        const fx = xx - xi;
+        if (xi !== lastX) {
+          lastX = xi;
+          let x0 = xi | 0;
+          if (x0 < 0 || x0 >= cu) {
+            x0 %= cu;
+            if (x0 < 0) x0 += cu;
+          }
+          const x1 = x0 + 1 === cu ? 0 : x0 + 1;
+          const hx0 = Math.imul(x0, 0x27d4eb2d);
+          const hx1 = Math.imul(x1, 0x27d4eb2d);
+          let h = hx0 ^ hy0;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          let k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          a0x = GRAD[k]; a0y = GRAD[k + 1];
+          h = hx1 ^ hy0;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          b0x = GRAD[k]; b0y = GRAD[k + 1];
+          h = hx0 ^ hy1;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          a1x = GRAD[k]; a1y = GRAD[k + 1];
+          h = hx1 ^ hy1;
+          h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+          k = ((h ^ (h >>> 13)) >>> 24) * 2;
+          b1x = GRAD[k]; b1y = GRAD[k + 1];
+        }
+        const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+        const g00 = a0x * fx + a0y * fy;
+        const g10 = b0x * (fx - 1) + b0y * fy;
+        const g01 = a1x * fx + a1y * (fy - 1);
+        const g11 = b1x * (fx - 1) + b1y * (fy - 1);
+        const a = g00 + (g10 - g00) * u;
+        const b = g01 + (g11 - g01) * u;
+        out[row + x] += amp * (a + (b - a) * v);
+      }
+    }
+    norm += amp;
+    amp *= gain;
+    cu *= 2;
+    cv *= 2;
+  }
+  for (let i = 0; i < n * n; i++) out[i] = 0.5 + (out[i] / norm) * 0.9;
+  return out;
+}
+
+/** ridge() at every pixel centre at once (as fbmField). */
+export function ridgeField(n, cells, octaves, seed, sx = 1) {
+  const f = fbmField(n, cells, octaves, seed, 0.5, sx);
+  for (let i = 0; i < f.length; i++) {
+    const d = f[i] - 0.5;
+    f[i] = 1 - Math.min(1, Math.abs(d) * 2);
+  }
+  return f;
+}
+
 /** Ridged noise: sharp creases where the noise crosses zero (veins, cracks). 0..1, 1 on the crease. */
 export function ridge(u, v, cells, octaves, seed, sx = 1) {
   const n = fbm(u, v, cells, octaves, seed, 0.5, sx) - 0.5;

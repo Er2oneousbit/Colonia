@@ -24,7 +24,7 @@ import { PaintPool, CancelledError, poolSize, loadAll } from '../src/render3d/pa
 import { textureKey, RECIPE_VERSION, cacheGetAll } from '../src/render3d/paint/cache.js';
 import { mapsFit, paintJob } from '../src/render3d/paint/jobs.js';
 import { STAND_INS, standIn, fillPixels } from '../src/render3d/paint/standIns.js';
-import { gnoise, voronoi } from '../src/render3d/texgen.js';
+import { gnoise, voronoi, fbm, fbmField, ridge, ridgeField } from '../src/render3d/texgen.js';
 import { SURFACES, makeSurface, makeSurfaceAt } from '../src/render3d/surfaces.js';
 import { GROUND_LAYERS, GROUND_SIZE, makeGroundLayer } from '../src/render3d/ground/groundSurfaces.js';
 import { packStandIns, liveGroundArrays } from '../src/render3d/ground/groundTextures.js';
@@ -282,6 +282,19 @@ test('recipes: the fast noise gives the same bits as the plain one, the fast cel
     const y = (rnd() * 3 - 1) * py;
     const seed = Math.floor(rnd() * 1e6) - 5e5;
     assert.equal(gnoise(x, y, px, py, seed), refGnoise(x, y, px, py, seed));
+  }
+  // A whole texture of noise at once is fbm() at every pixel centre, to the bit (stretched, and not).
+  for (const [n, cells, oct, seed, gain, sx] of [[48, 3, 3, 7, 0.5, 1], [40, 22, 3, -9, 0.55, 1], [32, 10, 5, 3, 0.55, 8], [50, 120, 2, 5, 0.5, 0.05]]) {
+    const f = fbmField(n, cells, oct, seed, gain, sx);
+    const r = ridgeField(n, cells, oct, seed, sx);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const u = (x + 0.5) / n;
+        const v = (y + 0.5) / n;
+        assert.equal(f[y * n + x], fbm(u, v, cells, oct, seed, gain, sx));
+        assert.equal(r[y * n + x], ridge(u, v, cells, oct, seed, sx));
+      }
+    }
   }
   // Cells: the border distance by brute force over every neighbour, as before.
   const out = {};
