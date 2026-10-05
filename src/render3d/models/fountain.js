@@ -517,7 +517,7 @@ function pottedBox(x, y, z, seed, lod) {
   pot.translate(x, y, z);
   const rnd = artRng(seed);
   // (Welded, so the clipped ball is shaded smooth, not in facets.)
-  const ico = new IcosahedronGeometry(0.3, lod ? 4 : 14);
+  const ico = new IcosahedronGeometry(0.3, lod ? 3 : 10);
   ico.deleteAttribute('normal');
   ico.deleteAttribute('uv');
   const leaf = mergeVertices(ico, 1e-5);
