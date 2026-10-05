@@ -323,14 +323,14 @@ export function waterMaterial() {
   nm.needsUpdate = true;
   nm.repeat.set(1 / t.metres, 1 / t.metres);
   m = new MeshPhysicalMaterial({
-    color: new Color('#1a2523'),
+    color: new Color('#1d5560'), // deep green-blue: a near-black read as a hole, not water
     roughness: 0.03,
     metalness: 0,
     ior: 1.333,
     normalMap: nm,
-    normalScale: new Vector2(0.25, 0.25),
+    normalScale: new Vector2(0.4, 0.4),
     transparent: true,
-    opacity: 0.86,
+    opacity: 0.93,
   });
   m.name = 'water';
   patchLook(m, { snow: 0, wet: 0 });

@@ -48,7 +48,7 @@ export const WELL = Object.freeze({
   pulleyY: 2.18,
   pulleyR: 0.135, // to the bottom of the groove
   ropeR: 0.011,
-  waterY: -1.6, // the water down the shaft
+  waterY: 0.96, // the water, 20 cm under the lip (1.16 m), kept high so it shows from the game's camera (a real well's lay metres down)
 });
 
 const D = (deg) => (deg * Math.PI) / 180;
@@ -483,7 +483,7 @@ export function buildWell({ seed = 7 } = {}) {
   lb.castShadow = false;
   const pane = add(ln.pane, paneMat, 'lantern-pane');
   pane.castShadow = false;
-  // Water far down the shaft.
+  // The water in the shaft (WELL.waterY).
   const wellWater = new CylinderGeometry(WELL.boreR, WELL.boreR, 0.001, 32);
   wellWater.translate(0, WELL.waterY, 0);
   const ww = add(tintGeometry(wellWater), waterMaterial(), 'well-water');
