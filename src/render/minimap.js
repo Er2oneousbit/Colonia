@@ -158,7 +158,7 @@ export class Minimap {
    * "N" just beyond the map's north corner, kept inside the canvas: the
    * minimap turns with the view, so this tells the player which side they
    * are looking from. North is the game's compass (the scouts' "from the
-   * north", sim/military.js screenDirection): straight up on the unturned
+   * north", sim/combat.js screenDirection): straight up on the unturned
    * view, the map's (0, 0) corner.
    */
   drawNorth(ctx, mid, edge, cw, ch) {

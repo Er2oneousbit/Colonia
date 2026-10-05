@@ -73,7 +73,8 @@
  * No new men while deployed (sim/military.js, sim/navy.js)
  *   A fort or station with a rally point, or with men or ships away (on
  *   their way out, at the battle, or coming home), takes no recruits and no
- *   new liburnians: takesNewMen(). One already on his way still joins.
+ *   new liburnians: takesNewMen() (sim/away.js, with the other questions
+ *   about who is away). One already on his way still joins.
  * ----------------------------------------------------------------------------
  */
 

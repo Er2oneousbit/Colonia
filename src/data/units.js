@@ -130,7 +130,7 @@ export const UNIT_TYPES = Object.freeze({
   // than the province's own legionary in the proportion the original's
   // imperial legionary was to its own (about +30% attack, +2 defense, the same
   // health). The difficulty's raid size scales how many come, never how hard
-  // each one hits (sim/military.js enemyPower).
+  // each one hits (sim/units.js enemyPower).
   imperial: {
     name: 'Imperial Legionary', side: 'enemy', color: '#6d2a6b', hp: 110, attack: 18, defense: 11, range: 1.1, aggro: 6,
     speed: 0.07, cooldown: 20, siege: 12,
@@ -174,7 +174,7 @@ export const RAM_COOLDOWN = 60;
 export const FORT_CAPACITY = 8;
 
 /**
- * A fort's yard, where its men stand at rest (sim/military.js yardSpot),
+ * A fort's yard, where its men stand at rest (sim/forts.js yardSpot),
  * per kind of soldier: one spot per place, as (u, v) in tiles on the
  * unturned art of a 3 x 3 fort (render/buildingArt.js fortArt: a camp
  * walled on every side with a tower at each corner, the gateway in the

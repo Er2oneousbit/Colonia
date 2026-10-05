@@ -26,7 +26,7 @@
  *       below                 it attacks
  *   - targets: the governor's residence first, then the homes of the best
  *     level the city has (the nearest of them), then anything. The army
- *     walks a flow field seeded from its targets (sim/military.js fillField)
+ *     walks a flow field seeded from its targets (sim/field.js fillField)
  *     in which other buildings can be broken through at a cost, so it goes
  *     round the city where it can and through it where it must.
  *   - the end: when no imperial legionary is left, the attack is over. Only

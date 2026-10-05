@@ -173,7 +173,7 @@ export class Hud {
 
   /**
    * Point the needle at north as the view shows it. The game's compass
-   * (the scouts' "from the north", sim/military.js screenDirection) is the
+   * (the scouts' "from the north", sim/combat.js screenDirection) is the
    * unturned screen's, so north is straight up at turn 0: the map's (0, 0)
    * corner, a step of (-1, -1). Each quarter turn of the city turns it with
    * it (right at turn 1).

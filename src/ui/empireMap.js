@@ -72,7 +72,7 @@ const MIN_SHOWN_TRIP_DAYS = 2;
 const WARBAND_FAR = 9;
 const WARBAND_NEAR = 3;
 
-/** Compass direction (sim/military.js screenDirection) to a unit step on the map (y grows south). */
+/** Compass direction (sim/combat.js screenDirection) to a unit step on the map (y grows south). */
 const DIR_STEP = {
   east: [1, 0], 'north-east': [Math.SQRT1_2, -Math.SQRT1_2], north: [0, -1], 'north-west': [-Math.SQRT1_2, -Math.SQRT1_2],
   west: [-1, 0], 'south-west': [-Math.SQRT1_2, Math.SQRT1_2], south: [0, 1], 'south-east': [Math.SQRT1_2, Math.SQRT1_2],

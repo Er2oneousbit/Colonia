@@ -2,7 +2,7 @@
  * prefectFight.js
  * ----------------------------------------------------------------------------
  * Prefects against raiders and Caesar's legionaries, and against any other
- * unit hostile to Rome (sim/military.js hostileToRome: a wolf, a villager of
+ * unit hostile to Rome (sim/combat.js hostileToRome: a wolf, a villager of
  * a native village at war), which a prefect fights the same way.
  *
  * A prefect on his rounds (walking his patrol or heading home: not running to
@@ -29,7 +29,7 @@
  * while. A message comes only when several fall close together.
  *
  * An enemy a prefect kills counts toward the raid's (or the legion's) slain
- * like any other (sim/military.js removeUnit), so the same rules repel it.
+ * like any other (sim/units.js removeUnit), so the same rules repel it.
  *
  * State, all saved with the walker or unit (core/save.js copies every field):
  *   prefect  fight    id of the enemy unit he fights (0: none)
@@ -82,7 +82,7 @@ function avoids(game, u, p) {
  * picking a fight there would only be cut down, and the next after him).
  */
 function fightable(game, u) {
-  // A wolf, or a villager of a village at war (sim/military.js hostileToRome):
+  // A wolf, or a villager of a village at war (sim/combat.js hostileToRome):
   // no raid record to read; hostile is enough.
   if (u.side !== 'enemy') return hostileToRome(u);
   if (u.revolt) return revoltActive(game); // a gladiator in revolt, not yet fleeing (sim/revolt.js)
@@ -172,7 +172,7 @@ function nearestEnemy(game, p, enemies) {
   return best;
 }
 
-/** A prefect's blow. The enemy's slain count and the raid's (sim/military.js removeUnit) see a kill. */
+/** A prefect's blow. The enemy's slain count and the raid's (sim/units.js removeUnit) see a kill. */
 function strikeEnemy(game, p, e) {
   const c = CONFIG.PREFECT_COMBAT;
   p.fightCd = c.cooldown;

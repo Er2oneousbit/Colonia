@@ -1,7 +1,37 @@
 /**
  * military.js
  * ----------------------------------------------------------------------------
- * Soldiers, raiders, towers, walls and invasions.
+ * Soldiers, raiders, towers, walls and invasions: the orchestrator. Per tick
+ * updateMilitary sorts the units by side and runs each kind's code (soldiers
+ * and raiders here, Caesar's men in sim/legion.js, wolves in sim/wildlife.js,
+ * villagers in sim/natives.js, ships in sim/navy.js), then the towers and
+ * the missiles; militaryDaily and militaryMonthly run the raids' clock, the
+ * warnings and the army's pay. The barracks and its recruits, the forts'
+ * deploy and recall, and the raid schedule (raidWarning, launchInvasion)
+ * are here too.
+ *
+ * The toolbox the military modules share lives below this one, in modules
+ * that import nothing above them, so none of them needs this one:
+ *   sim/units.js     the Unit class, spawnUnit, removeUnit, enemyPower and
+ *                    the counts (unitsOfFort, enemyCount, garrisonCounts)
+ *   sim/unitMove.js  how a land unit moves: passable, moveToward, landRoute,
+ *                    marchTo and the A* routes (continuous tile coordinates,
+ *                    tile centres at .5, sliding along obstacles)
+ *   sim/combat.js    hostileToRome, rollDamage, unitDefense, missileDamage,
+ *                    hurt, attackUnit, nearestHostile, warbandType
+ *   sim/damage.js    damageBuilding, damageWall, buildingMaxHp, wallHpOf
+ *   sim/field.js     the raiders' flow fields: one Dijkstra pass from every
+ *                    building tile gives each land tile the cost to reach
+ *                    the nearest building, so every raider just walks
+ *                    downhill; walls cost extra, so raiders pick the cheapest
+ *                    place to break through (fillField, computeField,
+ *                    raidTargets)
+ *   sim/demand.js    militaryNeed and barracksHasRoom, which the carts ask
+ *   sim/forts.js     a fort's post, formation spots, yard and gate, and
+ *                    standsTo, what calls its men out of the yard
+ *   sim/away.js      who is away at a distant battle (sim/battle.js)
+ * This module imports all of them, and re-exports the names the UI, the dev
+ * tools and the tests still take from here (below the imports).
  *
  * Supply chain (carts deliver only while forts have empty places)
  *   Weaponsmith (iron)          ---weapons---\
@@ -11,15 +41,11 @@
  *   the ranch (never in a warehouse) until a barracks needs them.
  *   One recruit: legionary 50 weapons, archer 50 arrows, cavalryman 1 horse.
  *
- * Units (both sides) move freely over open land in continuous tile
- * coordinates (tile centers are at .5). Roman soldiers at rest stand in
- * their fort's yard, inside its walls; while enemies are about they stand
- * on formation spots by it, where they always stood (or around a rally point the player
- * picks). At the fort they hold their ground (fight only what comes to
- * them); deployed, they engage raiders around the rally point. Raiders follow a "flow field": one
- * Dijkstra pass from every building tile gives each land tile the cost to
- * reach the nearest building, so every raider just walks downhill. Walls cost
- * extra in that field, so raiders pick the cheapest place to break through.
+ * Roman soldiers at rest stand in their fort's yard, inside its walls; while
+ * enemies are about they stand on formation spots by it, where they always
+ * stood (or around a rally point the player picks). At the fort they hold
+ * their ground (fight only what comes to them); deployed, they engage
+ * raiders around the rally point (fightZone, updateRoman).
  *
  * Invasions are announced in three stages (raidWarning below): word of a
  * warband about 6 months ahead, the scouts' report of its size and road

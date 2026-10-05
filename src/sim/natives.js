@@ -26,7 +26,7 @@
  *   was the last one found: here each village goes for its own), breaking
  *   through buildings in his way as raiders do. Rome's soldiers, towers and
  *   prefects fight villagers only while they attack (hostileToRome in
- *   sim/military.js); villagers never start a fight with a walker. When the
+ *   sim/combat.js); villagers never start a fight with a walker. When the
  *   attack ends (a missionary may end it, once no piece still angry has a
  *   city building on its land), they walk home. A villager
  *   is no enemy in the province (the victory waits for none), but a month

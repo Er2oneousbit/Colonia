@@ -36,7 +36,7 @@
  *   deployed, none of its men away at a distant battle, nothing that would
  *   have its men stand to (raiders, Caesar's men or a revolt in the province,
  *   raider ships off the shore, a wolf or angry villager near the fort,
- *   sim/military.js standsTo), and no warband a month away (the last
+ *   sim/forts.js standsTo), and no warband a month away (the last
  *   warning). TRIPS_AT_ONCE go at a time, a man still walking back counting
  *   as away, and never the last man in the yard, so a fort is never emptied.
  *   He leaves by the gate, marches over open land like any soldier to the
@@ -74,7 +74,7 @@
  * What training gives (Colonia has no morale, so the original's effects
  * become stats, data/units.js): trained legionaries holding position take a
  * share of missile damage and defend better (the original's close order),
- * trained archers and cavalry defend a little better (sim/military.js
+ * trained archers and cavalry defend a little better (sim/combat.js
  * unitDefense, missileDamage); a trained crew rows faster, rams harder and is
  * harder to hit (sim/navy.js). Attack and hit points never change. For a
  * distant battle, battleStrength gives what each counts for.

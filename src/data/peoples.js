@@ -12,9 +12,9 @@
  *   name     the people, for messages and panels ("Ligurians")
  *   one      one of them ("a Ligurian" is `a ${one}`)
  *   mix      { unit type: share in percent } (data/units.js), one roll per
- *            man; null = the generic warband (sim/military.js warbandType:
+ *            man; null = the generic warband (sim/combat.js warbandType:
  *            raiders, horsemen from 1,200 people, slingers from 700)
- *   target   what the warband makes for first (sim/military.js raidTargets):
+ *   target   what the warband makes for first (sim/field.js raidTargets):
  *              nearest  the nearest building of any kind (as before peoples)
  *              food     granaries, warehouses, markets, then farms
  *              homes    the governor's residence, then the best homes
