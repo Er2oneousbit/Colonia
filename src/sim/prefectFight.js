@@ -45,7 +45,9 @@
 import { CONFIG } from '../config.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { killWalker } from './entities.js';
-import { hurt, rollDamage, enemyPower, unitDefense, moveUnitToward, passable, hostileToRome } from './military.js';
+import { enemyPower } from './units.js';
+import { moveUnitToward, passable } from './unitMove.js';
+import { hurt, rollDamage, unitDefense, hostileToRome } from './combat.js';
 import { revoltActive } from './revolt.js';
 
 /** Ticks an enemy who cannot get at a prefect, and that prefect, leave each other alone. */

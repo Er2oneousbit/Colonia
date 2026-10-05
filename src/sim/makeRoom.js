@@ -21,7 +21,7 @@
  */
 
 import { UNIT_TYPES } from '../data/units.js';
-import { passable } from './military.js';
+import { passable } from './unitMove.js';
 import { inOwnFort } from './entities.js';
 import { landPassable, offRoadReroute } from './crime.js';
 import { nativeTraderReroute } from './natives.js';

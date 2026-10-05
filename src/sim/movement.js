@@ -15,7 +15,7 @@ import { CONFIG } from '../config.js';
 import { WALKER_TYPES, roadblockBit } from '../data/walkers.js';
 import { ROADBLOCK } from '../world/map.js';
 import { killWalker, mainOf } from './entities.js';
-import { vendorNeed } from './market.js';
+import { vendorNeed } from './vendorNeed.js';
 import { careNeed } from './gardens.js';
 
 const DX = [0, 1, 0, -1];

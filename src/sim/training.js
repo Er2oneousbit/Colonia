@@ -85,9 +85,10 @@ import { CONFIG } from '../config.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { followPath } from './movement.js';
 import { killWalker, inOwnFort } from './entities.js';
-import { waterOf, waterPath, shoreBerth } from './navy.js';
-import { watchOf, standsTo, fortGate, landRoute } from './military.js';
-import { postsAway } from './battle.js';
+import { waterOf, waterPath, shoreBerth } from './berths.js';
+import { landRoute } from './unitMove.js';
+import { watchOf, standsTo, fortGate } from './forts.js';
+import { postsAway } from './away.js';
 import { revoltActive } from './revolt.js';
 
 /** The larger of the two axis distances between two buildings' centers. */

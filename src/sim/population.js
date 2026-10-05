@@ -22,7 +22,7 @@ import { HOUSE_TIERS, houseCapacity } from '../data/housing.js';
 import { spawnWalker, killWalker } from './entities.js';
 import { followPath, walkTo } from './movement.js';
 import { romeWage } from './economy.js';
-import { houseWantsGood, foodKindsWanted } from './market.js';
+import { houseWantsGood, foodKindsWanted } from './vendorNeed.js';
 import { sendEmigrants } from './housing.js';
 import { newHousehold } from './mood.js';
 import { openOf } from './monumentEffects.js';

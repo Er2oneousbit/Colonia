@@ -49,8 +49,14 @@
 import { CONFIG } from '../config.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { Terrain, Wall } from '../world/map.js';
-import { spawnUnit, removeUnit, passable, fillField, damageBuilding, damageWallAt, moveUnitToward, attackWith, enemyCount, screenDirection, marchTo } from './military.js';
-import { residenceOf } from './governor.js';
+import { spawnUnit, removeUnit, enemyCount } from './units.js';
+import { passable, moveUnitToward, marchTo } from './unitMove.js';
+import { attackWith, screenDirection } from './combat.js';
+import { damageBuilding, damageWallAt } from './damage.js';
+import { fillField, legionTargets } from './field.js';
+
+// What the army makes for (sim/field.js: the raids share it), re-exported for the tests.
+export { legionTargets } from './field.js';
 import { fightPrefect } from './prefectFight.js';
 import { inOwnFort } from './entities.js';
 import { fanumOf } from './monumentEffects.js';
@@ -332,27 +338,6 @@ function endLegion(game, cs) {
 // ---------------------------------------------------------------------------
 // The army on the map
 // ---------------------------------------------------------------------------
-
-/** The best level of home that has people in it (-1: none). */
-function bestHomeTier(game) {
-  let best = -1;
-  for (const b of game.buildings.values()) if (b.house && b.house.pop > 0 && b.house.tier > best) best = b.house.tier;
-  return best;
-}
-
-/**
- * What the army goes for now: the residence; else the homes of the best
- * level with people in them; else any building. As { key, isTarget }.
- */
-export function legionTargets(game) {
-  const res = residenceOf(game);
-  if (res) return { key: `r${res.id}`, isTarget: (id) => id === res.id, what: 'residence' };
-  const tier = bestHomeTier(game);
-  if (tier >= 0) {
-    return { key: `h${tier}`, isTarget: (id) => { const b = game.buildings.get(id); return !!(b && b.house && b.house.pop > 0 && b.house.tier === tier); }, what: 'homes' };
-  }
-  return { key: 'any', isTarget: (id) => game.buildings.get(id)?.def.kind !== 'village', what: 'anything' }; // (not a native village: sim/natives.js)
-}
 
 /** The army's flow field toward its targets, other buildings breakable at LEGION_BREAK_COST. */
 export function computeLegionField(game) {
