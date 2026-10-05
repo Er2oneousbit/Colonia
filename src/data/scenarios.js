@@ -234,6 +234,8 @@ export const LARGE_TEMPLE_KEYS = Object.freeze(GOD_KEYS.map((g) => `temple_large
  * built of marble (data/buildings.js `marble`), and the third and fourth
  * missions' partners (but Paestum's Corinthus) sell none, so they cut their
  * own (every mission map from the third has rock: tests/marble.test.mjs).
+ * With it Caesar may ask them for marble, as for any good a city can make
+ * (sim/emperor.js requestableGoods).
  */
 const TIER3 = [...TIER2, 'clay_pit', 'pottery_ws', 'warehouse', 'baths', 'clinic', 'library', 'statue_medium', 'farm_fruit', 'amphitheater', 'gladiator_school', 'governor_villa', ...LARGE_TEMPLE_KEYS, 'marble_quarry'];
 /** The Military Academy comes with the first forts (mission 4); the Portus with the fleet (NAVY_KEYS). */

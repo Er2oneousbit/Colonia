@@ -23,6 +23,11 @@
  *
  * The last construction can be undone (Ctrl+Z) for a few days, with a full
  * refund, as long as nothing has moved into it yet.
+ *
+ * Marble: the grand buildings (data/buildings.js `marble`) also take marble
+ * from the warehouses as they are placed, all of it or none (marbleShort
+ * says why not); an undo puts it back in the warehouses it came from, a
+ * demolition gives nothing back, as with money.
  * ----------------------------------------------------------------------------
  */
 
@@ -233,7 +238,6 @@ export function waterRowsBlocked(game, tiles) {
   return null;
 }
 
-/** The no-road warning to show by the cursor for a plan, or null when every spot has a road. */
 /**
  * Marble a building of `type` takes from the warehouses as it is placed
  * (data/buildings.js `marble`): none for most. None under free build (the
@@ -264,7 +268,7 @@ export function marbleShort(game, type) {
  * even into a full warehouse, so an undo always gives back what it took
  * (canUndo holds it back while no warehouse stands).
  */
-function returnMarble(game, parts) {
+function returnMarble(game, parts, monthsAgo = 0) {
   for (const { id, n } of parts) {
     let b = game.buildings.get(id);
     if (!b || b.def.kind !== 'warehouse') {
@@ -273,18 +277,26 @@ function returnMarble(game, parts) {
     }
     if (b) b.stock.marble = (b.stock.marble || 0) + n;
   }
-  // The goods book counted it used when it was taken (applyPlan).
-  const row = game.city.goodsFlow?.marble;
+  // The goods book counted it used when it was taken (applyPlan): in this
+  // month's book, or last month's if the month has turned since.
+  const book = monthsAgo === 0 ? game.city.goodsFlow : monthsAgo === 1 ? game.city.goodsFlowLast : null;
+  const row = book?.marble;
   if (row) row.used = Math.max(0, row.used - parts.reduce((s, p) => s + p.n, 0));
 }
 
-/** Does an undo entry hold marble, and is there no warehouse to put it back in? */
+/**
+ * Does an undo entry hold marble, and is there no warehouse to put it back
+ * in? (Only while its buildings still stand: one burned since cannot be
+ * undone anyway, and a warehouse would not help.)
+ */
 function marbleHomeless(game, u) {
   if (!u.ops.some((op) => op.marble && op.marble.length)) return false;
+  if (u.ops.some((op) => op.op === 'building' && !game.buildings.has(op.id))) return false;
   for (const b of game.buildings.values()) if (b.def.kind === 'warehouse') return false;
   return true;
 }
 
+/** The no-road warning to show by the cursor for a plan, or null when every spot has a road. */
 export function planNoRoadWarning(plan) {
   if (!plan || !plan.items || !plan.items.some((it) => it.ok && it.noRoad)) return null;
   return BUILDINGS[plan.tool]?.kind === 'house' ? HOUSE_NO_ROAD_WARNING : NO_ROAD_WARNING;
@@ -991,7 +1003,7 @@ function planClear(game, x0, y0, x1, y1) {
 export function applyPlan(game, plan) {
   if (!plan || plan.count === 0) return { ok: false, count: 0, cost: 0, reason: plan?.reason || 'Nothing to do' };
   const { map } = game;
-  const undo = { tool: plan.tool, day: game.time.totalDays, cost: 0, ops: [] };
+  const undo = { tool: plan.tool, day: game.time.totalDays, month: game.time.totalMonths, cost: 0, ops: [] };
   let used = 0; // marble taken (marbleCost)
   let spent = 0;
   let done = 0;
@@ -1199,7 +1211,7 @@ export function undoLast(game) {
       const b = game.buildings.get(op.id);
       if (b) removeBuilding(game, b, 'undo');
       for (const t of op.tiles) { map.terrain[t.i] = t.terrain; map.rubble[t.i] = t.rubble; restoreRuin(game, t.i, t.ruin); }
-      if (op.marble) { returnMarble(game, op.marble); marble += op.marble.reduce((s, p) => s + p.n, 0); }
+      if (op.marble) { returnMarble(game, op.marble, game.time.totalMonths - u.month); marble += op.marble.reduce((s, p) => s + p.n, 0); }
     } else if (op.op === 'road') {
       if (map.bridgeLow[op.i]) { map.bridgeLow[op.i] = 0; lowChanged = true; }
       map.road[op.i] = Road.NONE;

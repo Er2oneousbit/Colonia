@@ -194,7 +194,8 @@ export class Sidebar {
     // again (marbleShort). Checked a few times a second, not every frame.
     if (!(now - (this.marbleAt || 0) < 400)) {
       this.marbleAt = now;
-      const sig = buildingsInCategory(this.category).filter(({ key, def }) => def.marble && g.isUnlocked(key) && marbleShort(g, key)).map(({ key }) => key).join();
+      // (The reasons too: "Needs 200 marble in the warehouses, 150 stored" follows the stock.)
+      const sig = buildingsInCategory(this.category).map(({ key, def }) => (def.marble && g.isUnlocked(key) ? marbleShort(g, key) : null)).filter(Boolean).join();
       if (sig !== this.marbleSig) { this.marbleSig = sig; this.renderList(); }
     }
   }

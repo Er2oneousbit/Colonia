@@ -1204,8 +1204,37 @@ try {
     }, marbleAt);
     marbleRefused.said = /Needs 100 marble in the warehouses, 0 stored/.test(said);
     await page.keyboard.press('Escape');
+    // A Horreum for the marble where the demo city has none (it varies with
+    // the sandbox's map): placed with the mouse beside the statue's spot.
+    if (!marbleAt.warehouses) {
+      const whAt = await page.evaluate(({ x, y }) => {
+        const m = window.colonia.game.map;
+        const fits = (wx, wy) => {
+          for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) {
+            const tx = wx + dx;
+            const ty = wy + dy;
+            if (!m.inBounds(tx, ty) || !m.isFree(tx, ty) || m.terrain[m.idx(tx, ty)] === 2) return false;
+            if (tx >= x - 1 && tx <= x + 2 && ty >= y - 1 && ty <= y + 2) return false; // (keep the statue's spot free)
+          }
+          return true;
+        };
+        for (let r = 3; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (Math.max(Math.abs(dx), Math.abs(dy)) === r && fits(x + dx, y + dy)) return { x: x + dx, y: y + dy };
+        return null;
+      }, marbleAt);
+      if (whAt) {
+        await page.evaluate(() => window.colonia.ui.selectTool('warehouse'));
+        const q = await toScreen(whAt.x + 1, whAt.y + 1); // (held by its middle tile)
+        await page.mouse.move(q.x - 4, q.y);
+        await page.mouse.move(q.x, q.y);
+        await page.waitForTimeout(100);
+        await page.mouse.click(q.x, q.y);
+        if (await page.evaluate(() => window.colonia.input.tool)) await page.keyboard.press('Escape');
+      }
+    }
     // Now with the marble: the menu opens it again, and the click builds it.
     const gave = await page.evaluate(() => window.colonia.ui.console.run('give marble 100'));
+    // (Picking the Horreum opened its own menu: back to Government.)
+    if (await page.evaluate(() => window.colonia.ui.sidebar.category !== 'government')) await page.click('.cat-btn[title^="Government"]');
     const okItem = await statueItem();
     await page.click('.build-item[data-key="statue_medium"]');
     const tool = await page.evaluate(() => window.colonia.input.tool);

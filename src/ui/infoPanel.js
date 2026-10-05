@@ -74,7 +74,7 @@ function madeBy(good) {
   const def = Object.values(BUILDINGS).find((d) => d.kind === 'workshop' && d.produces === good);
   if (!def) {
     const raw = Object.values(BUILDINGS).find((d) => d.kind === 'raw' && d.produces === good);
-    return raw ? `; it is cut by ${withArticle(raw.name)} beside rocks, or imported` : '';
+    return raw ? `; it is cut by ${withArticle(raw.name)} beside rocks, or bought where a partner sells it` : '';
   }
   const inputs = Object.keys(def.recipe).map((g) => GOODS[g].name.toLowerCase()).join(' and ');
   return `; ${withArticle(def.name)} makes it from ${inputs}`;

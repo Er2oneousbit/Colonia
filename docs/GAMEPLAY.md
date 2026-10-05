@@ -232,7 +232,7 @@ Workshops follow a **recipe**: most use 100 units of one raw material per 100-un
 | Arena (Great Arena), 5x5 | 400 | 600 |
 | Circus (Hippodrome), 15x5 | 900 | 800 |
 
-The small statue, the Curia (Senate), the governor's house and villa need none, and the monuments take their marble in stages. Every mission that offers one of these buildings offers marble too: a Lapicidina (from mission 3, on maps with rock) or a partner that sells it.
+The small statue, the Curia (Senate), the governor's house and villa need none, and the monuments take their marble in stages. Every mission that offers one of these buildings offers marble too: a Lapicidina (from mission 3, on maps with rock) or a partner that sells it. With the quarry, from mission 3, Caesar may ask for marble too, as for any good the city can make. Only the warehouses count: once a Peristyle Villa or better stands, each market keeps up to three loads of marble for the finest homes, and that marble is theirs.
 
 ### Granary and warehouse orders
 

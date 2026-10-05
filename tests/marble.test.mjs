@@ -28,6 +28,7 @@ import { SCENARIOS, TRADE_PARTNERS } from '../src/data/scenarios.js';
 import { addBuilding, linkedGroup } from '../src/sim/entities.js';
 import { planAction, applyPlan, undoLast, canUndo, rebuildPlan, marbleCost, marbleShort } from '../src/sim/construction.js';
 import { warehouseStock } from '../src/sim/storage.js';
+import { logGoods, closeGoodsMonth } from '../src/sim/goodsLedger.js';
 import { igniteBuilding } from '../src/sim/risk.js';
 import { updateHouse, useGoods, checkTier } from '../src/sim/housing.js';
 import { houseWantsGood, vendorSupply, updateMarketBuyer, buyerArrive, buyerUnload } from '../src/sim/market.js';
@@ -197,6 +198,30 @@ test('undo: a warehouse gone since goes to another; with none left the undo wait
   assert.match(undoLast(g2).reason, /No warehouse stands to take its marble back/);
 });
 
+test('undo after the month has turned takes the marble off last month\'s goods book, not this one\'s (review)', () => {
+  const game = newGame({ seed: 'marble-undo-month' });
+  warehouseWith(game, 300);
+  assert.ok(placeAt(game, 'oracle').res.ok);
+  // The month turns within the undo window: the book moves to last month's.
+  closeGoodsMonth(game);
+  game.lastUndo.month -= 1;
+  logGoods(game, 'marble', 'used', 30); // homes used some this month
+  assert.ok(undoLast(game).ok);
+  assert.equal(game.city.goodsFlowLast.marble.used, 0, 'the placement is off last month\'s book');
+  assert.equal(game.city.goodsFlow.marble.used, 30, 'this month keeps what homes used');
+});
+
+test('undo of a building that has burned since says nothing of warehouses (review)', () => {
+  const game = newGame({ seed: 'marble-undo-burned' });
+  const wh = warehouseWith(game, 200);
+  assert.ok(placeAt(game, 'oracle').res.ok);
+  const oracle = [...game.buildings.values()].find((b) => b.type === 'oracle');
+  game.buildings.delete(wh.id);
+  game.buildings.delete(oracle.id); // (gone, as if burned)
+  assert.equal(canUndo(game), false);
+  assert.equal(undoLast(game).reason, 'Nothing to undo');
+});
+
 test('the hippodrome: its 800 marble taken once for its three sections, and given back once', () => {
   const game = newGame({ size: 96, seed: 'marble-hippodrome' });
   const wh = warehouseWith(game, 1000);
@@ -285,7 +310,7 @@ test('a Marble Villa without marble has a bad day and falls back; with it, it st
   assert.deepEqual(checkTier(MARBLE_VILLA, lv, 'enter').missing.map((m) => m.good), ['marble']);
   assert.ok(checkTier(MARBLE_VILLA, { ...lv, goods: [...lv.goods, 'marble'] }, 'enter').ok);
   // The panel says where it comes from.
-  assert.match(describeNeed({ key: 'goods', good: 'marble' }), /cut by a Lapicidina beside rocks, or imported/);
+  assert.match(describeNeed({ key: 'goods', good: 'marble' }), /cut by a Lapicidina beside rocks, or bought where a partner sells it/);
 });
 
 test('homes use marble at half the rate of pottery', () => {
