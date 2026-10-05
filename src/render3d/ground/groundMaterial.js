@@ -58,6 +58,62 @@ const KIND_BIAS = [0.06, 0.04, 0.03, 0.1, 0.0, -0.02, -0.04, 0.0, 0.0];
 
 const glslFloats = (a) => a.map((v) => v.toFixed(3)).join(', ');
 
+/**
+ * Every value noise the ground shader reads, as p * scale + offset (+ the
+ * time times a drift), in three batches: what every pixel reads, what snow
+ * reads, what water reads. A batch is one loop (gNoises), so the noise's
+ * code is in the program three times instead of some forty: ANGLE's D3D
+ * compiler spent half the shader's compile (0.6 s of 1.2 on a desktop) on
+ * those copies. A fractal noise (gFbm's three octaves) is three entries.
+ */
+const NOISE_BATCHES = (() => {
+  const one = (s, o = 0, t = [0, 0]) => [[s, typeof o === 'number' ? [o, o] : o, t]];
+  // gFbm(p * s + o): octaves at x, x * 2.03 + 7.1, x * 4.11 + 3.3.
+  const fbm = (s, o = 0) => [[s, [o, o], [0, 0]], [s * 2.03, [o * 2.03 + 7.1, o * 2.03 + 7.1], [0, 0]], [s * 4.11, [o * 4.11 + 3.3, o * 4.11 + 3.3], [0, 0]]];
+  return {
+    always: {
+      wob0: one(0.9), wob1: one(0.9, 19.7), wob2: one(2.9, 3.0), wob3: one(2.9, 41.0), wob4: one(8.1, 7.0), wob5: one(8.1, 13.0),
+      macro: fbm(0.11, 4.0), macro2: one(0.43, 9.0), edge: one(23.0), rubble: one(4.0), coast: fbm(2.2),
+      puddle: fbm(1.3, 5.0), drift: fbm(1.1, 31.0), sw0: one(3.0), sw1: one(3.0, 7.0),
+    },
+    snow: { snow: fbm(2.7), snow11: one(11.0), snow6: one(6.0) },
+    water: {
+      lap: one(2.0), foam0: one(7.0, 0, [0.12, 0.12]), foam1: one(21.0), ice: one(1.5), iceC: one(5.0),
+      glint0: one(70.0, 0, [1.4, -0.9]), glint1: one(43.0, 11.0, [-0.8, 1.1]),
+    },
+  };
+})();
+
+/** The batches as GLSL: the entries' table, their names (as gNz[i], or a weighted sum for a fractal noise), the loop's bounds. */
+const NOISE_GLSL = (() => {
+  const rows = [];
+  const names = {};
+  const bounds = {};
+  for (const [batch, entries] of Object.entries(NOISE_BATCHES)) {
+    const from = rows.length;
+    for (const [name, list] of Object.entries(entries)) {
+      const i = rows.length;
+      rows.push(...list);
+      names[name] = list.length === 3 ? `( gNz[${i}] * 0.5 + gNz[${i + 1}] * 0.3 + gNz[${i + 2}] * 0.2 )` : `gNz[${i}]`;
+    }
+    bounds[batch] = [from, rows.length];
+  }
+  const f = (v) => v.toFixed(5);
+  const table = rows.map(([sc, o, t]) => `vec4( ${f(sc)}, ${f(o[0])}, ${f(o[1])}, 0.0 ), vec4( ${f(t[0])}, ${f(t[1])}, 0.0, 0.0 )`);
+  const decl = `const vec4 G_NOISE[${rows.length * 2}] = vec4[${rows.length * 2}]( ${table.join(', ')} );
+float gNz[${rows.length}];
+// Noises from..to of the table at p (each p * scale + offset + time * drift).
+void gNoises( vec2 p, int from, int to ) {
+  for ( int i = from; i < to + uGZero; i++ ) {
+    vec4 a = G_NOISE[i * 2];
+    gNz[i] = gNoise( p * a.x + a.yz + uGTime * G_NOISE[i * 2 + 1].xy );
+  }
+}`;
+  return { names, bounds, decl };
+})();
+const N = NOISE_GLSL.names;
+const B = (b) => `gNoises( p, ${NOISE_GLSL.bounds[b][0]}, ${NOISE_GLSL.bounds[b][1]} );`;
+
 const PARS = /* glsl */ `
 uniform highp sampler2D uTypes;
 uniform highp sampler2DArray uAlb;
@@ -66,6 +122,7 @@ uniform highp sampler2DArray uOrm;
 uniform vec2 uMapSize;
 uniform float uScale[${GROUND_LAYERS.length}];
 uniform float uGTime;
+uniform int uGZero;
 uniform float uGSnow;
 uniform float uGWet;
 uniform float uGRain;
@@ -109,9 +166,7 @@ float gNoise( vec2 p ) {
   f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( gHash( i ), gHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( gHash( i + vec2( 0.0, 1.0 ) ), gHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
 }
-float gFbm( vec2 p ) {
-  return gNoise( p ) * 0.5 + gNoise( p * 2.03 + 7.1 ) * 0.3 + gNoise( p * 4.11 + 3.3 ) * 0.2;
-}
+${NOISE_GLSL.decl}
 vec4 gType( ivec2 t ) {
   ivec2 s = ivec2( uMapSize ) - 1;
   return texelFetch( uTypes, clamp( t, ivec2( 0 ), s ), 0 ) * 255.0;
@@ -197,10 +252,12 @@ void groundSurface() {
   gDy = dFdy( p );
   float px = length( gDx ) + length( gDy ); // tiles per pixel: details finer than this fade out
 
+  ${B('always')}
+
   // --- 1. kinds ---------------------------------------------------------
-  vec2 wob = ( vec2( gNoise( p * 0.9 ), gNoise( p * 0.9 + 19.7 ) ) - 0.5 ) * 0.62
-           + ( vec2( gNoise( p * 2.9 + 3.0 ), gNoise( p * 2.9 + 41.0 ) ) - 0.5 ) * 0.22
-           + ( vec2( gNoise( p * 8.1 + 7.0 ), gNoise( p * 8.1 + 13.0 ) ) - 0.5 ) * 0.07;
+  vec2 wob = ( vec2( ${N.wob0}, ${N.wob1} ) - 0.5 ) * 0.62
+           + ( vec2( ${N.wob2}, ${N.wob3} ) - 0.5 ) * 0.22
+           + ( vec2( ${N.wob4}, ${N.wob5} ) - 0.5 ) * 0.07;
   vec2 pw = p + wob - 0.5;
   ivec2 i0 = ivec2( floor( pw ) );
   vec2 f = pw - floor( pw );
@@ -257,8 +314,8 @@ void groundSurface() {
   float plants = orm.b * season;
 
   // Large soft variation across a field: tone, and patches drier or lusher.
-  float macro = gFbm( p * 0.11 + 4.0 );
-  float macro2 = gNoise( p * 0.43 + 9.0 );
+  float macro = ${N.macro};
+  float macro2 = ${N.macro2};
   col *= 0.88 + 0.24 * macro;
   // The season: living things take its colour (the soil between them keeps its own).
   {
@@ -285,7 +342,7 @@ void groundSurface() {
     float inset = surf == 3 ? 0.0 : surf == 2 ? 0.04 : 0.12;
     float sd = gRoad( q, surf == 3 ? 15 : links, inset );
     if ( surf == 3 ) sd = gRect( q, vec2( ( links & 8 ) != 0 ? -1.0 : 0.03 , ( links & 1 ) != 0 ? -1.0 : 0.03 ), vec2( ( links & 2 ) != 0 ? 2.0 : 0.97, ( links & 4 ) != 0 ? 2.0 : 0.97 ), 0.04 );
-    float edgeN = ( gNoise( p * 23.0 ) - 0.5 ) * 0.025;
+    float edgeN = ( ${N.edge} - 0.5 ) * 0.025;
     // The road's own surface.
     int rl = surf == 1 ? ${LAYER.gravel} : surf == 2 ? ${LAYER.basalt} : ${LAYER.flags};
     GSmp R = gSample( rl, p );
@@ -346,7 +403,7 @@ void groundSurface() {
     for ( int a = 0; a < 4; a++ ) if ( ( int( TR[a].g + 0.5 ) & 64 ) != 0 ) r += wr[a];
     if ( r > 0.0 ) {
       GSmp B = gSample( ${LAYER.rubble}, p );
-      float rm = smoothstep( 0.35, 0.55, r * 0.85 + ( B.alb.a - 0.5 ) * 0.5 + ( gNoise( p * 4.0 ) - 0.5 ) * 0.25 );
+      float rm = smoothstep( 0.35, 0.55, r * 0.85 + ( B.alb.a - 0.5 ) * 0.5 + ( ${N.rubble} - 0.5 ) * 0.25 );
       col = mix( col, B.alb.rgb, rm );
       h = mix( h, B.alb.a, rm );
       nrm = mix( nrm, B.n, rm );
@@ -365,7 +422,7 @@ void groundSurface() {
   float d = mix( mix( U0.b, U1.b, fs.x ), mix( U2.b, U3.b, fs.x ), fs.y ) / 16.0 - 8.0;
   float seaW = mix( mix( float( ( int( U0.a + 0.5 ) & 3 ) == 2 ), float( ( int( U1.a + 0.5 ) & 3 ) == 2 ), fs.x ),
                     mix( float( ( int( U2.a + 0.5 ) & 3 ) == 2 ), float( ( int( U3.a + 0.5 ) & 3 ) == 2 ), fs.x ), fs.y );
-  float coastN = ( gFbm( p * 2.2 ) - 0.5 ) * 0.22;
+  float coastN = ( ${N.coast} - 0.5 ) * 0.22;
   float dc = d + coastN;
   gWater = smoothstep( 0.03, -0.03, dc );
   // A wet band on the land, wider on sand.
@@ -379,16 +436,17 @@ void groundSurface() {
     if ( cover > 0.0 ) {
       // Where it lies: first on the bumps and in drifts (noise), then everywhere;
       // thin at first (the ground shows through), then deep.
-      float n = gFbm( p * 2.7 ) * 0.55 + gNoise( p * 11.0 ) * 0.15 + h * 0.3;
+      ${B('snow')}
+      float n = ${N.snow} * 0.55 + ${N.snow11} * 0.15 + h * 0.3;
       float lo = mix( 0.72, -0.15, clamp( uGSnow, 0.0, 1.0 ) );
       snowAmt = smoothstep( lo, lo + 0.2, n ) * clamp( cover * 2.6, 0.0, 1.0 );
-      snowAmt *= mix( 1.0, 0.6 + 0.4 * smoothstep( 0.4, 0.7, gNoise( p * 6.0 ) ), 1.0 - snowRoad );
+      snowAmt *= mix( 1.0, 0.6 + 0.4 * smoothstep( 0.4, 0.7, ${N.snow6} ), 1.0 - snowRoad );
     }
     float wet = max( uGWet * soak, wetBand * 0.9 ) * ( 1.0 - snowAmt );
     col *= 1.0 - wet * 0.42;
     rough = mix( rough, rough * 0.45, wet );
     // Puddles in hollows after rain: still water over the ground.
-    float pd = smoothstep( 0.42, 0.34, h + ( gFbm( p * 1.3 + 5.0 ) - 0.5 ) * 0.9 - uGWet * 0.12 ) * uGWet * uGWet * puddle * ( 1.0 - snowAmt );
+    float pd = smoothstep( 0.42, 0.34, h + ( ${N.puddle} - 0.5 ) * 0.9 - uGWet * 0.12 ) * uGWet * uGWet * puddle * ( 1.0 - snowAmt );
 #ifdef GROUND_HIGH
     gPuddle = pd;
     if ( pd > 0.01 ) {
@@ -413,12 +471,12 @@ void groundSurface() {
   // some of their relief), wind-rippled, a little grey where it is trodden
   // and in the hollows.
   {
-    float drift = gFbm( p * 1.1 + 31.0 );
+    float drift = ${N.drift};
     vec3 sc = vec3( 0.74, 0.78, 0.84 ) * ( 0.9 + 0.1 * h ) * ( 0.94 + 0.08 * drift );
     sc = mix( sc, vec3( 0.52, 0.5, 0.48 ), ( 1.0 - snowRoad ) * 0.45 );
     col = mix( col, sc, snowAmt );
     rough = mix( rough, 0.6, snowAmt );
-    vec2 sw = ( vec2( gNoise( p * 3.0 ), gNoise( p * 3.0 + 7.0 ) ) - 0.5 ) * 0.25 + nrm.xy * 0.45;
+    vec2 sw = ( vec2( ${N.sw0}, ${N.sw1} ) - 0.5 ) * 0.25 + nrm.xy * 0.45;
     nrm = mix( nrm, vec3( sw, 1.0 ), snowAmt );
     ao = mix( ao, mix( 1.0, ao, 0.5 ), snowAmt );
   }
@@ -426,6 +484,7 @@ void groundSurface() {
 
   // The water itself.
   if ( gWater > 0.0 ) {
+    ${B('water')}
     float depth = max( -dc, 0.0 );
     // The bed (the kinds' own colour under water) seen through the water, fading into its colour.
     vec3 deep = mix( uGWaterFresh, uGWaterSea, seaW );
@@ -439,14 +498,14 @@ void groundSurface() {
     vec3 n2 = textureGrad( uNrm, vec3( ( pr / 4.0 * 2.7 + vec2( -uGTime * 0.02, uGTime * 0.015 ) ) * sR, float( ${LAYER.ripples} ) ), gDx * sR * 2.7, gDy * sR * 2.7 ).xyz * 2.0 - 1.0;
     vec3 wn = normalize( vec3( ( n1.xy + n2.xy * 0.5 ) * mix( 0.18, 0.32, t ), 1.0 ) );
     // Foam lapping at the edge.
-    float lap = sin( uGTime * 1.3 + gNoise( p * 2.0 ) * 6.283 ) * 0.04;
+    float lap = sin( uGTime * 1.3 + ${N.lap} * 6.283 ) * 0.04;
     // A thin broken line of foam where the water laps (more on the sea).
-    float foam = smoothstep( 0.07, 0.015, -dc + lap ) * smoothstep( 0.45, 0.7, gNoise( p * 7.0 + uGTime * 0.12 ) * 0.7 + gNoise( p * 21.0 ) * 0.3 + seaW * 0.15 );
+    float foam = smoothstep( 0.07, 0.015, -dc + lap ) * smoothstep( 0.45, 0.7, ${N.foam0} * 0.7 + ${N.foam1} * 0.3 + seaW * 0.15 );
     wc = mix( wc, vec3( 0.75, 0.78, 0.76 ), foam * 0.7 );
     // Ice: under deep snow the margins freeze, snow catching on the ice; the
     // middle stays open, so a frozen river still reads as water to build by.
-    float ice = smoothstep( 0.55, 0.85, uGSnow ) * smoothstep( 0.32, 0.12, depth + ( gNoise( p * 1.5 ) - 0.5 ) * 0.2 );
-    vec3 iceC = mix( vec3( 0.48, 0.56, 0.6 ), vec3( 0.74, 0.78, 0.84 ), smoothstep( 0.45, 0.8, gNoise( p * 5.0 ) ) * uGSnow );
+    float ice = smoothstep( 0.55, 0.85, uGSnow ) * smoothstep( 0.32, 0.12, depth + ( ${N.ice} - 0.5 ) * 0.2 );
+    vec3 iceC = mix( vec3( 0.48, 0.56, 0.6 ), vec3( 0.74, 0.78, 0.84 ), smoothstep( 0.45, 0.8, ${N.iceC} ) * uGSnow );
     wc = mix( wc, iceC, ice );
     float wr = mix( mix( 0.09, 0.6, foam ), 0.35, ice );
     wn = normalize( mix( wn, vec3( 0.0, 0.0, 1.0 ), ice * 0.8 ) );
@@ -457,8 +516,8 @@ void groundSurface() {
     gSpecBoost = gWater * ( 1.0 - ice ) * ( 1.0 - foam );
 #ifdef GROUND_HIGH
     // The sun glittering on the ripples: two drifting fields of tiny facets, lit where both are.
-    float g1 = gNoise( p * 70.0 + vec2( uGTime * 1.4, -uGTime * 0.9 ) );
-    float g2 = gNoise( p * 43.0 + vec2( -uGTime * 0.8, uGTime * 1.1 ) + 11.0 );
+    float g1 = ${N.glint0};
+    float g2 = ${N.glint1};
     gGlint = vec3( 1.0, 0.96, 0.86 ) * smoothstep( 0.82, 0.97, g1 * g2 ) * uGSun * gSpecBoost * t * 1.6;
 #endif
   } else {
@@ -565,6 +624,7 @@ export function groundMaterial(tex, types, quality = 'high', ownOutput = false) 
     uMapSize: { value: new Vector2(types.image.width, types.image.height) },
     uScale: { value: GROUND_LAYERS.map((l) => 4 / l.metres) },
     uGTime: { value: 0 },
+    uGZero: { value: 0 },
     uGSnow: { value: 0 },
     uGWet: { value: 0 },
     uGRain: { value: 0 },

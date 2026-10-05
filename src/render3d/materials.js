@@ -26,7 +26,8 @@
  */
 
 import {
-  MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, Vector2, Vector4, Color, Texture, DoubleSide,
+  MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, SRGBColorSpace, Vector2, Vector4, Color, Texture,
+  DoubleSide,
 } from 'three';
 import { SURFACES, SURFACE_SET, surfaceSize, nameSeed } from './surfaces.js';
 import { Field } from './texgen.js';
@@ -38,6 +39,28 @@ const WHITE = (() => {
   t.needsUpdate = true;
   return t;
 })();
+
+/** A 1 x 1 texture of one colour (RGBA bytes); `srgb` for a colour map. */
+function plainTexture(rgba, srgb = false) {
+  const t = new DataTexture(new Uint8Array(rgba), 1, 1, RGBAFormat, UnsignedByteType);
+  if (srgb) t.colorSpace = SRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * The maps of a material without a surface: white, a flat normal, and
+ * occlusion, roughness and metalness of 1 (the material's own numbers
+ * stand). With them a plain material has the very maps a painted one has,
+ * so both share one program: a program on ANGLE's D3D11 costs a few
+ * hundred milliseconds to make, a texture fetch from a 1 x 1 texture
+ * nothing.
+ */
+const PLAIN = {
+  map: plainTexture([255, 255, 255, 255], true),
+  normalMap: plainTexture([128, 128, 255, 255]),
+  orm: plainTexture([255, 255, 255, 255]),
+};
 
 /** What every patched material reads: look.js and the lab set these. */
 export const LOOK = {
@@ -76,6 +99,7 @@ uniform vec2 uLookWind;
 uniform vec4 uLookGrass;
 uniform float uLookSnowMul;
 uniform float uLookWetMul;
+uniform vec2 uLookSway;
 varying vec3 vLookWPos;
 varying vec3 vLookWNormal;
 float lookHash( vec3 p ) {
@@ -109,40 +133,41 @@ const VERT_WORLD = /* glsl */ `
 }
 `;
 
-/** Grass: bends with the wind, more the higher up the blade (LOOK_SWAY_H metres is a blade's full height in its own space). */
+/**
+ * Grass: bends with the wind, more the higher up the blade (uLookSway: x
+ * metres at the tip, y a blade's full height in its own space; 0 for
+ * everything else, which a branch on a uniform skips at no cost, and one
+ * program serves both).
+ */
 const VERT_SWAY = /* glsl */ `
 #include <begin_vertex>
-#ifdef LOOK_SWAY
-{
+if ( uLookSway.x > 0.0 ) {
   vec4 root = vec4( 0.0, 0.0, 0.0, 1.0 );
   #ifdef USE_INSTANCING
     root = instanceMatrix * root;
   #endif
   root = modelMatrix * root;
-  float k = clamp( position.y / LOOK_SWAY_H, 0.0, 1.0 );
+  float k = clamp( position.y / uLookSway.y, 0.0, 1.0 );
   k *= k;
   float ph = uLookTime * 1.7 + root.x * 0.9 + root.z * 0.7;
   float gust = 0.6 + 0.4 * sin( uLookTime * 0.45 + root.x * 0.15 );
-  vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * LOOK_SWAY;
+  vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * uLookSway.x;
   transformed.x += w.x;
   transformed.z += w.y;
   // Under snow only the tips show.
-  transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * LOOK_SWAY_H;
+  transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * uLookSway.y;
 }
-#endif
 `;
 
 const FRAG_SURFACE = /* glsl */ `
 float lookAO = 1.0;
 if ( uLookAOOn > 0.5 ) lookAO = texture2D( uLookAO, gl_FragCoord.xy / uLookRes ).r;
 float lookSnowAmt = 0.0;
-#ifdef LOOK_SWAY
+if ( uLookSway.x > 0.0 ) {
   // Grass in another season (winter's straw): the blade keeps its light and shade, takes the colour.
-  {
-    float lum = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) );
-    diffuseColor.rgb = mix( diffuseColor.rgb, uLookGrass.rgb * lum * 2.6, uLookGrass.a );
-  }
-#endif
+  float lum = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) );
+  diffuseColor.rgb = mix( diffuseColor.rgb, uLookGrass.rgb * lum * 2.6, uLookGrass.a );
+}
 {
   vec3 gn = normalize( vLookWNormal );
   vec3 sn = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
@@ -216,11 +241,8 @@ const FRAG_FADE = /* glsl */ `
  * height over `swayH` (a grass blade's own height).
  */
 export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) {
-  const own = { uLookSnowMul: { value: snow }, uLookWetMul: { value: wet } };
+  const own = { uLookSnowMul: { value: snow }, uLookWetMul: { value: wet }, uLookSway: { value: new Vector2(sway, swayH) } };
   mat.userData.look = own;
-  if (sway) {
-    mat.defines = { ...(mat.defines || {}), LOOK_SWAY: sway.toFixed(4), LOOK_SWAY_H: swayH.toFixed(4) };
-  }
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, LOOK.uniforms, own);
     shader.vertexShader = shader.vertexShader
@@ -233,7 +255,9 @@ export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) 
       .replace('#include <aomap_fragment>', FRAG_AO)
       .replace('#include <opaque_fragment>', FRAG_FADE);
   };
-  mat.customProgramCacheKey = () => `look1${sway ? 's' : ''}`;
+  // One key for every patched material: what differs between them is in uniforms, and three's own
+  // parameters (maps, sides, instancing, lights) still part the programs that must differ.
+  mat.customProgramCacheKey = () => 'look2';
   return mat;
 }
 
@@ -332,13 +356,17 @@ const CACHE = new Map();
  *   rough     roughness multiplier; metal: metalness multiplier
  *   normal    normal map strength
  *   snow/wet  see patchLook
- *   vertexColors  the mesh's colours darken it (grime, baked occlusion)
+ *   vertexColors  the mesh's colours darken it (grime, baked occlusion); on
+ *             by default, so a mesh needs its colours (merge() and
+ *             tintGeometry() give them): one program for every material
+ * A material without a surface takes the plain maps (PLAIN), so it shares
+ * the painted ones' program.
  */
 export function material(key, opts = {}) {
   let m = CACHE.get(key);
   if (m) return m;
   const {
-    surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = false,
+    surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = true,
     physical = false, side, sway = 0, swayH = 1, emissive, emissiveIntensity, roughness, metalness,
   } = opts;
   const p = { color: new Color(color), vertexColors };
@@ -353,6 +381,7 @@ export function material(key, opts = {}) {
     p.roughness = rough;
     p.metalness = metal || (surface === 'bronze' || surface === 'iron' ? 1 : 0);
   } else {
+    Object.assign(p, { map: PLAIN.map, normalMap: PLAIN.normalMap, roughnessMap: PLAIN.orm, metalnessMap: PLAIN.orm, aoMap: PLAIN.orm });
     p.roughness = roughness ?? 0.8;
     p.metalness = metalness ?? 0;
   }
@@ -367,6 +396,9 @@ export function material(key, opts = {}) {
   CACHE.set(key, m);
   return m;
 }
+
+/** A clear coat too faint to see, which gives the water the ice's features (one program for both). */
+const ICE_SHARE = 1e-4;
 
 /** The water of the trough and the well: dark, glassy, reflecting the sky, its ripples drifting (look.js moves them). */
 export function waterMaterial() {
@@ -383,6 +415,9 @@ export function waterMaterial() {
     normalScale: new Vector2(0.4, 0.4),
     transparent: true,
     opacity: 0.93,
+    // (The faintest clear coat: the ice has one, and the same features make one program of both.)
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.03,
   });
   m.name = 'water';
   patchLook(m, { snow: 0, wet: 0 });
@@ -409,6 +444,8 @@ export function shallowWaterMaterial() {
     normalScale: new Vector2(0.3, 0.3),
     transparent: true,
     opacity: 0.62,
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.04,
   });
   m.name = 'shallow-water';
   patchLook(m, { snow: 0, wet: 0 });
@@ -430,6 +467,9 @@ export function iceMaterial() {
     normalScale: new Vector2(0.08, 0.08),
     clearcoat: 0.3,
     clearcoatRoughness: 0.35,
+    // Drawn with the water (transparent, but wholly opaque): the same features, one program.
+    transparent: true,
+    opacity: 1,
   });
   m.name = 'ice';
   patchLook(m, { snow: 0.45, wet: 0 });

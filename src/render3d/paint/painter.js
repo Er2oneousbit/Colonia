@@ -44,6 +44,9 @@ in vec3 position;
 void main() { gl_Position = vec4( position.xy, 0.0, 1.0 ); }
 `;
 
+/** How many recipes go into one program (see Painter.program). */
+export const RECIPES_A_PROGRAM = 4;
+
 /** One painter per renderer (a WebGL context's targets and programs belong to it). */
 const PAINTERS = new WeakMap();
 
@@ -135,9 +138,18 @@ export class Painter {
     return m;
   }
 
-  /** The program painting a set of recipes (made once: the set's every recipe is in it). */
-  program(set) {
-    let p = this.programs.get(set.key);
+  /**
+   * The program painting recipe `index` of a set: the set's recipes go
+   * RECIPES_A_PROGRAM to a program (uRecipe picks one), made at the first
+   * ask with all of its recipes. Measured on ANGLE's D3D11, compiling the 28
+   * recipes side by side: 0.77 s as two programs, 0.43 s as eight, 0.75 s
+   * as 28 (each program has a cost of its own, and one program compiles on
+   * one thread however many recipes it holds).
+   */
+  program(set, index = 0) {
+    const chunk = Math.floor(index / RECIPES_A_PROGRAM);
+    const key = `${set.key}:${chunk}`;
+    let p = this.programs.get(key);
     if (p) return p;
     const u = {
       uStage: { value: 0 }, uRecipe: { value: 0 }, uGround: { value: 0 }, uSize: { value: 1 }, uSeed: { value: 0 },
@@ -146,8 +158,9 @@ export class Painter {
       uNc: { value: new Float32Array(MAX_NOISES * 4) }, uNd: { value: new Float32Array(MAX_NOISES * 4) },
       uNCount: { value: 0 },
     };
-    p = { key: set.key, material: this.material(recipeShader(set.recipes), u, `paint-${set.key}`), ready: false };
-    this.programs.set(set.key, p);
+    const recipes = set.recipes.slice(chunk * RECIPES_A_PROGRAM, (chunk + 1) * RECIPES_A_PROGRAM);
+    p = { key, material: this.material(recipeShader(recipes), u, `paint-${key}`), ready: false };
+    this.programs.set(key, p);
     this.stats.programs = this.programs.size + 1;
     return p;
   }
@@ -164,7 +177,7 @@ export class Painter {
       job.resolve = resolve;
       job.reject = reject;
       this.queue.push(job);
-      this.program(job.set);
+      this.program(job.set, job.index);
       this.schedule();
     });
   }
@@ -180,6 +193,15 @@ export class Painter {
       this.scheduled = false;
       this.run();
     });
+  }
+
+  /**
+   * Start compiling now, not at the end of the caller's task: a page that
+   * asks for its textures and then builds its models for a while lets the
+   * GPU's side compile meanwhile.
+   */
+  start() {
+    this.run();
   }
 
   /** Compile what the queue needs (in the background), then paint it all. */
@@ -287,7 +309,7 @@ export class Painter {
   /** The passes of one texture (paint/recipe.js); returns the height's read-back promise, if it wants one. */
   paintOne(job) {
     const n = job.size;
-    const p = this.program(job.set);
+    const p = this.program(job.set, job.index);
     const r = job.set.recipes[job.index];
     const pk = packRecipe(r);
     const s = this.scratchOf(n);
@@ -302,7 +324,7 @@ export class Painter {
     };
     // Fields (nothing bound that is drawn into: WebGL refuses a feedback loop).
     table(pk.fields);
-    u.uRecipe.value = job.index;
+    u.uRecipe.value = job.index % RECIPES_A_PROGRAM;
     u.uSeed.value = job.seed | 0;
     u.uSize.value = n;
     u.uStage.value = 0;

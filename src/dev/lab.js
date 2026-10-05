@@ -29,12 +29,12 @@
  */
 
 import {
-  Vector3, PerspectiveCamera, OrthographicCamera, InstancedMesh, Matrix4, Group,
+  Vector3, PerspectiveCamera, OrthographicCamera, InstancedMesh, Matrix4, Group, Mesh,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createLook, gameCamera, MOODS } from '../render3d/look.js';
 import {
-  surfaceTextures, surfacesReady, surfacesCount, LOOK, waterMaterial, iceMaterial,
+  surfaceTextures, surfacesReady, surfacesCount, LOOK, waterMaterial, iceMaterial, paintSurfaces,
 } from '../render3d/materials.js';
 import { SURFACES } from '../render3d/surfaces.js';
 import { buildWell, wellLife, WELL } from '../render3d/models/well.js';
@@ -135,15 +135,25 @@ async function main() {
 
   const pr = Math.min(window.devicePixelRatio || 1, 2);
   const look = createLook(canvas, { pixelRatio: pr, shadowBox: 9.5, shadowMap: 4096 });
+  timings.lookMade = performance.now();
   const { scene } = look;
   // Every texture asked for at once: the painter compiles once and paints them all in one go.
   const groundTex = groundTextures(look.renderer, LOOK.anisotropy);
   for (const name of Object.keys(SURFACES)) surfaceTextures(name);
+  // Their programs compile on the GPU's side while the models are built here.
+  paintSurfaces();
+  painterFor(look.renderer).start();
+  timings.paintAsked = performance.now();
 
   const well = buildWell();
   scene.add(well.group);
+  timings.wellBuilt = performance.now();
   const street = buildStreet();
+  timings.streetBuilt = performance.now();
   scene.add(street.group);
+  // The torch's light hangs from the scene, not the street: the Ground scene hides the street, and
+  // a light that comes and goes changes every material's program (the lights are compiled in).
+  scene.attach(street.torch);
   // Two figures for scale: a man at the well reaching for the rope, a woman by the door.
   const man = buildFigure({ cloth: 0xc4b596, reach: 0.9 });
   man.position.set(-0.95, WELL.stepH * 2, 0.95);
@@ -162,17 +172,22 @@ async function main() {
     set(k) {
       this.on = k;
       well.lamp.intensity = k * 2.2;
-      // A lamp that is out casts no shadow: its six shadow views a frame are the dearest thing here.
+      // A lamp that is out casts no shadow: its six shadow views a frame are the dearest thing
+      // here, and its shadow's code is in every program (the night's are compiled after the
+      // first frame: look.warm's variants).
       well.lamp.castShadow = k > 0;
       street.torch.castShadow = k > 0;
       well.paneMat.emissiveIntensity = k * 2.5;
-      street.torch.intensity = k * 4;
+      street.torch.intensity = k * 4 * torchOn();
       torchFlame.visible = k > 0;
     },
   });
 
-  // Water and ice.
+  // Water and ice (an unseen copy of the ice, so its program is made with the rest).
   const waters = well.water;
+  const iceProxy = new Mesh(waters[0].geometry, iceMaterial());
+  iceProxy.visible = false;
+  scene.add(iceProxy);
   const setIce = (ice) => {
     for (const w of waters) {
       w.userData.liquid ??= w.material; // each its own water (the trough's is shallow and clear)
@@ -199,6 +214,8 @@ async function main() {
   scene.add(groundGroup);
 
   const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false };
+  /** The torch lights the street only where the street is shown. */
+  function torchOn() { return state.scene === 'well' ? 1 : 0; }
   const target = new Vector3(0, 0.4, 0);
   /** Where the world fades into the backdrop: past the well's 3 x 3 tile patch, or the ground's 24 x 24. */
   function setFade() {
@@ -266,12 +283,19 @@ async function main() {
     }
   }
   function setScene(name) {
+    // (The Ground scene's program is compiled after the well's: wait for it rather than stall on it.
+    // The night's too: a mood or a scene asked for meanwhile waits a moment.)
+    if (name === 'ground' && !timings.groundCompiled) {
+      warm.later.then(() => setScene(name));
+      return;
+    }
     state.scene = name;
     const g = name === 'ground';
     street.group.visible = !g;
     woman.visible = !g;
     man.visible = !g;
     groundGroup.visible = g;
+    for (const l of look.lamps) l.set(MOODS[state.mood].lamps);
     setFade();
     fillInfo();
     applyGround();
@@ -444,7 +468,7 @@ async function main() {
     const lit = look.lamps[0].on;
     if (lit) {
       const f = 0.86 + 0.08 * Math.sin(t * 7.3) + 0.05 * Math.sin(t * 13.1 + 1.3) + 0.03 * Math.sin(t * 29.7);
-      street.torch.intensity = 4 * lit * f;
+      street.torch.intensity = 4 * lit * f * torchOn();
       well.lamp.intensity = 2.2 * lit * (0.95 + 0.05 * Math.sin(t * 9.1));
       torchFlame.scale.set(1 + 0.08 * Math.sin(t * 11), f * 1.05, 1 + 0.08 * Math.cos(t * 9));
     }
@@ -459,6 +483,7 @@ async function main() {
     cpu = cpu * 0.9 + (performance.now() - c0) * 0.1;
     if (!timings.firstFrame) {
       timings.firstFrame = performance.now();
+      timings.firstFrameMs = timings.firstFrame - c0;
       loading.classList.add('done');
     }
     frames++;
@@ -472,18 +497,40 @@ async function main() {
     requestAnimationFrame(frame);
   }
 
+  timings.built = performance.now();
   setView('game1');
-  setMood('day');
   resize();
-  // Compile every program before the first frame shows (no hitch on the first mood change), in
-  // the background where the browser can (KHR_parallel_shader_compile), so the page stays alive
-  // and the GPU paints the textures meanwhile. (The materials' programs do not depend on the
-  // textures' pixels.) The first frame waits for both: an unpainted texture is undefined.
-  const compiled = look.renderer.compileAsync(scene, ortho).catch(() => look.renderer.compile(scene, ortho));
+  // Compile every program before the first frame shows, all at once and in the background
+  // (KHR_parallel_shader_compile: the page stays alive, ANGLE compiles side by side, and the
+  // GPU paints the textures meanwhile), the sky's light included: lit for real (setMood) only
+  // once its programs are made, as making it compiles them at the first draw, blocking the page.
+  // (The materials' programs do not depend on the textures' pixels.) The Ground scene's own
+  // program, the slowest, is not waited for: the well comes first. The first frame waits for
+  // the programs and the textures (an unpainted texture is undefined).
+  const lampsCast = (on) => {
+    well.lamp.castShadow = on;
+    street.torch.castShadow = on;
+  };
+  lampsCast(false);
+  const warm = look.warm(ortho, {
+    mood: 'day',
+    later: [groundGroup],
+    variants: [() => {
+      lampsCast(true);
+      return () => lampsCast(look.lamps[0].on > 0);
+    }],
+  });
+  warm.later.then(() => { timings.groundCompiled = performance.now(); });
+  const compiled = warm.ready.then(() => {
+    setMood('day');
+    timings.lit = performance.now();
+  });
   const painted = new Promise((resolve) => {
     const check = () => (surfacesReady() && groundTex.ready ? resolve() : requestAnimationFrame(check));
     check();
   });
+  timings.compileCall = performance.now();
+  painted.then(() => { timings.painted = performance.now(); });
   compiled.then(() => { timings.compiled = performance.now(); });
   const started = Promise.all([compiled, painted]);
   started.then(() => requestAnimationFrame(frame));

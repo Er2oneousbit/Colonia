@@ -142,6 +142,27 @@ export function profileOf(steps) {
 }
 
 /**
+ * A rounded box with its vertices welded (no normals or UVs: block() makes
+ * its own), kept by size: a roof's hundred tiles are one shape, and making
+ * it (three's RoundedBoxGeometry, then the weld) was most of the street's
+ * build time. Callers clone it.
+ */
+const BOXES = new Map();
+function roundedBox(w, h, d, seg, r) {
+  const key = `${w},${h},${d},${seg},${r}`;
+  let g = BOXES.get(key);
+  if (!g) {
+    g = new RoundedBoxGeometry(w, h, d, seg, r);
+    g.deleteAttribute('normal');
+    g.deleteAttribute('uv');
+    g = mergeVertices(g, 1e-5);
+    if (BOXES.size > 256) BOXES.clear();
+    BOXES.set(key, g);
+  }
+  return g;
+}
+
+/**
  * A stone block, w x h x d metres, centred on x and z with its bottom at y
  * 0: bevelled (radius `bevel`), then pushed out of square by a smooth
  * seeded wobble (`wobble` metres at most), so no two blocks of a course
@@ -153,10 +174,7 @@ export function profileOf(steps) {
  */
 export function block(w, h, d, { bevel = 0.02, seed = 1, wobble = 0.01, grime = 0.25, topSag = 0, seg = 2, tone = 0 } = {}) {
   const r = Math.min(bevel, w / 2 - 1e-3, h / 2 - 1e-3, d / 2 - 1e-3);
-  let g = new RoundedBoxGeometry(w, h, d, seg, r);
-  g.deleteAttribute('normal');
-  g.deleteAttribute('uv');
-  g = mergeVertices(g, 1e-5);
+  const g = roundedBox(w, h, d, seg, r).clone();
   const rnd = artRng(seed);
   // Three smooth waves per axis with random direction and phase: a wobble, not noise.
   const waves = [];
