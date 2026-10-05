@@ -47,7 +47,7 @@
  *
  * Start-up never stalls the game: the texture arrays are painted on the
  * GPU (groundTextures.js, paint/painter.js: their programs compiled in the
- * background, the 14 layers then sent in one go, about 12 ms of the page's
+ * background, the 20 layers then sent in one go, about 12 ms of the page's
  * time), and the ground's shader (a big one: compiled at its first draw it
  * froze a desktop for 2 s on ANGLE's D3D11) is compiled in the background
  * too (compileAsync, the KHR_parallel_shader_compile extension) as soon as

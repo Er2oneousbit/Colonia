@@ -99,8 +99,8 @@ const GROUND_INFO = `
 <p>Every kind of ground on the game's maps, side by side on a patch of 24 by 24 tiles, drawn by the same material as the game's
 WebGL renderer: <b>pasture</b> (short grazed grass, bare earth between), <b>meadow</b> (the fertile land farms need: lush, combed by
 the wind, with flowers), <b>scrub</b> (the garrigue of dry grass far from water: pale stony soil and cushions of thyme and kermes oak),
-<b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's ploughed
-<b>soil</b>, and under the water a river's silt or the sea's sand.</p>
+<b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's field of
+<b>wheat</b> (every farm and stage: the Ground types view, Y), and under the water a river's silt or the sea's sand.</p>
 <p>What people laid on it: an ordinary road is gravel rammed into the earth (a <i>via glareata</i>, the provinces' common road), with
 a worn verge; a town's streets are paved with polygonal basalt between limestone kerbs, as Pompeii's and the Via Appia were (in the game, a road with a building beside it); a
 forum's plaza is travertine flagstones in courses; a fallen house leaves rubble of stone, roof tile and ash.</p>

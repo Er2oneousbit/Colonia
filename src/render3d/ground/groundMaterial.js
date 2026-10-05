@@ -14,9 +14,13 @@
  *      kind's bumps win: grass tufts over sand, scrub cushions over grass,
  *      leaf litter creeping out under the trees. Up to four kinds are
  *      sampled; most pixels have one and sample one.
- *   2. Anti-tiling (High): each kind is sampled again, larger and turned,
- *      and the two are mixed in patches, and large soft noise changes tone
- *      and dryness across a field, so a big field never shows its repeat.
+ *   2. Anti-tiling (High): each organic kind is sampled by hex tiling
+ *      (three turned copies blended over a triangle grid), and large soft
+ *      noise changes tone and dryness across a field, so a big field never
+ *      shows its repeat.
+ *   2b. Sites, from the site map (groundMap.js): what people made of the
+ *      tile, with a clean edge where it ends: a building's yard, a wall's
+ *      footing, a farm's field as its crop grows and ripens, a pen's mud.
  *   3. Roads, plazas, rubble, from the road byte of the pixel's own tile:
  *      the road's shape is a distance field (a centre square and an arm to
  *      each linked side, corners rounded), so the road bends and meets as

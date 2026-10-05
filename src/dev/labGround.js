@@ -14,7 +14,7 @@
  *   x 14          a gravelled road south from it, a branch west at row 17
  *   west of it    bands of forest floor, pasture, meadow, and the well on
  *                 grass at the middle (tile 12, 12); south of the branch
- *                 rocks, dry scrub, a farm's soil, dune sand
+ *                 rocks, dry scrub, a wheat field nearly ripe, dune sand
  *   east of it    a forum's flagstones, rubble of a fallen house, meadow
  *   x 18-20       a river from the sea to the map's far edge, a bend in it
  *   beyond        a limestone outcrop, the river's meadows, sand

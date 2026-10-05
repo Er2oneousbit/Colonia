@@ -60,7 +60,7 @@ export function buildingSite(game, b, x, y) {
   const lu = x - b.x;
   const lv = y - b.y;
   if (kind === 'farm') {
-    if (b.herd !== undefined) return siteWord(SITE.PADDOCK, 0, 0, S, lu, lv, t);
+    if (b.type === 'horse_ranch' || b.herd !== undefined) return siteWord(SITE.PADDOCK, 0, 0, S, lu, lv, t);
     // Where this tile's middle lies in the art (drawn at turn 0): the farmhouse stands on u 0..1.
     const [u] = turnUV(lu + 0.5, lv + 0.5, S, (4 - t) & 3);
     if (u < 1) return siteWord(SITE.YARD, 0, 0, S, lu, lv, t);
@@ -100,7 +100,7 @@ export function gameSiteHooks(game) {
           tiles.push(i);
         }
       }
-      if (b.def.kind === 'farm' && b.herd === undefined) farms.push([b, tiles]);
+      if (b.type.startsWith('farm_')) farms.push([b, tiles]);
     }
     // A wall, and an aqueduct where no road runs under it, stands on its footing.
     for (let i = 0; i < n; i++) {

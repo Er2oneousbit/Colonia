@@ -1470,7 +1470,7 @@ export class Renderer {
       return;
     }
     // A farm whose field the 3D ground draws: its sprite keeps only what stands up (buildingArt.js FARM_BARE).
-    const bareField = b.def.kind === 'farm' && b.herd === undefined && !!this.be?.drawsGround;
+    const bareField = b.type.startsWith('farm_') && !!this.be?.drawsGround;
     const state = artState(b, farmDormant(this.game, b)) + (bareField ? FARM_BARE : 0);
     const variant = this.artVariant(b);
     const key = buildingKey(b, variant, state, vt);

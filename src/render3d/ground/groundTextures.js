@@ -6,13 +6,13 @@
  * ground shader picks a kind by its layer number in one sampler.
  *
  * The arrays are render targets the GPU paints (paint/painter.js), a layer
- * a recipe, all 14 in one go as soon as the painter's programs are
+ * a recipe, all 20 in one go as soon as the painter's programs are
  * compiled: a few milliseconds of GPU time on a desktop, so the ground
  * waits for them (its sprites draw meanwhile) instead of drawing stand-ins.
  * Their mipmaps are made once the last layer is in, and the painter paints
  * them again after a lost WebGL context.
  *
- * Memory: 14 layers x 256 x 256 x 4 bytes x 3 arrays, about 15 MB on the
+ * Memory: 20 layers x 256 x 256 x 4 bytes x 3 arrays, about 21 MB on the
  * GPU with their mipmaps, and nothing in the page.
  * ----------------------------------------------------------------------------
  */
