@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.3)
+
+* **Textures painted on the graphics card**: every texture of the 3D look (the well's stone, wood, bronze and paving, and the ground's fourteen layers) is now painted by the GPU in well under a second, the same textures as before (on average within a fifth of a shade). The lab opens with its first picture in 1.2 s on a first visit, even in a sandboxed frame where browser storage is blocked (was 4.9 s), and the WebGL renderer's 3D ground first draws at 2.2 s (was 2.75) without a stall. The CPU worker pool and the browser texture cache are gone
+* **Fewer shader programs, compiled ahead**: materials that differed only in small options share programs, and every program the first frame needs is compiled in the background before it
+* 1118 unit tests, 233 browser checks
+
 ## Done (v0.20.2)
 
 * **Cleaner roads in 3D**: the wheel ruts are gone from gravel roads and the look lab's street (they read as streaks), and the lab's basalt street ends in a row of edge stones with the earth starting behind them, where the earth's bumps used to wander over the paving
