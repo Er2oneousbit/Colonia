@@ -9,8 +9,8 @@
  * (stepFree). Shared by soldiers and raiders (sim/military.js), Caesar's men
  * (sim/legion.js), wolves (sim/wildlife.js), villagers (sim/natives.js),
  * prefects in a fight (sim/prefectFight.js) and the raiders' landing
- * (sim/navy.js). Imports only the map, the pathfinder and entities.js: no
- * military module.
+ * (sim/navy.js). Imports only the map and entities.js (the pathfinder is
+ * reached through game.pf): no military module.
  * ----------------------------------------------------------------------------
  */
 
