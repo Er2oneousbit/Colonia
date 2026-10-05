@@ -8,7 +8,9 @@
  *
  *   rows 0-5      the open sea, deepening to the map's edge
  *   rows 6-7      its beach
- *   row 9         the Imperial road, paved in basalt, across to the river
+ *   row 9         a paved road, basalt as a town's streets are (the game
+ *                 paves a road with a building beside it; this one is
+ *                 the Imperial road's fixed kind), across to the river
  *   x 14          a gravelled road south from it, a branch west at row 17
  *   west of it    bands of forest floor, pasture, meadow, and the well on
  *                 grass at the middle (tile 12, 12); south of the branch

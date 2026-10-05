@@ -13,7 +13,7 @@
  * wood's litter and moss, bare limestone, dune sand, a beach's finer sand
  * and shells, a farm's ploughed furrows, the silt and pebbles of a riverbed;
  * and what people laid on it: a gravelled road (via glareata), polygonal
- * basalt paving for the Imperial road (as the Via Appia's), a forum's
+ * polygonal basalt paving for a town's streets (as Pompeii's), a forum's
  * travertine flagstones in courses, and the rubble of a fallen building.
  *
  * Every layer has the same size (a texture array's layers must) and packs:
@@ -441,7 +441,7 @@ function gravel(n, seed) {
 }
 
 /**
- * Basalt paving of the Imperial road (silice stratae): big polygonal lava
+ * Basalt paving of a town's streets (silice stratae): big polygonal lava
  * blocks fitted close, each its own tone and tilt, polished on top, grit in
  * the joints. The well's street (surfaces.js basalt) at a game's scale:
  * joints wide enough to read at 256 px.

@@ -13,9 +13,9 @@
  *      own ground is the BED its water lies on.
  *   G  the road layer: bits 0-3 the road's links (1 N, 2 E, 4 S, 8 W, the
  *      map's directions, as render/renderer.js roadMask), bits 4-5 its
- *      surface (ROAD_SURFACE: a gravelled road, the Imperial road paved in
- *      basalt, a plaza's flagstones), bit 6 rubble, bit 7 a bridge (no
- *      surface on the ground: the deck is a sprite).
+ *      surface (ROAD_SURFACE: a gravelled country road, a town's street
+ *      paved in basalt (roadByte), a plaza's flagstones), bit 6 rubble,
+ *      bit 7 a bridge (no surface on the ground: the deck is a sprite).
  *   B  the shore: the signed distance (tiles) from the tile's middle to the
  *      water's edge, + on land, - on water, as 128 + 16 d. Read between
  *      tile middles (the shader interpolates), it gives a coast that runs
@@ -203,10 +203,15 @@ export function kindOf(terrain, x, y, shoreD, farm) {
 }
 
 /**
- * The road byte (G) of a tile: links, surface, rubble, bridge. `fixed` is
- * map.fixedRoad (the Imperial road, paved in basalt).
+ * The road byte (G) of a tile: links, surface, rubble, bridge. A street in
+ * town is paved in basalt, as Roman towns paved theirs: a road with a
+ * building on one of its four sides (not a farm: a lane between fields
+ * stays a country road), or the Imperial road's fixed ends (map.fixedRoad);
+ * any other road is gravel (a via glareata), so a town paves itself as it
+ * grows along its roads. `town(i)`: does tile i hold a building that makes
+ * a street of a road beside it.
  */
-export function roadByte(map, x, y) {
+export function roadByte(map, x, y, town = () => false) {
   const i = y * map.w + x;
   const road = map.road[i];
   let g = map.rubble[i] ? G_RUBBLE : 0;
@@ -214,7 +219,9 @@ export function roadByte(map, x, y) {
   if (road === Road.BRIDGE) return g | G_BRIDGE;
   const has = (tx, ty) => map.hasRoad(tx, ty);
   const links = (has(x, y - 1) ? 1 : 0) | (has(x + 1, y) ? 2 : 0) | (has(x, y + 1) ? 4 : 0) | (has(x - 1, y) ? 8 : 0);
-  const surface = road === Road.PLAZA ? ROAD_SURFACE.FLAGS : map.fixedRoad[i] ? ROAD_SURFACE.BASALT : ROAD_SURFACE.GRAVEL;
+  const w = map.w;
+  const street = map.fixedRoad[i] || (y > 0 && town(i - w)) || (x < w - 1 && town(i + 1)) || (y < map.h - 1 && town(i + w)) || (x > 0 && town(i - 1));
+  const surface = road === Road.PLAZA ? ROAD_SURFACE.FLAGS : street ? ROAD_SURFACE.BASALT : ROAD_SURFACE.GRAVEL;
   return g | links | (surface << 4);
 }
 
@@ -254,7 +261,7 @@ export class GroundMap {
     const kind = kindOf(map.terrain[i], x, y, d, farmAt(i));
     const water = this.water[i];
     this.data[o] = this.kindHook ? this.kindHook(i, kind) : kind;
-    this.data[o + 1] = roadByte(map, x, y);
+    this.data[o + 1] = roadByte(map, x, y, (j) => buildingAt(j) && !farmAt(j));
     this.data[o + 2] = shoreByte(d);
     this.data[o + 3] = (this.waterHook ? this.waterHook(i, water) : water) | (buildingAt(i) ? A_BUILDING : 0);
   }

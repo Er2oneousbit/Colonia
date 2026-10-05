@@ -99,7 +99,7 @@ test('3D ground: kinds read from where a tile lies: beach by the water, scrub on
   assert.ok(far > 300 && far < 2400, `scrub is patches, not all or nothing: ${far} of 3600`);
 });
 
-test('3D ground: the road byte holds the links, the surface (gravel, the Imperial basalt, a plaza), rubble and bridges', () => {
+test('3D ground: the road byte holds the links, the surface (gravel, a town street\'s basalt, a plaza), rubble and bridges', () => {
   const map = testMap();
   for (let x = 5; x <= 8; x++) map.road[map.idx(x, 20)] = Road.ROAD;
   map.road[map.idx(6, 21)] = Road.ROAD;
@@ -117,6 +117,37 @@ test('3D ground: the road byte holds the links, the surface (gravel, the Imperia
   assert.equal(g(10, 20), G_RUBBLE);
   assert.equal(g(30, 25), G_BRIDGE);
   assert.equal(g(12, 30), 0);
+  // A street: a building (not a farm) beside the road paves it; a farm beside it leaves a country road.
+  const town = (i) => i === map.idx(6, 22);
+  const farm = (i) => false;
+  assert.equal((roadByte(map, 6, 21, (i) => town(i) && !farm(i)) >> 4) & 3, ROAD_SURFACE.BASALT);
+  assert.equal((roadByte(map, 5, 20, (i) => town(i)) >> 4) & 3, ROAD_SURFACE.GRAVEL);
+});
+
+test('3D ground: a road is paved when a building comes beside it, and gravel again when it goes (not for a farm)', () => {
+  const map = testMap(64);
+  for (let x = 10; x <= 20; x++) map.road[map.idx(x, 30)] = Road.ROAD;
+  const bld = new Set();
+  const farms = new Set();
+  const gm = new GroundMap(map);
+  const update = () => gm.update((i) => farms.has(i), (i) => bld.has(i));
+  const surf = (x, y) => (gm.data[map.idx(x, y) * 4 + 1] >> 4) & 3;
+  update();
+  assert.equal(surf(15, 30), ROAD_SURFACE.GRAVEL);
+  bld.add(map.idx(15, 31));
+  map.touch();
+  update();
+  assert.equal(surf(15, 30), ROAD_SURFACE.BASALT);
+  assert.equal(surf(14, 30), ROAD_SURFACE.GRAVEL, 'only the road beside it');
+  farms.add(map.idx(15, 31));
+  map.touch();
+  update();
+  assert.equal(surf(15, 30), ROAD_SURFACE.GRAVEL, 'a lane by a farm is a country road');
+  farms.clear();
+  bld.clear();
+  map.touch();
+  update();
+  assert.equal(surf(15, 30), ROAD_SURFACE.GRAVEL);
 });
 
 test('3D ground: the type map follows the map, repacking only the chunks that changed', () => {

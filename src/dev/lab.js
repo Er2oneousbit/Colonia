@@ -90,7 +90,7 @@ the wind, with flowers), <b>scrub</b> (the garrigue of dry grass far from water:
 <b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's ploughed
 <b>soil</b>, and under the water a river's silt or the sea's sand.</p>
 <p>What people laid on it: an ordinary road is gravel rammed into the earth (a <i>via glareata</i>, the provinces' common road), with
-wheel ruts on a straight run; the Imperial road is paved with polygonal basalt between limestone kerbs, as the Via Appia was; a
+wheel ruts on a straight run; a town's streets are paved with polygonal basalt between limestone kerbs, as Pompeii's and the Via Appia were (in the game, a road with a building beside it); a
 forum's plaza is travertine flagstones in courses; a fallen house leaves rubble of stone, roof tile and ash.</p>
 <p>Water deepens from its edge, from the bed seen through clear shallows to a river's green-blue or the sea's blue, with drifting
 ripples, the sky in it and foam lapping at the shore. Where two kinds meet, the higher one's bumps win, so the edges wander.</p>

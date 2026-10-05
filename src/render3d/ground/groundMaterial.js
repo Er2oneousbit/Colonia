@@ -21,7 +21,7 @@
  *      the road's shape is a distance field (a centre square and an arm to
  *      each linked side, corners rounded), so the road bends and meets as
  *      the 2D art's does, with a worn verge, wheel ruts on a straight run,
- *      and kerbs of limestone along the Imperial road's basalt.
+ *      and kerbs of limestone along a street's basalt.
  *   4. Water, from the shore distance read between tile middles: a smooth
  *      coast, the bed seen through clear shallows, the colour deepening to
  *      the open water's (a river green-blue, the sea blue), drifting
