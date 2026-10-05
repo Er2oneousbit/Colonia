@@ -137,6 +137,28 @@ test('3D ground: the road byte holds the links, the surface (gravel, a town stre
   assert.equal((roadByte(map, 5, 20, (i) => town(i)) >> 4) & 3, ROAD_SURFACE.GRAVEL);
 });
 
+test('3D ground: the corners of a block, the crossings at its ends and a short gap between two blocks pave with its streets', () => {
+  // Roads round a 2 x 2 block of homes at (11..12, 11..12): a ring from 10 to 13.
+  const map = testMap(64);
+  for (let k = 10; k <= 13; k++) {
+    for (const [x, y] of [[k, 10], [k, 13], [10, k], [13, k]]) map.road[map.idx(x, y)] = Road.ROAD;
+  }
+  // A straight road on east from the block's north-east corner, a gap of one tile, then another home on its south.
+  for (let x = 14; x <= 16; x++) map.road[map.idx(x, 10)] = Road.ROAD;
+  const homes = new Set([map.idx(11, 11), map.idx(12, 11), map.idx(11, 12), map.idx(12, 12), map.idx(16, 11)]);
+  const town = (i) => homes.has(i);
+  const surface = (x, y) => (roadByte(map, x, y, town) >> 4) & 3;
+  // The corner (10, 10) touches the block only at its corner: paved (it was gravel when only the four sides counted).
+  for (const [x, y] of [[10, 10], [13, 10], [10, 13], [13, 13]]) assert.equal(surface(x, y), ROAD_SURFACE.BASALT, `corner ${x},${y}`);
+  // (15, 10): no home beside it, but between (14, 10) (the block's diagonal) and (16, 10) (a home south): paved.
+  assert.equal(surface(14, 10), ROAD_SURFACE.BASALT);
+  assert.equal(surface(15, 10), ROAD_SURFACE.BASALT);
+  // The road on from there, past every home, stays a country road.
+  map.road[map.idx(17, 10)] = Road.ROAD;
+  map.road[map.idx(18, 10)] = Road.ROAD;
+  assert.equal(surface(18, 10), ROAD_SURFACE.GRAVEL);
+});
+
 test('3D ground: a road is paved when a building comes beside it, and gravel again when it goes (not for a farm)', () => {
   const map = testMap(64);
   for (let x = 10; x <= 20; x++) map.road[map.idx(x, 30)] = Road.ROAD;
@@ -151,7 +173,10 @@ test('3D ground: a road is paved when a building comes beside it, and gravel aga
   map.touch();
   update();
   assert.equal(surf(15, 30), ROAD_SURFACE.BASALT);
-  assert.equal(surf(14, 30), ROAD_SURFACE.GRAVEL, 'only the road beside it');
+  // The street runs past the home's corners (a diagonal counts), no further.
+  assert.equal(surf(14, 30), ROAD_SURFACE.BASALT, 'past its corner');
+  assert.equal(surf(16, 30), ROAD_SURFACE.BASALT, 'past its other corner');
+  assert.equal(surf(13, 30), ROAD_SURFACE.GRAVEL, 'only the road beside it');
   farms.add(map.idx(15, 31));
   map.touch();
   update();
