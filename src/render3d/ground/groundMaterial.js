@@ -236,11 +236,22 @@ GSmp gTap( float L, vec2 uv, vec2 dx, vec2 dy, mat2 M, vec2 o ) {
   return s;
 }
 
-GSmp gSample( int k, vec2 p ) {
+// Layer k at point p (tiles, already scaled by s; swp: the point's x and y swapped, as a field
+// turned a quarter reads its rows): derivatives follow the point, so mipmaps stay right.
+// One of the three hex tiling taps: the texture turned and moved by the hash of grid vertex v.
+GSmp gHexTap( float L, vec2 uv, vec2 dx, vec2 dy, vec2 v ) {
+  float a = gHash( v + L * 17.31 ) * 6.2831853;
+  vec2 o = vec2( gHash( v * 1.7 + 3.1 + L ), gHash( v * 2.3 + 7.7 + L ) ) * 4.0;
+  float c = cos( a );
+  float sn = sin( a );
+  return gTap( L, uv, dx, dy, mat2( c, sn, -sn, c ), o );
+}
+
+GSmp gSample( int k, vec2 p, float s, bool swp ) {
   float sc = uScale[ k ];
   vec2 uv = p * sc;
-  vec2 dx = gDx * sc;
-  vec2 dy = gDy * sc;
+  vec2 dx = ( swp ? gDx.yx : gDx ) * sc * s;
+  vec2 dy = ( swp ? gDy.yx : gDy ) * sc * s;
   float L = float( k );
 #ifdef GROUND_HIGH
   // Hex tiling (after Mikkelsen's "Practical Real-Time Hex-Tiling"): the
@@ -259,23 +270,16 @@ GSmp gSample( int k, vec2 p ) {
     float sg = step( 0.0, -t.z );
     float s2 = 2.0 * sg - 1.0;
     vec3 w = vec3( -t.z * s2, sg - t.y * s2, sg - t.x * s2 );
-    vec2 v[3] = vec2[3]( base + vec2( sg, sg ), base + vec2( sg, 1.0 - sg ), base + vec2( 1.0 - sg, sg ) );
-    GSmp T[3];
-    vec3 wh;
-    for ( int i = 0; i < 3; i++ ) {
-      float a = gHash( v[i] + L * 17.31 ) * 6.2831853;
-      vec2 o = vec2( gHash( v[i] * 1.7 + 3.1 + L ), gHash( v[i] * 2.3 + 7.7 + L ) ) * 4.0;
-      float c = cos( a );
-      float sn = sin( a );
-      T[i] = gTap( L, uv, dx, dy, mat2( c, sn, -sn, c ), o );
-      wh[i] = pow( w[i], 5.0 ) * ( 0.15 + T[i].alb.a );
-    }
+    GSmp A = gHexTap( L, uv, dx, dy, base + vec2( sg, sg ) );
+    GSmp B = gHexTap( L, uv, dx, dy, base + vec2( sg, 1.0 - sg ) );
+    GSmp C = gHexTap( L, uv, dx, dy, base + vec2( 1.0 - sg, sg ) );
+    vec3 wh = pow( w, vec3( 5.0 ) ) * ( 0.15 + vec3( A.alb.a, B.alb.a, C.alb.a ) );
     wh /= max( wh.x + wh.y + wh.z, 1e-5 );
-    GSmp s;
-    s.alb = T[0].alb * wh.x + T[1].alb * wh.y + T[2].alb * wh.z;
-    s.n = T[0].n * wh.x + T[1].n * wh.y + T[2].n * wh.z;
-    s.orm = T[0].orm * wh.x + T[1].orm * wh.y + T[2].orm * wh.z;
-    return s;
+    GSmp r;
+    r.alb = A.alb * wh.x + B.alb * wh.y + C.alb * wh.z;
+    r.n = A.n * wh.x + B.n * wh.y + C.n * wh.z;
+    r.orm = A.orm * wh.x + B.orm * wh.y + C.orm * wh.z;
+    return r;
   }
 #endif
   return gTap( L, uv, dx, dy, mat2( 1.0 ), vec2( 0.0 ) );
@@ -337,14 +341,79 @@ void groundSurface() {
     if ( k[a] == ${KIND.BED} && ( int( TA[a].a + 0.5 ) & 3 ) == 2 ) lay[a] = ${LAYER.beach};
   }
   for ( int a = 0; a < 4; a++ ) for ( int b = a + 1; b < 4; b++ ) if ( w[b] > 0.0 && lay[b] == lay[a] ) { w[a] += w[b]; w[b] = 0.0; }
-  GSmp S[4];
+
+  // --- every texture sample the pixel needs, planned, then taken in one loop ---
+  // ANGLE inlines every call of a function: gSample written out at each place
+  // that reads a layer was a dozen copies of the hex tiling, and the shader's
+  // compile went from 0.8 s to 2.5 s on ANGLE's D3D11. So each place says
+  // what it needs (a layer, a point, its scale, turned a quarter or not) in
+  // its slot: 0-3 the kinds, 4-5 the site, 6-8 the road (its surface, the
+  // kerb's stone, the margin's gravel), 9 rubble; and one loop whose bound
+  // the compiler cannot see takes them all (1.3 s). Inside gSample the three
+  // hex taps are written out, not looped: arrays indexed by a loop's counter
+  // there cost the D3D compiler another 1.8 s.
+  ivec2 ti = ivec2( floor( p ) );
+  vec4 own = gType( ti );
+  vec2 q = p - floor( p );
+  vec4 st = gSite( ti );
+  int site = int( st.r + 0.5 );
+  int sa = int( st.a + 0.5 );
+  int turn = sa >> 6;
+  bool swp = ( turn & 1 ) == 1;
+  // A field's rows and furrows run along the art's u: the map's x, or its y when turned a quarter.
+  vec2 pr = swp ? p.yx : p;
+  int g = int( own.g + 0.5 );
+  int links = g & 15;
+  int surf = ( g >> 4 ) & 3;
+  bool bridge = ( g & 128 ) != 0;
+  // Rubble, read between tile middles like the kinds (so a fallen block's rubble is one heap), and
+  // how much of it a fire left, and is burning.
+  float rubR = 0.0, rubB = 0.0, rubF = 0.0;
+  {
+    vec4 TR[4] = vec4[4]( T0, T1, T2, T3 );
+    float wr[4] = float[4]( ( 1.0 - f.x ) * ( 1.0 - f.y ), f.x * ( 1.0 - f.y ), ( 1.0 - f.x ) * f.y, f.x * f.y );
+    for ( int a = 0; a < 4; a++ ) {
+      if ( ( int( TR[a].g + 0.5 ) & 64 ) != 0 ) rubR += wr[a];
+      int aa = int( TR[a].a + 0.5 );
+      if ( ( aa & 8 ) != 0 ) rubB += wr[a];
+      if ( ( aa & 16 ) != 0 ) rubF += wr[a];
+    }
+  }
+  int RQ[10];
+  vec2 RP[10];
+  float RS[10];
+  bool RW[10];
+  for ( int i = 0; i < 10; i++ ) { RQ[i] = -1; RP[i] = p; RS[i] = 1.0; RW[i] = false; }
+  for ( int a = 0; a < 4; a++ ) if ( w[a] > 0.0 ) RQ[a] = lay[a];
+  if ( site == ${SITE.YARD} || site == ${SITE.FOOTING} || site == ${SITE.PADDOCK} ) RQ[4] = ${LAYER.yard};
+  else if ( site == ${SITE.PEN} ) { RQ[4] = ${LAYER.mud}; RQ[5] = ${LAYER.yard}; }
+  else if ( site != 0 ) {
+    RQ[4] = ${LAYER.soil}; RP[4] = pr; RW[4] = swp;
+    if ( site == ${SITE.GRAIN} || site == ${SITE.VEG} || site == ${SITE.FLAX} ) {
+      RQ[5] = site == ${SITE.GRAIN} ? ${LAYER.grain} : site == ${SITE.VEG} ? ${LAYER.veg} : ${LAYER.flax};
+      RP[5] = pr; RW[5] = swp;
+    } else if ( site == ${SITE.ORCHARD} || site == ${SITE.OLIVE} || site == ${SITE.VINES} ) {
+      RQ[5] = ${LAYER.yard}; RP[5] = p * 1.3; RS[5] = 1.3;
+    }
+  }
+  if ( surf != 0 && !bridge ) {
+    RQ[6] = surf == 1 ? ${LAYER.gravel} : surf == 2 ? ${LAYER.basalt} : ${LAYER.flags};
+    if ( surf == 2 ) { RQ[7] = ${LAYER.flags}; RP[7] = p * 2.3; RS[7] = 2.3; RQ[8] = ${LAYER.gravel}; }
+  }
+  bool ashy = rubB > rubR * 0.5;
+  if ( rubR > 0.0 ) RQ[9] = ashy ? ${LAYER.ash} : ${LAYER.rubble};
+  GSmp SM[10];
+  for ( int i = 0; i < 10 + uGZero; i++ ) {
+    if ( RQ[i] < 0 ) { SM[i] = GSmp( vec4( 0.0 ), vec3( 0.0, 0.0, 1.0 ), vec4( 1.0 ) ); continue; }
+    SM[i] = gSample( RQ[i], RP[i], RS[i], RW[i] );
+  }
+
   float score[4];
   float best = -1e3;
   for ( int a = 0; a < 4; a++ ) {
     score[a] = -1e3;
     if ( w[a] <= 0.0 ) continue;
-    S[a] = gSample( lay[a], p );
-    score[a] = w[a] + ( S[a].alb.a - 0.5 ) * 0.55 + K_BIAS[ k[a] ];
+    score[a] = w[a] + ( SM[a].alb.a - 0.5 ) * 0.55 + K_BIAS[ k[a] ];
     best = max( best, score[a] );
   }
   vec4 alb = vec4( 0.0 );
@@ -356,11 +425,11 @@ void groundSurface() {
     float ww = max( score[a] - best + 0.2, 0.0 );
     ww *= ww;
     if ( ww <= 0.0 ) continue;
-    alb += S[a].alb * ww;
-    nrm += S[a].n * ww;
-    orm += S[a].orm.xyz * ww;
-    decF += S[a].orm.a * K_FLOWER[ k[a] ] * ww;
-    decL += S[a].orm.a * K_LEAF[ k[a] ] * ww;
+    alb += SM[a].alb * ww;
+    nrm += SM[a].n * ww;
+    orm += SM[a].orm.xyz * ww;
+    decF += SM[a].orm.a * K_FLOWER[ k[a] ] * ww;
+    decL += SM[a].orm.a * K_LEAF[ k[a] ] * ww;
     snowHold += K_SNOW[ k[a] ] * ww;
     season += K_SEASON[ k[a] ] * ww;
     soak += K_SOAK[ k[a] ] * ww;
@@ -402,25 +471,16 @@ void groundSurface() {
   // From the pixel's own tile, unbent: a field, a yard, a pen is a plot with
   // a clean edge where the site ends (its links say where it carries on into
   // the same building's), the natural ground round it.
-  ivec2 ti = ivec2( floor( p ) );
-  vec4 own = gType( ti );
-  vec2 q = p - floor( p );
   {
-    vec4 st = gSite( ti );
-    int site = int( st.r + 0.5 );
     if ( site != 0 ) {
       int sb = int( st.b + 0.5 );
-      int sa = int( st.a + 0.5 );
       int sl = sb & 15;
       float growth = st.g / 255.0;
       bool resting = ( sb & 16 ) != 0;
       bool idle = ( sb & 32 ) != 0;
       float SZ = float( ( sb >> 6 ) + 1 );
-      int turn = sa >> 6;
       // Where the pixel lies in the building's art (render/buildingArt.js draws at turn 0).
       vec2 art = gArt( vec2( float( sa & 7 ), float( ( sa >> 3 ) & 7 ) ) + q, SZ, turn );
-      // A field's rows and furrows run along the art's u: the map's x, or its y when turned a quarter.
-      vec2 pr = ( turn & 1 ) == 0 ? p : p.yx;
       float inset = site == ${SITE.YARD} ? 0.012 : site == ${SITE.FOOTING} ? 0.08 : 0.03;
       vec2 lo = vec2( ( sl & 8 ) != 0 ? -1.0 : inset, ( sl & 1 ) != 0 ? -1.0 : inset );
       vec2 hi = vec2( ( sl & 2 ) != 0 ? 2.0 : 1.0 - inset, ( sl & 4 ) != 0 ? 2.0 : 1.0 - inset );
@@ -435,7 +495,7 @@ void groundSurface() {
       float sp = plants;
       float sHold = snowHold, sSoak = soak, sPud = puddle;
       if ( site == ${SITE.YARD} || site == ${SITE.FOOTING} || site == ${SITE.PADDOCK} ) {
-        GSmp Y = gSample( ${LAYER.yard}, p );
+        GSmp Y = SM[4];
         // A wall's or an aqueduct's footing and a paddock are trodden ground: the grass worn through in patches.
         float k = site == ${SITE.YARD} ? 1.0 : smoothstep( 0.4, 0.7, ${N.rubble} * 0.6 + ( 1.0 - h ) * 0.5 + ( site == ${SITE.FOOTING} ? 0.12 : -0.12 ) );
         if ( site == ${SITE.PADDOCK} ) col = mix( col, gLum( col ) * vec3( 1.15, 1.1, 0.75 ) * 1.1, 0.3 ); // cropped short, paler
@@ -449,8 +509,8 @@ void groundSurface() {
         sHold = mix( snowHold, site == ${SITE.YARD} ? 0.3 : 0.7, k ); sSoak = mix( soak, 0.6, k ); sPud = mix( puddle, 0.55, k );
       } else if ( site == ${SITE.PEN} ) {
         // Inside the fence (the art's u 1 to S - 0.12, v 0.15 to S - 0.12) the pigs have churned it to mud.
-        GSmp M = gSample( ${LAYER.mud}, p );
-        GSmp Y = gSample( ${LAYER.yard}, p );
+        GSmp M = SM[4];
+        GSmp Y = SM[5];
         vec2 e = min( art - vec2( 1.0, 0.15 ), vec2( SZ - 0.12 ) - art );
         float inPen = smoothstep( -0.02, 0.06, min( e.x, e.y ) + ( M.alb.a - 0.5 ) * 0.06 );
         sc = mix( Y.alb.rgb, M.alb.rgb, inPen );
@@ -462,7 +522,7 @@ void groundSurface() {
         sHold = 0.6; sSoak = 1.0; sPud = mix( 0.6, 1.0, inPen );
       } else {
         // Fields: ploughed earth, its furrows along the rows.
-        GSmp Sl = gSample( ${LAYER.soil}, pr );
+        GSmp Sl = SM[4];
         vec3 fc = Sl.alb.rgb;
         float fh = Sl.alb.a;
         vec3 fn = Sl.n;
@@ -472,8 +532,7 @@ void groundSurface() {
         float fp = 0.0;
         if ( resting ) fc = mix( fc, fc * vec3( 1.12, 1.06, 0.98 ), 0.6 ); // dry and pale in the winter's rest
         if ( site == ${SITE.GRAIN} || site == ${SITE.VEG} || site == ${SITE.FLAX} ) {
-          int cl = site == ${SITE.GRAIN} ? ${LAYER.grain} : site == ${SITE.VEG} ? ${LAYER.veg} : ${LAYER.flax};
-          GSmp C = gSample( cl, pr );
+          GSmp C = SM[5];
           vec3 cn = C.n;
           if ( ( turn & 1 ) == 1 ) cn.xy = cn.yx;
           // As much of the crop as has grown: the rows' middles first (the layer's height), all of it when grown.
@@ -522,7 +581,7 @@ void groundSurface() {
           vec3 sward = col;
           if ( site == ${SITE.OLIVE} ) sward = mix( col, gLum( col ) * vec3( 1.3, 1.15, 0.7 ), 0.35 ); // an olive grove's dry grass
           // Hoed, not ploughed: loose dark earth, no furrows.
-          GSmp Hd = gSample( ${LAYER.yard}, p * 1.3 );
+          GSmp Hd = SM[5];
           vec3 hoed = Hd.alb.rgb * vec3( 0.72, 0.66, 0.6 );
           fc = mix( sward, hoed, worked );
           fh = mix( h, Hd.alb.a * 0.8, worked );
@@ -569,10 +628,6 @@ void groundSurface() {
   }
 
   // --- 3. roads, plazas, rubble -----------------------------------------
-  int g = int( own.g + 0.5 );
-  int links = g & 15;
-  int surf = ( g >> 4 ) & 3;
-  bool bridge = ( g & 128 ) != 0;
   float wear = 0.0;
   float snowRoad = 1.0;
   if ( surf != 0 && !bridge ) {
@@ -581,8 +636,7 @@ void groundSurface() {
     if ( surf == 3 ) sd = gRect( q, vec2( ( links & 8 ) != 0 ? -1.0 : 0.03 , ( links & 1 ) != 0 ? -1.0 : 0.03 ), vec2( ( links & 2 ) != 0 ? 2.0 : 0.97, ( links & 4 ) != 0 ? 2.0 : 0.97 ), 0.04 );
     float edgeN = ( ${N.edge} - 0.5 ) * 0.025;
     // The road's own surface.
-    int rl = surf == 1 ? ${LAYER.gravel} : surf == 2 ? ${LAYER.basalt} : ${LAYER.flags};
-    GSmp R = gSample( rl, p );
+    GSmp R = SM[6];
     vec3 rc = R.alb.rgb;
     float rr = R.orm.g;
     float rh = R.alb.a;
@@ -595,8 +649,8 @@ void groundSurface() {
       float kerb = smoothstep( -0.07, -0.065, sd ) * smoothstep( -0.015, -0.02, sd );
       float margin = smoothstep( -0.02, -0.015, sd );
       if ( kerb > 0.0 || margin > 0.0 ) {
-        GSmp K = gSample( ${LAYER.flags}, p * 2.3 );
-        GSmp G = gSample( ${LAYER.gravel}, p );
+        GSmp K = SM[7];
+        GSmp G = SM[8];
         // Kerb blocks: about half a metre long, joints across the kerb.
         float along = links == 5 || ( links & 10 ) == 0 ? p.y : p.x;
         float joint = smoothstep( 0.0, 0.012, abs( fract( along * 8.0 + gHash( floor( p * 8.0 ) ) * 0.3 ) - 0.5 ) - 0.47 );
@@ -637,17 +691,9 @@ void groundSurface() {
   // as fire leaves it), its embers glowing while it still burns.
   float embers = 0.0;
   {
-    float r = 0.0;
-    float bw = 0.0;
-    float fw = 0.0;
-    vec4 TR[4] = vec4[4]( T0, T1, T2, T3 );
-    float wr[4] = float[4]( ( 1.0 - f.x ) * ( 1.0 - f.y ), f.x * ( 1.0 - f.y ), ( 1.0 - f.x ) * f.y, f.x * f.y );
-    for ( int a = 0; a < 4; a++ ) {
-      if ( ( int( TR[a].g + 0.5 ) & 64 ) != 0 ) r += wr[a];
-      int aa = int( TR[a].a + 0.5 );
-      if ( ( aa & 8 ) != 0 ) bw += wr[a];
-      if ( ( aa & 16 ) != 0 ) fw += wr[a];
-    }
+    float r = rubR;
+    float bw = rubB;
+    float fw = rubF;
     if ( bw > 0.0 ) {
       float scorch = smoothstep( 0.0, 0.45, bw + ( ${N.rubble} - 0.5 ) * 0.35 + ( h - 0.5 ) * 0.2 );
       col = mix( col, col * vec3( 0.3, 0.28, 0.26 ) + vec3( 0.012, 0.011, 0.01 ), scorch * 0.85 );
@@ -655,8 +701,8 @@ void groundSurface() {
       rough = mix( rough, 0.95, scorch );
     }
     if ( r > 0.0 ) {
-      bool ash = bw > r * 0.5;
-      GSmp B = gSample( ash ? ${LAYER.ash} : ${LAYER.rubble}, p );
+      bool ash = ashy;
+      GSmp B = SM[9];
       float rm = smoothstep( 0.35, 0.55, r * 0.85 + ( B.alb.a - 0.5 ) * 0.5 + ( ${N.rubble} - 0.5 ) * 0.25 );
       col = mix( col, B.alb.rgb, rm );
       h = mix( h, B.alb.a, rm );
