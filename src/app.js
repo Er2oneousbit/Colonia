@@ -53,7 +53,7 @@ import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
 const FORT_KEY_DOUBLE_MS = 450;
 const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
 
-const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
+const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ground: 'auto', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
 
 /** Does the player's system ask for less motion (accessibility setting)? */
 function prefersReducedMotion() {
@@ -232,19 +232,36 @@ export class App {
    */
   applyRenderer() {
     const want = (this.flags.renderer || this.settings.renderer) === 'webgl' ? 'webgl' : 'classic';
-    if (want === this.rendererWant) return;
+    if (want === this.rendererWant) { this.applyGround(); return; }
     this.rendererWant = want;
     const r = this.renderer;
     this.rendererNote = '';
     if (want === 'classic') { r.setBackend(null); return; }
     try {
       r.setBackend(new WebGLBackend(r));
+      this.groundWant = null; // (a new back end starts with its ground off)
+      this.applyGround();
     } catch (err) {
       r.setBackend(null);
       this.rendererNote = 'WebGL is not available in this browser, so the Classic renderer draws the city.';
       log.warn(`WebGL renderer: ${err && err.message}`);
       if (this.ui) this.ui.toastError(this.rendererNote);
     }
+  }
+
+  /**
+   * The WebGL renderer's ground (render3d/ground/): 3D at high or low
+   * quality, or the ground's sprites ('off'); 'auto' lets the back end pick
+   * by the device. The URL's ground= flag wins until the player picks in
+   * Settings. Nothing to do for the Classic renderer.
+   */
+  applyGround() {
+    const be = this.renderer.backend;
+    if (!be || be.kind !== 'webgl') return;
+    const want = this.flags.ground || this.settings.ground || 'auto';
+    if (want === this.groundWant) return;
+    this.groundWant = want;
+    be.setGround(want);
   }
 
   // ------------------------------------------------------------ game setup

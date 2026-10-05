@@ -321,7 +321,8 @@ void groundSurface() {
     nrm = mix( nrm, rn, cover );
     ao = mix( ao, rao, cover );
     plants *= 1.0 - cover;
-    snowHold = mix( snowHold, surf == 3 ? 0.3 : 0.35, cover );
+    // Roads and plazas are kept clear (as the 2D art keeps them): snow only in patches, trodden grey.
+    snowHold = mix( snowHold, surf == 3 ? 0.22 : 0.16, cover );
     puddle = mix( puddle, surf == 1 ? 0.8 : 0.35, cover );
     soak = mix( soak, surf == 1 ? 0.7 : 0.35, cover );
     snowRoad = 1.0 - cover;
@@ -407,7 +408,7 @@ void groundSurface() {
   {
     float drift = gFbm( p * 1.1 + 31.0 );
     vec3 sc = vec3( 0.74, 0.78, 0.84 ) * ( 0.9 + 0.1 * h ) * ( 0.94 + 0.08 * drift );
-    sc = mix( sc, vec3( 0.6, 0.6, 0.6 ), ( 1.0 - snowRoad ) * 0.35 );
+    sc = mix( sc, vec3( 0.52, 0.5, 0.48 ), ( 1.0 - snowRoad ) * 0.45 );
     col = mix( col, sc, snowAmt );
     rough = mix( rough, 0.6, snowAmt );
     vec2 sw = ( vec2( gNoise( p * 3.0 ), gNoise( p * 3.0 + 7.0 ) ) - 0.5 ) * 0.25 + nrm.xy * 0.45;

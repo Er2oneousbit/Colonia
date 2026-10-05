@@ -184,20 +184,22 @@ function scrub(n, seed) {
     return hash2(c.id, 1, seed) < 0.1 ? smoothstep(0.42, 0.22, c.f1) : 0;
   });
   h.fill((u, v, i) => {
-    const tuss = smoothstep(0.5, 0.75, fbm(u, v, 14, 3, seed + 4)) * 0.35 * (fbm(u, v, 80, 2, seed + 5, 0.5, 3) * 0.6 + 0.4);
+    const tuss = smoothstep(0.3, 0.6, fbm(u, v, 14, 3, seed + 4)) * 0.35 * (fbm(u, v, 80, 2, seed + 5, 0.5, 3) * 0.6 + 0.4);
     return fbm(u, v, 6, 3, seed) * 0.15 + Math.sqrt(bush.data[i]) * 0.75 + stone.data[i] * 0.3 + tuss;
   });
   const cav = cavity(h, 3, 4);
-  const soil = rgb('#a68d68');
-  const soil2 = rgb('#8e7656');
-  const straw = rgb('#a99a5e');
+  const soil = rgb('#94805e');
+  const soil2 = rgb('#7f6c50');
+  const straw = rgb('#9c9558');
   const leaf = [rgb('#4a5530'), rgb('#56603a'), rgb('#5d5a35'), rgb('#3f4b2c')];
   const col = [0, 0, 0];
   const veg = new Float32Array(n * n);
   eachPixel(n, (u, v, i) => {
     mixRgb(soil, soil2, smoothstep(0.4, 0.7, fbm(u, v, 5, 3, seed + 6)), col);
-    const tuss = smoothstep(0.5, 0.72, fbm(u, v, 14, 3, seed + 4));
-    mixRgb(col, mixRgb(straw, rgb('#8f8a52'), fbm(u, v, 70, 2, seed + 12, 0.5, 3), [0, 0, 0]), tuss * 0.85, col);
+    // Dry grass over most of it, in tussocks (straw on top, still green at the base).
+    const tuss = smoothstep(0.3, 0.55, fbm(u, v, 14, 3, seed + 4));
+    const blades = fbm(u, v, 80, 2, seed + 5, 0.5, 3);
+    mixRgb(col, mixRgb(rgb('#7c8448'), straw, smoothstep(0.35, 0.7, blades), [0, 0, 0]), tuss * 0.9, col);
     if (stone.data[i] > 0) mixRgb(col, rgb('#a59c88'), stone.data[i] * 0.8, col);
     const b = bush.data[i];
     if (b > 0) {
@@ -231,7 +233,8 @@ function forest(n, seed) {
   const twig = new Field(n);
   twig.fill((u, v) => Math.pow(ridge(u, v, 8, 3, seed + 2, 0.4), 22) * smoothstep(0.5, 0.65, fbm(u, v, 5, 2, seed + 3)));
   const moss = new Field(n);
-  moss.fill((u, v) => smoothstep(0.6, 0.72, fbm(u, v, 5, 4, seed + 4)));
+  // Moss, ivy and the low evergreens of a Mediterranean wood's floor cover half of it.
+  moss.fill((u, v) => smoothstep(0.42, 0.6, fbm(u, v, 5, 4, seed + 4)) * (0.75 + fbm(u, v, 40, 2, seed + 8) * 0.5));
   h.fill((u, v, i) => leafF.data[i] * 0.3 + needles.data[i] * 0.15 + fbm(u, v, 10, 3, seed) * 0.3 + twig.data[i] * 0.35 + moss.data[i] * 0.25);
   const cav = cavity(h, 2, 6);
   const litter = [rgb('#6b5134'), rgb('#7d5f39'), rgb('#5a4430'), rgb('#86663d'), rgb('#6f5838'), rgb('#7a6a45')];
@@ -240,13 +243,13 @@ function forest(n, seed) {
     const lc = litter[Math.floor(hash2(leafId[i], 1, seed) * litter.length)];
     mixRgb(rgb('#55432e'), lc, leafF.data[i], col);
     mixRgb(col, rgb('#8a6c44'), smoothstep(0.6, 0.75, needles.data[i]) * 0.35, col);
-    mixRgb(col, mixRgb(rgb('#53632a'), rgb('#68773a'), fbm(u, v, 30, 2, seed + 5), [0, 0, 0]), moss.data[i] * 0.85, col);
+    mixRgb(col, mixRgb(rgb('#4c6226'), rgb('#6a7c36'), fbm(u, v, 30, 2, seed + 5), [0, 0, 0]), clamp01(moss.data[i]) * 0.9, col);
     mixRgb(col, rgb('#9a8460'), twig.data[i] * 0.6, col);
     mixRgb(col, rgb('#2a2016'), cav.data[i] * 0.55, col);
     m.set(i, col, 1 - cav.data[i] * 0.6, 0.86 - moss.data[i] * 0.05);
   });
   m.normal = normalMap(h, 0.03 / 3);
-  return finish(m, h, (i) => moss.data[i]);
+  return finish(m, h, (i) => clamp01(moss.data[i]));
 }
 
 /**
