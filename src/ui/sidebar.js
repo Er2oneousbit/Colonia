@@ -11,7 +11,7 @@ import { h, mount, fmt } from './dom.js';
 import { CATEGORIES, BUILDINGS, TOOLS, LABOR_CATEGORIES, buildingsInCategory, fullName } from '../data/buildings.js';
 import { iconCanvas } from './icons.js';
 import { Minimap } from '../render/minimap.js';
-import { planNoRoadWarning, turnRule } from '../sim/construction.js';
+import { planNoRoadWarning, turnRule, marbleShort } from '../sim/construction.js';
 import { archesToBuild } from '../sim/battle.js';
 import { monumentRefused, cityMonument } from '../sim/monuments.js';
 
@@ -96,7 +96,8 @@ export class Sidebar {
       items.map(({ key, def }) => {
         const unlocked = !g || g.isUnlocked(key);
         // One monument per city: with one standing (or being built) the others are greyed out, saying why.
-        const refused = g && unlocked && def.kind === 'monument' ? monumentRefused(g, key) : null;
+        // A building made of marble, likewise while the warehouses hold too little (sim/construction.js).
+        const refused = g && unlocked ? (def.kind === 'monument' ? monumentRefused(g, key) : marbleShort(g, key)) : null;
         const cost = def.kind === 'arch' ? `Free (${this.archSig})` : def.cost ? `${def.cost} Dn` : '';
         return h('button', {
           class: `build-item${current === key ? ' active' : ''}${unlocked && !refused ? '' : ' locked'}`,
@@ -105,7 +106,7 @@ export class Sidebar {
           onclick: () => { if (refused) this.app.ui.toastError(refused); else if (unlocked) this.app.ui.selectTool(key); },
           onmouseenter: () => { if (!this.app.input?.tool) this.showToolInfo(key, true); },
           onmouseleave: () => { if (!this.app.input?.tool) this.showToolInfo(null); },
-        }, iconCanvas(key), h('span', { class: 'nm' }, def.name, englishName(def), unlocked ? null : h('div', { class: 'muted', style: { fontSize: '11px' } }, 'Locked'), refused ? h('div', { class: 'muted', style: { fontSize: '11px' } }, refused) : null), h('span', { class: 'cost' }, cost));
+        }, iconCanvas(key), h('span', { class: 'nm' }, def.name, englishName(def), unlocked ? null : h('div', { class: 'muted', style: { fontSize: '11px' } }, 'Locked'), refused ? h('div', { class: 'muted', style: { fontSize: '11px' } }, refused) : null), h('span', { class: 'cost' }, cost, def.marble ? h('span', { class: 'marble', dataset: { marble: String(def.marble) } }, `${def.marble} marble`) : null));
       }));
   }
 
@@ -122,6 +123,7 @@ export class Sidebar {
     if (!def) return;
     const facts = [];
     if (def.cost) facts.push(`${def.cost} Dn${TOOLS[key] && TOOLS[key].drag !== 'single' ? ' / tile' : ''}`);
+    if (def.marble) facts.push(`${def.marble} marble from the warehouses`);
     if (def.size) {
       // (The hippodrome: 15x5, or 5x15 turned north-south.)
       const ns = def.span > 1 && (this.app.input?.turnFor(key) ?? 0) % 2 === 1;
@@ -165,7 +167,7 @@ export class Sidebar {
     const parts = [];
     if (plan.count > 0) {
       const what = plan.tool === 'clear' ? 'to clear' : plan.kind === 'building' ? '' : 'tiles';
-      parts.push(h('div', { style: { marginTop: '4px', fontWeight: 600 } }, plan.kind === 'building' ? `Cost: ${fmt(plan.cost)} Dn` : `${plan.count} ${what} · ${fmt(plan.cost)} Dn`));
+      parts.push(h('div', { style: { marginTop: '4px', fontWeight: 600 } }, plan.kind === 'building' ? `Cost: ${fmt(plan.cost)} Dn${plan.marble ? ` and ${fmt(plan.marble)} marble` : ''}` : `${plan.count} ${what} · ${fmt(plan.cost)} Dn`));
       if (plan.fertility !== undefined) parts.push(h('div', { class: plan.fertility >= 0.75 ? 'ok' : 'warn' }, `Fertility: ${Math.round(plan.fertility * 100)}%`));
     }
     if (plan.reason && plan.count === 0) parts.push(h('div', { class: 'err' }, plan.reason));
@@ -188,5 +190,13 @@ export class Sidebar {
     const mon = cityMonument(g)?.id || 0;
     if (this.category === 'monuments' && mon !== this.monSig) this.renderList();
     this.monSig = mon;
+    // Marble stored or spent: a building made of it greys out, or opens
+    // again (marbleShort). Checked a few times a second, not every frame.
+    if (!(now - (this.marbleAt || 0) < 400)) {
+      this.marbleAt = now;
+      // (The reasons too: "Needs 200 marble in the warehouses, 150 stored" follows the stock.)
+      const sig = buildingsInCategory(this.category).map(({ key, def }) => (def.marble && g.isUnlocked(key) ? marbleShort(g, key) : null)).filter(Boolean).join();
+      if (sig !== this.marbleSig) { this.marbleSig = sig; this.renderList(); }
+    }
   }
 }

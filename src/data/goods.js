@@ -95,9 +95,25 @@ export function formatAmount(good, units) {
 
 /**
  * Goods houses consume (weapons and arrows are export/military only).
- * Clothing comes last, so loops over the older four keep their order.
+ * Clothing and marble come last, so loops over the older goods keep their
+ * order. Marble is a raw material (a quarry cuts it, warehouses keep it)
+ * that the grandest homes want too, from the Marble Villa up
+ * (data/housing.js): market buyers fetch it like any home good.
  */
-export const HOUSE_GOODS = Object.freeze(['pottery', 'furniture', 'oil', 'wine', 'clothing']);
+export const HOUSE_GOODS = Object.freeze(['pottery', 'furniture', 'oil', 'wine', 'clothing', 'marble']);
+
+/**
+ * How fast homes use a good, against the usual one unit per
+ * GOODS_PER_HOUSE_PEOPLE residents a month (1 when not listed). Marble goes
+ * into a home's floors and columns, not onto its table: half the rate, so
+ * one quarry (1,200 a year) keeps about 35 Marble Villas in it.
+ */
+export const HOUSE_GOOD_USE = Object.freeze({ marble: 0.5 });
+
+/** A home good's rate of use (HOUSE_GOOD_USE): 1 for most. */
+export function houseGoodUse(good) {
+  return HOUSE_GOOD_USE[good] ?? 1;
+}
 
 /** Empty stock record { wheat: 0, ... } */
 export function emptyStock(keys = GOOD_KEYS) {

@@ -229,7 +229,15 @@ const BASIC = ['house', 'road', 'roadblock', 'clear', 'well', 'prefecture', 'eng
 const TIER2 = [...BASIC, 'reservoir', 'aqueduct', 'fountain', 'barber', 'school', 'theater', 'actor_troupe', 'farm_veg', 'temple_neptune', 'temple_mars', 'temple_venus', 'statue_small', 'plaza', 'senate'];
 /** The large temples (one per god) come with the third mission, the first to ask for Domus and bigger homes. */
 export const LARGE_TEMPLE_KEYS = Object.freeze(GOD_KEYS.map((g) => `temple_large_${g}`));
-const TIER3 = [...TIER2, 'clay_pit', 'pottery_ws', 'warehouse', 'baths', 'clinic', 'library', 'statue_medium', 'farm_fruit', 'amphitheater', 'gladiator_school', 'governor_villa', ...LARGE_TEMPLE_KEYS];
+/**
+ * The Marble Quarry comes with them: the grand temples and the Statua are
+ * built of marble (data/buildings.js `marble`), and the third and fourth
+ * missions' partners (but Paestum's Corinthus) sell none, so they cut their
+ * own (every mission map from the third has rock: tests/marble.test.mjs).
+ * With it Caesar may ask them for marble, as for any good a city can make
+ * (sim/emperor.js requestableGoods).
+ */
+const TIER3 = [...TIER2, 'clay_pit', 'pottery_ws', 'warehouse', 'baths', 'clinic', 'library', 'statue_medium', 'farm_fruit', 'amphitheater', 'gladiator_school', 'governor_villa', ...LARGE_TEMPLE_KEYS, 'marble_quarry'];
 /** The Military Academy comes with the first forts (mission 4); the Portus with the fleet (NAVY_KEYS). */
 const TIER4 = [...TIER3, 'bridge', 'timber_yard', 'furniture_ws', 'farm_olive', 'oil_ws', 'farm_pig', 'dock', 'farm_flax', 'linen_ws', 'clothing_ws',
   'iron_mine', 'weapons_ws', 'fletcher_ws', 'barracks', 'fort_legion', 'fort_archer', 'military_academy', 'tower', 'wall', 'shipyard', 'wharf', ...NAVY_KEYS];
@@ -332,6 +340,7 @@ export const SCENARIOS = Object.freeze([
     hints: [
       'A Cretifodina (Clay Pit) must be near water. A Figlina (Potter) turns clay into pottery, which Merchant Houses and every home above them need, with Balneae (Baths) nearby.',
       'A Horreum (Warehouse) stores goods. Caravans only trade with warehouses.',
+      'A Templum (Grand Temple) and a Statua (Statue) are built of marble, taken from your warehouses as you place them: a Lapicidina (Marble Quarry) beside the rocks cuts it.',
       'Open trade routes in the Trade advisor, then mark goods for import or export.',
       'Trade is work: Tarraco and Capua each buy up to 4,000 pottery a year, and what your partners buy keeps farms, clay pits and potters staffed. Let the town grow as its jobs do.',
       'Caesar is watching you now: keep his favor at 30 or more. Pay the yearly tribute, stay out of debt and meet his requests when they come.',
@@ -400,7 +409,7 @@ export const SCENARIOS = Object.freeze([
     market: { wine: 0.9, marble: 1.2 }, // Lucanian vines; every temple builder on the coast wants marble (sim/prices.js)
     hints: [
       'No raiders come to Paestum, and you may build no forts. Rome watches your favor instead: meet Caesar\'s requests and send gifts, for if his favor runs out his legions come, and there is no army here to meet them.',
-      'Culture is the measure of this city: a Templum (Grand Temple) counts as two temples to its god, and schools, a Bibliotheca (Library) and shows add the rest.',
+      'Culture is the measure of this city: a Templum (Grand Temple) counts as two temples to its god, and schools, a Bibliotheca (Library) and shows add the rest. Its columns take 200 marble from your warehouses: buy it from Corinthus, or cut it in a Lapicidina (Marble Quarry) by the rocks.',
       'Corinthus sells marble and oil by sea and buys wheat, iron and clothing. Build an Emporium (Trade Dock) on the shore.',
       'Apartment Houses need furniture (an Officina Lignaria, the carpenter, from timber); Tenements also need oil, a barber, and both a school and a library; Insulae need clothing too.',
     ],

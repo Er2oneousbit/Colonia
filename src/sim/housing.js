@@ -43,7 +43,7 @@
 
 import { CONFIG } from '../config.js';
 import { VENUE_POINTS, VENUE_BOTH_BONUS } from '../data/buildings.js';
-import { FOOD_TYPES, HOUSE_GOODS } from '../data/goods.js';
+import { FOOD_TYPES, HOUSE_GOODS, houseGoodUse } from '../data/goods.js';
 import { GOD_KEYS } from '../data/gods.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
 import { HOUSE_TIERS, MAX_TIER, MAX_SMALL_TIER, houseCapacity } from '../data/housing.js';
@@ -946,7 +946,7 @@ export function consumeHouse(game, b) {
 /**
  * Goods are used up twice a month (with the monthly meal, and on day
  * GOODS_MIDMONTH_DAY): half a month's share each time, and only the goods the
- * home's level needs.
+ * home's level needs, each at its own rate (marble at half: HOUSE_GOOD_USE).
  */
 export function useGoods(game, b) {
   const h = b.house;
@@ -955,7 +955,8 @@ export function useGoods(game, b) {
   // Mercury's Great Sanctuary at work: homes make their goods last longer.
   const perGood = (Math.max(0.25, h.pop / CONFIG.GOODS_PER_HOUSE_PEOPLE) / 2) * (fanumOf(game, 'mercury') ? GIFTS.mercury.goodsUse : 1);
   for (const g of tier.goods) {
-    logGoods(game, g, 'used', Math.min(h.goods[g], perGood));
-    h.goods[g] = Math.max(0, h.goods[g] - perGood);
+    const n = perGood * houseGoodUse(g);
+    logGoods(game, g, 'used', Math.min(h.goods[g], n));
+    h.goods[g] = Math.max(0, h.goods[g] - n);
   }
 }

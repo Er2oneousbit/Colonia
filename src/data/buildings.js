@@ -70,6 +70,10 @@
  *                  MONUMENT_TYPES, whose stages, staff and upkeep it follows
  *   deity          a Fanum's god (not `god`: a site is no temple until it is
  *                  finished, and sim/religion.js counts it on its own terms)
+ *   marble         units of marble the building is made of, taken from the
+ *                  warehouses when it is placed (sim/construction.js), all
+ *                  or nothing, beside its cost in Dn; an undo gives it
+ *                  back, a demolition does not (MARBLE_LOADS below)
  *   hp             hit points against raiders (default: by size)
  *                  Forts never burn or decay (fire/damage 0): only raiders
  *                  can destroy them, and then their garrison disbands.
@@ -132,6 +136,24 @@ export const TOOLS = Object.freeze({
 /** Units of each raw material a single-input workshop uses per batch (= one cart). */
 const BATCH = 100;
 
+/**
+ * Buildings made of marble (Colonia's own: the original's needed only
+ * money), in cart loads (BATCH units each), by size and grandeur: a statue
+ * a load for each tile of its side beyond the first (the small statue is
+ * plain stone and needs none), a grand temple and the Oracle two (their
+ * columns), the governor's palace four (a marble palace, says its
+ * description; the house and the villa are plain stone), the Great Arena
+ * six and the hippodrome eight (the biggest buildings in the city). Bought
+ * in (about 210 Dn a load) the marble costs one to four times the
+ * building's denarii; a city with rock cuts its own (a quarry makes a load
+ * a month), which is the point: grandeur takes an industry or a trade. The
+ * Senate is brick and needs none, and the monuments take their marble in
+ * stages (data/monuments.js).
+ */
+const MARBLE_LOADS = Object.freeze({
+  statue_medium: 1, statue_large: 2, temple_large: 2, oracle: 2, governor_palace: 4, colosseum: 6, hippodrome: 8,
+});
+
 // Helper to keep the table compact. Every building gets sane defaults.
 function B(def) {
   const out = {
@@ -167,7 +189,7 @@ function largeTemples() {
     ['venus', 'Venus', 'Veneris', 'the goddess of love and beauty'],
   ]) {
     out[`temple_large_${god}`] = B({
-      name: `Templum ${of}`, en: `Grand Temple of ${name}`, category: 'religion', cost: 150, size: 3, workers: 5, labor: 'govReligion',
+      name: `Templum ${of}`, en: `Grand Temple of ${name}`, category: 'religion', cost: 150, marble: MARBLE_LOADS.temple_large * BATCH, size: 3, workers: 5, labor: 'govReligion',
       des: [14, 2, -2, 5], walker: 'priest', god, spawnDays: 4, fire: 0.6, templeWeight: 2,
       desc: `A grand temple to ${what}. Its priests walk the same rounds as a small temple's, but ${name} counts it as two temples, and it is a fine neighbor.`,
     });
@@ -295,7 +317,7 @@ export const BUILDINGS = Object.freeze({
   // small ones, as in the original (Augustus makes them fire-proof).
   ...largeTemples(),
   oracle: B({
-    name: 'Oraculum', en: 'Oracle', category: 'religion', kind: 'decor', cost: 200, size: 2, workers: 0,
+    name: 'Oraculum', en: 'Oracle', category: 'religion', kind: 'decor', cost: 200, marble: MARBLE_LOADS.oracle * BATCH, size: 2, workers: 0,
     des: [8, 1, -2, 6], fire: 0, damage: 0.5,
     desc: 'A sacred shrine that pleases every god a little each month.',
   }),
@@ -329,7 +351,7 @@ export const BUILDINGS = Object.freeze({
     desc: 'Hosts gladiator bouts (from a Ludus Gladiatorius) and plays (from a Grex). Worth 15 entertainment, 20 while it has both.',
   }),
   colosseum: B({
-    name: 'Arena', en: 'Great Arena', category: 'entertainment', kind: 'venue', venue: 'colosseum', cost: 400, size: 5, workers: 25, labor: 'entertainment',
+    name: 'Arena', en: 'Great Arena', category: 'entertainment', kind: 'venue', venue: 'colosseum', cost: 400, marble: MARBLE_LOADS.colosseum * BATCH, size: 5, workers: 25, labor: 'entertainment',
     des: [-3, 2, 1, 6], walker: 'entertainer', spawnDays: 4,
     desc: 'Grand spectacles with gladiators (Ludus Gladiatorius) and beasts (Vivarium). Worth 20 entertainment, 30 while it has both.',
   }),
@@ -353,7 +375,7 @@ export const BUILDINGS = Object.freeze({
   // 3,500 Dn and 150 staff scaled as Colonia scaled the colosseum (1,500 to
   // 400, 100 to 25). Fire and collapse are checked once, for the whole.
   hippodrome: B({
-    name: 'Circus', en: 'Hippodrome', category: 'entertainment', kind: 'venue', venue: 'hippodrome', cost: 900, size: 5, span: 3, limit: 1, workers: 40, labor: 'entertainment',
+    name: 'Circus', en: 'Hippodrome', category: 'entertainment', kind: 'venue', venue: 'hippodrome', cost: 900, marble: MARBLE_LOADS.hippodrome * BATCH, size: 5, span: 3, limit: 1, workers: 40, labor: 'entertainment',
     des: [-3, 2, 1, 6], walker: 'charioteer', spawnDays: 8,
     desc: 'Chariot races: 15 x 5 tiles, one per city. While races run (a Factio sends the teams), its charioteer gives the homes he passes 30 entertainment, its seats hold the whole city (up to 6 more for every home) and prosperity rises a little.',
   }),
@@ -398,7 +420,7 @@ export const BUILDINGS = Object.freeze({
     desc: 'A villa befitting a governor, with a colonnaded garden, kept by 8 servants. Raises desirability over a wide area, as far as it is staffed. Only one residence may stand at a time.',
   }),
   governor_palace: B({
-    name: 'Regia', en: 'Governor\'s Palace', category: 'government', kind: 'residence', cost: 750, size: 5, workers: 12, labor: 'govReligion',
+    name: 'Regia', en: 'Governor\'s Palace', category: 'government', kind: 'residence', cost: 750, marble: MARBLE_LOADS.governor_palace * BATCH, size: 5, workers: 12, labor: 'govReligion',
     des: [28, 2, -4, 5], fire: 0.5, damage: 0.5,
     desc: 'A marble palace kept by 12 servants, among the most desirable buildings in the province as far as it is staffed. Only one residence may stand at a time.',
   }),
@@ -413,12 +435,12 @@ export const BUILDINGS = Object.freeze({
     desc: 'A modest monument. Raises desirability.',
   }),
   statue_medium: B({
-    name: 'Statua', en: 'Statue', category: 'government', kind: 'decor', cost: 60, size: 2, needsRoad: false,
+    name: 'Statua', en: 'Statue', category: 'government', kind: 'decor', cost: 60, marble: MARBLE_LOADS.statue_medium * BATCH, size: 2, needsRoad: false,
     des: [10, 1, -2, 5], fire: 0, damage: 0, tended: true,
     desc: 'An impressive monument. Raises desirability a lot.',
   }),
   statue_large: B({
-    name: 'Colossus', en: 'Grand Statue', category: 'government', kind: 'decor', cost: 160, size: 3, needsRoad: false,
+    name: 'Colossus', en: 'Grand Statue', category: 'government', kind: 'decor', cost: 160, marble: MARBLE_LOADS.statue_large * BATCH, size: 3, needsRoad: false,
     des: [14, 2, -2, 7], fire: 0, damage: 0, tended: true,
     desc: 'A towering tribute. Raises desirability across a wide area.',
   }),
@@ -516,7 +538,7 @@ export const BUILDINGS = Object.freeze({
   marble_quarry: B({
     name: 'Lapicidina', en: 'Marble Quarry', category: 'industry', kind: 'raw', produces: 'marble', cost: 50, size: 2, workers: 10, labor: 'industry',
     des: [-6, 1, 1, 4], fire: 0.5, damage: 2.5, placement: 'nearRock', productionDays: 30,
-    desc: 'Cuts marble blocks, a valuable export. Must be next to rocks.',
+    desc: 'Cuts marble blocks for grand buildings and the finest homes, and a valuable export. Must be next to rocks.',
   }),
 
   // --- Workshops -----------------------------------------------------------

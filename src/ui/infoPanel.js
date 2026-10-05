@@ -68,10 +68,14 @@ function nextMareText(game, b) {
  * "; a Taberna Vestiaria makes it from linen": who makes a home's good, for the
  * description of the need. Most chains are one workshop long and named in
  * the help; clothing's is two (flax, linen, clothing), so say it here too.
+ * Marble needs no workshop: a quarry beside rocks cuts it.
  */
 function madeBy(good) {
   const def = Object.values(BUILDINGS).find((d) => d.kind === 'workshop' && d.produces === good);
-  if (!def) return '';
+  if (!def) {
+    const raw = Object.values(BUILDINGS).find((d) => d.kind === 'raw' && d.produces === good);
+    return raw ? `; it is cut by ${withArticle(raw.name)} beside rocks, or bought where a partner sells it` : '';
+  }
   const inputs = Object.keys(def.recipe).map((g) => GOODS[g].name.toLowerCase()).join(' and ');
   return `; ${withArticle(def.name)} makes it from ${inputs}`;
 }
@@ -1098,7 +1102,7 @@ export class InfoPanel {
           const id = g.map.buildingAt(rec.site.x, rec.site.y);
           if (id) this.showBuilding(id); else this.render();
         },
-      }, `Rebuild ${name}${ok ? ` (${plan.cost} Dn)` : ''}`),
+      }, `Rebuild ${name}${ok ? ` (${plan.cost} Dn${plan.marble ? ` and ${plan.marble} marble` : ''})` : ''}`),
       ok ? null : h('div', { class: 'muted' }, why));
   }
 }

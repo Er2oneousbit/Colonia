@@ -86,7 +86,7 @@ test('data: flax and linen are workshop inputs, clothing a home good, priced amo
   // The new raw materials come after the old ones, so loops over them keep their order.
   assert.deepEqual(RAW_TYPES.slice(-2), ['flax', 'linen']);
   assert.ok(MANUFACTURED.includes('clothing'));
-  assert.equal(HOUSE_GOODS.at(-1), 'clothing', 'last, after the four older home goods');
+  assert.deepEqual(HOUSE_GOODS.slice(-2), ['clothing', 'marble'], 'after the four older home goods, and before marble, the newest');
   // Prices: flax like the crops, linen between a crop and finished goods, clothing among the goods.
   for (const g of ['flax', 'linen', 'clothing']) {
     assert.ok(GOODS[g].sell < GOODS[g].buy, `${g} sells for less than it costs`);

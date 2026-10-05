@@ -26,6 +26,7 @@ import { HOUSE_TIERS, MAX_TIER } from '../data/housing.js';
 import { BUILDINGS, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_BOTH_SHOWS, VENUE_SUPPLIERS, VENUE_SEATS, ENT_BASE_MAX, ENT_SEATS_MAX } from '../data/buildings.js';
 import { FOOD_TYPES } from '../data/goods.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
+import { Terrain } from '../world/map.js';
 import { buildingStatus, describeNeed } from './infoPanel.js';
 import { SICK_COLOR } from '../data/disease.js';
 import { crimeEnabled } from '../sim/crime.js';
@@ -83,7 +84,9 @@ function reachable(game, m) {
   const has = (k) => game.isUnlocked(k);
   const partners = (game.scenario.partners || []).filter((id) => TRADE_PARTNERS[id]);
   const sells = (good) => partners.some((id) => TRADE_PARTNERS[id].sells[good]);
-  const makes = (good, depth = 0) => depth < 3 && Object.entries(BUILDINGS).some(([k, d]) => d.produces === good && has(k)
+  // A producer by rocks (a marble quarry, an iron mine) only where the map has rock.
+  const rocky = () => !game.map?.terrain || game.map.terrain.includes(Terrain.ROCK);
+  const makes = (good, depth = 0) => depth < 3 && Object.entries(BUILDINGS).some(([k, d]) => d.produces === good && has(k) && (d.placement !== 'nearRock' || rocky())
     && (!d.recipe || Object.keys(d.recipe).every((raw) => makes(raw, depth + 1) || sells(raw))));
   // Fish needs water with fish (fishing grounds) as well as the shipyard and
   // wharf, and timber for the boats (felled or bought).

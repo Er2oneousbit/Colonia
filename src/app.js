@@ -720,7 +720,7 @@ export class App {
   undo() {
     if (!this.game) return;
     const res = undoLast(this.game);
-    if (res.ok) this.ui.messages.push({ text: `Undone. Refunded ${res.refund} Dn.`, level: 'info', date: '' });
+    if (res.ok) this.ui.messages.push({ text: `Undone. Refunded ${res.refund} Dn${res.marble ? ` and ${res.marble} marble` : ''}.`, level: 'info', date: '' });
     else this.ui.toastError(res.reason);
   }
 

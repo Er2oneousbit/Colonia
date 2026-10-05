@@ -92,6 +92,12 @@
  *              a year (more on a busy route) staying SHIP_STAY_DAYS
  *   hippodrome where it is unlocked with its chariot stable: one of each (a
  *              city has one), as a late city builds for its palaces' shows
+ *   marble     a home good from the Marble Villa up, above both quarters'
+ *              levels, so no quarry is planned for the homes (one would be,
+ *              at marble's half rate, if a quarter ever needed it); a top
+ *              level needs it in the province (levelReachable: a quarry or
+ *              a partner). The marble the grand buildings are made of is a
+ *              one-off, like the army's equipment, and adds no lasting jobs
  *   army       a mission with raids: a barracks, one fort of each unlocked
  *              kind and two towers (their equipment is a one-off batch, so
  *              it adds no lasting workshop jobs)
@@ -108,7 +114,7 @@
 import { CONFIG } from '../config.js';
 import { BUILDINGS, VENUE_POINTS, VENUE_BOTH_BONUS, VENUE_BOTH_SHOWS, VENUE_SEATS, VENUE_SUPPLIERS, ENT_BASE_MAX, ENT_SEATS_MAX, ENT_SEAT_KINDS } from '../data/buildings.js';
 import { HOUSE_TIERS } from '../data/housing.js';
-import { FOOD_TYPES } from '../data/goods.js';
+import { FOOD_TYPES, houseGoodUse } from '../data/goods.js';
 import { GOD_KEYS } from '../data/gods.js';
 import { WALKER_TYPES } from '../data/walkers.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
@@ -563,8 +569,9 @@ function industryPlan(s, keys, goods, quarters, production) {
   for (const q of quarters) {
     const yearly = (q.people / CONFIG.GOODS_PER_HOUSE_PEOPLE) * CONFIG.MONTHS_PER_YEAR;
     for (const g of q.need.goods) {
-      if (goods.made.has(g)) want(g, yearly);
-      units += yearly; // made or bought, it passes a warehouse
+      const n = yearly * houseGoodUse(g); // (each good at its rate: marble at half, data/goods.js)
+      if (goods.made.has(g)) want(g, n);
+      units += n; // made or bought, it passes a warehouse
     }
   }
   for (const id of s.partners) {

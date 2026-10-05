@@ -230,6 +230,37 @@ export function takeFromCity(game, good, amount) {
 }
 
 /**
+ * Units of a good in the warehouses alone (not granaries, quays or
+ * ranches): what a building made of marble draws on (sim/construction.js),
+ * so the build menu's figure is what the warehouses' panels show.
+ */
+export function warehouseStock(game, good) {
+  let n = 0;
+  for (const b of game.buildings.values()) if (b.def.kind === 'warehouse' && b.stock[good]) n += b.stock[good];
+  return n;
+}
+
+/**
+ * Take `amount` of a good from the warehouses, in id order, those set to Get
+ * it last (as takeFromCity). The caller checks there is enough first.
+ * @returns {{id:number, n:number}[]} what came from where, for an undo to put back
+ */
+export function takeFromWarehouses(game, good, amount) {
+  const out = [];
+  let left = amount;
+  for (const getting of [false, true]) {
+    for (const b of game.buildings.values()) {
+      if (left <= 0) break;
+      if (b.def.kind !== 'warehouse' || !b.stock[good]) continue;
+      if ((b.orders?.[good] === 'get') !== getting) continue;
+      const n = takeGoods(b, good, left);
+      if (n > 0) { out.push({ id: b.id, n }); left -= n; }
+    }
+  }
+  return out;
+}
+
+/**
  * Every storage building of `kind` ('warehouse' or 'granary', or a test of
  * the building such as isStable) on the road
  * network of tile `fromIdx`, in order of road distance (nearest first), with

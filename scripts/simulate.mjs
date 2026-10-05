@@ -69,7 +69,7 @@ import { PEOPLES } from '../src/data/peoples.js';
 import { quakeSummary } from '../src/sim/events.js';
 import { parseEventsOption, EVENT_SWITCHES } from '../src/data/events.js';
 import { careInfo, careApplies, YARD_TYPE } from '../src/sim/gardens.js';
-import { buildDemoMonument } from '../src/dev/demoCity.js';
+import { buildDemoMonument, withDemoMarble } from '../src/dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../src/data/monuments.js';
 import { GOODS } from '../src/data/goods.js';
 import { isFinished } from '../src/sim/monumentEffects.js';
@@ -333,8 +333,12 @@ function caretake() {
     if (taken) continue; // standing (a home may have grown into a block), or something else is there
     applyPlan(game, planAction(game, 'clear', k.x, k.y, k.x + k.size - 1, k.y + k.size - 1));
     const off = anchorOffset(k.type); // (a hippodrome is held by the middle of its 15 tiles)
-    const plan = planAction(game, k.type, k.x + off.x, k.y + off.y, k.x + off.x, k.y + off.y);
-    if (plan && plan.count > 0 && applyPlan(game, plan).ok) rebuilt++;
+    // (Marble waived, as the demo city built it: withDemoMarble.)
+    const done = withDemoMarble(game, () => {
+      const plan = planAction(game, k.type, k.x + off.x, k.y + off.y, k.x + off.x, k.y + off.y);
+      return plan && plan.count > 0 && applyPlan(game, plan).ok;
+    });
+    if (done) rebuilt++;
   }
 }
 // --harbor: sea trade, measured tick by tick (see the help). Without it the
