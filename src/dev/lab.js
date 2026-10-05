@@ -8,7 +8,9 @@
  * side, drawn by the game's own ground material (render3d/ground/), with
  * its seasons, snow and rain; and the Ground types view (labGallery.js):
  * every kind of ground the game can show on its own labelled card, to be
- * judged one by one.
+ * judged one by one; and the Fountain scene (labFountain.js): the street
+ * fountain's four looks, from a plain lava lacus to a small nymphaeum,
+ * running and dry, on the well's street.
  *
  * Built into one self-contained page: node scripts/build.mjs --lab --out <file>
  *
@@ -25,9 +27,10 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'), setSeason(name), setSnow(0..3),
+ * setScene('well'|'ground'|'types'|'fountain'), setSeason(name), setSnow(0..3),
  * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
- * index), overview().
+ * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
+ * fountainTriangles(lod).
  * ----------------------------------------------------------------------------
  */
 
@@ -48,6 +51,8 @@ import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
 import { painterFor } from '../render3d/paint/painter.js';
 import { buildGroundScene } from './labGround.js';
 import { buildGallery } from './labGallery.js';
+import { buildFountainScene } from './labFountain.js';
+import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
@@ -111,6 +116,34 @@ ripples, the sky in it and foam lapping at the shore. Where two kinds meet, the 
 <li>W: the well and its street; R: the ground; Y: the ground's types one by one. 1 to 4: day, golden hour, night, winter.</li>
 <li>Spring, summer, autumn, winter: the season's colour on what grows. N: snow lying (none to deep). T: rain (wet ground, puddles).</li>
 <li>M: the game's middle zoom, G: its closest, Z: twice that, O: orbit. Q / E: turn the view.</li>
+</ul>`;
+
+const FOUNTAIN_INFO = `
+<button class="close" type="button" aria-label="Close">Close</button>
+<h2>The street fountain</h2>
+<p>A Roman town's water ran day and night from the aqueduct's castellum through lead pipes to street fountains (<i>lacus</i>) every
+few blocks: Pompeii had some forty, placed so that hardly anyone lived more than a short walk from one. In Colonia the fountain takes
+the look of its neighbourhood, from the poorest on the left to the richest on the right; the front row runs, the back row is dry.</p>
+<ul>
+<li><b>Lava lacus</b>: most of Pompeii's are this: four thick slabs of the grey Vesuvian lava the streets are paved with, held at the
+top corners by iron cramps leaded in, a squat pillar at the back with the spout, the lead pipe that feeds it running up its back. The
+overflow runs out by a notch into the street; the front slab is worn into a dip where people leaned to fill their jars.</li>
+<li><b>Limestone lacus</b>: on a step of limestone blocks, the pillar moulded at foot and cap, a carved head of a water god on its face
+with the water from its mouth (heads of Mercury, Silenus, Oceanus and others survive on Pompeii's fountains).</li>
+<li><b>Marble basin</b>: cut from one block, moulded at rim and foot, a fluted column with a bronze lion's head spout, in fine marble
+paving inside a travertine kerb.</li>
+<li><b>Nymphaeum</b>: a small fountain house as rich towns and houses built: a niche lined with blue glass mosaic under a shell,
+an aedicula of two fluted columns, an entablature and a pediment, a nymph pouring from a hydria into a moulded basin, clipped box in
+pots.</li>
+</ul>
+<p>Running, the stream falls into the tank, rings spread where it lands and a sheet of water runs over the notch and away down the
+street. Dry, green water stands on the tank's floor and a pale lime stain marks where the overflow ran. In a hard frost running water
+keeps running: icicles grow on the lip and a dry tank's puddle freezes.</p>
+<h3>Controls</h3>
+<ul>
+<li>F: this scene; W: the well; R: the ground; Y: the ground's types. 1 to 4: day, golden hour, night, winter.</li>
+<li>L: the fountains' level of detail (0 close, 1 middle, 2 far: what the game draws when zoomed out).</li>
+<li>N: snow lying; T: rain. M, G, Z: the game's zooms; O: orbit. Q / E: turn the view.</li>
 </ul>`;
 
 const TYPES_INFO = `
@@ -244,6 +277,17 @@ async function main() {
   galGroup.visible = false;
   scene.add(galGroup);
   const grounds = [gs.ground, gal.ground];
+  // The Fountain scene: the four looks, running and dry, on the well's street.
+  const fs = buildFountainScene();
+  fs.group.visible = false;
+  scene.add(fs.group);
+  /** What must not cast AO: the well's water and glass, and the fountains' water and stains (each rebuild). */
+  const baseNoAO = [...look.noAO];
+  const fountainNoAO = () => {
+    look.noAO.length = 0;
+    look.noAO.push(...baseNoAO);
+    for (const o of fs.fountains) for (const m of o.f.meshes) if (m.material.transparent) look.noAO.push(m);
+  };
 
   const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false, card: 0, overview: false };
   /** The scene last asked for, and the wait for the Ground scene's program (setScene). */
@@ -255,6 +299,7 @@ async function main() {
   /** Where the world fades into the backdrop: past the well's 3 x 3 tile patch, or the ground's 24 x 24. */
   function setFade() {
     if (state.scene === 'well') LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
+    else if (state.scene === 'fountain') LOOK.uniforms.uLookFade.value.set(0, 0, 9.5, 12.5);
     else if (state.scene === 'ground') LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
     else LOOK.uniforms.uLookFade.value.set(0, 0, 1e5, 2e5);
   }
@@ -267,7 +312,7 @@ async function main() {
   const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
   const fillInfo = () => {
-    info.innerHTML = state.scene === 'well' ? INFO : state.scene === 'ground' ? GROUND_INFO : TYPES_INFO;
+    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO }[state.scene];
     info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
   };
   fillInfo();
@@ -283,7 +328,7 @@ async function main() {
       return b;
     });
   };
-  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')]]);
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')]]);
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
@@ -313,10 +358,22 @@ async function main() {
     labels.appendChild(e);
     return e;
   });
+  // The fountains' level of detail, and a label over each.
+  const lodBtns = group([0, 1, 2].map((n) => [`Detail ${n}`, n ? '' : 'L', () => setFountainLod(n)]));
+  const fLabels = el('div', { class: 'cardlabels' });
+  app.appendChild(fLabels);
+  const fLabelEls = fs.fountains.map((o) => {
+    const e = el('div', { class: 'cardlabel' }, `<b>${o.name}</b><span>${o.state === 'dry' ? 'dry' : 'running'}</span>`);
+    fLabels.appendChild(e);
+    return e;
+  });
   group([['About', 'I', () => info.classList.toggle('open')]]);
 
   function refreshButtons() {
-    ['well', 'ground', 'types'].forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
+    ['well', 'fountain', 'ground', 'types'].forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
+    lodBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === fs.lod)));
+    lodBtns[0].parentElement.style.display = state.scene === 'fountain' ? '' : 'none';
+    fLabels.style.display = state.scene === 'fountain' ? '' : 'none';
     Object.keys(MOODS).forEach((k, i) => moodBtns[i].setAttribute('aria-pressed', String(k === state.mood)));
     Object.keys(VIEWS).forEach((k, i) => viewBtns[i].setAttribute('aria-pressed', String(k === state.view)));
     Object.keys(SEASONS).forEach((k, i) => seasonBtns[i].setAttribute('aria-pressed', String(k === state.season)));
@@ -337,6 +394,8 @@ async function main() {
       g.setSky({ season: SEASONS[state.season].pos, snow, wet: state.wet ? 1 : 0, rain: state.wet ? 1 : 0, time: LOOK.uniforms.uLookTime.value });
       g.setReflection(m.water, m.waterRefl, m.lamps ? 0 : m.sun.elev < 15 ? 0.6 : 1);
     }
+    // In a hard frost the fountains' running water grows icicles, a dry tank's puddle freezes.
+    fs.setWinter(!!m.ice || state.snow >= 2);
     if (state.scene !== 'well') {
       LOOK.uniforms.uLookSnow.value = Math.max(m.snow, snow);
       LOOK.uniforms.uLookWet.value = Math.max(m.wet, state.wet ? 1 : 0);
@@ -355,10 +414,11 @@ async function main() {
     }
     state.scene = name;
     const g = name !== 'well';
-    street.group.visible = !g;
+    street.group.visible = !g || name === 'fountain';
     woman.visible = !g;
     man.visible = !g;
-    well.group.visible = name !== 'types';
+    well.group.visible = name === 'well' || name === 'ground';
+    fs.group.visible = name === 'fountain';
     groundGroup.visible = name === 'ground';
     galGroup.visible = name === 'types';
     if (name === 'types') aimCard();
@@ -410,9 +470,31 @@ async function main() {
     state.overview = true;
     aimCard();
   }
+  /** The fountains at another level of detail (rebuilt; their water kept out of the AO). */
+  function setFountainLod(n) {
+    fs.setLod(n);
+    fountainNoAO();
+    refreshButtons();
+  }
+  fountainNoAO();
   /** Keep each card's label over the middle of its top edge (the overview shows them all). */
   const lp = new Vector3();
+  function placeFountainLabels() {
+    const cam = state.view === 'orbit' ? persp : ortho;
+    // (Names only at the wide zooms: the notes would cover the fountains.)
+    fLabels.classList.toggle('compact', state.view !== 'game2' && state.view !== 'orbit');
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    fs.fountains.forEach((o, i) => {
+      lp.set(o.x, o.tier === 4 ? 3.0 : 1.6, o.z - 1.2).project(cam);
+      const e = fLabelEls[i];
+      const on = lp.z < 1 && Math.abs(lp.x) < 1.05 && Math.abs(lp.y) < 1.05;
+      e.style.display = on ? '' : 'none';
+      if (on) e.style.transform = `translate(${((lp.x + 1) / 2) * w}px, ${((1 - lp.y) / 2) * h}px) translate(-50%, -100%)`;
+    });
+  }
   function placeLabels() {
+    if (state.scene === 'fountain') placeFountainLabels();
     if (state.scene !== 'types') return;
     // (In the overview the names only: the notes would cover each other.)
     labels.classList.toggle('compact', state.overview);
@@ -503,6 +585,8 @@ async function main() {
     else if (k === 'g') setView('game1');
     else if (k === 'm') setView('wide');
     else if (k === 'w') setScene('well');
+    else if (k === 'f') setScene('fountain');
+    else if (k === 'l' && state.scene === 'fountain') setFountainLod((fs.lod + 1) % 3);
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
@@ -595,6 +679,7 @@ async function main() {
     const wm = waterMaterial();
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
+    fountainLife(t);
     for (const g of grounds) g.material.userData.ground.uGTime.value = t;
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
@@ -647,7 +732,7 @@ async function main() {
   lampsCast(false);
   const warm = look.warm(ortho, {
     mood: 'day',
-    later: [groundGroup, galGroup],
+    later: [groundGroup, galGroup, fs.group],
     variants: [() => {
       lampsCast(true);
       return () => lampsCast(look.lamps[0].on > 0);
@@ -689,6 +774,10 @@ async function main() {
     timings,
     setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
     gallery: gal.ground, cards: gal.cards.map((c) => ({ id: c.id, name: c.name, note: c.note })), setCard, overview,
+    /** The Fountain scene's fountains (tier, state, where), its level of detail, and each tier's triangles at one. */
+    get fountains() { return fs.fountains.map((o) => ({ tier: o.tier, name: o.name, state: o.state, x: o.x, z: o.z, triangles: o.f.triangles })); },
+    setFountainLod,
+    fountainTriangles: (l) => fs.triangles(l),
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */

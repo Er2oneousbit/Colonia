@@ -86,6 +86,9 @@ export const LOOK = {
     uLookFadeColor: { value: new Color(0x000000) },
     uLookWind: { value: new Vector2(0.6, 0.3) },
     uLookGrass: { value: new Vector4(1, 1, 1, 0) },
+    // Nothing under this height is drawn (world y): the game's models rise out of the ground
+    // through it (its 3D ground writes no depth to hide them); the lab keeps it far below.
+    uLookClipY: { value: -1e9 },
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
@@ -110,6 +113,7 @@ uniform vec4 uLookGrass;
 uniform float uLookSnowMul;
 uniform float uLookWetMul;
 uniform vec2 uLookSway;
+uniform float uLookClipY;
 varying vec3 vLookWPos;
 varying vec3 vLookWNormal;
 float lookHash( vec3 p ) {
@@ -170,6 +174,7 @@ if ( uLookSway.x > 0.0 ) {
 `;
 
 const FRAG_SURFACE = /* glsl */ `
+if ( vLookWPos.y < uLookClipY ) discard;
 float lookAO = 1.0;
 if ( uLookAOOn > 0.5 ) lookAO = texture2D( uLookAO, gl_FragCoord.xy / uLookRes ).r;
 float lookSnowAmt = 0.0;
@@ -377,7 +382,7 @@ export function material(key, opts = {}) {
   if (m) return m;
   const {
     surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = true,
-    physical = false, side, sway = 0, swayH = 1, emissive, emissiveIntensity, roughness, metalness,
+    physical = false, side, sway = 0, swayH = 1, emissive, emissiveIntensity, roughness, metalness, opacity,
   } = opts;
   const p = { color: new Color(color), vertexColors };
   if (surface) {
@@ -399,6 +404,12 @@ export function material(key, opts = {}) {
   if (emissive !== undefined) {
     p.emissive = new Color(emissive);
     p.emissiveIntensity = emissiveIntensity ?? 1;
+  }
+  // See-through (a stain on the stone, foam): blended over what is behind, writing no depth.
+  if (opacity !== undefined) {
+    p.transparent = true;
+    p.opacity = opacity;
+    p.depthWrite = false;
   }
   m = physical ? new MeshPhysicalMaterial(p) : new MeshStandardMaterial(p);
   m.name = key;
@@ -460,6 +471,89 @@ export function shallowWaterMaterial() {
   m.name = 'shallow-water';
   patchLook(m, { snow: 0, wet: 0 });
   CACHE.set('shallowWater', m);
+  return m;
+}
+
+/**
+ * Running water (a fountain's stream from its spout, the sheet over the
+ * lip): clear, bright where it catches the sky, its own copy of the
+ * ripples scrolled fast along the flow (fountainLife moves it; meshes give
+ * it UVs along the flow in metres). `sheet`: the thinner film running over
+ * stone, more see-through.
+ */
+export function streamMaterial(sheet = false) {
+  const key = sheet ? 'stream-sheet' : 'stream';
+  let m = CACHE.get(key);
+  if (m) return m;
+  const nm = surfaceTextures('ripples', 'stream').normalMap;
+  m = new MeshPhysicalMaterial({
+    color: new Color(sheet ? '#7fa6a3' : '#a8cac8'),
+    roughness: 0.04,
+    metalness: 0,
+    ior: 1.333,
+    normalMap: nm,
+    normalScale: sheet ? new Vector2(0.8, 0.8) : new Vector2(1.4, 1.4),
+    transparent: true,
+    opacity: sheet ? 0.3 : 0.5,
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.04,
+  });
+  m.name = key;
+  patchLook(m, { snow: 0, wet: 0 });
+  CACHE.set(key, m);
+  return m;
+}
+
+/**
+ * The rings round the point where a stream falls into still water: the
+ * water's own colour and gloss, with its own copy of the ripples scrolled
+ * outward (meshes give it UVs with v along the radius).
+ */
+export function ringMaterial() {
+  let m = CACHE.get('ring');
+  if (m) return m;
+  const nm = surfaceTextures('ripples', 'ring').normalMap;
+  m = new MeshPhysicalMaterial({
+    color: new Color('#1d5560'),
+    roughness: 0.03,
+    metalness: 0,
+    ior: 1.333,
+    normalMap: nm,
+    normalScale: new Vector2(1.2, 1.2),
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    // (The rings fade out at their edges by their vertex colours' alpha.)
+    vertexColors: true,
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.03,
+  });
+  m.name = 'ring';
+  patchLook(m, { snow: 0, wet: 0 });
+  CACHE.set('ring', m);
+  return m;
+}
+
+/** Stagnant water left in a dry tank: murky green-brown, still, a little scum dulling it. */
+export function stagnantMaterial() {
+  let m = CACHE.get('stagnant');
+  if (m) return m;
+  const deep = waterMaterial();
+  m = new MeshPhysicalMaterial({
+    color: new Color('#3d4a2f'),
+    roughness: 0.16,
+    metalness: 0,
+    ior: 1.333,
+    normalMap: deep.normalMap,
+    normalScale: new Vector2(0.12, 0.12),
+    transparent: true,
+    opacity: 0.88,
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.16,
+  });
+  m.name = 'stagnant';
+  patchLook(m, { snow: 0.3, wet: 0 });
+  CACHE.set('stagnant', m);
   return m;
 }
 
