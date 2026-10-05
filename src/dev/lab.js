@@ -3,7 +3,10 @@
  * ----------------------------------------------------------------------------
  * The look lab: one building, the public well, in its street, drawn with
  * the 3D look (render3d/look.js, materials.js, models/), to set and judge
- * the bar for the game's 3D art before it goes into the game.
+ * the bar for the game's 3D art before it goes into the game; and the
+ * Ground scene (labGround.js): every kind of the game's 3D ground side by
+ * side, drawn by the game's own ground material (render3d/ground/), with
+ * its seasons, snow and rain.
  *
  * Built into one self-contained page: node scripts/build.mjs --lab --out <file>
  *
@@ -15,7 +18,9 @@
  *
  * For tests and measurement, window.__lab: ready (a promise), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
- * bench(frames) (ms per frame, waiting for the GPU), wells100(on).
+ * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
+ * setScene('well'|'ground'), setSeason(name), setSnow(0..3), setWet(on),
+ * aimAt(x, z).
  * ----------------------------------------------------------------------------
  */
 

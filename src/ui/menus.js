@@ -466,7 +466,7 @@ export function settingsMenu(app) {
 function rendererField(app) {
   const s = app.settings;
   const now = (app.flags.renderer || s.renderer) === 'webgl' ? 'webgl' : 'classic';
-  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, and shows the well as a 3D model, the first of more to come. The Classic renderer stays the default while WebGL is in beta.');
+  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), and shows the well as a 3D model, the first of more to come. The Classic renderer stays the default while WebGL is in beta.');
   return h('div', { class: 'field' }, h('label', {}, 'Renderer'),
     h('select', {
       'aria-label': 'Renderer',
