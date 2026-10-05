@@ -810,11 +810,6 @@ export function recallFort(game, fortId) {
 // Barracks & recruits
 // ---------------------------------------------------------------------------
 
-/** What is stopping a barracks right now (for the info panel), or ''. */
-export function barracksStatus(game, b) {
-  return b.blocked || '';
-}
-
 /** Soldiers alive per fort id, in one pass over the units. */
 export function garrisonCounts(game) {
   const out = new Map();

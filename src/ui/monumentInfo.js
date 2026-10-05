@@ -11,7 +11,7 @@
 
 import { h, fmt, pct, bar, kv } from './dom.js';
 import { GOODS } from '../data/goods.js';
-import { MONUMENT_TYPES, FANUM_GODS, OPEN_STAFF, CAMP, THERMAE_REACH } from '../data/monuments.js';
+import { FANUM_GODS, OPEN_STAFF, CAMP, THERMAE_REACH } from '../data/monuments.js';
 import { isFinished, closedReason, monumentType } from '../sim/monumentEffects.js';
 import {
   stageOf, workCap, siteStatus, setHalted, campCarts, siteFor, monumentUpkeep, builtSoFar, deityName,
@@ -170,6 +170,3 @@ export function monumentSummary(game, b) {
   const need = Object.entries(st.goods).map(([g, n]) => `${goodName(g).toLowerCase()} ${fmt(b.mon.got[g] || 0)} / ${fmt(n)}`).join(', ');
   return `${b.def.name} (${b.def.en}): stage ${b.mon.stage + 1} of ${t.stages.length}, ${st.name}; work ${fmt(b.mon.work)} / ${fmt(st.work)}; ${need}.`;
 }
-
-/** Every monument type's key in MONUMENT_TYPES (for the help and advisors' lists). */
-export const MONUMENT_TYPE_KEYS = Object.freeze(Object.keys(MONUMENT_TYPES));

@@ -90,11 +90,6 @@ export function siegeOrder(difficulty, favor, day) {
   return 'attack';
 }
 
-/** Is Caesar's army on the map? */
-export function legionOnMap(game) {
-  return !!game.military.caesar?.army;
-}
-
 /** Imperial legionaries on the map now. */
 export function legionCount(game) {
   let n = 0;

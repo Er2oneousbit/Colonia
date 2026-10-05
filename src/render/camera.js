@@ -39,11 +39,6 @@ const FLING_FRICTION = 4;
 const FLING_MIN = 60;
 const FLING_MAX = 3200;
 
-/** World pixel position of a tile's top corner. */
-export function tileTop(x, y) {
-  return { x: (x - y) * HALF_W, y: (x + y) * HALF_H };
-}
-
 /** Continuous tile coordinates (tx, ty) -> world pixels. (tx+0.5, ty+0.5) is a tile center. */
 export function worldOf(tx, ty) {
   return { x: (tx - ty) * HALF_W, y: (tx + ty) * HALF_H };

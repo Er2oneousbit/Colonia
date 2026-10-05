@@ -12,8 +12,8 @@ import { BUILDINGS, PERFORMER_NAMES, VENUE_SUPPLIERS, pluralName } from '../data
 import { HOUSE_TIERS } from '../data/housing.js';
 import { COVERAGE_WORDS, CITY_HEALTH_VERDICTS, CITY_HEALTH_WARN, SHOW_NAMES } from '../data/advisors.js';
 import { coverageBand, venueSlots, TRAINER_KINDS } from '../sim/coverage.js';
+import { plural } from './dom.js';
 
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const homesText = (n) => plural(n, 'home');
 const nameOf = (type) => BUILDINGS[type].name;
 
@@ -24,11 +24,6 @@ export { pluralName };
 export function coverageText(pct) {
   if (pct === null || pct === undefined) return 'No one needs it yet';
   return `${COVERAGE_WORDS[coverageBand(pct)]} (${pct}%)`;
-}
-
-/** The coverage word alone ("None" ... "Full"). */
-export function coverageWord(pct) {
-  return COVERAGE_WORDS[coverageBand(pct || 0)];
 }
 
 /** The city's health as a sentence by tens. */

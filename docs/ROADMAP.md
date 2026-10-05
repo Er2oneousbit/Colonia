@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.19.12)
+
+* **A once-over of the code**: nine helpers and tables nothing used are gone (`REQ_LABELS`, `GROWTH_TIERS`, `tileTop`, `asTurned`, `houseLabel`, `legionOnMap`, `barracksStatus`, `coverageWord`, `MONUMENT_TYPE_KEYS`), two unused imports with them, and the three identical `plural` helpers of the UI are one in `ui/dom.js`. Nothing else: no `Math.random` in the sim, no em dashes, no `var`, no `eval`, `innerHTML` only on static text, storage reads guarded
+* Headless sim: identical to v0.19.11
+* 1081 unit tests, 214 browser checks
+
 ## Done (v0.19.11)
 
 * **The Great Arena reaches the whole city a little**: a staffed Arena gives every home +5 entertainment (Augustus's rule, added after the seat-based base so nothing counts twice; the hippodrome already gave about as much through the base), and its performers walk 52 tiles, twice other entertainers, as the hippodrome's charioteers do

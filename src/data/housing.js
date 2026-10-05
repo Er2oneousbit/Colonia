@@ -114,9 +114,6 @@ export const MAX_TIER = HOUSE_TIERS.length - 1;
 /** Highest level a single tile (or a 2x2 block of single tiles) can reach. */
 export const MAX_SMALL_TIER = 10;
 
-/** First level of each footprint size: a home grows as it reaches these. */
-export const GROWTH_TIERS = Object.freeze({ 2: 11, 3: 15, 4: 19 });
-
 /**
  * Residents a house of the given level and footprint can hold. A 2x2 block of
  * single-tile homes holds four of them; bigger levels hold their `people`.
@@ -127,18 +124,3 @@ export function houseCapacity(tier, size) {
   return t.size === 1 ? t.people * size * size : t.people;
 }
 
-/** Human readable labels for requirement keys (used by the info panel). */
-export const REQ_LABELS = Object.freeze({
-  des: 'Desirability',
-  water: 'Water',
-  food: 'Food variety',
-  religion: 'Religion',
-  ent: 'Entertainment',
-  edu: 'Education',
-  barber: 'Barber',
-  baths: 'Baths',
-  health: 'Health',
-  goods: 'Goods',
-  wine: 'Wine sources',
-  space: 'Room to expand',
-});

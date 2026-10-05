@@ -8,13 +8,11 @@
  * ----------------------------------------------------------------------------
  */
 
-import { h, kv } from './dom.js';
+import { h, kv, plural } from './dom.js';
 import { CONFIG } from '../config.js';
 import { legionSummary } from '../sim/legion.js';
 import { archesToBuild, setService, fleetCanGo, currentBattle, recallBlocked, recallFromBattle, recallSummary, takesNewMen, postsAway } from '../sim/battle.js';
 import { THREATENED_CITIES } from '../data/battles.js';
-
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * Caesar's anger in words: { level: none | warn | bad, status, note, show, map }.

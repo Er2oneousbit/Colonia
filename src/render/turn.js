@@ -164,17 +164,6 @@ function record(ctx, S, t, fn) {
 }
 
 /**
- * Points of the current drawing turned the way `t` turns an S x S footprint,
- * with no recorder: for live details placed by footprint points (a fire on
- * an altar, sparks from a door), which have nothing to sort against.
- */
-export function asTurned(S, t, fn) {
-  const prev = { ...TS };
-  TS.S = S; TS.t = t & 3; TS.ou = 0; TS.ov = 0; TS.rec = null;
-  try { return fn(); } finally { Object.assign(TS, prev); }
-}
-
-/**
  * For tests and the art sheet: `record` true sends turn 0 through the
  * recorder as well, and `last` keeps the stats of the last recorded drawing.
  */

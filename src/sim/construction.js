@@ -33,7 +33,6 @@
 
 import { CONFIG } from '../config.js';
 import { BUILDINGS, TOOLS } from '../data/buildings.js';
-import { HOUSE_TIERS } from '../data/housing.js';
 import { Road, Terrain, WaterBits, Wall, ROADBLOCK } from '../world/map.js';
 import { addBuilding, perimeterTiles, accessTiles, removeBuilding, linkedGroup, spanLayout, spanOrigin, isWaterside, overWaterFit, waterRowsFor, waterRowsSide, shoreWaterAt, OVER_WATER_ART } from './entities.js';
 import { canAfford, transact } from './economy.js';
@@ -1244,9 +1243,4 @@ export function undoLast(game) {
   if (lowChanged) refreshWaterways(game);
   game.onMapEdited();
   return { ok: true, refund: u.cost, ...(marble ? { marble } : {}) };
-}
-
-/** Residents a demolition would evict (UI confirmation helper). */
-export function houseLabel(b) {
-  return b.house ? HOUSE_TIERS[b.house.tier].name : b.def.name;
 }

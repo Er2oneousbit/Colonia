@@ -31,7 +31,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { h } from './dom.js';
+import { h, plural } from './dom.js';
 import { CONFIG } from '../config.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
 import {
@@ -382,8 +382,6 @@ export function empireArmies(game) {
 export function isDrawn(t) {
   return t.kind === 'caravan' || t.kind === 'ship' ? t.onWay : true;
 }
-
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** One line about a traveler: "Massilia ship: 6 days", "Warband of 14 from the north, in 3 months". */
 export function travelerLabel(t) {

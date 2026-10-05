@@ -71,7 +71,7 @@ import {
 import { MONTH_NAMES, formatYear } from './time.js';
 import { openOf } from './monumentEffects.js';
 import { HALT_SHARE, PHARUS_NEPTUNE_DAYS } from '../data/monuments.js';
-import { removeBuilding, linkedGroup, groupTiles, mainOf, killWalker, footprintTiles } from './entities.js';
+import { removeBuilding, groupTiles, mainOf, killWalker, footprintTiles } from './entities.js';
 import { recordRuin, clearRuin } from './ruins.js';
 import { buildingLabel, withArticle } from './risk.js';
 import { foulWater, diseaseEnabled } from './disease.js';

@@ -46,6 +46,9 @@ export function mount(el, ...children) {
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
+/** A count with its noun: "1 home", "3 homes" (`many` for an irregular plural). */
+export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 /** 12345 -> "12,345" */
 export function fmt(n) {
   if (!Number.isFinite(n)) return '0';
