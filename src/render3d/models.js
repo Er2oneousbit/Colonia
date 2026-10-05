@@ -120,10 +120,12 @@ export function modelHolder(model, S) {
  * the top of the screen is view tile (vx, vy), turned T quarter turns as
  * render/turn.js turns art ((u, v) -> (S - v, u) each: a quarter turn
  * clockwise seen from above, which is minus a quarter about three.js's y),
- * and lifted `rise` px of art (a new building rising out of the ground).
+ * and sunk `rise` px of art (a new building rising out of the ground, as
+ * its sprite is drawn `rise` px lower: the ground quads hide what is under
+ * the ground).
  */
 export function standModel(holder, vx, vy, S, T, rise = 0) {
-  holder.position.set(vx + S / 2, rise * ART_PX, vy + S / 2);
+  holder.position.set(vx + S / 2, -rise * ART_PX, vy + S / 2);
   holder.rotation.set(0, (-(T & 3) * Math.PI) / 2, 0);
 }
 

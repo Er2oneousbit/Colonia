@@ -133,6 +133,13 @@ test('render3d: the well model fits its footprint and its art height, and stays 
       const b = new Box3().setFromObject(h);
       assert.ok(b.min.x >= 30 - 1e-9 && b.max.x <= 31 + 1e-9 && b.min.z >= 12 - 1e-9 && b.max.z <= 13 + 1e-9, `turn ${T}: ${JSON.stringify(b)}`);
     }
+    // Rising out of the ground as a new sprite does (drawn `rise` px lower on the screen): it starts sunk.
+    const h = modelHolder(m, S);
+    standModel(h, 30, 12, S, 0, 14);
+    h.updateMatrixWorld(true);
+    const [, Y0] = worldPxOf(30.5, 0, 12.5);
+    const [, Y1] = worldPxOf(h.position.x, h.position.y, h.position.z);
+    assert.ok(Math.abs(Y1 - (Y0 + 14)) < 1e-9, `14 px lower on the screen: ${Y1 - Y0}`);
     disposeModel(m);
   }
 });

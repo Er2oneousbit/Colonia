@@ -223,6 +223,8 @@ export class WebGLBackend {
     const r = this.r;
     const cam = r.camera;
     this.frame++;
+    // (Every frame: a restored context comes back with three.js's default black.)
+    this.gl.setClearColor(BACKGROUND, 1);
     if (this.canvas.width !== cam.viewW || this.canvas.height !== cam.viewH) this.gl.setSize(cam.viewW, cam.viewH, false);
     const map = r.game.map;
     // Depths from behind the map's back corner to past its front, with room for tall art.
@@ -442,22 +444,26 @@ export class WebGLBackend {
     this.atlasUsed = used;
     const r = this.r;
     const origin = r.liveOrigin;
-    for (const L of this.lives) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(L.cx, L.cy, L.w, L.h);
-      ctx.clip();
-      ctx.setTransform(1, 0, 0, 1, L.cx - L.x, L.cy - L.y);
-      origin[0] = L.cx - L.x;
-      origin[1] = L.cy - L.y;
-      try {
-        L.draw(ctx);
-      } finally {
-        ctx.restore();
+    try {
+      for (const L of this.lives) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(L.cx, L.cy, L.w, L.h);
+        ctx.clip();
+        ctx.setTransform(1, 0, 0, 1, L.cx - L.x, L.cy - L.y);
+        origin[0] = L.cx - L.x;
+        origin[1] = L.cy - L.y;
+        try {
+          L.draw(ctx);
+        } finally {
+          ctx.restore();
+        }
       }
+    } finally {
+      // (Back to the 2D canvas's own even if art threw: the Classic back end may draw the next frame.)
+      origin[0] = 0;
+      origin[1] = 0;
     }
-    origin[0] = 0;
-    origin[1] = 0;
     if (used && !fresh) this.gl.copyTextureToTexture(this.atlasSrc, this.atlasTex, this.region.set(this.region.min.set(0, 0), this.region.max.set(W, used)));
     // The live quads' texture coordinates were in px: now the size is known.
     const uv = this.uv;
@@ -520,6 +526,7 @@ export class WebGLBackend {
           uniforms: { maps: { value: new Array(this.slots).fill(this.white) } },
           transparent: true,
           side: DoubleSide, // (quads are wound as the screen's rows run, which WebGL calls the back)
+          forceSinglePass: true, // (or three.js draws a transparent two-sided batch twice, back faces then front)
           depthTest: true,
           depthWrite: false,
           depthFunc: LessEqualDepth,
