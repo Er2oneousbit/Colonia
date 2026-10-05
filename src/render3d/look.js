@@ -22,6 +22,10 @@
  *              the 2D art's angle (render3d/projection.js: 30 degrees down,
  *              turned 45) at a game zoom, in metres (a tile is 4 m), turned
  *              by quarter turns as the view turns.
+ *   Warm-up    look.warm(): every program a frame needs (the sky's light,
+ *              the scene's materials, the post chain, the shadow maps)
+ *              compiled at once in the background before the first frame
+ *              (warmLook): on a cold GPU cache compiling is most of a start.
  *
  * The sun keeps its place on the SCREEN as the view turns (the 2D art is lit
  * from the upper left at every turn; light.js), so a view turn turns the
@@ -32,7 +36,8 @@
 import {
   WebGLRenderer, Scene, DirectionalLight, Vector3, Vector2, Color, ACESFilmicToneMapping, SRGBColorSpace, PCFShadowMap,
   PMREMGenerator, WebGLRenderTarget, HalfFloatType, Mesh, SphereGeometry, ShaderMaterial,
-  BackSide, CircleGeometry, MeshBasicMaterial, ColorManagement,
+  BackSide, CircleGeometry, MeshBasicMaterial, ColorManagement, MeshDepthMaterial, MeshDistanceMaterial, InstancedMesh,
+  FrontSide, DoubleSide,
 } from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -43,7 +48,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { BACK, TILE_LEN } from './projection.js';
-import { LOOK } from './materials.js';
+import { LOOK, paintSurfaces } from './materials.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -297,6 +302,8 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
   renderer.info.autoReset = false;
   LOOK.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   LOOK.renderer = renderer;
+  // Surfaces asked for before the renderer was made are painted on its GPU now.
+  paintSurfaces();
 
   const scene = new Scene();
   const sun = new DirectionalLight(0xffffff, 3);
@@ -380,6 +387,26 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
     if (look.passes) look.passes.grade.uniforms.aspect.value = w / h;
   };
 
+  /**
+   * Compile every program a frame of `camera` needs, in the background
+   * (KHR_parallel_shader_compile), before the first frame: resolves when
+   * they are all ready, so that frame never waits on ANGLE's compiler. See
+   * warmLook.
+   */
+  look.warm = (camera = look.camera, { mood = null, later = [], variants = [] } = {}) => warmLook(look, camera, {
+    later,
+    variants,
+    // The sky's light of a mood not yet lit: its environment made in the dry run (so its programs
+    // compile with the rest), and left on the scene unlit, as the materials' programs depend on
+    // its kind and size; setMood makes it again for real once compiled.
+    sky: mood && !look.mood ? () => {
+      const m = MOODS[mood];
+      if (envRT) envRT.dispose();
+      envRT = skyEnvironment(pmrem, m, sunDirection(m, look.turn), skyParts);
+      scene.environment = envRT.texture;
+    } : null,
+  });
+
   /** Draw a frame. */
   look.render = (dt = 0) => {
     renderer.info.reset();
@@ -388,6 +415,8 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
 
   look.dispose = () => {
     disposePost(look);
+    if (look.shadowProxies) look.shadowProxies.dispose();
+    for (const px of look.variantProxies || []) px.dispose();
     if (envRT) envRT.dispose();
     skyParts.dispose();
     pmrem.dispose();
@@ -419,6 +448,7 @@ function buildPost(look) {
   composer.addPass(gtao);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new Vector2(w / 2, h / 2), 0.2, 0.5, 4);
+  oneBlurProgram(bloom);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const grade = new ShaderPass(GradeShader);
@@ -450,3 +480,165 @@ function disposePost(look) {
   look.passes = null;
 }
 
+
+/**
+ * The bloom's five blurs differ only in their kernel's length, a define
+ * each, so five programs: pad every kernel to the longest with taps of no
+ * weight and they share one. (The extra taps on the bloom's small mips cost
+ * nothing; a program on ANGLE's D3D11 costs tens of milliseconds to make.)
+ */
+export function oneBlurProgram(bloom) {
+  const mats = bloom.separableBlurMaterials;
+  const most = Math.max(...mats.map((m) => m.defines.KERNEL_PAIRS));
+  for (const m of mats) {
+    const u = m.uniforms;
+    const pad = (a, v) => a.concat(new Array(most - a.length).fill(v));
+    u.gaussianOffsets.value = pad(u.gaussianOffsets.value, 1);
+    u.gaussianWeights.value = pad(u.gaussianWeights.value, 0);
+    m.defines.KERNEL_PAIRS = most;
+    m.needsUpdate = true;
+  }
+}
+
+/** Which side a shadow's depth is drawn from, by the material's side (as three's shadow map picks it). */
+const SHADOW_SIDE = { [FrontSide]: BackSide, [BackSide]: FrontSide, [DoubleSide]: DoubleSide };
+
+/**
+ * The programs of the shadow maps: three draws each caster with its own
+ * depth (sun) or distance (lamps) material, set from the caster's own (its
+ * side, its map), at the first frame that renders the map. Made here
+ * alike, on copies of the casters, so they compile with everything else.
+ */
+function shadowProxies(scene) {
+  const lights = { depth: false, distance: false };
+  scene.traverse((o) => {
+    if (!o.isLight || !o.castShadow) return;
+    if (o.isPointLight) lights.distance = true;
+    else lights.depth = true;
+  });
+  const out = new Scene();
+  const seen = new Set();
+  const made = [];
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.castShadow || Array.isArray(o.material)) return;
+    const m = o.material;
+    for (const kind of ['depth', 'distance']) {
+      if (!lights[kind]) continue;
+      const side = m.shadowSide !== null && m.shadowSide !== undefined ? m.shadowSide : SHADOW_SIDE[m.side];
+      const key = [kind, side, !!m.map, !!m.alphaMap, m.alphaTest > 0, !!o.isInstancedMesh, !!o.instanceColor, !!o.geometry.attributes.color].join();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const d = kind === 'depth' ? new MeshDepthMaterial() : new MeshDistanceMaterial();
+      d.side = side;
+      d.map = m.map;
+      d.alphaMap = m.alphaMap;
+      d.alphaTest = m.alphaTest;
+      made.push(d);
+      if (o.isInstancedMesh) {
+        const im = new InstancedMesh(o.geometry, d, 1);
+        // (Per-instance colours are part of the program, the grass's too.)
+        im.instanceColor = o.instanceColor;
+        out.add(im);
+      } else {
+        out.add(new Mesh(o.geometry, d));
+      }
+    }
+  });
+  return { scene: out, dispose: () => made.forEach((d) => d.dispose()) };
+}
+
+/**
+ * Compile every program a frame of the look draws, at once and in the
+ * background, so that ANGLE compiles them side by side on its threads and
+ * the first frame finds them all made (a program compiled at its first
+ * draw stalls the page until the GPU process is done with it):
+ *   - `sky` (optional): the sky's light, made in this dry run, so the sky's
+ *     and the PMREM's programs compile with the rest;
+ *   - the post chain, by running it with renderer.render compiling instead
+ *     of drawing: each pass's materials are compiled under the very target
+ *     it draws into (a material's program depends on that: a linear target
+ *     or the screen, tone mapped or not), and a pass that draws the scene
+ *     with an override material (GTAO's normals) compiles that for each
+ *     kind of mesh. Its RenderPass compiles the scene's materials as they
+ *     are drawn, into the linear, multisampled target;
+ *   - the shadow maps' depth and distance materials (shadowProxies);
+ *   - `later`: objects of the scene not needed for the first frame (the
+ *     lab's ground, hidden behind the well), compiled after the rest;
+ *   - `variants`: functions that set the scene up another way (lights that
+ *     cast shadows at night: a light's shadow is compiled into every
+ *     program) and return a function that sets it back, whose programs are
+ *     compiled after the rest too.
+ * Resolves to { ready: when the first frame's programs are, later: when
+ * the rest are }.
+ */
+export function warmLook(look, camera, { sky = null, later = [], variants = [] } = {}) {
+  const r = look.renderer;
+  const jobs = [];
+  const render = r.render;
+  const prev = r.getRenderTarget();
+  r.render = (scene, cam) => {
+    const o = scene.overrideMaterial;
+    if (!o) {
+      jobs.push(r.compileAsync(scene, cam));
+      return;
+    }
+    const swapped = [];
+    scene.traverseVisible((m) => {
+      if (m.isMesh && m.material) {
+        swapped.push([m, m.material]);
+        m.material = o;
+      }
+    });
+    scene.overrideMaterial = null;
+    try {
+      jobs.push(r.compileAsync(scene, cam));
+    } finally {
+      scene.overrideMaterial = o;
+      for (const [m, mat] of swapped) m.material = mat;
+    }
+  };
+  // What waits: out of the scene during the dry run (put back where it was).
+  const held = later.map((o) => [o, o.parent]);
+  for (const [o, parent] of held) if (parent) parent.remove(o);
+  let proxies = null;
+  try {
+    if (sky) sky();
+    look.composer.render(0);
+    proxies = shadowProxies(look.scene);
+    // (Any linear target: a shadow map is one, as is the RenderPass's.)
+    r.setRenderTarget(look.composer.readBuffer);
+    jobs.push(r.compileAsync(proxies.scene, camera, look.scene));
+  } finally {
+    r.render = render;
+    r.setRenderTarget(prev);
+    for (const [o, parent] of held) if (parent) parent.add(o);
+  }
+  // (The proxies' materials are kept: freeing a material frees its program, which the first shadow map would make again.)
+  if (proxies) look.shadowProxies = proxies;
+  const ready = Promise.all(jobs);
+  // What waits is compiled once the rest is: it would hold one of ANGLE's few compiling threads.
+  const rest = ready.then(() => {
+    const was = r.getRenderTarget();
+    r.setRenderTarget(look.composer.readBuffer);
+    const more = held.map(([o]) => r.compileAsync(o, camera, look.scene));
+    try {
+      // Each variant's scene (the lamps casting their shadows, say), its own programs: three keeps
+      // every program a material has had, so going back and forth compiles nothing more.
+      for (const v of variants) {
+        const undo = v();
+        try {
+          more.push(r.compileAsync(look.scene, camera));
+          const px = shadowProxies(look.scene);
+          more.push(r.compileAsync(px.scene, camera, look.scene));
+          (look.variantProxies ??= []).push(px);
+        } finally {
+          undo();
+        }
+      }
+    } finally {
+      r.setRenderTarget(was);
+    }
+    return Promise.all(more);
+  });
+  return { ready, later: rest };
+}

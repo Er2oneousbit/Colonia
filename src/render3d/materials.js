@@ -21,18 +21,27 @@
  *     the height of the vertex in the blade).
  *
  * Uniforms in LOOK.uniforms are shared by every material (one update moves
- * them all); per-material numbers sit in each material's own uniforms.
+ * them all); per-material numbers sit in each material's own uniforms
+ * (how much snow sticks, how wet it gets, how far it sways), never in
+ * defines: every program costs a few hundred milliseconds to make on
+ * ANGLE's D3D11 (it is most of a cold start), so materials that differ only
+ * in numbers share one. A plain material takes 1 x 1 maps (PLAIN), water
+ * and ice the same features: the well's street is three programs (the
+ * stone and everything opaque, the water, the instanced grass), plus the
+ * flame's.
+ *
+ * The surfaces' textures are painted on the GPU (paint/painter.js) as soon
+ * as the look's renderer exists.
  * ----------------------------------------------------------------------------
  */
 
 import {
-  MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, RepeatWrapping,
-  LinearMipmapLinearFilter, LinearFilter, SRGBColorSpace, NoColorSpace, Vector2, Vector4, Color, Texture, DoubleSide,
+  MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, SRGBColorSpace, Vector2, Vector4, Color, Texture,
+  DoubleSide,
 } from 'three';
-import { SURFACES, surfaceSize } from './surfaces.js';
+import { SURFACES, SURFACE_SET, surfaceSize, nameSeed } from './surfaces.js';
 import { Field } from './texgen.js';
-import { loadAll } from './paint/pool.js';
-import { standIn, fillPixels } from './paint/standIns.js';
+import { painterFor, surfaceTargets } from './paint/painter.js';
 
 /** A 1 x 1 white texture, the AO input until look.js gives the real one. */
 const WHITE = (() => {
@@ -40,6 +49,28 @@ const WHITE = (() => {
   t.needsUpdate = true;
   return t;
 })();
+
+/** A 1 x 1 texture of one colour (RGBA bytes); `srgb` for a colour map. */
+function plainTexture(rgba, srgb = false) {
+  const t = new DataTexture(new Uint8Array(rgba), 1, 1, RGBAFormat, UnsignedByteType);
+  if (srgb) t.colorSpace = SRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * The maps of a material without a surface: white, a flat normal, and
+ * occlusion, roughness and metalness of 1 (the material's own numbers
+ * stand). With them a plain material has the very maps a painted one has,
+ * so both share one program: a program on ANGLE's D3D11 costs a few
+ * hundred milliseconds to make, a texture fetch from a 1 x 1 texture
+ * nothing.
+ */
+const PLAIN = {
+  map: plainTexture([255, 255, 255, 255], true),
+  normalMap: plainTexture([128, 128, 255, 255]),
+  orm: plainTexture([255, 255, 255, 255]),
+};
 
 /** What every patched material reads: look.js and the lab set these. */
 export const LOOK = {
@@ -58,9 +89,9 @@ export const LOOK = {
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
-  /** The renderer the look draws with (look.js sets it): painted surfaces are uploaded as they come. */
+  /** The renderer the look draws with (look.js sets it): its GPU paints the surfaces. */
   renderer: null,
-  /** Texture size factor (surfaces.js surfaceSize): 1; the tests paint at an eighth. */
+  /** Texture size factor (surfaces.js surfaceSize): 1; smaller for a quick check. */
   textureScale: 1,
 };
 
@@ -78,6 +109,7 @@ uniform vec2 uLookWind;
 uniform vec4 uLookGrass;
 uniform float uLookSnowMul;
 uniform float uLookWetMul;
+uniform vec2 uLookSway;
 varying vec3 vLookWPos;
 varying vec3 vLookWNormal;
 float lookHash( vec3 p ) {
@@ -111,40 +143,41 @@ const VERT_WORLD = /* glsl */ `
 }
 `;
 
-/** Grass: bends with the wind, more the higher up the blade (LOOK_SWAY_H metres is a blade's full height in its own space). */
+/**
+ * Grass: bends with the wind, more the higher up the blade (uLookSway: x
+ * metres at the tip, y a blade's full height in its own space; 0 for
+ * everything else, which a branch on a uniform skips at no cost, and one
+ * program serves both).
+ */
 const VERT_SWAY = /* glsl */ `
 #include <begin_vertex>
-#ifdef LOOK_SWAY
-{
+if ( uLookSway.x > 0.0 ) {
   vec4 root = vec4( 0.0, 0.0, 0.0, 1.0 );
   #ifdef USE_INSTANCING
     root = instanceMatrix * root;
   #endif
   root = modelMatrix * root;
-  float k = clamp( position.y / LOOK_SWAY_H, 0.0, 1.0 );
+  float k = clamp( position.y / uLookSway.y, 0.0, 1.0 );
   k *= k;
   float ph = uLookTime * 1.7 + root.x * 0.9 + root.z * 0.7;
   float gust = 0.6 + 0.4 * sin( uLookTime * 0.45 + root.x * 0.15 );
-  vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * LOOK_SWAY;
+  vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * uLookSway.x;
   transformed.x += w.x;
   transformed.z += w.y;
   // Under snow only the tips show.
-  transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * LOOK_SWAY_H;
+  transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * uLookSway.y;
 }
-#endif
 `;
 
 const FRAG_SURFACE = /* glsl */ `
 float lookAO = 1.0;
 if ( uLookAOOn > 0.5 ) lookAO = texture2D( uLookAO, gl_FragCoord.xy / uLookRes ).r;
 float lookSnowAmt = 0.0;
-#ifdef LOOK_SWAY
+if ( uLookSway.x > 0.0 ) {
   // Grass in another season (winter's straw): the blade keeps its light and shade, takes the colour.
-  {
-    float lum = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) );
-    diffuseColor.rgb = mix( diffuseColor.rgb, uLookGrass.rgb * lum * 2.6, uLookGrass.a );
-  }
-#endif
+  float lum = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) );
+  diffuseColor.rgb = mix( diffuseColor.rgb, uLookGrass.rgb * lum * 2.6, uLookGrass.a );
+}
 {
   vec3 gn = normalize( vLookWNormal );
   vec3 sn = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
@@ -218,11 +251,8 @@ const FRAG_FADE = /* glsl */ `
  * height over `swayH` (a grass blade's own height).
  */
 export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) {
-  const own = { uLookSnowMul: { value: snow }, uLookWetMul: { value: wet } };
+  const own = { uLookSnowMul: { value: snow }, uLookWetMul: { value: wet }, uLookSway: { value: new Vector2(sway, swayH) } };
   mat.userData.look = own;
-  if (sway) {
-    mat.defines = { ...(mat.defines || {}), LOOK_SWAY: sway.toFixed(4), LOOK_SWAY_H: swayH.toFixed(4) };
-  }
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, LOOK.uniforms, own);
     shader.vertexShader = shader.vertexShader
@@ -235,140 +265,93 @@ export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) 
       .replace('#include <aomap_fragment>', FRAG_AO)
       .replace('#include <opaque_fragment>', FRAG_FADE);
   };
-  mat.customProgramCacheKey = () => `look1${sway ? 's' : ''}`;
+  // One key for every patched material: what differs between them is in uniforms, and three's own
+  // parameters (maps, sides, instancing, lights) still part the programs that must differ.
+  mat.customProgramCacheKey = () => 'look2';
   return mat;
 }
 
 /** Textures of each surface, made once. */
 const TEXTURES = new Map();
 
-/**
- * Surfaces asked for since the last load went out: sent to the pool together
- * (paint/pool.js loadAll), so it sees them all and starts the biggest first.
- */
+/** Surfaces asked for since the last went to the painter (all go together: one compile, one go). */
 let asked = [];
-/** Painted maps waiting to go into their textures, one surface a frame. */
-const arrived = [];
-let draining = false;
-
-/** A tiling texture from bytes. */
-function dataTexture(bytes, size, srgb) {
-  const t = new DataTexture(bytes, size, size, RGBAFormat, UnsignedByteType);
-  t.wrapS = t.wrapT = RepeatWrapping;
-  t.generateMipmaps = true;
-  t.minFilter = LinearMipmapLinearFilter;
-  t.magFilter = LinearFilter;
-  t.anisotropy = LOOK.anisotropy;
-  t.colorSpace = srgb ? SRGBColorSpace : NoColorSpace;
-  t.needsUpdate = true;
-  return t;
-}
 
 /**
  * The three textures of a surface: { map, normalMap, orm, metres, size,
- * maps, ready, whenReady }. Returned at once, at their final size, holding
- * the surface's stand-in (paint/standIns.js: its average colour on a flat
- * normal); the painted maps go into these same textures when they come
- * (from the cache, or painted in the pool), so a material made on them
- * never changes its shader and nothing has to be swapped. `maps` (with
- * the height field, as a Field, for the paving) is null until then;
- * `whenReady` resolves to it.
+ * maps, ready, whenReady }. Returned at once, at their final size: render
+ * targets the GPU paints (paint/painter.js) as soon as its programs are
+ * compiled, a fraction of a second after the look's renderer starts; until
+ * then their pixels are undefined, so the lab draws its first frame only
+ * once they are all in (surfacesReady). `maps` (with the height field, as
+ * a Field, for the paving) is null until then; `whenReady` resolves to it.
+ * `copy` names a second set painted alike (the well's water drifts its own
+ * ripples, which a texture's own offset moves: it cannot share the ice's).
  */
-export function surfaceTextures(name) {
-  let t = TEXTURES.get(name);
+export function surfaceTextures(name, copy = '') {
+  const key = copy ? `${name}#${copy}` : name;
+  let t = TEXTURES.get(key);
   if (t) return t;
   const size = surfaceSize(name, LOOK.textureScale);
   const metres = SURFACES[name].metres;
-  const stand = standIn('surface', name);
-  const px = size * size;
+  const out = surfaceTargets(size, LOOK.anisotropy);
   t = {
-    map: dataTexture(fillPixels(new Uint8Array(px * 4), stand.albedo), size, true),
-    normalMap: dataTexture(fillPixels(new Uint8Array(px * 4), stand.normal), size, false),
-    orm: dataTexture(fillPixels(new Uint8Array(px * 4), stand.orm), size, false),
+    map: out.albedo.texture,
+    normalMap: out.normal.texture,
+    orm: out.orm.texture,
+    out,
     name,
     metres,
     size,
     maps: null,
     ready: false,
-    /** Copies of these textures made elsewhere (waterMaterial's ripples): they share the bytes, and take the upload too. */
-    copies: [],
   };
   t.whenReady = new Promise((resolve) => { t.resolveReady = resolve; });
   // UVs are in metres: one repeat of the texture covers `metres`.
   for (const k of ['map', 'normalMap', 'orm']) t[k].repeat.set(1 / metres, 1 / metres);
-  // (Kept for the page, as the materials made on them are: a texture freed by
-  // a scene torn down still takes its painted maps, and three uploads them
-  // again if a material on it is drawn after.)
-  TEXTURES.set(name, t);
+  // (Kept for the page, as the materials made on them are.)
+  TEXTURES.set(key, t);
   asked.push(t);
-  if (asked.length === 1) queueMicrotask(sendAsked);
+  if (asked.length === 1) queueMicrotask(paintSurfaces);
   return t;
 }
 
-/** Send the surfaces asked for to the pool (via the cache). */
-function sendAsked() {
+/**
+ * Hand the surfaces asked for to the painter of the look's renderer
+ * (look.js calls it once the renderer is made; until then they wait).
+ */
+export function paintSurfaces() {
+  const r = LOOK.renderer;
+  if (!r || !asked.length) return;
   const ts = asked;
   asked = [];
-  const jobs = ts.map((t) => ({ kind: 'surface', name: t.name, size: t.size }));
-  loadAll(jobs, (i, maps) => {
-    arrived.push([ts[i], maps]);
-    drain();
-  });
+  const painter = painterFor(r);
+  for (const t of ts) {
+    painter.paint({
+      set: SURFACE_SET, index: SURFACE_SET.names.indexOf(t.name), seed: nameSeed(t.name), size: t.size, out: t.out,
+      readHeight: !!SURFACES[t.name].height,
+    }).then((job) => {
+      t.maps = { size: t.size, metres: t.metres, height: job.height ? Field.wrap(t.size, job.height) : null };
+      t.ready = true;
+      t.resolveReady(t.maps);
+    }, (err) => {
+      console.warn(`Texture ${t.name} could not be painted:`, err);
+      t.ready = true;
+      t.resolveReady(null);
+    });
+  }
 }
 
-/**
- * Put arrived maps into their textures, one surface a frame: a cached load
- * brings them all at once, and uploading every one in the same frame (40 MB
- * with their mipmaps) would be one long frame.
- */
-function drain() {
-  if (draining) return;
-  draining = true;
-  const step = () => {
-    const next = arrived.shift();
-    if (!next) {
-      draining = false;
-      return;
-    }
-    fillTextures(next[0], next[1]);
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step);
-    else setTimeout(step, 0);
-  };
-  step();
-}
-
-/** A surface's painted maps into its textures (and their copies). */
-function fillTextures(t, maps) {
-  const put = (tex, data) => {
-    tex.image = { data, width: t.size, height: t.size };
-    tex.needsUpdate = true;
-  };
-  put(t.map, maps.albedo);
-  put(t.normalMap, maps.normal);
-  put(t.orm, maps.orm);
-  for (const c of t.copies) c.needsUpdate = true;
-  // Uploaded now, in this surface's own frame: three would otherwise send every
-  // texture that came before the first draw (all of them, from the cache) in that draw.
-  const r = LOOK.renderer;
-  if (r) for (const tex of [t.map, t.normalMap, t.orm, ...t.copies]) r.initTexture(tex);
-  t.maps = {
-    albedo: maps.albedo, normal: maps.normal, orm: maps.orm, size: t.size, metres: t.metres,
-    height: maps.height ? Field.wrap(t.size, maps.height) : null,
-  };
-  t.ready = true;
-  t.resolveReady(t.maps);
-}
-
-/** How many surfaces are painted and in their textures. */
+/** How many surfaces are painted. */
 export function surfacesCount() {
   let n = 0;
   for (const t of TEXTURES.values()) if (t.ready) n++;
   return n;
 }
 
-/** Are all the surfaces asked for so far painted and in their textures? */
+/** Are all the surfaces asked for so far painted (and the paving's height read back)? */
 export function surfacesReady() {
-  if (asked.length || arrived.length) return false;
+  if (asked.length) return false;
   for (const t of TEXTURES.values()) if (!t.ready) return false;
   return true;
 }
@@ -383,13 +366,17 @@ const CACHE = new Map();
  *   rough     roughness multiplier; metal: metalness multiplier
  *   normal    normal map strength
  *   snow/wet  see patchLook
- *   vertexColors  the mesh's colours darken it (grime, baked occlusion)
+ *   vertexColors  the mesh's colours darken it (grime, baked occlusion); on
+ *             by default, so a mesh needs its colours (merge() and
+ *             tintGeometry() give them): one program for every material
+ * A material without a surface takes the plain maps (PLAIN), so it shares
+ * the painted ones' program.
  */
 export function material(key, opts = {}) {
   let m = CACHE.get(key);
   if (m) return m;
   const {
-    surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = false,
+    surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = true,
     physical = false, side, sway = 0, swayH = 1, emissive, emissiveIntensity, roughness, metalness,
   } = opts;
   const p = { color: new Color(color), vertexColors };
@@ -404,6 +391,7 @@ export function material(key, opts = {}) {
     p.roughness = rough;
     p.metalness = metal || (surface === 'bronze' || surface === 'iron' ? 1 : 0);
   } else {
+    Object.assign(p, { map: PLAIN.map, normalMap: PLAIN.normalMap, roughnessMap: PLAIN.orm, metalnessMap: PLAIN.orm, aoMap: PLAIN.orm });
     p.roughness = roughness ?? 0.8;
     p.metalness = metalness ?? 0;
   }
@@ -419,16 +407,15 @@ export function material(key, opts = {}) {
   return m;
 }
 
+/** A clear coat too faint to see, which gives the water the ice's features (one program for both). */
+const ICE_SHARE = 1e-4;
+
 /** The water of the trough and the well: dark, glassy, reflecting the sky, its ripples drifting (look.js moves them). */
 export function waterMaterial() {
   let m = CACHE.get('water');
   if (m) return m;
-  const t = surfaceTextures('ripples');
-  const nm = t.normalMap.clone();
-  nm.needsUpdate = true;
-  nm.repeat.set(1 / t.metres, 1 / t.metres);
-  // (Its own offset drifts; the bytes are the ripples' own, painted maybe later.)
-  t.copies.push(nm);
+  // Its own copy of the ripples, whose offset drifts (look.js moves it).
+  const nm = surfaceTextures('ripples', 'water').normalMap;
   m = new MeshPhysicalMaterial({
     color: new Color('#1d5560'), // deep green-blue: a near-black read as a hole, not water
     roughness: 0.03,
@@ -438,6 +425,9 @@ export function waterMaterial() {
     normalScale: new Vector2(0.4, 0.4),
     transparent: true,
     opacity: 0.93,
+    // (The faintest clear coat: the ice has one, and the same features make one program of both.)
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.03,
   });
   m.name = 'water';
   patchLook(m, { snow: 0, wet: 0 });
@@ -464,6 +454,8 @@ export function shallowWaterMaterial() {
     normalScale: new Vector2(0.3, 0.3),
     transparent: true,
     opacity: 0.62,
+    clearcoat: ICE_SHARE,
+    clearcoatRoughness: 0.04,
   });
   m.name = 'shallow-water';
   patchLook(m, { snow: 0, wet: 0 });
@@ -485,6 +477,9 @@ export function iceMaterial() {
     normalScale: new Vector2(0.08, 0.08),
     clearcoat: 0.3,
     clearcoatRoughness: 0.35,
+    // Drawn with the water (transparent, but wholly opaque): the same features, one program.
+    transparent: true,
+    opacity: 1,
   });
   m.name = 'ice';
   patchLook(m, { snow: 0.45, wet: 0 });

@@ -23,7 +23,7 @@
 
 import {
   Group, Mesh, InstancedMesh, BufferGeometry, BoxGeometry, Float32BufferAttribute, PlaneGeometry, CylinderGeometry, Matrix4,
-  Quaternion, Vector3, Euler, Color, PointLight, BackSide, DoubleSide, MeshBasicMaterial, AdditiveBlending,
+  Quaternion, Vector3, Euler, Color, PointLight, DoubleSide, MeshBasicMaterial, AdditiveBlending,
 } from 'three';
 import { block, revolve, profileOf, tube, merge, tintGeometry, boxUV, triangles } from '../shapes.js';
 import { material, surfaceTextures } from '../materials.js';
@@ -106,6 +106,24 @@ function paving() {
   };
   if (tex.maps) raise(tex.maps);
   else tex.whenReady.then(raise);
+  return g;
+}
+
+/**
+ * Turn a closed shape inside out (its faces wound the other way, its
+ * normals reversed): seen from inside with an ordinary front-faced
+ * material, which shares the other materials' program where a back-faced
+ * one would need its own.
+ */
+function insideOut(g) {
+  const idx = g.index;
+  for (let i = 0; i < idx.count; i += 3) {
+    const b = idx.getX(i + 1);
+    idx.setX(i + 1, idx.getX(i + 2));
+    idx.setX(i + 2, b);
+  }
+  const n = g.attributes.normal;
+  for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
   return g;
 }
 
@@ -332,6 +350,7 @@ function house(seed) {
   room.rotateY(Math.PI / 4);
   room.scale((d1 - d0 + 1.2) / Math.SQRT2, 2.8, 1.6 / Math.SQRT2);
   room.translate((d0 + d1) / 2, y0 + 1.4, z - T - 0.8);
+  insideOut(room);
   // A small barred window high up, left of the door.
   const iron = [];
   const wx = -2.6;
@@ -503,7 +522,7 @@ export function buildStreet({ seed = 11, grassCount = 9000 } = {}) {
   add(merge([...hs.wood, ...tr.wood]), material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'house-wood');
   add(merge([...hs.iron, ...tr.iron]), material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }), 'house-iron');
   add(merge(hs.tiles), material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 1 }), 'tiles');
-  add(hs.room, material('room-dark', { color: 0x0e0b09, roughness: 1, side: BackSide, snow: 0, wet: 0 }), 'room', false);
+  add(tintGeometry(hs.room), material('room-dark', { color: 0x0e0b09, roughness: 1, snow: 0, wet: 0 }), 'room', false);
   add(hs.recess, material('recess-dark', { color: 0x0b0908, roughness: 1, snow: 0, wet: 0 }), 'window', false);
   add(tr.head, material('pitch', { color: 0x1c1410, roughness: 0.7, snow: 0 }), 'torch-head');
   group.add(tr.flame);

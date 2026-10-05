@@ -16,7 +16,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { bundleTexWorker } from './texWorker.mjs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -65,21 +64,6 @@ async function loadEsbuild() {
 const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%238e1b1b'/%3E%3Cpath d='M10 26 32 12 54 26Z' fill='%23d6ab3c'/%3E%3Crect x='14' y='28' width='6' height='20' fill='%23f3ecdc'/%3E%3Crect x='29' y='28' width='6' height='20' fill='%23f3ecdc'/%3E%3Crect x='44' y='28' width='6' height='20' fill='%23f3ecdc'/%3E%3Crect x='10' y='50' width='44' height='5' fill='%23d6ab3c'/%3E%3C/svg%3E";
 
 /**
- * The paint pool's worker (src/render3d/paint/worker.js: every procedural
- * texture, the look's surfaces and the ground's layers), bundled on its
- * own into a string the page starts as Blob workers (paint/pool.js reads it
- * as __TEX_WORKER__): one file to ship, and the textures are painted off
- * the page's thread. Its hash is the recipes' version (__TEX_RECIPES__):
- * the worker holds every line that paints a texture, so any change to a
- * recipe changes it, and the textures kept in the browser's cache
- * (paint/cache.js) are painted again instead of read back stale.
- */
-async function workerDefine(esbuild, opts) {
-  const { code, version } = await bundleTexWorker(esbuild, { minify: opts.minify });
-  return { __TEX_WORKER__: JSON.stringify(code), __TEX_RECIPES__: JSON.stringify(version) };
-}
-
-/**
  * The look lab: its own entry and page (src/dev/lab.html), with the bundle
  * inlined where the page says, so it is one file with nothing to fetch.
  */
@@ -87,7 +71,6 @@ async function buildLab(esbuild, opts, t0) {
   const result = await esbuild.build({
     entryPoints: [path.join(ROOT, 'src', 'dev', 'lab.js')],
     bundle: true,
-    define: await workerDefine(esbuild, opts),
     format: 'iife',
     target: ['es2020'],
     minify: opts.minify,
@@ -114,7 +97,6 @@ async function main() {
   const result = await esbuild.build({
     entryPoints: [path.join(ROOT, 'src', 'main.js')],
     bundle: true,
-    define: await workerDefine(esbuild, opts),
     format: 'iife',
     target: ['es2020'],
     minify: opts.minify,

@@ -5,184 +5,96 @@
  * arrays (albedo and height, normal, occlusion/roughness/plants), so the
  * ground shader picks a kind by its layer number in one sampler.
  *
- * The arrays exist from the start, at their final size, every layer
- * holding its stand-in (paint/standIns.js: the layer's average colour,
- * height and roughness on a flat normal), so the ground can be drawn at
- * once. The painted layers come from the cache or the paint pool's workers
- * (paint/pool.js: about 1 s of arithmetic for the 14 layers on one core,
- * spread over all of them) and are copied into the same bytes as each one
- * comes; a texture array already on the GPU then uploads only that layer
- * (liveGroundArrays). Nothing is recompiled, nothing waits.
+ * The arrays are render targets the GPU paints (paint/painter.js), a layer
+ * a recipe, all 14 in one go as soon as the painter's programs are
+ * compiled: a few milliseconds of GPU time on a desktop, so the ground
+ * waits for them (its sprites draw meanwhile) instead of drawing stand-ins.
+ * Their mipmaps are made once the last layer is in, and the painter paints
+ * them again after a lost WebGL context.
  *
- * Memory: 14 layers x 256 x 256 x 4 bytes x 3 arrays, 11 MB, packed once
- * and shared by every texture made from them (the lab's and the game's);
- * the GPU's copies with their mipmaps about 15 MB. The bytes are kept:
- * three.js uploads them again after a lost WebGL context.
+ * Memory: 14 layers x 256 x 256 x 4 bytes x 3 arrays, about 15 MB on the
+ * GPU with their mipmaps, and nothing in the page.
  * ----------------------------------------------------------------------------
  */
 
-import {
-  DataArrayTexture, RGBAFormat, UnsignedByteType, RepeatWrapping, LinearMipmapLinearFilter, LinearFilter,
-  SRGBColorSpace, NoColorSpace,
-} from 'three';
-import { GROUND_LAYERS, GROUND_SIZE } from './groundSurfaces.js';
-import { loadAll } from '../paint/pool.js';
-import { standIn, fillPixels } from '../paint/standIns.js';
+import { DataArrayTexture, RGBAFormat, UnsignedByteType, LinearFilter, SRGBColorSpace } from 'three';
+import { GROUND_LAYERS, GROUND_SIZE, GROUND_SET } from './groundSurfaces.js';
+import { nameSeed } from '../surfaces.js';
+import { arrayTargets, painterFor } from '../paint/painter.js';
 
-const MAPS = ['albedo', 'normal', 'orm'];
-
-/** Painted layers ([{ albedo, normal, orm }]) packed into one array of bytes per map, the layers one after another. */
-export function packLayers(layers, size = GROUND_SIZE) {
-  const pack = (k) => {
-    const data = new Uint8Array(size * size * 4 * layers.length);
-    layers.forEach((l, i) => data.set(l[k], i * size * size * 4));
-    return data;
-  };
-  return { albedo: pack('albedo'), normal: pack('normal'), orm: pack('orm'), size, count: layers.length };
-}
-
-/** Packed bytes (as packLayers) holding every layer's stand-in. */
-export function packStandIns(size = GROUND_SIZE) {
-  const count = GROUND_LAYERS.length;
-  const px = size * size;
-  const out = { size, count };
-  for (const k of MAPS) out[k] = new Uint8Array(px * 4 * count);
-  GROUND_LAYERS.forEach((l, i) => {
-    const s = standIn('ground', l.name);
-    for (const k of MAPS) fillPixels(out[k], s[k], px, i * px);
-  });
-  return out;
-}
-
-/** Copy one painted layer into packed bytes. */
-export function setLayer(packed, i, maps) {
-  const n = packed.size * packed.size * 4;
-  for (const k of MAPS) packed[k].set(maps[k], i * n);
-}
-
-/** One texture array on packed bytes (shared, not copied). */
-function arrayTexture(data, size, count, srgb, anisotropy) {
-  const t = new DataArrayTexture(data, size, size, count);
-  t.format = RGBAFormat;
-  t.type = UnsignedByteType;
-  t.wrapS = t.wrapT = RepeatWrapping;
-  t.generateMipmaps = true;
-  t.minFilter = LinearMipmapLinearFilter;
-  t.magFilter = LinearFilter;
-  t.anisotropy = anisotropy;
-  t.colorSpace = srgb ? SRGBColorSpace : NoColorSpace;
-  t.needsUpdate = true;
-  return t;
-}
-
-/** The three texture arrays on packed layers (packLayers). */
-export function groundArrays(packed, anisotropy = 4) {
-  const { size, count } = packed;
-  return {
-    albedo: arrayTexture(packed.albedo, size, count, true, anisotropy),
-    normal: arrayTexture(packed.normal, size, count, false, anisotropy),
-    orm: arrayTexture(packed.orm, size, count, false, anisotropy),
-    size,
-    dispose() {
-      this.albedo.dispose();
-      this.normal.dispose();
-      this.orm.dispose();
-    },
-  };
-}
-
-/** Painted once per page and shared (the lab and the game's back end, a renderer switched off and on). */
-let shared = null;
+/** The arrays of each renderer (its GPU paints them), made at the first ask. */
+const BY_RENDERER = new WeakMap();
 
 /**
- * The ground's layers, made once per page: { packed (stand-ins at once,
- * the painted layers copied in as they come), arrived[i], count, done,
- * ms, cached (layers read from the cache), listen(fn(i)) -> unlisten,
- * whenDone (a promise) }.
+ * The ground's arrays for `renderer`: { albedo, normal, orm (textures),
+ * size, count, ready, ms (from the ask until painted), whenReady,
+ * dispose() }. Returned at once; painted in the background.
  */
-export function groundTextures() {
-  if (shared) return shared;
+export function groundTextures(renderer, anisotropy = 4) {
+  let g = BY_RENDERER.get(renderer);
+  if (g) return g;
   const t0 = performance.now();
-  const listeners = new Set();
-  const src = {
-    packed: packStandIns(),
-    arrived: new Array(GROUND_LAYERS.length).fill(false),
-    count: 0,
-    done: false,
+  const count = GROUND_LAYERS.length;
+  const out = arrayTargets(GROUND_SIZE, count, anisotropy);
+  g = {
+    albedo: out.albedo.texture,
+    normal: out.normal.texture,
+    orm: out.orm.texture,
+    out,
+    size: GROUND_SIZE,
+    count,
+    ready: false,
     ms: 0,
-    cached: 0,
-    listen(fn) {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
+    dispose() {
+      // (Not painted again after a lost context, nor painted at all if still waiting.)
+      painter.forget(out);
+      for (const rt of Object.values(out)) rt.dispose();
+      if (BY_RENDERER.get(renderer) === g) BY_RENDERER.delete(renderer);
     },
   };
-  const jobs = GROUND_LAYERS.map((l) => ({ kind: 'ground', name: l.name, size: GROUND_SIZE }));
-  src.whenDone = loadAll(jobs, (i, maps, cached) => {
-    setLayer(src.packed, i, maps);
-    src.arrived[i] = true;
-    src.count++;
-    if (cached) src.cached++;
-    for (const fn of listeners) fn(i);
-  }).then(() => {
-    // (A layer that could not be painted keeps its stand-in: the ground is still drawn.)
-    src.done = true;
-    src.ms = performance.now() - t0;
-    return src;
+  const painter = painterFor(renderer);
+  g.whenReady = Promise.all(GROUND_LAYERS.map((l, i) => painter.paint({
+    set: GROUND_SET, index: i, seed: nameSeed(l.name), size: GROUND_SIZE, out, layer: i, ground: true,
+  }))).then(() => {
+    g.ready = !painter.lost && !painter.painting(out);
+    g.ms = performance.now() - t0;
+    return g;
   });
-  shared = src;
-  return src;
+  // A lost context blanks the arrays: not ready again until the painter has painted them anew.
+  const unlisten = painter.listen((what) => {
+    if (what === 'lost') g.ready = false;
+    else if (what === 'painted' && !g.ready && !painter.painting(out) && g.painted) g.ready = true;
+  });
+  g.whenReady.then(() => { g.painted = true; });
+  const free = g.dispose;
+  g.dispose = () => {
+    unlisten();
+    free();
+  };
+  BY_RENDERER.set(renderer, g);
+  return g;
 }
 
 /**
- * Texture arrays on the shared layers that follow them as they are painted
- * (groundArrays, plus `upload(renderer, k)`, `lost()`, `flush(most)`): a layer that comes
- * after an array went to the GPU is uploaded alone (three's layer updates);
- * one that comes before rides with the array's first, whole upload. Only
- * an array known to be on the GPU may be given layer updates: three's
- * first upload of an array with layer updates pending would send only
- * those layers, and leave the rest of the array blank.
+ * Blank arrays of the same kind (the ground's program does not depend on
+ * the pixels): the tests' ground, and anything that must make a ground
+ * before a renderer is at hand.
  */
-export function liveGroundArrays(src, anisotropy = 4) {
-  const tex = groundArrays(src.packed, anisotropy);
-  const arrays = [tex.albedo, tex.normal, tex.orm];
-  const onGpu = [false, false, false];
-  tex.onLayer = null;
-  /** Upload array k now (three's initTexture), whole. */
-  tex.upload = (renderer, k) => {
-    arrays[k].clearLayerUpdates();
-    renderer.initTexture(arrays[k]);
-    onGpu[k] = true;
+export function blankGroundArrays(size = 4, count = GROUND_LAYERS.length) {
+  const make = (srgb) => {
+    const t = new DataArrayTexture(new Uint8Array(size * size * 4 * count), size, size, count);
+    t.format = RGBAFormat;
+    t.type = UnsignedByteType;
+    t.minFilter = LinearFilter;
+    if (srgb) t.colorSpace = SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
   };
-  /** The WebGL context was lost: the next upload of each array must be whole. */
-  tex.lost = () => {
-    for (const a of arrays) a.clearLayerUpdates();
-    onGpu.fill(false);
-  };
-  /** Layers come, waiting for flush() (a cached load brings all 14 at once: 11 MB to upload). */
-  const waiting = [];
-  /**
-   * Send up to `most` layers that came to the GPU's arrays (at the next
-   * draw): the owner calls it once a frame, so a cached load uploads its
-   * layers over a few frames, not in one long one. Returns how many went.
-   */
-  tex.flush = (most = 4) => {
-    const n = Math.min(most, waiting.length);
-    for (const i of waiting.splice(0, n)) {
-      arrays.forEach((a, k) => {
-        if (onGpu[k]) a.addLayerUpdate(i);
-        a.needsUpdate = true;
-      });
-      if (tex.onLayer) tex.onLayer(i);
-    }
-    return n;
-  };
-  /** How many layers came and wait for flush(). */
-  tex.pendingLayers = () => waiting.length;
-  const off = src.listen((i) => waiting.push(i));
-  const free = tex.dispose;
-  tex.dispose = function dispose() {
-    off();
-    free.call(this);
+  const tex = { albedo: make(true), normal: make(false), orm: make(false), size, count, ready: true };
+  tex.dispose = () => {
+    tex.albedo.dispose();
+    tex.normal.dispose();
+    tex.orm.dispose();
   };
   return tex;
 }

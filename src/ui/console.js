@@ -8,8 +8,7 @@
  */
 
 import { h } from './dom.js';
-import { cacheStats, clearCache } from '../render3d/paint/cache.js';
-import { paintPool } from '../render3d/paint/pool.js';
+import { painterFor } from '../render3d/paint/painter.js';
 import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
 import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
@@ -89,7 +88,7 @@ export const CONSOLE_HELP = [
   ['snow <0-3>', 'Set the snow lying on the ground (0 none .. 3 deep); it melts again by itself'],
   ['sky <0-1>|off', 'Freeze the time of day (0.3 noon, 0.67 sunset, 0.8 night) or let it run'],
   ['ground [auto|high|low|off]', 'The WebGL renderer\'s ground: 3D at high or low quality, or flat sprites (off), to compare'],
-  ['textures [clear]', 'The 3D textures: how many are in, read from the browser\'s cache or painted by the workers; clear forgets the kept ones'],
+  ['textures', 'The 3D textures, painted on the GPU: whether the ground\'s layers are in, and what painting them cost'],
   ['music [on|off|next]', 'Music status, switch it, or skip to a new piece'],
   ['music tracks', 'List the music tracks (and the moods they play in)'],
   ['music play <track>', 'Play a track now, by name (e.g. music play prima lux)'],
@@ -580,19 +579,14 @@ export class DebugConsole {
         return `Ground: ${be.groundMode}${mode === 'auto' ? ' (auto)' : ''}. Settings > Ground keeps the choice for next time.`;
       }
       case 'textures': {
-        // The procedural 3D textures: where they came from, and forgetting the ones kept in the browser.
-        const sub = (args[0] || '').toLowerCase();
-        if (sub === 'clear') {
-          clearCache().then((ok) => this.print(ok ? 'Kept textures forgotten: the next load paints them again.' : 'No texture cache here (storage blocked, or an unbuilt page).'));
-          return 'Clearing the kept textures...';
-        }
-        if (sub) throw new Error('usage: textures [clear]');
-        const s = cacheStats;
-        const pool = paintPool();
-        const gp = app.renderer.backend.groundPass;
-        const ground = gp ? `ground ${gp.layers.count}/${GROUND_LAYERS.length} layers in (${gp.layers.cached} from the cache)` : 'no 3D ground';
-        return `Textures: ${ground}; cache ${s.enabled ? 'on' : 'off'} (${s.hits} read, ${s.misses} missed, ${s.writes} kept); `
-          + `${pool.started} workers started (up to ${pool.size}), ${pool.onPage} painted on the page. (textures clear)`;
+        // The procedural 3D textures, painted on the GPU: whether the ground's are in, and what painting cost.
+        const be = app.renderer.backend;
+        const gp = be.groundPass;
+        if (!gp) return 'Textures: no 3D ground (the WebGL renderer with ground high or low paints them).';
+        const s = painterFor(be.gl).stats;
+        const ground = gp.texturesReady ? `ground ${GROUND_LAYERS.length}/${GROUND_LAYERS.length} layers in, ${Math.round(gp.loadMs)} ms after the ground started` : 'ground layers painting';
+        return `Textures: ${ground}; ${s.textures} painted on the GPU by ${s.programs} programs `
+          + `(compiled in ${Math.round(s.compileMs)} ms, the page busy ${s.submitMs.toFixed(1)} ms sending them).`;
       }
       case 'music': {
         const mu = app.music;

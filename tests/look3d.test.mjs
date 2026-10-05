@@ -5,8 +5,9 @@
  *
  * The look lab (src/dev/lab.js) is judged by eye; these hold what the eye
  * cannot check every time:
- *   - procedural textures tile (no seam where a texture repeats) and stay
- *     in the range of real materials
+ *   - the CPU's noise (the models' shapes) tiles; a read-back height field
+ *     samples as the GPU's texture does (the textures themselves are
+ *     painted on the GPU: texpaint.test.mjs, and the smoke test's lab)
  *   - turned geometry closes its seam; blocks of a course are not alike
  *   - the new well fits its tile, stands on the street, keeps its budget
  *   - the game camera draws a tile as many px as the 2D art does, and the
@@ -24,63 +25,32 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import { Box3, Vector3, OrthographicCamera } from 'three';
-import { gnoise, fbm, voronoi, Field, normalMap } from '../src/render3d/texgen.js';
-import { SURFACES, makeSurface } from '../src/render3d/surfaces.js';
+import { gnoise, fbm, Field } from '../src/render3d/texgen.js';
 import { revolve, profileOf, block } from '../src/render3d/shapes.js';
 import { LOOK } from '../src/render3d/materials.js';
 import { buildWell, WELL } from '../src/render3d/models/well.js';
 import { gameCamera, sunDirection, MOODS, TILE_M } from '../src/render3d/look.js';
 import { BACK } from '../src/render3d/projection.js';
 import { HALF_W, HALF_H } from '../src/config.js';
-import { bundleTexWorker } from '../scripts/texWorker.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Small textures: the tests check structure, not sharpness, and stay fast.
 LOOK.textureScale = 0.125;
 
-test('look3d: noise and cells tile across the texture edge', () => {
+test('look3d: the noise tiles across its period; a read-back height samples between pixels and wraps', () => {
   for (const [x, y] of [[0.3, 0.7], [2.9, 0.1], [5.5, 3.25]]) {
     assert.ok(Math.abs(gnoise(x, y, 6, 4, 9) - gnoise(x + 6, y - 4, 6, 4, 9)) < 1e-9);
   }
   for (const [u, v] of [[0.01, 0.5], [0.37, 0.99], [0.8, 0.02]]) {
     assert.ok(Math.abs(fbm(u, v, 5, 4, 3) - fbm(u + 1, v - 1, 5, 4, 3)) < 1e-9, 'fbm repeats every texture');
-    const a = voronoi(u, v, 9, 4, 1, {});
-    const b = voronoi(u + 1, v + 1, 9, 4, 1, {});
-    assert.equal(a.id, b.id);
-    assert.ok(Math.abs(a.edge - b.edge) < 1e-9);
-    assert.ok(a.edge >= -1e-9, 'a point lies inside its own cell');
   }
-});
-
-test('look3d: a flat height field makes a flat normal map', () => {
-  const f = new Field(16).fill(() => 0.4);
-  const n = normalMap(f, 0.01);
-  for (let i = 0; i < n.length; i += 4) assert.deepEqual([n[i], n[i + 1], n[i + 2]], [128, 128, 255]);
-});
-
-test('look3d: every surface makes its maps, with albedo and roughness of real materials', () => {
-  for (const name of Object.keys(SURFACES)) {
-    const m = makeSurface(name, undefined, 0.125);
-    const size = Math.max(32, Math.round(SURFACES[name].size * 0.125));
-    assert.equal(m.size, size, name);
-    assert.equal(m.albedo.length, size * size * 4, name);
-    assert.equal(m.normal.length, size * size * 4, name);
-    assert.equal(m.metres, SURFACES[name].metres);
-    if (name === 'ripples') continue; // only a normal map
-    let lum = 0;
-    let rough = 0;
-    for (let i = 0; i < m.albedo.length; i += 4) {
-      const lin = (c) => Math.pow(c / 255, 2.2);
-      lum += 0.2126 * lin(m.albedo[i]) + 0.7152 * lin(m.albedo[i + 1]) + 0.0722 * lin(m.albedo[i + 2]);
-      rough += m.orm[i + 1] / 255;
-    }
-    lum /= size * size;
-    rough /= size * size;
-    assert.ok(lum > 0.02 && lum < 0.8, `${name}: mean albedo ${lum.toFixed(3)} (linear) is not a real material's`);
-    assert.ok(rough > 0.2 && rough <= 1, `${name}: mean roughness ${rough.toFixed(2)}`);
-  }
-  assert.ok(makeSurface('basalt', undefined, 0.125).height, 'the paving keeps the height its mesh is displaced by');
+  // A 4 x 4 height: pixel centres at (x + 0.5) / 4, as on the GPU; halfway between two pixels, their mean.
+  const f = Field.wrap(4, new Float32Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]));
+  assert.equal(f.sample(0.125, 0.125), 0);
+  assert.equal(f.sample(0.25, 0.125), 0.5);
+  assert.equal(f.sample(0.125, 0.25), 2);
+  assert.equal(f.sample(0, 0.125), 1.5, 'wraps: halfway between the last pixel and the first');
 });
 
 test('look3d: a revolved shape has no seam; blocks of a course differ', () => {
@@ -153,7 +123,7 @@ test('look3d: the game camera draws a tile as the 2D art does, and the sun keeps
   }
 });
 
-test('look3d: the lab builds into one page with nothing to fetch', async () => {
+test('look3d: the lab builds into one page with nothing to fetch', () => {
   const out = path.join(os.tmpdir(), `colonia-lab-test-${process.pid}.html`);
   execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'build.mjs'), '--lab', '--out', out], { stdio: 'pipe' });
   const html = fs.readFileSync(out, 'utf8');
@@ -164,8 +134,4 @@ test('look3d: the lab builds into one page with nothing to fetch', async () => {
   assert.doesNotMatch(html, /<link[^>]+href=/, 'no outside stylesheets or fonts');
   assert.ok(!html.includes('<!--LAB_SCRIPT-->'), 'the bundle went in');
   assert.ok(html.length > 300000 && html.length < 3000000, `size ${html.length}`);
-  // The paint pool's worker is inlined, with the recipes' version that keys the texture cache.
-  const { version } = await bundleTexWorker(await import('esbuild'));
-  assert.ok(html.includes(`"${version}"`), 'the recipes\' version is in the page');
-  assert.ok(!/__TEX_WORKER__|__TEX_RECIPES__/.test(html), 'both defines replaced');
 });

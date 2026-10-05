@@ -84,7 +84,7 @@ export function labGroundMap() {
 
 /**
  * Make the Ground scene's ground on painted textures `tex`
- * (groundTextures.js groundArrays). Returns { ground, setSky }.
+ * (groundTextures.js groundTextures). Returns { ground, setSky }.
  */
 export function buildGroundScene(tex, quality = 'high') {
   const { map, scrub, farm } = labGroundMap();

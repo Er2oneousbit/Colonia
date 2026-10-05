@@ -17,6 +17,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const args = process.argv.slice(2);
@@ -3903,14 +3905,13 @@ try {
         return { well: { id: w.id, x: w.x, y: w.y }, open };
       });
       await gq.waitForFunction(() => window.colonia.renderer.stats.ground === 'low', null, { timeout: 60000 }).catch(() => {});
-      // The ground draws from stand-ins at once; its painted layers come from the paint pool's
-      // workers (each one redraws Low's kept picture, so wait for all before judging a still view).
+      // The ground's layers are painted on the GPU (here SwiftShader's) before the ground draws.
       await gq.waitForFunction(() => window.colonia.renderer.stats.groundTexReady, null, { timeout: 60000 }).catch(() => {});
       const painted = await gq.evaluate(() => {
         const r = window.colonia.renderer;
-        return { ready: r.stats.groundTexReady, cached: r.stats.groundTexCached, layers: r.backend.groundPass.layers.count, out: window.colonia.ui.console.run('textures') };
+        return { ready: r.stats.groundTexReady, ground: r.stats.ground, out: window.colonia.ui.console.run('textures') };
       });
-      check('3D ground: its texture layers are painted in the workers and all go in', painted.ready === true && painted.layers === 14 && /14\/14 layers in/.test(painted.out), JSON.stringify(painted));
+      check('3D ground: its texture layers are painted on the GPU before it draws', painted.ready === true && /14\/14 layers in/.test(painted.out) && /14 painted on the GPU/.test(painted.out), JSON.stringify(painted));
       await gq.waitForTimeout(500);
       const lowDrawn = await gq.evaluate(() => {
         const r = window.colonia.renderer;
@@ -3982,6 +3983,38 @@ try {
       check('3D ground: "ground off" goes back to the flat sprites', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50, JSON.stringify(off));
       check('3D ground: no page errors', qerrors.length === 0, qerrors.join(' | '));
       await gq.close();
+
+      // 8c. The look lab (src/dev/lab.js), built here, its textures painted on the GPU (smaller:
+      //     ?texscale): every one in the range of a real material, the ground's layers tiling with
+      //     their height in the alpha, the paving's height read back, and all of them painted
+      //     again, the same, after a lost WebGL context.
+      const labFile = path.join(os.tmpdir(), `colonia-lab-smoke-${process.pid}.html`);
+      execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'build.mjs'), '--lab', '--out', labFile], { stdio: 'pipe' });
+      const lp = await glBrowser.newPage({ viewport: { width: 960, height: 600 } });
+      const lerrors = [];
+      lp.on('pageerror', (e) => lerrors.push(`pageerror: ${e.message}`));
+      lp.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) lerrors.push(m.text()); });
+      try {
+        await lp.goto(`${pathToFileURL(labFile).href}?texscale=0.25`);
+        await lp.waitForFunction(() => window.__lab && window.__lab.timings.firstFrame, null, { timeout: 120000 });
+        const rep1 = await lp.evaluate(() => window.__lab.textureReport());
+        const bad = Object.entries(rep1).filter(([k, v]) => {
+          if (k === 'pavingHeight') return !(v > 0);
+          if (/ripples/.test(k)) return v.flat < 200; // (only a normal map)
+          const real = v.lum > 0.02 && v.lum < 0.8 && v.rough > 0.2 && v.rough <= 1;
+          if (k.startsWith('ground.')) return !real || v.alpha[0] !== 0 || v.alpha[1] !== 255 || !v.seamless;
+          return !real || v.alpha[0] !== 255;
+        });
+        check('look lab: every texture painted on the GPU is a real material\'s, the ground\'s tile with their height in the alpha', Object.keys(rep1).length === 29 && bad.length === 0, JSON.stringify(bad.length ? bad : Object.keys(rep1).length));
+        const repainted = await lp.evaluate(() => window.__lab.loseContext());
+        const rep2 = await lp.evaluate(() => window.__lab.textureReport());
+        const changed = Object.keys(rep1).filter((k) => JSON.stringify(rep1[k]) !== JSON.stringify(rep2[k]));
+        check('look lab: a lost WebGL context paints every texture again, the same', repainted >= 28 && changed.length === 0, JSON.stringify({ repainted, changed }));
+        check('look lab: no page errors', lerrors.length === 0, lerrors.join(' | '));
+      } finally {
+        await lp.close();
+        fs.rmSync(labFile, { force: true });
+      }
     } finally {
       await glBrowser.close();
     }
