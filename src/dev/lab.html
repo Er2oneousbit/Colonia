@@ -64,6 +64,18 @@ canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: 
 .paintbar { position: absolute; left: 0; top: 0; height: 3px; width: 0; background: var(--accent); pointer-events: none;
   transition: width 0.15s, opacity 0.8s; }
 .paintbar.done { opacity: 0; }
+.group select { appearance: none; border: 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); background: transparent;
+  color: var(--text); font: inherit; font-size: 13px; padding: 8px 12px; max-width: 46vw; }
+.group select option { background: var(--panel); color: var(--text); }
+.cardlabels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.cardlabel { position: absolute; left: 0; top: 0; padding: 4px 9px 5px; border-radius: 8px; background: rgba(20, 16, 12, 0.72);
+  color: #f3ead8; font-size: 12px; line-height: 1.3; text-align: center; white-space: nowrap; margin-top: -6px; }
+.cardlabel b { display: block; font-size: 13px; font-weight: 650; }
+.cardlabel span { opacity: 0.8; }
+.cardlabel.on { background: rgba(176, 120, 40, 0.88); }
+.cardlabels.compact .cardlabel { padding: 2px 6px; font-size: 11px; }
+.cardlabels.compact .cardlabel b { font-size: 11px; }
+.cardlabels.compact .cardlabel span { display: none; }
 @media (max-width: 560px) {
   .group button { padding: 8px 9px; font-size: 12px; }
   .group button kbd { display: none; }

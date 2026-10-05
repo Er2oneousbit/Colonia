@@ -6,7 +6,9 @@
  * the bar for the game's 3D art before it goes into the game; and the
  * Ground scene (labGround.js): every kind of the game's 3D ground side by
  * side, drawn by the game's own ground material (render3d/ground/), with
- * its seasons, snow and rain.
+ * its seasons, snow and rain; and the Ground types view (labGallery.js):
+ * every kind of ground the game can show on its own labelled card, to be
+ * judged one by one.
  *
  * Built into one self-contained page: node scripts/build.mjs --lab --out <file>
  *
@@ -23,8 +25,9 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'), setSeason(name), setSnow(0..3), setWet(on),
- * aimAt(x, z).
+ * setScene('well'|'ground'|'types'), setSeason(name), setSnow(0..3),
+ * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
+ * index), overview().
  * ----------------------------------------------------------------------------
  */
 
@@ -44,6 +47,7 @@ import { groundTextures } from '../render3d/ground/groundTextures.js';
 import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
 import { painterFor } from '../render3d/paint/painter.js';
 import { buildGroundScene } from './labGround.js';
+import { buildGallery } from './labGallery.js';
 import { mapStats } from './texReport.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
@@ -95,8 +99,8 @@ const GROUND_INFO = `
 <p>Every kind of ground on the game's maps, side by side on a patch of 24 by 24 tiles, drawn by the same material as the game's
 WebGL renderer: <b>pasture</b> (short grazed grass, bare earth between), <b>meadow</b> (the fertile land farms need: lush, combed by
 the wind, with flowers), <b>scrub</b> (the garrigue of dry grass far from water: pale stony soil and cushions of thyme and kermes oak),
-<b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's ploughed
-<b>soil</b>, and under the water a river's silt or the sea's sand.</p>
+<b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's field of
+<b>wheat</b> (every farm and stage: the Ground types view, Y), and under the water a river's silt or the sea's sand.</p>
 <p>What people laid on it: an ordinary road is gravel rammed into the earth (a <i>via glareata</i>, the provinces' common road), with
 a worn verge; a town's streets are paved with polygonal basalt between limestone kerbs, as Pompeii's and the Via Appia were (in the game, a road with a building beside it); a
 forum's plaza is travertine flagstones in courses; a fallen house leaves rubble of stone, roof tile and ash.</p>
@@ -104,9 +108,27 @@ forum's plaza is travertine flagstones in courses; a fallen house leaves rubble 
 ripples, the sky in it and foam lapping at the shore. Where two kinds meet, the higher one's bumps win, so the edges wander.</p>
 <h3>Controls</h3>
 <ul>
-<li>W: the well and its street; R: the ground. 1 to 4: day, golden hour, night, winter.</li>
+<li>W: the well and its street; R: the ground; Y: the ground's types one by one. 1 to 4: day, golden hour, night, winter.</li>
 <li>Spring, summer, autumn, winter: the season's colour on what grows. N: snow lying (none to deep). T: rain (wet ground, puddles).</li>
 <li>M: the game's middle zoom, G: its closest, Z: twice that, O: orbit. Q / E: turn the view.</li>
+</ul>`;
+
+const TYPES_INFO = `
+<button class="close" type="button" aria-label="Close">Close</button>
+<h2>Ground types</h2>
+<p>Every kind of ground the game can show, each on its own card with its edges against what it meets in the game, drawn by the
+game's own ground material. Buildings, trees, rocks and farmhouses are sprites in the game and are not drawn here: the cards show
+the ground they stand on.</p>
+<p>Nature's ground: pasture, meadow, scrub, the forest floor, rocky ground, dune sand, a beach on the open sea, a river and its
+banks, a pond. What people made: a country road of gravel, a town's basalt street, a plaza's flagstones, a road across every kind of
+ground, a bridge's river, building yards, the footing of a wall and an aqueduct, rubble, a burned ruin (and one still burning), a
+native village's plots. Farms: wheat, vegetables and flax from ploughed to ripe and resting in winter, an orchard, an olive grove and a
+vineyard, a pig pen and a horse paddock, fields left idle and a farm turned a quarter.</p>
+<h3>Controls</h3>
+<ul>
+<li>[ and ]: the card before or after; the list picks one; V: all the cards at once (overview).</li>
+<li>Spring, summer, autumn, winter; N: snow lying (none to deep); T: rain. 1 to 4: day, golden hour, night, winter.</li>
+<li>M: the game's middle zoom, G: its closest, Z: twice that. Q / E: turn the view.</li>
 </ul>`;
 
 function el(tag, attrs = {}, html = '') {
@@ -216,8 +238,14 @@ async function main() {
   const groundGroup = gs.ground.group;
   groundGroup.visible = false;
   scene.add(groundGroup);
+  // The Ground types view: every kind on its own card (the same material, so the same program).
+  const gal = buildGallery(groundTex, 'high');
+  const galGroup = gal.ground.group;
+  galGroup.visible = false;
+  scene.add(galGroup);
+  const grounds = [gs.ground, gal.ground];
 
-  const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false };
+  const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false, card: 0, overview: false };
   /** The scene last asked for, and the wait for the Ground scene's program (setScene). */
   let wantScene = 'well';
   let sceneWait = null;
@@ -227,7 +255,8 @@ async function main() {
   /** Where the world fades into the backdrop: past the well's 3 x 3 tile patch, or the ground's 24 x 24. */
   function setFade() {
     if (state.scene === 'well') LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
-    else LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
+    else if (state.scene === 'ground') LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
+    else LOOK.uniforms.uLookFade.value.set(0, 0, 1e5, 2e5);
   }
   setFade();
 
@@ -238,7 +267,7 @@ async function main() {
   const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
   const fillInfo = () => {
-    info.innerHTML = state.scene === 'well' ? INFO : GROUND_INFO;
+    info.innerHTML = state.scene === 'well' ? INFO : state.scene === 'ground' ? GROUND_INFO : TYPES_INFO;
     info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
   };
   fillInfo();
@@ -254,7 +283,7 @@ async function main() {
       return b;
     });
   };
-  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Ground', 'R', () => setScene('ground')]]);
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')]]);
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
@@ -262,26 +291,53 @@ async function main() {
   const seasonBtns = group(Object.entries(SEASONS).map(([k, v]) => [v.label, '', () => setSeason(k)]));
   const snowBtns = group(SNOW_COVER.map((c, i) => [i ? `Snow ${i}` : 'No snow', i ? '' : 'N', () => setSnow(i)]));
   const wetBtns = group([['Rain', 'T', () => setWet(!state.wet)]]);
+  // The Ground types' own: the card before, the list, the card after, all of them.
+  const cardBar = el('div', { class: 'group' });
+  const prevBtn = el('button', { type: 'button' }, 'Previous<kbd>[</kbd>');
+  const pick = el('select', { 'aria-label': 'Ground type' });
+  gal.cards.forEach((c, i) => pick.appendChild(el('option', { value: String(i) }, c.name)));
+  const nextBtn = el('button', { type: 'button' }, 'Next<kbd>]</kbd>');
+  const allBtn = el('button', { type: 'button' }, 'All<kbd>V</kbd>');
+  prevBtn.addEventListener('click', () => setCard(state.card - 1));
+  nextBtn.addEventListener('click', () => setCard(state.card + 1));
+  allBtn.addEventListener('click', () => overview());
+  pick.addEventListener('change', () => setCard(Number(pick.value)));
+  cardBar.append(prevBtn, pick, nextBtn, allBtn);
+  bar.appendChild(cardBar);
   const groundBars = [seasonBtns, snowBtns, wetBtns].map((b) => b[0].parentElement);
+  // Labels over the cards, kept on them as the view moves.
+  const labels = el('div', { class: 'cardlabels' });
+  app.appendChild(labels);
+  const labelEls = gal.cards.map((c) => {
+    const e = el('div', { class: 'cardlabel' }, `<b>${c.name}</b><span>${c.note}</span>`);
+    labels.appendChild(e);
+    return e;
+  });
   group([['About', 'I', () => info.classList.toggle('open')]]);
 
   function refreshButtons() {
-    ['well', 'ground'].forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
+    ['well', 'ground', 'types'].forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
     Object.keys(MOODS).forEach((k, i) => moodBtns[i].setAttribute('aria-pressed', String(k === state.mood)));
     Object.keys(VIEWS).forEach((k, i) => viewBtns[i].setAttribute('aria-pressed', String(k === state.view)));
     Object.keys(SEASONS).forEach((k, i) => seasonBtns[i].setAttribute('aria-pressed', String(k === state.season)));
     snowBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === state.snow)));
     wetBtns[0].setAttribute('aria-pressed', String(state.wet));
-    for (const g of groundBars) g.style.display = state.scene === 'ground' ? '' : 'none';
+    for (const g of groundBars) g.style.display = state.scene === 'well' ? 'none' : '';
+    cardBar.style.display = state.scene === 'types' ? '' : 'none';
+    labels.style.display = state.scene === 'types' ? '' : 'none';
+    pick.value = String(state.card);
+    allBtn.setAttribute('aria-pressed', String(state.overview));
   }
 
   /** The ground's season and weather, and the well's snow with it in the Ground scene. */
   function applyGround() {
     const snow = gs.groundSnow(SNOW_COVER[state.snow]);
-    gs.ground.setSky({ season: SEASONS[state.season].pos, snow, wet: state.wet ? 1 : 0, rain: state.wet ? 1 : 0, time: LOOK.uniforms.uLookTime.value });
     const m = MOODS[state.mood];
-    gs.ground.setReflection(m.water, m.waterRefl, m.lamps ? 0 : m.sun.elev < 15 ? 0.6 : 1);
-    if (state.scene === 'ground') {
+    for (const g of grounds) {
+      g.setSky({ season: SEASONS[state.season].pos, snow, wet: state.wet ? 1 : 0, rain: state.wet ? 1 : 0, time: LOOK.uniforms.uLookTime.value });
+      g.setReflection(m.water, m.waterRefl, m.lamps ? 0 : m.sun.elev < 15 ? 0.6 : 1);
+    }
+    if (state.scene !== 'well') {
       LOOK.uniforms.uLookSnow.value = Math.max(m.snow, snow);
       LOOK.uniforms.uLookWet.value = Math.max(m.wet, state.wet ? 1 : 0);
     } else {
@@ -293,16 +349,20 @@ async function main() {
     // (The Ground scene's program is compiled after the well's: wait for it rather than stall on it.
     // The night's too: a mood or a scene asked for meanwhile waits a moment.)
     wantScene = name;
-    if (name === 'ground' && !timings.groundCompiled) {
+    if (name !== 'well' && !timings.groundCompiled) {
       if (!sceneWait) sceneWait = warm.later.catch(() => {}).then(() => { timings.groundCompiled ||= performance.now(); setScene(wantScene); });
       return;
     }
     state.scene = name;
-    const g = name === 'ground';
+    const g = name !== 'well';
     street.group.visible = !g;
     woman.visible = !g;
     man.visible = !g;
-    groundGroup.visible = g;
+    well.group.visible = name !== 'types';
+    groundGroup.visible = name === 'ground';
+    galGroup.visible = name === 'types';
+    if (name === 'types') aimCard();
+    else if (target.x > 100) target.set(0, 0.4, 0);
     for (const l of look.lamps) l.set(MOODS[state.mood].lamps);
     setFade();
     fillInfo();
@@ -325,6 +385,56 @@ async function main() {
     refreshButtons();
   }
 
+  /** Aim at the card picked (or, in the overview, at the middle of them all, at the middle zoom). */
+  function aimCard() {
+    if (state.overview) {
+      const c = gal.centre({ x: 0, y: 0, w: gal.map.w, h: gal.map.h });
+      target.set(c[0], 0.4, c[1]);
+    } else {
+      const c = gal.centre(gal.cards[state.card]);
+      target.set(c[0], 0.4, c[1]);
+    }
+    aim();
+    refreshButtons();
+  }
+  function setCard(k) {
+    const n = gal.cards.length;
+    const i = typeof k === 'string' ? gal.cards.findIndex((c) => c.id === k) : k;
+    state.card = ((i % n) + n) % n;
+    state.overview = false;
+    if (state.view === 'wide' || state.view === 'orbit') setView('game1');
+    aimCard();
+  }
+  function overview() {
+    setView('wide');
+    state.overview = true;
+    aimCard();
+  }
+  /** Keep each card's label over the middle of its top edge (the overview shows them all). */
+  const lp = new Vector3();
+  function placeLabels() {
+    if (state.scene !== 'types') return;
+    // (In the overview the names only: the notes would cover each other.)
+    labels.classList.toggle('compact', state.overview);
+    const cam = state.view === 'orbit' ? persp : ortho;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    gal.cards.forEach((c, i) => {
+      // Over the card's corner highest on the screen (which one depends on the view's turn).
+      let best = null;
+      for (const [x, z] of gal.corners(c)) {
+        lp.set(x, 0, z).project(cam);
+        if (!best || lp.y > best.y) best = lp.clone();
+      }
+      lp.copy(best);
+      const e = labelEls[i];
+      const on = lp.z < 1 && Math.abs(lp.x) < 1.1 && Math.abs(lp.y) < 1.1;
+      e.style.display = on ? '' : 'none';
+      if (on) e.style.transform = `translate(${((lp.x + 1) / 2) * w}px, ${((1 - lp.y) / 2) * h}px) translate(-50%, -100%)`;
+      e.classList.toggle('on', i === state.card && !state.overview);
+    });
+  }
+
   function aim() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
@@ -332,7 +442,9 @@ async function main() {
       persp.aspect = w / h;
       persp.updateProjectionMatrix();
     } else {
-      gameCamera(ortho, { width: w, height: h, zoom: VIEWS[state.view].zoom, turn: state.turn, target });
+      // (The Ground types' overview: far enough out to see every card.)
+      const zoom = state.scene === 'types' && state.overview ? GAME_ZOOM / 6 : VIEWS[state.view].zoom;
+      gameCamera(ortho, { width: w, height: h, zoom, turn: state.turn, target });
     }
   }
 
@@ -354,6 +466,14 @@ async function main() {
   }
   function setView(name) {
     state.view = name;
+    // (A zoom asked for leaves the overview, back to the card picked.)
+    if (state.overview) {
+      state.overview = false;
+      if (state.scene === 'types') {
+        const c = gal.centre(gal.cards[state.card]);
+        target.set(c[0], 0.4, c[1]);
+      }
+    }
     controls.enabled = name === 'orbit';
     look.setCamera(name === 'orbit' ? persp : ortho);
     aim();
@@ -384,6 +504,10 @@ async function main() {
     else if (k === 'm') setView('wide');
     else if (k === 'w') setScene('well');
     else if (k === 'r') setScene('ground');
+    else if (k === 'y') setScene('types');
+    else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
+    else if (k === ']' && state.scene === 'types') setCard(state.card + 1);
+    else if (k === 'v' && state.scene === 'types') overview();
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
@@ -471,7 +595,7 @@ async function main() {
     const wm = waterMaterial();
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
-    gs.ground.material.userData.ground.uGTime.value = t;
+    for (const g of grounds) g.material.userData.ground.uGTime.value = t;
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
     if (lit) {
@@ -488,6 +612,7 @@ async function main() {
     life(now);
     const c0 = performance.now();
     look.render(dt);
+    placeLabels();
     cpu = cpu * 0.9 + (performance.now() - c0) * 0.1;
     if (!timings.firstFrame) {
       timings.firstFrame = performance.now();
@@ -522,7 +647,7 @@ async function main() {
   lampsCast(false);
   const warm = look.warm(ortho, {
     mood: 'day',
-    later: [groundGroup],
+    later: [groundGroup, galGroup],
     variants: [() => {
       lampsCast(true);
       return () => lampsCast(look.lamps[0].on > 0);
@@ -563,9 +688,27 @@ async function main() {
     /** When the first frame was drawn and the well's and the ground's textures were all in (performance.now()). */
     timings,
     setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
+    gallery: gal.ground, cards: gal.cards.map((c) => ({ id: c.id, name: c.name, note: c.note })), setCard, overview,
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */
+    /** A ground layer's map (albedo, normal or orm) as a PNG data URL, 2 x 2 repeats: to judge a texture and its tiling by eye. */
+    layerImage(name, which = 'albedo') {
+      const i = GROUND_LAYERS.findIndex((l) => l.name === name);
+      const bytes = painterFor(look.renderer).readPixels(groundTex.out[which], i);
+      const n = groundTex.size;
+      const c = document.createElement('canvas');
+      c.width = n * 2;
+      c.height = n * 2;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(n, n);
+      for (let k = 0; k < n * n; k++) {
+        for (let ch = 0; ch < 3; ch++) img.data[k * 4 + ch] = bytes[k * 4 + ch];
+        img.data[k * 4 + 3] = 255;
+      }
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) ctx.putImageData(img, x * n, y * n);
+      return c.toDataURL('image/png');
+    },
     textureReport() {
       const painter = painterFor(look.renderer);
       const read = (out, layer) => ({ albedo: painter.readPixels(out.albedo, layer), orm: painter.readPixels(out.orm, layer), normal: painter.readPixels(out.normal, layer) });
@@ -604,6 +747,8 @@ async function main() {
       controls.update();
     },
     look,
+    /** The look's shared uniforms (to switch the AO off when judging a texture). */
+    uniforms: LOOK.uniforms,
   };
 }
 

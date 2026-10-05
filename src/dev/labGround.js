@@ -14,7 +14,7 @@
  *   x 14          a gravelled road south from it, a branch west at row 17
  *   west of it    bands of forest floor, pasture, meadow, and the well on
  *                 grass at the middle (tile 12, 12); south of the branch
- *                 rocks, dry scrub, a farm's soil, dune sand
+ *                 rocks, dry scrub, a wheat field nearly ripe, dune sand
  *   east of it    a forum's flagstones, rubble of a fallen house, meadow
  *   x 18-20       a river from the sea to the map's far edge, a bend in it
  *   beyond        a limestone outcrop, the river's meadows, sand
@@ -26,7 +26,7 @@
 
 import { GameMap, Terrain, Road } from '../world/map.js';
 import { Ground, groundSnow } from '../render3d/ground/ground.js';
-import { KIND, WATER_KIND } from '../render3d/ground/groundMap.js';
+import { KIND, WATER_KIND, SITE, siteWord } from '../render3d/ground/groundMap.js';
 
 export const GROUND_N = 24;
 /** Where the map's tile (0, 0) corner lies (metres): tile (12, 12)'s middle at the origin. */
@@ -88,10 +88,18 @@ export function labGroundMap() {
  */
 export function buildGroundScene(tex, quality = 'high') {
   const { map, scrub, farm } = labGroundMap();
+  // The farm: a wheat field three tiles wide, nearly ripe (its plot's place in a 3 x 3 footprint).
+  const fx = (i) => map.xOf(i) - 8;
+  const fy = (i) => (map.yOf(i) - 18) % 3;
   const ground = new Ground(map, tex, {
     quality,
     scale: 4,
-    farmAt: (i) => !!farm[i],
+    hooks: {
+      farmAt: (i) => !!farm[i],
+      buildingAt: (i) => !!farm[i],
+      siteAt: (i) => (farm[i] ? siteWord(SITE.GRAIN, 0.75, 0, 3, fx(i), fy(i), 0) : 0),
+      ownerAt: (i) => (farm[i] ? 1 + Math.floor((map.yOf(i) - 18) / 3) : 0),
+    },
     kindHook: (i, k) => (scrub[i] && k === KIND.GRASS ? KIND.SCRUB : k),
     // The patch's sea is too small to be deep: it is the open sea all the same.
     waterHook: (i, w) => (w && map.yOf(i) <= 6 ? WATER_KIND.SEA : w),

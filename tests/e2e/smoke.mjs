@@ -19,6 +19,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { GROUND_LAYERS } from '../../src/render3d/ground/groundSurfaces.js';
+import { SURFACES } from '../../src/render3d/surfaces.js';
+
+/** How many textures the GPU paints: the ground's layers, and the look's surfaces with them in the lab. */
+const N_GROUND = GROUND_LAYERS.length;
+const N_TEXTURES = N_GROUND + Object.keys(SURFACES).length;
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const args = process.argv.slice(2);
@@ -3926,7 +3932,7 @@ try {
         const r = window.colonia.renderer;
         return { ready: r.stats.groundTexReady, ground: r.stats.ground, out: window.colonia.ui.console.run('textures') };
       });
-      check('3D ground: its texture layers are painted on the GPU before it draws', painted.ready === true && /14\/14 layers in/.test(painted.out) && /14 painted on the GPU/.test(painted.out), JSON.stringify(painted));
+      check('3D ground: its texture layers are painted on the GPU before it draws', painted.ready === true && new RegExp(`${N_GROUND}/${N_GROUND} layers in`).test(painted.out) && new RegExp(`${N_GROUND} painted on the GPU`).test(painted.out), JSON.stringify(painted));
       await gq.waitForTimeout(500);
       const lowDrawn = await gq.evaluate(() => {
         const r = window.colonia.renderer;
@@ -4027,11 +4033,11 @@ try {
           if (k.startsWith('ground.')) return !real || v.alpha[0] !== 0 || v.alpha[1] !== 255 || !v.seamless;
           return !real || v.alpha[0] !== 255;
         });
-        check('look lab: every texture painted on the GPU is a real material\'s, the ground\'s tile with their height in the alpha', Object.keys(rep1).length === 29 && bad.length === 0, JSON.stringify(bad.length ? bad : Object.keys(rep1).length));
+        check('look lab: every texture painted on the GPU is a real material\'s, the ground\'s tile with their height in the alpha', Object.keys(rep1).length === N_TEXTURES + 1 && bad.length === 0, JSON.stringify(bad.length ? bad : Object.keys(rep1).length));
         const repainted = await lp.evaluate(() => window.__lab.loseContext());
         const rep2 = await lp.evaluate(() => window.__lab.textureReport());
         const changed = Object.keys(rep1).filter((k) => JSON.stringify(rep1[k]) !== JSON.stringify(rep2[k]));
-        check('look lab: a lost WebGL context paints every texture again, the same', repainted >= 28 && changed.length === 0, JSON.stringify({ repainted, changed }));
+        check('look lab: a lost WebGL context paints every texture again, the same', repainted >= N_TEXTURES && changed.length === 0, JSON.stringify({ repainted, changed }));
         check('look lab: no page errors', lerrors.length === 0, lerrors.join(' | '));
       } finally {
         await lp.close();

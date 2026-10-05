@@ -47,7 +47,7 @@
  *
  * Start-up never stalls the game: the texture arrays are painted on the
  * GPU (groundTextures.js, paint/painter.js: their programs compiled in the
- * background, the 14 layers then sent in one go, about 12 ms of the page's
+ * background, the 20 layers then sent in one go, about 12 ms of the page's
  * time), and the ground's shader (a big one: compiled at its first draw it
  * froze a desktop for 2 s on ANGLE's D3D11) is compiled in the background
  * too (compileAsync, the KHR_parallel_shader_compile extension) as soon as
@@ -70,6 +70,7 @@ import { CONFIG } from '../../config.js';
 import { groundTextures } from './groundTextures.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
+import { gameSiteHooks } from './groundSites.js';
 
 /** Models are cut off here (a building rising out of the ground shows nothing under it). */
 export const GROUND_CLIP = Object.freeze([new Plane(new Vector3(0, 1, 0), 0)]);
@@ -143,6 +144,7 @@ export class GroundPass {
     this.stateKey = '';
     this.blit = null;
     this.redraws = 0; // pictures drawn into the cache (stats, tests)
+    this.liveAt = -Infinity; // when the live tiles were last read (sync)
     this.compiled = false;
     this.compileMs = 0;
     this.sun.castShadow = quality === 'high';
@@ -252,13 +254,8 @@ export class GroundPass {
     if (this.map !== game.map) {
       this.dropGround();
       const map = game.map;
-      const farmAt = (i) => {
-        const id = map.building[i];
-        if (!id) return false;
-        const b = game.buildings.get(id);
-        return !!b && b.def.kind === 'farm';
-      };
-      this.ground = new Ground(map, this.tex, { quality: this.quality, farmAt, buildingAt: (i) => map.building[i] !== 0, ownOutput: this.quality === 'low' });
+      // (What the buildings and fires make of the ground: groundSites.js.)
+      this.ground = new Ground(map, this.tex, { quality: this.quality, hooks: gameSiteHooks(game), ownOutput: this.quality === 'low' });
       // (No depth: see the header.)
       this.ground.material.depthWrite = false;
       this.ground.material.depthTest = false;
@@ -266,7 +263,13 @@ export class GroundPass {
       this.map = map;
     }
     const g = this.ground;
-    if (g.update()) this.cacheDirty = true;
+    // What changes between the map's revisions (a field growing, a fire going out) is read again
+    // at most four times a second, and once a second at Low: each change there redraws its kept
+    // picture, and twenty farms at a fast speed would otherwise redraw it nearly every frame.
+    const now = performance.now();
+    const live = now - this.liveAt >= (this.quality === 'low' ? 1000 : 250);
+    if (live) this.liveAt = now;
+    if (g.update(live)) this.cacheDirty = true;
     g.setTurn(r.viewTurn);
     this.light(r);
     if (!this.compiled) {
@@ -485,6 +488,7 @@ export class GroundPass {
     const q = (v, k = 100) => Math.round(v * k);
     return [
       this.ground.turn, q(u.uGSnow.value), q(u.uGWet.value, 50), q(u.uGVegAmt.value), q(u.uGDry.value), q(u.uGVeg.value.x, 400), q(u.uGVeg.value.y, 400),
+      q(u.uGFlowers.value, 50), q(u.uGLeaves.value, 50),
       q(this.sun.intensity, 50), q(this.fill.intensity, 50), q(this.sunDir ? this.sunDir.y : 1),
     ].join(',');
   }

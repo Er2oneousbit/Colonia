@@ -111,7 +111,7 @@ function fakeRenderer() {
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
-test('painter: four recipes a program, the 28 in eight and one for the passes they share', async () => {
+test("painter: four recipes a program (the well's in their own, the ground's in theirs) and one for the passes they share", async () => {
   const r = fakeRenderer();
   const p = new Painter(r);
   const jobs = [];
@@ -122,12 +122,14 @@ test('painter: four recipes a program, the 28 in eight and one for the passes th
   GROUND_LAYERS.forEach((l, i) => jobs.push(p.paint({ set: GROUND_SET, index: i, seed: nameSeed(l.name), size: 16, out, layer: i, ground: true })));
   await Promise.all(jobs);
   assert.equal(RECIPES_A_PROGRAM, 4);
-  assert.equal(p.programs.size, 8);
-  assert.equal(p.stats.programs, 9);
+  const programs = Math.ceil(SURFACE_SET.names.length / 4) + Math.ceil(GROUND_LAYERS.length / 4);
+  assert.equal(GROUND_LAYERS.length, 20);
+  assert.equal(p.programs.size, programs);
+  assert.equal(p.stats.programs, programs + 1);
   assert.equal(r.compiled, 1, 'compiled once, all together');
   assert.equal(p.stats.paints, 1, 'painted in one go');
-  assert.equal(p.stats.textures, 28);
-  assert.equal(new Set(r.draws.map((d) => d.program)).size, 9);
+  assert.equal(p.stats.textures, SURFACE_SET.names.length + GROUND_LAYERS.length);
+  assert.equal(new Set(r.draws.map((d) => d.program)).size, programs + 1);
   // The renderer is left as it was found.
   assert.equal(r.getRenderTarget(), null);
   assert.equal(r.autoClear, true);

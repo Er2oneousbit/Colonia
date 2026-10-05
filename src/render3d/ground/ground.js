@@ -15,8 +15,13 @@
  * update() repacks what changed on the map (the type map compares the
  * layers it read last time) and uploads the type map again: 4 bytes a
  * tile, 256 KB for the largest map, so a whole upload costs less than
- * tracking ranges would. Nothing else is made or freed as the map changes:
- * roads, plazas, rubble and farms are bytes in that texture.
+ * tracking ranges would. Then it repacks the tiles whose look changes
+ * between the map's revisions (`live`: a farm's crop growing, a fire
+ * burning out) and uploads the site map (or the type map) only if a byte
+ * changed: a field crosses one of its 64 steps of growth about once a
+ * game day (groundSites.js GROWTH_STEPS). The caller says how often it
+ * wants them (`live`): Low redraws its kept picture for each change. Nothing else is made or freed as the map changes: roads, plazas,
+ * rubble, yards and fields are bytes in those two textures.
  *
  * setSky() takes the time of year and the weather as numbers that move
  * smoothly (the season's position along the 2D art's looks, the snow cover
@@ -34,13 +39,16 @@ import { groundMaterial } from './groundMaterial.js';
  * autumn), how much of it they take, and how dry (straw) they go. Summer in
  * the Mediterranean is the dry season: the pasture browns at the tips,
  * while the meadows by water stay green (the shader's dryness follows
- * patches).
+ * patches). `flowers`: how many of the meadow's, the pasture's and the
+ * scrub's flowers are out (the spring's flush, a few in summer, none in
+ * winter); `leaves`: fresh fallen leaves on a wood's floor turned russet
+ * (autumn).
  */
 export const SEASON_LOOKS = Object.freeze([
-  { veg: [0.36, 0.42, 0.2], amt: 0.55, dry: 0.3 }, // winter: dull olive, some straw
-  { veg: [0.26, 0.55, 0.12], amt: 0.45, dry: 0.0 }, // spring: fresh, bright
-  { veg: [0.32, 0.48, 0.14], amt: 0.25, dry: 0.18 }, // summer: deep green going to straw in patches
-  { veg: [0.45, 0.42, 0.16], amt: 0.5, dry: 0.3 }, // autumn: olive and ochre
+  { veg: [0.36, 0.42, 0.2], amt: 0.55, dry: 0.3, flowers: 0, leaves: 0.15 }, // winter: dull olive, some straw
+  { veg: [0.26, 0.55, 0.12], amt: 0.45, dry: 0.0, flowers: 1, leaves: 0 }, // spring: fresh, bright, in flower
+  { veg: [0.32, 0.48, 0.14], amt: 0.25, dry: 0.18, flowers: 0.35, leaves: 0 }, // summer: deep green going to straw in patches
+  { veg: [0.45, 0.42, 0.16], amt: 0.5, dry: 0.3, flowers: 0.1, leaves: 1 }, // autumn: olive and ochre, the leaves down
 ]);
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -52,7 +60,10 @@ export function seasonAt(pos) {
   const f = p - i;
   const a = SEASON_LOOKS[i];
   const b = SEASON_LOOKS[(i + 1) % 4];
-  return { veg: a.veg.map((c, k) => lerp(c, b.veg[k], f)), amt: lerp(a.amt, b.amt, f), dry: lerp(a.dry, b.dry, f) };
+  return {
+    veg: a.veg.map((c, k) => lerp(c, b.veg[k], f)), amt: lerp(a.amt, b.amt, f), dry: lerp(a.dry, b.dry, f),
+    flowers: lerp(a.flowers, b.flowers, f), leaves: lerp(a.leaves, b.leaves, f),
+  };
 }
 
 /**
@@ -69,27 +80,33 @@ export class Ground {
   /**
    * @param {object} map        a GameMap (or anything with its layers, the lab's)
    * @param {object} tex        groundTextures.js groundTextures() (or blankGroundArrays())
-   * @param {object} [opts]     { quality: 'high'|'low', scale: units per tile, farmAt(i), buildingAt(i),
+   * @param {object} [opts]     { quality: 'high'|'low', scale: units per tile,
+   *                            hooks: what stands where (groundMap.js GroundMap; groundSites.js
+   *                            for a game), and live(): the tiles to refresh each update,
    *                            kindHook, waterHook (groundMap.js: the lab's own layout),
    *                            ownOutput (groundMaterial.js: drawn into a texture) }
    */
-  constructor(map, tex, { quality = 'high', scale = 1, farmAt = () => false, buildingAt = () => false, kindHook = null, waterHook = null, ownOutput = false } = {}) {
+  constructor(map, tex, { quality = 'high', scale = 1, hooks = {}, kindHook = null, waterHook = null, ownOutput = false } = {}) {
     this.map = map;
     this.tex = tex;
     this.quality = quality;
     this.scale = scale;
-    this.farmAt = farmAt;
-    this.buildingAt = buildingAt;
+    this.hooks = hooks;
     this.types = new GroundMap(map);
     this.types.kindHook = kindHook;
     this.types.waterHook = waterHook;
-    this.typeTex = new DataTexture(this.types.data, map.w, map.h, RGBAFormat, UnsignedByteType);
-    this.typeTex.magFilter = NearestFilter;
-    this.typeTex.minFilter = NearestFilter;
-    this.typeTex.generateMipmaps = false;
-    this.typeTex.colorSpace = NoColorSpace;
-    this.typeTex.flipY = false;
-    this.material = groundMaterial(tex, this.typeTex, quality, ownOutput);
+    const texOf = (data) => {
+      const t = new DataTexture(data, map.w, map.h, RGBAFormat, UnsignedByteType);
+      t.magFilter = NearestFilter;
+      t.minFilter = NearestFilter;
+      t.generateMipmaps = false;
+      t.colorSpace = NoColorSpace;
+      t.flipY = false;
+      return t;
+    };
+    this.typeTex = texOf(this.types.data);
+    this.siteTex = texOf(this.types.detail);
+    this.material = groundMaterial(tex, this.typeTex, quality, ownOutput, this.siteTex);
     this.group = new Group();
     this.group.name = 'ground';
     this.inner = new Group(); // in map tiles; the outer group turns and scales it
@@ -117,11 +134,24 @@ export class Ground {
     this.setTurn(0);
   }
 
-  /** Repack what changed on the map; true when the type map was uploaded again. */
-  update() {
-    const changed = this.types.update(this.farmAt, this.buildingAt);
-    if (changed) this.typeTex.needsUpdate = true;
-    return changed;
+  /**
+   * Repack what changed on the map, and (`live`) on its live tiles; true
+   * when either map was uploaded again.
+   */
+  update(live = true) {
+    const h = this.hooks;
+    if (h.prepare) h.prepare();
+    let types = false;
+    let sites = false;
+    if (this.types.update(h)) types = sites = true;
+    if (live && h.live) {
+      const r = this.types.refresh(h.live(), h);
+      types ||= r.types;
+      sites ||= r.sites;
+    }
+    if (types) this.typeTex.needsUpdate = true;
+    if (sites) this.siteTex.needsUpdate = true;
+    return types || sites;
   }
 
   /**
@@ -152,6 +182,8 @@ export class Ground {
     u.uGVeg.value.set(s.veg[0], s.veg[1], s.veg[2]);
     u.uGVegAmt.value = s.amt;
     u.uGDry.value = s.dry;
+    u.uGFlowers.value = s.flowers;
+    u.uGLeaves.value = s.leaves;
     u.uGSnow.value = snow;
     u.uGWet.value = wet;
     u.uGRain.value = rain;
@@ -171,6 +203,7 @@ export class Ground {
     for (const m of this.meshes) m.geometry.dispose();
     this.material.dispose();
     this.typeTex.dispose();
+    this.siteTex.dispose();
     this.meshes = [];
     this.group.clear();
   }
