@@ -225,33 +225,60 @@ struct GSmp { vec4 alb; vec3 n; vec4 orm; };
 
 vec2 gDx; vec2 gDy;
 
+// One tap of layer L at uv turned by M and moved by o (its derivatives and normal turned with it).
+GSmp gTap( float L, vec2 uv, vec2 dx, vec2 dy, mat2 M, vec2 o ) {
+  vec2 u = M * uv + o;
+  GSmp s;
+  s.alb = textureGrad( uAlb, vec3( u, L ), M * dx, M * dy );
+  s.n = textureGrad( uNrm, vec3( u, L ), M * dx, M * dy ).xyz * 2.0 - 1.0;
+  s.n.xy = s.n.xy * M; // back into the ground's frame
+  s.orm = textureGrad( uOrm, vec3( u, L ), M * dx, M * dy );
+  return s;
+}
+
 GSmp gSample( int k, vec2 p ) {
   float sc = uScale[ k ];
   vec2 uv = p * sc;
   vec2 dx = gDx * sc;
   vec2 dy = gDy * sc;
   float L = float( k );
-  GSmp s;
-  s.alb = textureGrad( uAlb, vec3( uv, L ), dx, dy );
-  s.n = textureGrad( uNrm, vec3( uv, L ), dx, dy ).xyz * 2.0 - 1.0;
-  s.orm = textureGrad( uOrm, vec3( uv, L ), dx, dy );
 #ifdef GROUND_HIGH
-  // A second copy, 1.6 times larger and turned, mixed in by patches: the
-  // repeat of one texture never lines up over a field. (Not for patterns
-  // laid square to the map: furrows, paving, flagstones.)
-  if ( !K_ANTI[ k ] ) return s;
-  const mat2 R = mat2( 0.8, 0.6, -0.6, 0.8 );
-  vec2 uv2 = R * uv * 0.62 + vec2( 0.37, 0.71 ) * L;
-  vec4 a2 = textureGrad( uAlb, vec3( uv2, L ), R * dx * 0.62, R * dy * 0.62 );
-  vec3 n2 = textureGrad( uNrm, vec3( uv2, L ), R * dx * 0.62, R * dy * 0.62 ).xyz * 2.0 - 1.0;
-  vec4 o2 = textureGrad( uOrm, vec3( uv2, L ), R * dx * 0.62, R * dy * 0.62 );
-  n2.xy = n2.xy * R; // back into the first copy's frame
-  float m = smoothstep( 0.3, 0.7, gNoise( p * 0.37 + L * 5.3 ) );
-  s.alb = mix( s.alb, a2, m );
-  s.n = mix( s.n, n2, m );
-  s.orm = mix( s.orm, o2, m );
+  // Hex tiling (after Mikkelsen's "Practical Real-Time Hex-Tiling"): the
+  // plane is cut into a triangle grid about half a repeat across; each
+  // corner takes the texture turned and moved its own way, and a pixel
+  // blends its triangle's three by how near it is to each, the higher
+  // texture winning where they meet. A repeat never lines up, so a field
+  // shows no lattice however wide (in the game's view a plain repeat lines
+  // up in columns down the screen). Not for patterns laid square to the
+  // map: furrows, a field's rows, paving, flagstones.
+  if ( K_ANTI[ k ] ) {
+    vec2 sk = mat2( 1.0, 0.0, -0.57735027, 1.15470054 ) * uv * 1.9;
+    vec2 base = floor( sk );
+    vec3 t = vec3( sk - base, 0.0 );
+    t.z = 1.0 - t.x - t.y;
+    float sg = step( 0.0, -t.z );
+    float s2 = 2.0 * sg - 1.0;
+    vec3 w = vec3( -t.z * s2, sg - t.y * s2, sg - t.x * s2 );
+    vec2 v[3] = vec2[3]( base + vec2( sg, sg ), base + vec2( sg, 1.0 - sg ), base + vec2( 1.0 - sg, sg ) );
+    GSmp T[3];
+    vec3 wh;
+    for ( int i = 0; i < 3; i++ ) {
+      float a = gHash( v[i] + L * 17.31 ) * 6.2831853;
+      vec2 o = vec2( gHash( v[i] * 1.7 + 3.1 + L ), gHash( v[i] * 2.3 + 7.7 + L ) ) * 4.0;
+      float c = cos( a );
+      float sn = sin( a );
+      T[i] = gTap( L, uv, dx, dy, mat2( c, sn, -sn, c ), o );
+      wh[i] = pow( w[i], 5.0 ) * ( 0.15 + T[i].alb.a );
+    }
+    wh /= max( wh.x + wh.y + wh.z, 1e-5 );
+    GSmp s;
+    s.alb = T[0].alb * wh.x + T[1].alb * wh.y + T[2].alb * wh.z;
+    s.n = T[0].n * wh.x + T[1].n * wh.y + T[2].n * wh.z;
+    s.orm = T[0].orm * wh.x + T[1].orm * wh.y + T[2].orm * wh.z;
+    return s;
+  }
 #endif
-  return s;
+  return gTap( L, uv, dx, dy, mat2( 1.0 ), vec2( 0.0 ) );
 }
 
 // The road's shape in its tile (q in 0..1): a centre square inset by a from
@@ -288,9 +315,9 @@ void groundSurface() {
   ${B('always')}
 
   // --- 1. kinds ---------------------------------------------------------
-  vec2 wob = ( vec2( ${N.wob0}, ${N.wob1} ) - 0.5 ) * 0.62
-           + ( vec2( ${N.wob2}, ${N.wob3} ) - 0.5 ) * 0.22
-           + ( vec2( ${N.wob4}, ${N.wob5} ) - 0.5 ) * 0.07;
+  vec2 wob = ( vec2( ${N.wob0}, ${N.wob1} ) - 0.5 ) * 0.56
+           + ( vec2( ${N.wob2}, ${N.wob3} ) - 0.5 ) * 0.3
+           + ( vec2( ${N.wob4}, ${N.wob5} ) - 0.5 ) * 0.14;
   vec2 pw = p + wob - 0.5;
   ivec2 i0 = ivec2( floor( pw ) );
   vec2 f = pw - floor( pw );
@@ -367,6 +394,10 @@ void groundSurface() {
     if ( decL > 0.0 ) col = mix( col, mix( vec3( 0.42, 0.13, 0.03 ), vec3( 0.55, 0.32, 0.05 ), macro2 ) * ( 0.7 + 0.5 * h ), decL * uGLeaves );
   }
 
+  // How much of the surface's high relief stays clear of snow (a field's ridges, rubble's lumps:
+  // under deep snow they still show where they are), and where a fire melts it.
+  float poke = 0.0;
+  float melt = 0.0;
   // --- 2b. sites: what people made of the tile (groundMap.js SITE) -------
   // From the pixel's own tile, unbent: a field, a yard, a pen is a plot with
   // a clean edge where the site ends (its links say where it carries on into
@@ -406,14 +437,16 @@ void groundSurface() {
       if ( site == ${SITE.YARD} || site == ${SITE.FOOTING} || site == ${SITE.PADDOCK} ) {
         GSmp Y = gSample( ${LAYER.yard}, p );
         // A wall's or an aqueduct's footing and a paddock are trodden ground: the grass worn through in patches.
-        float k = site == ${SITE.YARD} ? 1.0 : smoothstep( 0.35, 0.65, ${N.rubble} * 0.6 + ( 1.0 - h ) * 0.5 + ( site == ${SITE.FOOTING} ? 0.15 : -0.05 ) );
+        float k = site == ${SITE.YARD} ? 1.0 : smoothstep( 0.4, 0.7, ${N.rubble} * 0.6 + ( 1.0 - h ) * 0.5 + ( site == ${SITE.FOOTING} ? 0.12 : -0.12 ) );
+        if ( site == ${SITE.PADDOCK} ) col = mix( col, gLum( col ) * vec3( 1.15, 1.1, 0.75 ) * 1.1, 0.3 ); // cropped short, paler
         sc = mix( col, Y.alb.rgb, k );
         sh = mix( h, Y.alb.a, k );
         sn = mix( nrm, Y.n, k );
         sr = mix( rough, Y.orm.g, k );
         sao = mix( ao, Y.orm.r, k );
         sp = mix( plants * 0.6, Y.orm.b, k );
-        sHold = mix( snowHold, 0.7, k ); sSoak = mix( soak, 0.6, k ); sPud = mix( puddle, 0.55, k );
+        // (Trodden ground: the snow is walked thin.)
+        sHold = mix( snowHold, site == ${SITE.YARD} ? 0.3 : 0.7, k ); sSoak = mix( soak, 0.6, k ); sPud = mix( puddle, 0.55, k );
       } else if ( site == ${SITE.PEN} ) {
         // Inside the fence (the art's u 1 to S - 0.12, v 0.15 to S - 0.12) the pigs have churned it to mud.
         GSmp M = gSample( ${LAYER.mud}, p );
@@ -454,19 +487,19 @@ void groundSurface() {
           if ( site == ${SITE.GRAIN} ) {
             // Wheat goes gold, the ears before the blades.
             float ripe = max( smoothstep( 0.62, 0.95, g2 ), smoothstep( 0.45, 0.8, g2 ) * C.orm.a );
-            cc = mix( cc, cl2 * vec3( 1.55, 1.18, 0.42 ) * 1.25, ripe );
+            cc = mix( cc, vec3( 0.36, 0.22, 0.055 ) * clamp( cl2 / 0.12, 0.6, 1.25 ), ripe );
           } else if ( site == ${SITE.FLAX} ) {
             // In flower from half grown, sky blue; then the bolls ripen golden brown.
             float bloom = smoothstep( 0.4, 0.5, g2 ) * smoothstep( 0.9, 0.78, g2 );
             vec3 green = cc;
             if ( C.orm.a > 0.0 ) green = mix( cc, vec3( 0.09, 0.14, 0.04 ), C.orm.a );
             cc = mix( green, cc, bloom );
-            cc = mix( cc, cl2 * vec3( 1.4, 1.05, 0.5 ) * 1.1, smoothstep( 0.8, 0.98, g2 ) );
+            cc = mix( cc, vec3( 0.25, 0.16, 0.06 ) * clamp( cl2 / 0.12, 0.6, 1.25 ), smoothstep( 0.8, 0.98, g2 ) );
           } else {
             // Vegetables: green to the end; what is ready shows at the last.
             if ( C.orm.a > 0.0 ) cc = mix( cc, cc * 0.0 + vec3( 0.07, 0.12, 0.04 ), C.orm.a * smoothstep( 0.8, 0.7, g2 ) );
           }
-          if ( resting ) cc = mix( cc, cl2 * vec3( 1.3, 1.12, 0.66 ), 0.85 ); // the stubble of the winter
+          if ( resting ) cc = mix( cc, vec3( 0.22, 0.17, 0.09 ) * clamp( cl2 / 0.12, 0.6, 1.25 ), 0.85 ); // the stubble of the winter
           fc = mix( fc, cc, cov );
           fh = mix( fh, C.alb.a, cov );
           fn = mix( fn, cn, cov );
@@ -479,20 +512,23 @@ void groundSurface() {
           if ( site == ${SITE.VINES} ) {
             float rv = ( art.y - 0.3 ) / 0.48;
             float dv = abs( rv - clamp( floor( rv + 0.5 ), 0.0, 5.0 ) ) * 0.48;
-            worked = smoothstep( 0.12, 0.08, dv + ( fh - 0.5 ) * 0.03 ) * step( 0.95, art.x ) * step( art.x, SZ - 0.08 );
+            worked = smoothstep( 0.12, 0.08, dv + ( fh - 0.5 ) * 0.03 + edgeN * 0.03 ) * step( 0.95, art.x ) * step( art.x, SZ - 0.08 );
           } else {
             vec2 cell = ( art - vec2( 1.2, 0.45 ) ) / vec2( 0.62, 0.95 );
             vec2 nearest = clamp( floor( cell + 0.5 ), vec2( 0.0 ), vec2( 2.0 ) );
             vec2 tree = vec2( 1.2, 0.45 ) + nearest * vec2( 0.62, 0.95 );
-            worked = smoothstep( 0.2, 0.15, length( art - tree ) + ( fh - 0.5 ) * 0.05 + edgeN * 0.03 );
+            worked = smoothstep( 0.2, 0.15, length( art - tree ) + ( fh - 0.5 ) * 0.05 + edgeN * 0.06 + ( ${N.rubble} - 0.5 ) * 0.06 );
           }
           vec3 sward = col;
           if ( site == ${SITE.OLIVE} ) sward = mix( col, gLum( col ) * vec3( 1.3, 1.15, 0.7 ), 0.35 ); // an olive grove's dry grass
-          fc = mix( sward, fc, worked );
-          fh = mix( h, fh, worked );
-          fn = mix( nrm, fn, worked );
-          fr = mix( rough, fr, worked );
-          fao = mix( ao, fao, worked );
+          // Hoed, not ploughed: loose dark earth, no furrows.
+          GSmp Hd = gSample( ${LAYER.yard}, p * 1.3 );
+          vec3 hoed = Hd.alb.rgb * vec3( 0.72, 0.66, 0.6 );
+          fc = mix( sward, hoed, worked );
+          fh = mix( h, Hd.alb.a * 0.8, worked );
+          fn = mix( nrm, Hd.n, worked );
+          fr = mix( rough, 0.95, worked );
+          fao = mix( ao, Hd.orm.r, worked );
           fp = plants * ( 1.0 - worked );
         }
         // Left idle, a field goes to weeds from its edges and in patches.
@@ -505,6 +541,7 @@ void groundSurface() {
         }
         sc = fc; sh = fh; sn = fn; sr = fr; sao = fao; sp = fp;
         sHold = 0.95; sSoak = 0.85; sPud = 0.9;
+        if ( site != ${SITE.ORCHARD} && site != ${SITE.OLIVE} && site != ${SITE.VINES} ) poke = 0.75; // (times the edge's cover, below)
       }
       // The edge: straight and clean (a yard's a little softer, grass tufts lean over it; a
       // footing's wanders, worn rather than laid out).
@@ -518,6 +555,7 @@ void groundSurface() {
         sh = mix( sh, sh * 0.6 + 0.4, head * 0.5 );
         sao = mix( sao, sao * 0.85, smoothstep( -0.012, 0.0, sd ) );
       }
+      poke *= cover;
       col = mix( col, sc, cover );
       h = mix( h, sh, cover );
       nrm = mix( nrm, sn, cover );
@@ -627,6 +665,10 @@ void groundSurface() {
       ao = mix( ao, B.orm.r, rm );
       plants *= 1.0 - rm;
       if ( ash && fw > 0.0 ) embers = B.orm.a * rm * smoothstep( 0.2, 0.6, fw );
+      poke = max( poke, rm * 0.85 );
+    }
+    if ( fw > 0.0 ) {
+      melt = smoothstep( 0.0, 0.5, fw + ( ${N.rubble} - 0.5 ) * 0.3 );
     }
   }
 
@@ -658,8 +700,11 @@ void groundSurface() {
       float lo = mix( 0.72, -0.15, clamp( uGSnow, 0.0, 1.0 ) );
       snowAmt = smoothstep( lo, lo + 0.2, n ) * clamp( cover * 2.6, 0.0, 1.0 );
       snowAmt *= mix( 1.0, 0.6 + 0.4 * smoothstep( 0.4, 0.7, ${N.snow6} ), 1.0 - snowRoad );
+      // Ridges and lumps break through; what burns melts it round itself.
+      snowAmt *= 1.0 - poke * smoothstep( 0.55, 0.85, h );
+      snowAmt *= 1.0 - melt;
     }
-    float wet = max( uGWet * soak, wetBand * 0.9 ) * ( 1.0 - snowAmt );
+    float wet = max( max( uGWet * soak, wetBand * 0.9 ), melt * uGSnow ) * ( 1.0 - snowAmt ); // (meltwater round a fire in the snow)
     col *= 1.0 - wet * 0.42;
     rough = mix( rough, rough * 0.45, wet );
     // Puddles in hollows after rain: still water over the ground.
@@ -717,8 +762,9 @@ void groundSurface() {
     // Foam lapping at the edge.
     float lap = sin( uGTime * 1.3 + ${N.lap} * 6.283 ) * 0.04;
     // A thin broken line of foam where the water laps (more on the sea).
-    float foam = smoothstep( 0.07, 0.015, -dc + lap ) * smoothstep( 0.45, 0.7, ${N.foam0} * 0.7 + ${N.foam1} * 0.3 + seaW * 0.15 );
-    wc = mix( wc, vec3( 0.75, 0.78, 0.76 ), foam * 0.7 );
+    // Surf only where the sea comes in; a river or a pond lies still against its banks.
+    float foam = smoothstep( 0.1, 0.01, -dc + lap ) * smoothstep( 0.4, 0.75, ${N.foam0} * 0.7 + ${N.foam1} * 0.3 ) * seaW;
+    wc = mix( wc, vec3( 0.7, 0.73, 0.72 ), foam * 0.55 );
     // Ice: under deep snow the margins freeze, snow catching on the ice; the
     // middle stays open, so a frozen river still reads as water to build by.
     float ice = smoothstep( 0.55, 0.85, uGSnow ) * smoothstep( 0.32, 0.12, depth + ( ${N.ice} - 0.5 ) * 0.2 );

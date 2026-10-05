@@ -336,14 +336,20 @@ export class GroundMap {
     return { farmAt: h.farmAt || NO, buildingAt: h.buildingAt || NO, siteAt: h.siteAt || NO, ownerAt: h.ownerAt || NO, burnAt: h.burnAt || NO };
   }
 
-  /** The site word of tile i with its links: the sides whose neighbour is the same site of the same owner. */
+  /**
+   * The site word of tile i with its links: the sides whose neighbour is
+   * the same site of the same owner. Yards and footings link whoever's they
+   * are: a town's trodden ground runs on from one building to the next, a
+   * field ends at its own farm's edge.
+   */
   siteOf(i, x, y, hk) {
     const word = hk.siteAt(i);
     if (!word) return 0;
     const site = word & 255;
     const owner = hk.ownerAt(i);
     const { w, h } = this;
-    const same = (j) => (hk.siteAt(j) & 255) === site && hk.ownerAt(j) === owner;
+    const shared = site === SITE.YARD || site === SITE.FOOTING;
+    const same = (j) => (hk.siteAt(j) & 255) === site && (shared || hk.ownerAt(j) === owner);
     const links = (y > 0 && same(i - w) ? 1 : 0) | (x < w - 1 && same(i + 1) ? 2 : 0) | (y < h - 1 && same(i + w) ? 4 : 0) | (x > 0 && same(i - 1) ? 8 : 0);
     return (word | (links << 16)) >>> 0;
   }

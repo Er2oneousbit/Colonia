@@ -690,6 +690,23 @@ async function main() {
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */
+    /** A ground layer's map (albedo, normal or orm) as a PNG data URL, 2 x 2 repeats: to judge a texture and its tiling by eye. */
+    layerImage(name, which = 'albedo') {
+      const i = GROUND_LAYERS.findIndex((l) => l.name === name);
+      const bytes = painterFor(look.renderer).readPixels(groundTex.out[which], i);
+      const n = groundTex.size;
+      const c = document.createElement('canvas');
+      c.width = n * 2;
+      c.height = n * 2;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(n, n);
+      for (let k = 0; k < n * n; k++) {
+        for (let ch = 0; ch < 3; ch++) img.data[k * 4 + ch] = bytes[k * 4 + ch];
+        img.data[k * 4 + 3] = 255;
+      }
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) ctx.putImageData(img, x * n, y * n);
+      return c.toDataURL('image/png');
+    },
     textureReport() {
       const painter = painterFor(look.renderer);
       const read = (out, layer) => ({ albedo: painter.readPixels(out.albedo, layer), orm: painter.readPixels(out.orm, layer), normal: painter.readPixels(out.normal, layer) });
@@ -728,6 +745,8 @@ async function main() {
       controls.update();
     },
     look,
+    /** The look's shared uniforms (to switch the AO off when judging a texture). */
+    uniforms: LOOK.uniforms,
   };
 }
 

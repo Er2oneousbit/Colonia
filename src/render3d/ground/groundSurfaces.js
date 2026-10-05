@@ -43,34 +43,37 @@ export const GROUND_SIZE = 256;
 const grass = {
   fields: {
     noise: {
-      bareN: fbm(6, 4, 1), tuft: fbm(14, 3, 3),
+      bareN: fbm(8, 4, 1), tuft: fbm(14, 3, 3),
       // Short strokes three ways: along u, along v and along the diagonal.
       bladeA: fbm(110, 2, 4, { sx: 4 }), bladeB: fbm(110, 2, 5, { sx: 4, coord: 'vu' }), bladeC: fbm(80, 2, 6, { sx: 4, coord: 'diag' }),
     },
     glsl: `
-      float bare = sstep( 0.66, 0.8, bareN ) * 0.7;
-      return vec4( tuft * 0.45 + max( bladeA, max( bladeB, bladeC ) ) * 0.55 - bare * 0.4, bare, 0.0, 0.0 );`,
+      // Bare earth only where the turf has worn through: small, round, rare.
+      float bare = sstep( 0.76, 0.88, bareN ) * 0.8;
+      return vec4( tuft * 0.45 + max( bladeA, max( bladeB, bladeC ) ) * 0.55 - bare * 0.35, bare, 0.0, 0.0 );`,
   },
   blur: [2],
   colour: {
-    noise: { shade: fbm(9, 3, 5), strawN: fbm(12, 3, 6), clover: fbm(9, 3, 7), daisyC: cells(46, 8, 0.95), daisyN: fbm(4, 2, 9) },
+    noise: { shade: fbm(9, 3, 5), strawN: fbm(12, 3, 6), clover: fbm(9, 3, 7), daisyC: cells(26, 8, 0.95), daisyN: fbm(5, 2, 9), hue: fbm(4, 3, 10) },
     glsl: `
       float cav = cavity( F.x, B.x, 6.0 );
       float t = clamp( ( F.x - 0.25 ) * 1.5, 0.0, 1.0 );
       col = mix( ${rgb('#3c561c')}, ${rgb('#5d7b2a')}, sstep( 0.1, 0.55, t ) );
-      col = mix( col, ${rgb('#84a044')}, sstep( 0.5, 0.95, t ) * 0.7 );
-      // Tufts a shade apart, tips gone to straw in streaks.
+      col = mix( col, ${rgb('#84a044')}, sstep( 0.5, 0.95, t ) * 0.6 );
+      // Swards of other grasses: bluer fescue, yellower bents, a shade apart tuft by tuft.
+      col = mix( col, col * vec3( 0.86, 1.0, 1.08 ), sstep( 0.55, 0.3, hue ) * 0.6 );
+      col = mix( col, col * vec3( 1.12, 1.05, 0.8 ), sstep( 0.55, 0.8, hue ) * 0.6 );
       col *= 0.9 + shade * 0.2;
-      col = mix( col, ${rgb('#9a9450')}, sstep( 0.62, 0.8, strawN ) * 0.3 );
-      col = mix( col, ${rgb('#4d7a2c')}, sstep( 0.72, 0.8, clover ) * 0.4 );
+      col = mix( col, ${rgb('#9a9450')}, sstep( 0.64, 0.8, strawN ) * 0.25 );
+      col = mix( col, ${rgb('#4d7a2c')}, sstep( 0.72, 0.8, clover ) * 0.35 );
       float b = F.y * ( 1.0 - t * 0.5 );
-      col = mix( col, ${rgb('#6d5838')}, clamp( b * 1.3, 0.0, 1.0 ) );
+      col = mix( col, ${rgb('#6f5c40')}, clamp( b * 1.2, 0.0, 0.85 ) );
       col = mix( col, ${rgb('#28311a')}, cav * 0.5 );
-      orm = vec3( 1.0 - cav * 0.55, 0.86 + b * 0.08, 1.0 - clamp( b * 1.3, 0.0, 1.0 ) );
-      // Daisies and clover heads in patches (the shader shows them in their season).
-      if ( hash2( int( daisyC.id ), 1, uSeed ) < 0.04 + sstep( 0.55, 0.75, daisyN ) * 0.3 ) {
-        float head = sstep( 0.26, 0.14, daisyC.f1 ) * ( 1.0 - b );
-        col = mix( col, hash2( int( daisyC.id ), 2, uSeed ) < 0.7 ? ${rgb('#f1eee2')} : ${rgb('#e9d24a')}, head );
+      orm = vec3( 1.0 - cav * 0.55, 0.86 + b * 0.08, 1.0 - clamp( b * 1.2, 0.0, 0.85 ) );
+      // Daisies and clover heads, a few here and there, many in patches (the shader shows them in their season).
+      if ( hash2( int( daisyC.id ), 1, uSeed ) < 0.02 + sstep( 0.6, 0.78, daisyN ) * 0.45 ) {
+        float head = sstep( 0.24, 0.12, daisyC.f1 ) * ( 1.0 - b );
+        col = mix( col, hash2( int( daisyC.id ), 2, uSeed ) < 0.65 ? ${rgb('#f1eee2')} : ${rgb('#e9d24a')}, head );
         dec = head;
       }`,
   },
@@ -124,21 +127,21 @@ const meadow = {
 const scrub = {
   fields: {
     noise: {
-      bushC: cells(6, 1, 1.0), group: fbm(3, 2, 11), rim: fbm(24, 3, 2), stoneC: cells(30, 3, 0.9),
+      bushC: cells(5, 1, 1.0), group: fbm(2, 3, 11), rim: fbm(24, 3, 2), stoneC: cells(30, 3, 0.9),
       tussN: fbm(14, 3, 4), blades: fbm(80, 2, 5, { sx: 3 }), base: fbm(6, 3, 0),
     },
     glsl: `
       // Cushions grow in loose groups: where the group noise is high, more and bigger.
       int id = int( bushC.id );
-      float r = ( 0.12 + hash2( id, 1, uSeed ) * 0.3 ) * ( 0.6 + group * 0.8 );
-      float bush = hash2( id, 2, uSeed ) < 0.25 + group * 0.5 ? sstep( r, r * 0.3, bushC.f1 * ( 0.8 + rim * 0.4 ) ) : 0.0;
-      float stone = hash2( int( stoneC.id ), 1, uSeed ) < 0.1 ? sstep( 0.42, 0.22, stoneC.f1 ) : 0.0;
+      float r = ( 0.18 + hash2( id, 1, uSeed ) * 0.3 ) * ( 0.7 + group * 0.6 );
+      float bush = hash2( id, 2, uSeed ) < sstep( 0.3, 0.75, group ) * 0.85 ? sstep( r, r * 0.35, bushC.f1 * ( 0.75 + rim * 0.5 ) ) : 0.0;
+      float stone = hash2( int( stoneC.id ), 1, uSeed ) < 0.14 ? sstep( 0.42, 0.22, stoneC.f1 ) : 0.0;
       float tuss = sstep( 0.3, 0.6, tussN ) * 0.35 * ( blades * 0.6 + 0.4 );
       return vec4( base * 0.15 + sqrt( bush ) * 0.75 + stone * 0.3 + tuss, bush, stone, 0.0 );`,
   },
   blur: [3],
   colour: {
-    noise: { soilN: fbm(5, 3, 6), tussN: fbm(14, 3, 4), blades: fbm(80, 2, 5, { sx: 3 }), bushC: cells(6, 1, 1.0), leafN: fbm(60, 2, 7), bloomC: cells(70, 9, 0.95) },
+    noise: { soilN: fbm(5, 3, 6), tussN: fbm(14, 3, 4), blades: fbm(80, 2, 5, { sx: 3 }), bushC: cells(5, 1, 1.0), leafN: fbm(60, 2, 7), bloomC: cells(70, 9, 0.95) },
     glsl: `
       float cav = cavity( F.x, B.x, 4.0 );
       float b = F.y;
@@ -171,32 +174,45 @@ const scrub = {
 const forest = {
   fields: {
     noise: {
-      leafC: cells(70, 1, 1.0), needleA: fbm(120, 2, 6, { sx: 6 }), needleB: fbm(120, 2, 7, { sx: 6, coord: 'vu' }),
-      twigN: ridge(8, 3, 2, { sx: 0.4 }), twigMask: fbm(5, 2, 3),
-      // Moss, ivy and the low evergreens of a Mediterranean wood's floor cover half of it.
-      mossN: fbm(5, 4, 4), mossFine: fbm(40, 2, 8), base: fbm(10, 3, 0),
+      leafC: cells(48, 1, 1.0), leafD: cells(72, 11, 1.0), needleA: fbm(120, 2, 6, { sx: 7 }), needleB: fbm(120, 2, 7, { sx: 7, coord: 'diag' }),
+      needleM: fbm(4, 2, 9), twigN: ridge(8, 3, 2, { sx: 0.4 }), twigMask: fbm(5, 2, 3), mossN: fbm(4, 4, 4), mossFine: fbm(40, 2, 8), base: fbm(10, 3, 0),
     },
     glsl: `
-      float leaf = sstep( 0.55, 0.15, leafC.f1 );
-      float needles = max( needleA, needleB );
+      // A leaf a cell: an ellipse lying its own way, curled up a little in its middle; a second,
+      // smaller layer under it.
+      float a = hash2( int( leafC.id ), 3, uSeed ) * 3.14159;
+      vec2 r = vec2( cos( a ), sin( a ) );
+      vec2 l = vec2( dot( leafC.d, r ), dot( leafC.d, vec2( -r.y, r.x ) ) ) / vec2( 0.46, 0.28 );
+      float leaf = hash2( int( leafC.id ), 4, uSeed ) < 0.85 ? sstep( 1.0, 0.75, length( l ) ) * ( 0.8 + 0.2 * ( 1.0 - length( l ) ) ) : 0.0;
+      float b2 = hash2( int( leafD.id ), 3, uSeed ) * 3.14159;
+      vec2 r2 = vec2( cos( b2 ), sin( b2 ) );
+      vec2 l2 = vec2( dot( leafD.d, r2 ), dot( leafD.d, vec2( -r2.y, r2.x ) ) ) / vec2( 0.44, 0.26 );
+      float leaf2 = sstep( 1.0, 0.75, length( l2 ) ) * ( 1.0 - leaf );
+      float needles = sstep( 0.64, 0.76, max( needleA, needleB ) ) * sstep( 0.4, 0.65, needleM ) * ( 1.0 - leaf );
       float twig = pow( twigN, 22.0 ) * sstep( 0.5, 0.65, twigMask );
-      float moss = sstep( 0.42, 0.6, mossN ) * ( 0.75 + mossFine * 0.5 );
-      return vec4( leaf * 0.3 + needles * 0.15 + base * 0.3 + twig * 0.35 + moss * 0.25, leaf, moss, twig );`,
+      float moss = sstep( 0.5, 0.64, mossN ) * ( 0.75 + mossFine * 0.5 );
+      return vec4( leaf * 0.35 + leaf2 * 0.22 + needles * 0.12 + base * 0.3 + twig * 0.35 + moss * 0.18, leaf + leaf2 * 0.6, moss, max( twig, needles * 0.5 ) );`,
   },
   blur: [2],
   colour: {
-    noise: { leafC: cells(70, 1, 1.0), needleA: fbm(120, 2, 6, { sx: 6 }), needleB: fbm(120, 2, 7, { sx: 6, coord: 'vu' }), mossTone: fbm(30, 2, 5) },
+    noise: { leafC: cells(48, 1, 1.0), leafD: cells(72, 11, 1.0), mossTone: fbm(30, 2, 5), soilN: fbm(6, 3, 12), dryN: fbm(3, 3, 13) },
     glsl: `
       float cav = cavity( F.x, B.x, 6.0 );
-      vec3 litter[6] = ${rgbs(['#6b5134', '#7d5f39', '#5a4430', '#86663d', '#6f5838', '#7a6a45'])};
-      col = mix( ${rgb('#55432e')}, litter[int( hash2( int( leafC.id ), 1, uSeed ) * 6.0 )], F.y );
+      // Old litter is olive-brown and grey-brown; the last leaves down, tan and ochre.
+      vec3 litter[6] = ${rgbs(['#6a5a3c', '#77623f', '#5c4f36', '#836a42', '#6d6145', '#8a7650'])};
+      bool top = F.y > 0.7;
+      int id = top ? int( leafC.id ) : int( leafD.id );
+      col = mix( ${rgb('#57472f')}, ${rgb('#685539')}, soilN );
+      vec3 lc = litter[int( hash2( id, 1, uSeed ) * 6.0 )] * ( 0.88 + hash2( id, 2, uSeed ) * 0.25 );
+      col = mix( col, top ? lc : lc * 0.88, clamp( F.y, 0.0, 1.0 ) );
+      // Drier, paler litter in patches where the canopy opens; darker and damp where it does not.
+      col *= mix( 0.86, 1.14, sstep( 0.3, 0.7, dryN ) );
+      col = mix( col, ${rgb('#866744')}, F.w * 0.55 );
+      col = mix( col, mix( ${rgb('#4e5d2a')}, ${rgb('#66753a')}, mossTone ), clamp( F.z, 0.0, 1.0 ) * 0.85 );
+      col = mix( col, ${rgb('#231b13')}, cav * 0.55 );
+      orm = vec3( 1.0 - cav * 0.6, 0.86 - F.z * 0.05, clamp( F.z, 0.0, 1.0 ) );
       // The last leaves to fall lie on top (the shader turns them russet in autumn).
-      dec = hash2( int( leafC.id ), 7, uSeed ) < 0.4 ? F.y * ( 1.0 - clamp( F.z, 0.0, 1.0 ) ) : 0.0;
-      col = mix( col, ${rgb('#8a6c44')}, sstep( 0.6, 0.75, max( needleA, needleB ) ) * 0.35 );
-      col = mix( col, mix( ${rgb('#4c6226')}, ${rgb('#6a7c36')}, mossTone ), clamp( F.z, 0.0, 1.0 ) * 0.9 );
-      col = mix( col, ${rgb('#9a8460')}, F.w * 0.6 );
-      col = mix( col, ${rgb('#2a2016')}, cav * 0.55 );
-      orm = vec3( 1.0 - cav * 0.6, 0.86 - F.z * 0.05, clamp( F.z, 0.0, 1.0 ) );`,
+      dec = top && hash2( id, 7, uSeed ) < 0.45 ? clamp( F.y, 0.0, 1.0 ) * ( 1.0 - clamp( F.z, 0.0, 1.0 ) ) : 0.0;`,
   },
   normal: { depth: 0.03 / 3 },
 };
@@ -287,7 +303,7 @@ const beach = {
     glsl: `
       float cav = cavity( F.x, B.x, 6.0 );
       vec3 bits[4] = ${rgbs(['#f0e8d8', '#e3cfb0', '#8f8676', '#c9b9a2'])};
-      col = mix( ${rgb('#bfad86')}, ${rgb('#cbbd98')}, sstep( 0.35, 0.7, tone ) );
+      col = mix( ${rgb('#ae9a74')}, ${rgb('#bba982')}, sstep( 0.35, 0.7, tone ) );
       col *= 0.96 + hash2( px.x, px.y, uSeed + 4 ) * 0.07;
       if ( F.y > 0.0 ) col = mix( col, bits[int( hash2( int( shellC.id ), 2, uSeed ) * 4.0 )], F.y );
       col = mix( col, ${rgb('#9c8a68')}, cav * 0.5 );
@@ -449,9 +465,11 @@ const flags = {
     noise: { pale: fbm(6, 3, 2), pore: cells(70, 3, 0.95, { sy: 2.5 }) },
     glsl: `
       float cav = cavity( F.x, B.x, 4.0 );
-      vec3 tones[5] = ${rgbs(['#cbbd9c', '#d6c9aa', '#c2b190', '#d0c1a0', '#bfae8c'])};
+      vec3 tones[6] = ${rgbs(['#b9ab8c', '#c6b898', '#ae9f81', '#bfb091', '#a99a7c', '#b4a385'])};
       float inJoint = 1.0 - sstep( ${glf(JOINT * 0.5)}, ${glf(JOINT + 0.006)}, F.z );
-      col = mix( tones[int( hash2( int( F.y ), 2, uSeed ) * 5.0 )], ${rgb('#e0d6c0')}, sstep( 0.55, 0.8, pale ) * 0.4 );
+      col = mix( tones[int( hash2( int( F.y ), 2, uSeed ) * 6.0 )], ${rgb('#d2c7b0')}, sstep( 0.6, 0.85, pale ) * 0.3 );
+      // Grime along the joints, worn clean in the middle of each slab.
+      col = mix( col, col * 0.84, sstep( 0.05, 0.0, F.z ) * 0.6 );
       float p = hash2( int( pore.id ), 1, uSeed ) < 0.15 ? sstep( 0.25, 0.08, pore.f1 ) : 0.0;
       col = mix( col, ${rgb('#8d7c5e')}, p * 0.6 );
       col = mix( col, ${rgb('#5d5243')}, inJoint );
@@ -623,7 +641,7 @@ const veg = {
     noise: { leafN: fbm(40, 3, 1), wob: fbm(5, 2, 2), vein: ridge(30, 2, 3) },
     glsl: `
       const float ROWS = 4.0;
-      const float ALONG = 7.0;
+      const float ALONG = 6.0;
       float rv = uv.y * ROWS;
       float r = floor( rv );
       float fv = rv - r - 0.5;
@@ -633,9 +651,11 @@ const veg = {
       int id = int( r ) * 64 + int( wrapi( int( k ), int( ALONG ) ) );
       // A head: a leafy dome, its size and place a little its own.
       vec2 c = vec2( ( hash2( id, 1, uSeed ) - 0.5 ) * 0.25, ( hash2( id, 2, uSeed ) - 0.5 ) * 0.12 );
-      float R = 0.26 + hash2( id, 3, uSeed ) * 0.1;
+      float R = 0.3 + hash2( id, 3, uSeed ) * 0.1;
       vec2 d = vec2( fu * ( ROWS / ALONG ), fv ) - c;
-      float dd = length( d ) / R;
+      // Leafy, not round: the outline frills with the leaves.
+      float ang = atan( d.y, d.x );
+      float dd = length( d ) / ( R * ( 0.86 + 0.14 * sin( ang * 7.0 + hash2( id, 6, uSeed ) * 6.28 ) + ( leafN - 0.5 ) * 0.2 ) );
       float head = dd < 1.0 ? sqrt( 1.0 - dd * dd ) : 0.0;
       float leaf = head > 0.0 ? head * ( 0.75 + leafN * 0.3 ) + vein * 0.06 : 0.0;
       return vec4( leaf * 0.85 + wob * 0.1, head, float( id ), r );`,
@@ -648,9 +668,9 @@ const veg = {
       int id = int( F.z );
       int row = int( F.w );
       // Each row its own crop: cabbage (blue-green), lettuce (fresh green), chard (dark, red-stemmed), turnip (mid green).
-      vec3 kinds[4] = ${rgbs(['#6f8f72', '#8fb24a', '#3e6428', '#5e8a3a'])};
+      vec3 kinds[4] = ${rgbs(['#6a8268', '#7d964a', '#3f5e2b', '#587c38'])};
       int kind = int( hash2( row, 9, uSeed ) * 4.0 );
-      vec3 c = kinds[kind] * ( 0.88 + hash2( id, 4, uSeed ) * 0.2 ) * ( 0.92 + tone * 0.12 );
+      vec3 c = mix( kinds[kind], ${rgb('#5f7d3e')}, 0.35 ) * ( 0.88 + hash2( id, 4, uSeed ) * 0.2 ) * ( 0.92 + tone * 0.12 );
       c *= 0.85 + fleck * 0.2;
       // The heart of a head is paler, its outer leaves darker.
       c = mix( c * 0.75, c * 1.12, sstep( 0.2, 0.9, F.y ) );
@@ -677,7 +697,7 @@ const flax = {
       const float ROWS = 16.0;
       float row = 0.5 + 0.5 * cos( ( uv.y + ( wob - 0.5 ) * 0.02 ) * ROWS * 6.283185307179586 );
       float stalk = max( stalkA, stalkB );
-      float fl = hash2( int( flowerC.id ), 1, uSeed ) < 0.55 ? sstep( 0.34, 0.2, flowerC.f1 ) : 0.0;
+      float fl = hash2( int( flowerC.id ), 1, uSeed ) < 0.32 ? sstep( 0.3, 0.17, flowerC.f1 ) : 0.0;
       return vec4( row * 0.45 + stalk * 0.3 + body * 0.15 + fl * 0.2, fl, row, 0.0 );`,
   },
   blur: [2],
@@ -729,7 +749,7 @@ const ash = {
       vec3 bits[5] = ${rgbs(['#5a524a', '#6d3a2a', '#4a4440', '#7a7064', '#3a3430'])};
       col = mix( ${rgb('#3a3531')}, ${rgb('#57514a')}, sstep( 0.3, 0.7, tone ) );
       // Ash: pale grey and white where it lies thick.
-      col = mix( col, mix( ${rgb('#8e8981')}, ${rgb('#c2bdb3')}, tone ), F.w * 0.8 );
+      col = mix( col, mix( ${rgb('#7c776f')}, ${rgb('#a29d94')}, tone ), F.w * 0.55 );
       if ( F.z > 0.0 ) col = mix( col, bits[int( hash2( int( lumpC.id ), 2, uSeed ) * 5.0 )] * 0.75, sstep( 0.0, 0.3, F.z ) );
       // Charcoal: black, its checks a little grey.
       float charcoal = sstep( 0.0, 0.2, F.y );
