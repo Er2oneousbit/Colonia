@@ -22,7 +22,7 @@
  *   store      a good it burns or eats once finished, fetched by its own
  *              cart into a store of its own: { good, cap, perYear } (good
  *              'food': any food, from a granary). Empty store: no effects
- *   hp         [site, finished] hit points against raiders (sim/military.js)
+ *   hp         [site, finished] hit points against raiders (sim/damage.js)
  *   needs      'sea' (a sea partner and navigable water), 'land2' (two land
  *              partners), 'piped' (works only on piped water, like baths)
  *   fromStep   the first campaign step that offers it (the sandbox has all)

@@ -73,7 +73,8 @@
  * No new men while deployed (sim/military.js, sim/navy.js)
  *   A fort or station with a rally point, or with men or ships away (on
  *   their way out, at the battle, or coming home), takes no recruits and no
- *   new liburnians: takesNewMen(). One already on his way still joins.
+ *   new liburnians: takesNewMen() (sim/away.js, with the other questions
+ *   about who is away). One already on his way still joins.
  * ----------------------------------------------------------------------------
  */
 
@@ -82,12 +83,14 @@ import { RNG } from '../core/rng.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { THREATENED_CITIES, SANDBOX_THREATENED_IDS, marchMonths, enemyWords } from '../data/battles.js';
 import { homeSiteId } from '../data/sites.js';
-import { Unit, removeUnit } from './military.js';
+import { Unit, removeUnit } from './units.js';
 import { battleStrength, endDrill } from './training.js';
-import { waterOf, shoreBerth } from './navy.js';
+import { waterOf, shoreBerth } from './berths.js';
+import { currentBattle } from './away.js';
 
-/** Ticks a soldier or ship may take to leave the province before it is taken to have found a way. */
-export const AWAY_MAX_TICKS = CONFIG.TICKS_PER_DAY * 16;
+// The questions about who is away (sim/away.js) are re-exported for the UI,
+// the input code and the tests; the sim modules import them from away.js.
+export { AWAY_MAX_TICKS, currentBattle, postsAway, takesNewMen, awayCounts, awayOf, awayUpkeep } from './away.js';
 
 /** The random stream for battles: its own, so the game's stream is untouched (see the header). */
 function battleRng(game, key) {
@@ -97,11 +100,6 @@ function battleRng(game, key) {
 /** The month (0-11) a mission's scheduled battle number `k` is asked for: Martius to October. */
 export function requestMonth(game, k) {
   return 2 + battleRng(game, `event${k}`).range(0, 7);
-}
-
-/** The battle in progress, or null. */
-export function currentBattle(game) {
-  return game.military?.battle || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -271,49 +269,6 @@ export function leaveForBattle(game, u) {
   removeUnit(game, u, 'away');
 }
 
-/** Records of the men and ships away (on the road, at the battle or coming home, recalled ones too). */
-function awayRecords(game) {
-  const b = currentBattle(game);
-  const out = b && b.sent ? [...b.sent.men, ...b.sent.ships] : [];
-  for (const r of game.military?.recalls || []) out.push(...r.men, ...r.ships);
-  return out;
-}
-
-/**
- * Fort and station ids with any man or ship away: on his way out of the
- * province, gone to a distant battle, or coming home from it.
- */
-export function postsAway(game) {
-  const out = new Set(awayCounts(game).keys());
-  for (const u of game.units.values()) if (u.away && (u.fort || u.station)) out.add(u.fort || u.station);
-  return out;
-}
-
-/**
- * May this fort or station take a new recruit (or liburnian)? Not while it
- * is deployed (a rally point) or any of its men are away: new men would
- * only stand about the city with nobody to lead them. `away`: postsAway(),
- * passed in by callers that check many posts.
- */
-export function takesNewMen(game, post, away = postsAway(game)) {
-  return !post.rally && !away.has(post.id);
-}
-
-/** Men and ships away per fort or station id (their places are kept). */
-export function awayCounts(game) {
-  const out = new Map();
-  for (const r of awayRecords(game)) {
-    const post = r.fort || r.station;
-    if (post) out.set(post, (out.get(post) || 0) + 1);
-  }
-  return out;
-}
-
-/** The away records of one fort or station. */
-export function awayOf(game, postId) {
-  return awayRecords(game).filter((r) => (r.fort || r.station) === postId);
-}
-
 /**
  * A fort or Naval Station is gone (sim/military.js disbandFort, sim/navy.js
  * stationLost): its men and ships away at a distant battle have no post to
@@ -337,14 +292,6 @@ export function dropAway(game, postId) {
     for (const r of m.recalls) if (r.post === postId) n += r.men.length + r.ships.length;
     m.recalls = m.recalls.filter((r) => r.post !== postId);
   }
-  return n;
-}
-
-/** What the men and ships away cost a month (they are paid as at home). */
-export function awayUpkeep(game) {
-  let n = 0;
-  // (Only men and ships with a post to come back to: dropAway releases the rest.)
-  for (const r of awayRecords(game)) if (game.buildings.has(r.fort || r.station)) n += UNIT_TYPES[r.type]?.upkeep || 0;
   return n;
 }
 

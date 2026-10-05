@@ -11,7 +11,7 @@
  *
  * Wolves are units (side 'wild', data/units.js), moving over open land like
  * raiders, never through buildings, walls, gates or water, and they break
- * nothing. They are hostile to Rome (sim/military.js hostileToRome), so
+ * nothing. They are hostile to Rome (sim/combat.js hostileToRome), so
  * soldiers, watchtowers and prefects fight them, but they are no enemy in
  * the province: they hold up no victory and cost no peace.
  *
@@ -66,7 +66,9 @@ import { UNIT_TYPES } from '../data/units.js';
 import { WALKER_TYPES } from '../data/walkers.js';
 import { WOLF, WOLVES_BY_MISSION } from '../data/wildlife.js';
 import { Terrain } from '../world/map.js';
-import { Unit, removeUnit, passable, marchTo, moveUnitToward, rollDamage, unitDefense, hurt } from './military.js';
+import { Unit, removeUnit } from './units.js';
+import { passable, marchTo, moveUnitToward } from './unitMove.js';
+import { rollDamage, unitDefense, hurt } from './combat.js';
 import { fightPrefect } from './prefectFight.js';
 import { canHarm, harmWalker } from './walkerHarm.js';
 import { seasonOf } from './time.js';
@@ -478,7 +480,11 @@ export function openGround(map, x, y) {
   return true;
 }
 
-/** A wolf died: counted (sim/military.js removeUnit sees only that a unit died). */
+/**
+ * A wolf died: counted. core/game.js calls this on 'unitDied', which
+ * sim/units.js removeUnit emits as the unit dies (that module stands below
+ * this one and may not import it).
+ */
 export function wolfKilled(game) {
   if (game.wildlife) game.wildlife.stats.wolvesKilled++;
 }

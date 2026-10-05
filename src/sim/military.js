@@ -1,7 +1,37 @@
 /**
  * military.js
  * ----------------------------------------------------------------------------
- * Soldiers, raiders, towers, walls and invasions.
+ * Soldiers, raiders, towers, walls and invasions: the orchestrator. Per tick
+ * updateMilitary sorts the units by side and runs each kind's code (soldiers
+ * and raiders here, Caesar's men in sim/legion.js, wolves in sim/wildlife.js,
+ * villagers in sim/natives.js, ships in sim/navy.js), then the towers and
+ * the missiles; militaryDaily and militaryMonthly run the raids' clock, the
+ * warnings and the army's pay. The barracks and its recruits, the forts'
+ * deploy and recall, and the raid schedule (raidWarning, launchInvasion)
+ * are here too.
+ *
+ * The toolbox the military modules share lives below this one, in modules
+ * that import nothing above them, so none of them needs this one:
+ *   sim/units.js     the Unit class, spawnUnit, removeUnit, enemyPower and
+ *                    the counts (unitsOfFort, enemyCount, garrisonCounts)
+ *   sim/unitMove.js  how a land unit moves: passable, moveToward, landRoute,
+ *                    marchTo and the A* routes (continuous tile coordinates,
+ *                    tile centres at .5, sliding along obstacles)
+ *   sim/combat.js    hostileToRome, rollDamage, unitDefense, missileDamage,
+ *                    hurt, attackUnit, nearestHostile, warbandType
+ *   sim/damage.js    damageBuilding, damageWall, buildingMaxHp, wallHpOf
+ *   sim/field.js     the raiders' flow fields: one Dijkstra pass from every
+ *                    building tile gives each land tile the cost to reach
+ *                    the nearest building, so every raider just walks
+ *                    downhill; walls cost extra, so raiders pick the cheapest
+ *                    place to break through (fillField, computeField,
+ *                    raidTargets)
+ *   sim/demand.js    militaryNeed and barracksHasRoom, which the carts ask
+ *   sim/forts.js     a fort's post, formation spots, yard and gate, and
+ *                    standsTo, what calls its men out of the yard
+ *   sim/away.js      who is away at a distant battle (sim/battle.js)
+ * This module imports all of them, and re-exports the names the UI, the dev
+ * tools and the tests still take from here (below the imports).
  *
  * Supply chain (carts deliver only while forts have empty places)
  *   Weaponsmith (iron)          ---weapons---\
@@ -11,15 +41,11 @@
  *   the ranch (never in a warehouse) until a barracks needs them.
  *   One recruit: legionary 50 weapons, archer 50 arrows, cavalryman 1 horse.
  *
- * Units (both sides) move freely over open land in continuous tile
- * coordinates (tile centers are at .5). Roman soldiers at rest stand in
- * their fort's yard, inside its walls; while enemies are about they stand
- * on formation spots by it, where they always stood (or around a rally point the player
- * picks). At the fort they hold their ground (fight only what comes to
- * them); deployed, they engage raiders around the rally point. Raiders follow a "flow field": one
- * Dijkstra pass from every building tile gives each land tile the cost to
- * reach the nearest building, so every raider just walks downhill. Walls cost
- * extra in that field, so raiders pick the cheapest place to break through.
+ * Roman soldiers at rest stand in their fort's yard, inside its walls; while
+ * enemies are about they stand on formation spots by it, where they always
+ * stood (or around a rally point the player picks). At the fort they hold
+ * their ground (fight only what comes to them); deployed, they engage
+ * raiders around the rally point (fightZone, updateRoman).
  *
  * Invasions are announced in three stages (raidWarning below): word of a
  * warband about 6 months ahead, the scouts' report of its size and road
@@ -35,38 +61,51 @@
  */
 
 import { CONFIG } from '../config.js';
-import { UNIT_TYPES, FORT_CAPACITY, TRAIN_DAYS, FORT_YARD, FORT_GATEWAY } from '../data/units.js';
-import { TOOLS } from '../data/buildings.js';
+import { UNIT_TYPES, FORT_CAPACITY, TRAIN_DAYS } from '../data/units.js';
 import { WALKER_TYPES } from '../data/walkers.js';
 import { RECRUIT_COST, RECRUIT_SOURCE, GOODS } from '../data/goods.js';
-import { Terrain, Road, Wall } from '../world/map.js';
-import { MinHeap } from '../world/pathfinding.js';
 import { INVASION_PRESETS } from '../data/scenarios.js';
 import { difficultyOf } from '../data/difficulty.js';
-import { spawnWalker, killWalker, STRIDE_WRAP, mainOf, inOwnFort } from './entities.js';
+import { spawnWalker, killWalker, inOwnFort } from './entities.js';
 import { followPath } from './movement.js';
 import { transact } from './economy.js';
-import { igniteBuilding, collapseBuilding, riskRates, withArticle } from './risk.js';
-import { recordRuin } from './ruins.js';
+import { withArticle } from './risk.js';
 import { logGoods } from './goodsLedger.js';
+import { spawnUnit, removeUnit, unitsOfFort, enemyCount, raiderShipCount, garrisonCounts, enemyPower } from './units.js';
+import { passable, moveToward, straightClear, approach, followUnitPath, stepFree, marchTo, replan } from './unitMove.js';
+import { hostileToRome, raidPeople, warbandType, rollDamage, hurt, attackUnit, nearestHostile, missileDamage, screenDirection } from './combat.js';
+import { buildingMaxHp, damageBuilding, damageWall } from './damage.js';
+import { fillField, computeField, computeRaidField } from './field.js';
+import { formationSpots, postOf, yardSpot, fortGate, standsTo } from './forts.js';
+import { awayCounts, awayOf, awayUpkeep, postsAway, takesNewMen, AWAY_MAX_TICKS } from './away.js';
 import { seaRaidPlan, seaLandingNow, launchSeaInvasion, updateNavy, potHit, fleeingToShips, landingReached, updateNavalDemand, seaRaidDays } from './navy.js';
 import { recruitDetour, recruitTrained, updateDrill, endDrill, drillSpot, trainAt } from './training.js';
-import { newCaesarState, updateLegionary, refreshLegionField, legionCount, legionSummary, legionTargets } from './legion.js';
+import { newCaesarState, updateLegionary, refreshLegionField, legionCount, legionSummary } from './legion.js';
 import { PEOPLES, PEOPLE_BY_MISSION, PEOPLE_BY_SITE, GENERIC_PEOPLE, WALKER_TARGET_SOLDIERS, peopleById } from '../data/peoples.js';
 import { siteIdOf } from '../data/sites.js';
 import { canHarm, harmWalker } from './walkerHarm.js';
-import { updateWolves, wolfKilled } from './wildlife.js';
+import { updateWolves } from './wildlife.js';
 import { revoltActive, revoltDaily, revoltMonthly, rebelCount } from './revolt.js';
-import { leaveForBattle, awayCounts, awayOf, awayUpkeep, dropAway, postsAway, takesNewMen, AWAY_MAX_TICKS } from './battle.js';
+import { leaveForBattle, dropAway } from './battle.js';
 import { fightPrefect } from './prefectFight.js';
 import { updateVillager } from './natives.js';
-import { monumentHp, fanumOf } from './monumentEffects.js';
+import { fanumOf } from './monumentEffects.js';
 import { GIFTS } from '../data/monuments.js';
-import { monumentStruck, monumentSpent } from './monuments.js';
+import { monumentSpent } from './monuments.js';
 
-// When a fort has fewer open tiles around its post than soldiers, extra men
-// share tiles using these sub-tile offsets.
-const SLOT_OFFSETS = [[0, 0], [0.26, -0.26], [-0.26, 0.26], [0.26, 0.26], [-0.26, -0.26]];
+// The toolbox every military module shares lives below this one (see the
+// header): the sim modules import it from those leaf modules directly, and
+// these re-exports are for the UI, the dev tools and the tests, which keep
+// importing it from here. Nothing in src/sim may import a moved name through
+// here: a re-export is an import edge, and would close a cycle again.
+export { Unit, spawnUnit, removeUnit, unitsOfFort, enemyCount, raiderShipCount, garrisonCounts, enemyPower } from './units.js';
+export { passable, moveToward, straightClear, landRoute, marchTo, moveUnitToward } from './unitMove.js';
+export { hostileToRome, raidPeople, warbandType, rollDamage, holdingPosition, unitDefense, missileDamage, hurt, attackUnit, attackWith, nearestHostile, screenDirection } from './combat.js';
+export { WALL_HP, buildingMaxHp, damageBuilding, damageWallAt, wallHpOf } from './damage.js';
+export { fillField, computeField, raidTargets } from './field.js';
+export { militaryNeed, barracksHasRoom } from './demand.js';
+export { fortPost, yardSpot, fortGate, standsTo, watchOf } from './forts.js';
+
 // A fort that is not deployed holds its ground, as the original's legions did
 // until sent out: a legionary or cavalryman takes on only an enemy within
 // HOLD_REACH tiles of the fort's ranks (he steps out, strikes and steps
@@ -77,18 +116,6 @@ const SLOT_OFFSETS = [[0, 0], [0.26, -0.26], [-0.26, 0.26], [0.26, 0.26], [-0.26
 // def.aggro * 1.5 around it and chase up to 4 tiles farther (fightZone).
 const HOLD_REACH = 2;
 const HOLD_LEASH = 1;
-// A fort's men rest in its yard, inside its walls, and stand to on its
-// ground by it (formationSpots around its post, where they always stood)
-// while raiders, Caesar's men or a revolt are in the province, or raider
-// ships off its shore: they come out long before a warband crosses the map,
-// so they meet it where and as they always did. A wolf or an angry villager
-// calls them out only within STAND_TO_REACH tiles of the fort's post, and a
-// man already out goes back in only once it is STAND_DOWN_SLACK tiles beyond
-// that (a wolf roaming about the line would have him in and out by turns).
-const STAND_TO_REACH = 12;
-const STAND_DOWN_SLACK = 4;
-const WALL_HP = { [Wall.WALL]: 220, [Wall.GATE]: 320 };
-const FIELD_WALL_COST = 14; // how much raiders dislike breaking a wall vs walking
 const TOWER_RANGE = 8;
 const TOWER_DAMAGE = 12;
 const TOWER_COOLDOWN = 30; // ticks at full staff
@@ -174,11 +201,6 @@ export function peopleFor(scenario, flag = null) {
   return PEOPLE_BY_MISSION[scenario.id] || PEOPLE_BY_SITE[site] || GENERIC_PEOPLE;
 }
 
-/** The people of a raid (its own, kept from its launch), or of the province's next one. */
-export function raidPeople(game, inv = game.military.active) {
-  return peopleById(inv?.people || game.military.people);
-}
-
 /**
  * Words for a people in messages: `many` ("raiders" for the generic band,
  * so its messages read as they always did; else "Ligurians"), `name`.
@@ -188,500 +210,9 @@ export function peopleWords(people) {
   return { many: generic ? 'raiders' : people.name, Many: generic ? 'Raiders' : people.name, generic };
 }
 
-export class Unit {
-  constructor(id, type, x, y) {
-    const def = UNIT_TYPES[type];
-    if (!def) throw new Error(`Unknown unit type "${type}"`);
-    this.id = id;
-    this.type = type;
-    this.side = def.side;
-    this.x = x; // continuous tile coordinates
-    this.y = y;
-    this.hp = def.hp;
-    this.maxHp = def.hp;
-    this.cooldown = 0;
-    this.state = 'idle';
-    this.target = 0; // enemy unit id
-    this.fort = 0; // Roman: fort building id
-    this.slot = 0; // Roman: formation slot
-    this.invasion = 0; // raider: invasion id
-    this.path = null; // tile indices when following an A* path
-    this.pathIndex = 0;
-    this.stuck = 0;
-    this.facing = 1; // screen direction for art
-    this.moving = false;
-    this.strikeTick = -99; // last attack (art swings the weapon)
-    this.hitTick = -99; // last time it was hurt (health bar flashes)
-    this.ox = 0; // small personal offset so crowds do not stack perfectly
-    this.oy = 0;
-    this.px = x; // position at the start of the tick (render interpolation)
-    this.py = y;
-    this.walked = 0; // tiles walked, modulo STRIDE_WRAP (drives the leg animation)
-    this.trained = false; // Roman: trained at a Military Academy or the Portus (sim/training.js)
-    this.drill = 0; // Roman: id of the Campus (a soldier) or Portus (a ship) it is on a trip to, 0 = none
-    this.drillDay = 0; // ...the day he set out
-    this.drillDays = 0; // ...and how long the trip may take (sim/training.js startDrill)
-    this.trainLeft = 0; // ...and, there, the ticks of training left
-    this.trainWait = 0; // ...and the ticks it has waited there for a full staff
-  }
-}
-
-/** Create a unit and register it. */
-export function spawnUnit(game, type, x, y, init = {}) {
-  const u = new Unit(game.nextUnitId++, type, x, y);
-  u.ox = (game.rng.next() - 0.5) * 0.5;
-  u.oy = (game.rng.next() - 0.5) * 0.5;
-  // Tougher raiders on harder difficulties (their attack is scaled in enemyPower()).
-  if (u.side === 'enemy') u.hp = u.maxHp = Math.round(u.maxHp * enemyPower(game, u));
-  Object.assign(u, init);
-  game.units.set(u.id, u);
-  return u;
-}
-
-/** Remove a unit (death, disbanding, fleeing off the map). */
-export function removeUnit(game, u, cause = 'died') {
-  if (!game.units.has(u.id)) return;
-  game.units.delete(u.id);
-  const st = game.military.stats;
-  if (cause === 'died') {
-    const inv = game.military.active;
-    const mine = inv && inv.id === u.invasion;
-    if (UNIT_TYPES[u.type].naval) {
-      // A sunk raider ship drowns the raiders still aboard: they count as slain.
-      const drowned = u.side === 'enemy' ? (u.crew || []).length : 0;
-      if (u.side === 'enemy') {
-        st.shipsSunk = (st.shipsSunk || 0) + 1;
-        st.enemiesKilled += drowned;
-        if (mine) { inv.killed += drowned; inv.shipsSunk = (inv.shipsSunk || 0) + 1; }
-        game.message(drowned ? `A raider ship has been sunk with ${drowned} raider${drowned === 1 ? '' : 's'} aboard!` : 'A raider ship has been sunk!', 'good', Math.floor(u.x), Math.floor(u.y));
-      } else {
-        st.shipsLost = (st.shipsLost || 0) + 1;
-        game.message('A liburnian has been sunk! The Navalia can build another.', 'bad', Math.floor(u.x), Math.floor(u.y));
-      }
-      u.crew = [];
-      game.events.emit('sound', { name: 'splash' });
-    } else if (u.side === 'native') {
-      // A villager (sim/natives.js): no enemy of the province's, no soldier of Rome's.
-      if (game.city.natives) game.city.natives.slain++;
-    } else if (u.side === 'enemy') {
-      st.enemiesKilled++;
-      if (u.legion) {
-        // One of Caesar's men (sim/legion.js): his army's count, not a raid's.
-        const cs = game.military.caesar;
-        if (cs && cs.army && cs.army.id === u.legion) cs.army.killed++;
-        if (cs) cs.stats.slain++;
-      } else if (mine) inv.killed++;
-    } else if (u.side === 'rome') {
-      st.soldiersLost++;
-    } else if (u.type === 'wolf') {
-      wolfKilled(game);
-    }
-    game.events.emit('unitDied', { x: u.x, y: u.y, side: u.side, type: u.type });
-  }
-}
-
-export function unitsOfFort(game, fortId) {
-  const out = [];
-  for (const u of game.units.values()) if (u.fort === fortId) out.push(u);
-  return out;
-}
-
-/**
- * Is this unit hostile to Rome, so that soldiers, watchtowers and prefects
- * fight it? One rule for all three, so a new kind of foe needs no change to
- * any of them:
- *   side 'enemy'   raiders, Caesar's legionaries: always
- *   side 'wild'    wild animals that hunt the city's people (wolves): always
- *   side 'native'  a villager of a native village: only while his village is
- *                  attacking the city (`u.attacking` set); in peace he walks
- *                  his own paths and is left alone
- * Rome's own units never are. Ships of either side are left to the fleet
- * (land units never see them), whatever this says.
- * Hostile is not the same as "an enemy in the province": only side 'enemy'
- * holds up a victory or the peace rating (sim/ratings.js enemiesInProvince).
- */
-export function hostileToRome(u) {
-  if (u.side === 'enemy' || u.side === 'wild') return true;
-  return u.side === 'native' && !!u.attacking;
-}
-
-/** Raiders in the province: on land, and still aboard their ships. */
-export function enemyCount(game) {
-  let n = 0;
-  for (const u of game.units.values()) {
-    if (u.side !== 'enemy') continue;
-    n += UNIT_TYPES[u.type].naval ? (u.crew || []).length : 1;
-  }
-  return n;
-}
-
-/** Raider ships on the map (sailing in, offshore or leaving). */
-export function raiderShipCount(game) {
-  let n = 0;
-  for (const u of game.units.values()) if (u.side === 'enemy' && UNIT_TYPES[u.type].naval) n++;
-  return n;
-}
-
-// ---------------------------------------------------------------------------
-// Passability & movement
-// ---------------------------------------------------------------------------
-
-export function passable(game, side, i) {
-  const map = game.map;
-  const t = map.terrain[i];
-  if (t === Terrain.ROCK) return false;
-  if (t === Terrain.WATER && map.road[i] !== Road.BRIDGE) return false;
-  if (map.building[i]) return false;
-  const w = map.wall[i];
-  if (w === Wall.WALL) return false;
-  if (w === Wall.GATE && side !== 'rome') return false; // (a gate opens for Rome only: not for raiders, nor wolves)
-  return true;
-}
-
-/** Can the unit step to continuous position (nx, ny)? */
-function canEnter(game, u, nx, ny) {
-  const map = game.map;
-  const tx = Math.floor(nx);
-  const ty = Math.floor(ny);
-  if (!map.inBounds(tx, ty)) return false;
-  if (tx === Math.floor(u.x) && ty === Math.floor(u.y)) return true;
-  return passable(game, u.side, map.idx(tx, ty));
-}
-
-/**
- * Step toward a point, sliding along obstacles.
- * @returns {boolean} true when (almost) there
- */
-export function moveToward(game, u, tx, ty, speed) {
-  const dx = tx - u.x;
-  const dy = ty - u.y;
-  const d = Math.hypot(dx, dy);
-  if (d < 0.05) {
-    u.moving = false;
-    return true;
-  }
-  const step = Math.min(d, speed);
-  const nx = u.x + (dx / d) * step;
-  const ny = u.y + (dy / d) * step;
-  const sdx = dx - dy; // screen-space x direction
-  if (Math.abs(sdx) > 0.01) u.facing = sdx > 0 ? 1 : -1;
-  u.moving = true;
-  if (canEnter(game, u, nx, ny)) {
-    u.x = nx;
-    u.y = ny;
-    u.stuck = 0;
-  } else if (Math.abs(dx) > 0.01 && canEnter(game, u, u.x + Math.sign(dx) * step, u.y)) {
-    u.x += Math.sign(dx) * step;
-    u.stuck++;
-  } else if (Math.abs(dy) > 0.01 && canEnter(game, u, u.x, u.y + Math.sign(dy) * step)) {
-    u.y += Math.sign(dy) * step;
-    u.stuck++;
-  } else {
-    u.stuck += 2;
-    u.moving = false;
-  }
-  if (u.moving) u.walked = (u.walked + step) % STRIDE_WRAP;
-  return false;
-}
-
-/**
- * Is the straight line from the unit to (x, y) walkable for it, tile by tile
- * (no water but bridges, no rock, building or wall; a gate only for Rome)?
- */
-export function straightClear(game, u, x, y) {
-  const map = game.map;
-  const d = Math.hypot(x - u.x, y - u.y);
-  const n = Math.ceil(d / 0.4);
-  for (let k = 1; k <= n; k++) {
-    const tx = Math.floor(u.x + ((x - u.x) * k) / n);
-    const ty = Math.floor(u.y + ((y - u.y) * k) / n);
-    if (!map.inBounds(tx, ty)) return false;
-    if (tx === Math.floor(u.x) && ty === Math.floor(u.y)) continue;
-    if (!passable(game, u.side, map.idx(tx, ty))) return false;
-  }
-  return true;
-}
-
-/**
- * One tick toward an enemy: straight at him when the way is open, else along
- * an A* route (over a bridge, through a gate), planned at once and again when
- * he has moved off from where it ends or the unit picks another enemy.
- * Before, a soldier walked straight at a raider across a river and planned a
- * route only after a day stuck on the bank (playtest).
- */
-function approach(game, u, target, speed) {
-  const map = game.map;
-  // A route is kept while it still ends near the enemy (soldiers switch
-  // enemies every few ticks to spread out: a fresh route each time walked
-  // them back to their own tile's middle, and they stood jittering).
-  if (u.path && u.pathFor) {
-    const end = u.path[u.path.length - 1];
-    if (Math.hypot(map.xOf(end) + 0.5 - target.x, map.yOf(end) + 0.5 - target.y) > 3) u.path = null;
-    else u.pathFor = target.id;
-  }
-  if (!u.path && !u.noPath && !straightClear(game, u, target.x, target.y)) {
-    replan(game, u, target.x, target.y);
-    u.pathFor = target.id;
-    // From the next tile on: the route's first tile is the one he stands on.
-    if (u.path && u.path.length > 1) u.pathIndex = 1;
-  }
-  if (u.path) { followUnitPath(game, u, speed); return; }
-  moveToward(game, u, target.x, target.y, speed);
-}
-
-/** Plan an A* route for a unit to a tile (used when steering gets stuck or for long marches). */
-function planPath(game, u, goalX, goalY) {
-  return landRoute(game, u.side, u.x, u.y, goalX, goalY);
-}
-
-/**
- * An A* route over open land for a unit of `side` from (x, y) to the tile
- * of (goalX, goalY), or the nearest open tile within 3 of it: tile indices,
- * or null. (Also asked before a man is sent to train, sim/training.js
- * startTrips: is there a way there on foot, and how long is it?)
- */
-export function landRoute(game, side, x, y, goalX, goalY) {
-  const map = game.map;
-  const u = { side, x, y };
-  let gx = Math.max(0, Math.min(map.w - 1, Math.floor(goalX)));
-  let gy = Math.max(0, Math.min(map.h - 1, Math.floor(goalY)));
-  // If the goal tile is blocked, aim for the nearest open tile around it.
-  if (!passable(game, u.side, map.idx(gx, gy))) {
-    let found = false;
-    for (let r = 1; r <= 3 && !found; r++) {
-      for (let dy = -r; dy <= r && !found; dy++) {
-        for (let dx = -r; dx <= r && !found; dx++) {
-          const x = gx + dx;
-          const y = gy + dy;
-          if (map.inBounds(x, y) && passable(game, u.side, map.idx(x, y))) { gx = x; gy = y; found = true; }
-        }
-      }
-    }
-    if (!found) return null;
-  }
-  const start = map.idx(Math.floor(u.x), Math.floor(u.y));
-  const cost = (i) => {
-    if (!passable(game, u.side, i)) return Infinity;
-    if (map.road[i]) return 0.7;
-    return map.terrain[i] === Terrain.TREES ? 1.8 : 1;
-  };
-  return game.pf.astar(start, map.idx(gx, gy), cost, { maxNodes: 9000 });
-}
-
-/** Follow u.path; returns true when the path is finished. */
-function followUnitPath(game, u, speed) {
-  if (!u.path || u.pathIndex >= u.path.length) {
-    u.path = null;
-    return true;
-  }
-  const map = game.map;
-  const i = u.path[u.pathIndex];
-  const last = u.pathIndex === u.path.length - 1;
-  const tx = map.xOf(i) + 0.5 + (last ? 0 : u.ox * 0.5);
-  const ty = map.yOf(i) + 0.5 + (last ? 0 : u.oy * 0.5);
-  if (moveToward(game, u, tx, ty, speed)) u.pathIndex++;
-  if (u.stuck > 30) {
-    u.path = null; // blocked (something was built on the way): re-plan later
-    u.stuck = 0;
-  }
-  return false;
-}
-
 // ---------------------------------------------------------------------------
 // Forts & posts
 // ---------------------------------------------------------------------------
-
-/** The open tile in front of a fort where its soldiers stand (cached). */
-export function fortPost(game, fort) {
-  if (fort.post && fort.postRev === game.map.revision) return fort.post;
-  const map = game.map;
-  const S = fort.size;
-  const cands = [];
-  for (let d = 0; d < S; d++) {
-    cands.push([fort.x + d, fort.y + S], [fort.x + S, fort.y + d], [fort.x + d, fort.y - 1], [fort.x - 1, fort.y + d]);
-  }
-  let post = { x: fort.x + S / 2, y: fort.y + S + 0.5 };
-  for (const [x, y] of cands) {
-    if (map.inBounds(x, y) && passable(game, 'rome', map.idx(x, y))) { post = { x: x + 0.5, y: y + 0.5 }; break; }
-  }
-  fort.post = post;
-  fort.postRev = map.revision;
-  return post;
-}
-
-/** The point a fort's soldiers gather around: its rally point or its parade tile. */
-function anchorOf(game, fort) {
-  return fort.rally || fortPost(game, fort);
-}
-
-/**
- * Standing spots for a fort's soldiers: the open tiles nearest the anchor
- * (breadth-first, so they fill a road or a field naturally instead of
- * poking into buildings). Cached per fort until the map or anchor changes.
- */
-function formationSpots(game, fort) {
-  const base = anchorOf(game, fort);
-  const key = `${game.map.revision}:${base.x},${base.y}`;
-  if (!game.formations) game.formations = new Map(); // fort id -> { key, spots } (derived, not saved)
-  const hit = game.formations.get(fort.id);
-  if (hit && hit.key === key) return hit.spots;
-  const map = game.map;
-  const bx = Math.floor(base.x);
-  const by = Math.floor(base.y);
-  const tiles = [];
-  if (map.inBounds(bx, by)) {
-    // BFS may cross blocked tiles (a rally point inside a building) but only
-    // collects open ones, and never strays more than 5 tiles.
-    const start = map.idx(bx, by);
-    const seen = new Set([start]);
-    const queue = [start];
-    for (let q = 0; q < queue.length && tiles.length < FORT_CAPACITY; q++) {
-      const i = queue[q];
-      if (passable(game, 'rome', i)) tiles.push(i);
-      const x = map.xOf(i);
-      const y = map.yOf(i);
-      for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (!map.inBounds(nx, ny) || Math.abs(nx - bx) > 5 || Math.abs(ny - by) > 5) continue;
-        const j = map.idx(nx, ny);
-        if (!seen.has(j)) { seen.add(j); queue.push(j); }
-      }
-    }
-  }
-  const spots = [];
-  for (let s = 0; s < FORT_CAPACITY; s++) {
-    if (!tiles.length) { spots.push({ x: base.x, y: base.y }); continue; }
-    const i = tiles[s % tiles.length];
-    const off = SLOT_OFFSETS[Math.floor(s / tiles.length) % SLOT_OFFSETS.length];
-    spots.push({ x: map.xOf(i) + 0.5 + off[0], y: map.yOf(i) + 0.5 + off[1] });
-  }
-  game.formations.set(fort.id, { key, spots });
-  return spots;
-}
-
-/**
- * A soldier's spot in his fort's ranks: on its ground by it (around its post),
- * or around its rally point. His fight zone is measured from here (an
- * archer's) or from the whole formation (fightZone), wherever he stands.
- */
-function postOf(game, u, fort) {
-  return formationSpots(game, fort)[u.slot % FORT_CAPACITY];
-}
-
-// ---------------------------------------------------------------------------
-// The fort's yard: where its men rest, inside the walls
-// ---------------------------------------------------------------------------
-
-/**
- * A point (u, v) of a fort's unturned art, in tiles of a 3 x 3 fort, as a
- * map point: scaled to the fort's size and turned as the fort stands (the
- * R key's turn, b.turn), as render/turn.js turnUV turns the art itself.
- */
-function fortPoint(fort, u, v) {
-  const S = fort.size;
-  const a = (u * S) / 3;
-  const b = (v * S) / 3;
-  switch ((fort.turn || 0) & 3) {
-    case 1: return { x: fort.x + S - b, y: fort.y + a };
-    case 2: return { x: fort.x + S - a, y: fort.y + S - b };
-    case 3: return { x: fort.x + b, y: fort.y + S - a };
-    default: return { x: fort.x + a, y: fort.y + b };
-  }
-}
-
-/** Where a soldier stands at rest: his spot in his fort's yard (FORT_YARD). */
-export function yardSpot(fort, slot) {
-  const spots = FORT_YARD[fort.def.unit] || FORT_YARD.legionary;
-  const [u, v] = spots[slot % spots.length];
-  return fortPoint(fort, u, v);
-}
-
-/**
- * Where a fort's men go in and out: `out`, the middle of the open tile in
- * front of the gateway in its art (FORT_GATEWAY, turned with the fort), and
- * `door`, the middle of the footprint tile behind it. With that tile built
- * over, the post's tile (fortPost) and the footprint tile beside it; null
- * when that is shut too (the men stay where they are, in or out). Fort
- * footprints stay closed to everyone: a man walks in through here only,
- * and leaves through here before any route is planned (planPath cannot
- * start inside a building). The gateway's tile counts only if it leads
- * somewhere (gateLeadsOut): walled into a pocket it would have kept the
- * whole garrison in. Cached per fort until the map changes (derived, not
- * saved).
- */
-export function fortGate(game, fort) {
-  const map = game.map;
-  const key = `${map.revision}:${fort.x},${fort.y},${fort.turn || 0}`;
-  if (!game.fortGates) game.fortGates = new Map(); // fort id -> { key, gate }
-  const hit = game.fortGates.get(fort.id);
-  if (hit && hit.key === key) return hit.gate;
-  const S = fort.size;
-  const tile = (p) => ({ x: Math.floor(p.x), y: Math.floor(p.y) });
-  const open = (t) => map.inBounds(t.x, t.y) && passable(game, 'rome', map.idx(t.x, t.y));
-  const mid = (t) => ({ x: t.x + 0.5, y: t.y + 0.5 });
-  const [gu, gv] = FORT_GATEWAY;
-  const out = tile(fortPoint(fort, gu, gv + 1.5 / S));
-  const post = tile(fortPost(game, fort));
-  let gate = null;
-  if (open(out) && gateLeadsOut(game, fort, out, post)) gate = { out: mid(out), door: mid(tile(fortPoint(fort, gu, gv - 1.5 / S))) };
-  else if (open(post)) {
-    const door = { x: Math.min(fort.x + S - 1, Math.max(fort.x, post.x)), y: Math.min(fort.y + S - 1, Math.max(fort.y, post.y)) };
-    gate = { out: mid(post), door: mid(door) };
-  }
-  game.fortGates.set(fort.id, { key, gate });
-  return gate;
-}
-
-/**
- * Does the open tile `out` before a fort's gateway lead anywhere: to the
- * fort's post, or to open ground 3 tiles or more from the fort? A small
- * breadth-first search over open tiles, outside the footprint.
- */
-function gateLeadsOut(game, fort, out, post) {
-  const map = game.map;
-  const S = fort.size;
-  const far = (x, y) => Math.max(fort.x - x, x - (fort.x + S - 1), fort.y - y, y - (fort.y + S - 1)) >= 3;
-  const start = map.idx(out.x, out.y);
-  const seen = new Set([start]);
-  const queue = [start];
-  for (let q = 0; q < queue.length && q < 200; q++) {
-    const x = map.xOf(queue[q]);
-    const y = map.yOf(queue[q]);
-    if ((x === post.x && y === post.y) || far(x, y)) return true;
-    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (!map.inBounds(nx, ny)) continue;
-      const j = map.idx(nx, ny);
-      if (seen.has(j) || !passable(game, 'rome', j)) continue;
-      seen.add(j);
-      queue.push(j);
-    }
-  }
-  return false;
-}
-
-/**
- * A step straight toward (tx, ty), the ground unchecked: only inside a
- * fort's walls (nothing there stands in a man's way) and through its gate,
- * between the door tile and the open tile in front of it.
- */
-function stepFree(u, tx, ty, speed) {
-  const dx = tx - u.x;
-  const dy = ty - u.y;
-  const d = Math.hypot(dx, dy);
-  if (d < 0.05) { u.moving = false; return true; }
-  const step = Math.min(d, speed);
-  u.x += (dx / d) * step;
-  u.y += (dy / d) * step;
-  const sdx = dx - dy;
-  if (Math.abs(sdx) > 0.01) u.facing = sdx > 0 ? 1 : -1;
-  u.moving = true;
-  u.stuck = 0;
-  u.walked = (u.walked + step) % STRIDE_WRAP;
-  return false;
-}
 
 const onTile = (u, p) => Math.floor(u.x) === Math.floor(p.x) && Math.floor(u.y) === Math.floor(p.y);
 
@@ -740,41 +271,6 @@ function marchToPost(game, u, post, def, toGate = false) {
 }
 
 /**
- * Do a fort's men stand to (on its ground by it, around its post) rather than
- * rest in its yard? While raiders, Caesar's men or a revolt are in the
- * province, or raider ships off its shore (`alarm`), and while any other
- * foe (a wolf, an angry villager) is within STAND_TO_REACH of its post; a
- * man already `out` stays out until it is STAND_DOWN_SLACK beyond. `memo`:
- * this tick's nearest foe, per fort.
- */
-export function standsTo(game, fort, watch, out) {
-  if (watch.alarm) return true;
-  let d = watch.memo.get(fort.id);
-  if (d === undefined) {
-    const p = fortPost(game, fort);
-    d = Infinity;
-    for (const e of watch.foes) d = Math.min(d, Math.hypot(e.x - p.x, e.y - p.y));
-    watch.memo.set(fort.id, d);
-  }
-  return d <= STAND_TO_REACH + (out ? STAND_DOWN_SLACK : 0);
-}
-
-/**
- * What calls the forts' men out of their yards (standsTo), looked up afresh
- * from the units on the map: what updateMilitary builds each tick from its
- * own lists, for the daily rules (sim/training.js startTrips).
- */
-export function watchOf(game) {
-  let alarm = false;
-  const foes = [];
-  for (const u of game.units.values()) {
-    if (u.side === 'enemy') alarm = true; // (raiders, Caesar's men, gladiators, raider ships)
-    if (!UNIT_TYPES[u.type].naval && hostileToRome(u)) foes.push(u);
-  }
-  return { alarm, foes, memo: new Map() };
-}
-
-/**
  * A fort was removed (demolished or destroyed by raiders): its soldiers have
  * nowhere to live and disband. Hooked to the 'buildingRemoved' event in Game.
  */
@@ -810,13 +306,6 @@ export function recallFort(game, fortId) {
 // Barracks & recruits
 // ---------------------------------------------------------------------------
 
-/** Soldiers alive per fort id, in one pass over the units. */
-export function garrisonCounts(game) {
-  const out = new Map();
-  for (const u of game.units.values()) if (u.fort) out.set(u.fort, (out.get(u.fort) || 0) + 1);
-  return out;
-}
-
 /**
  * Daily: how much of each military input the forts still need to fill their
  * ranks (weapons/arrows/horses, in units). Cached on game.military.demand.
@@ -835,27 +324,6 @@ export function updateDemand(game) {
   }
   game.military.demand = demand;
   return demand;
-}
-
-/**
- * Units of a military input that should still go to barracks: what the forts
- * need minus what barracks already hold or have on the way. 0 = send goods to
- * warehouses instead (so the barracks never hoards export weapons).
- */
-export function militaryNeed(game, good) {
-  const want = game.military?.demand?.[good] || 0;
-  if (want <= 0) return 0;
-  let held = 0;
-  for (const b of game.buildings.values()) {
-    if (b.def.kind === 'barracks') held += (b.stock[good] || 0) + (b.incoming[good] || 0);
-  }
-  return Math.max(0, want - held);
-}
-
-/** Can this barracks take `amount` more of a good right now? */
-export function barracksHasRoom(b, good, amount) {
-  return b.def.kind === 'barracks' && b.efficiency > 0 && b.stock[good] !== undefined
-    && b.stock[good] + b.incoming[good] + amount <= b.def.inputCap;
 }
 
 /** Daily: train a recruit and send him to the fort that needs one most. */
@@ -933,302 +401,8 @@ export function recruitArrive(game, w) {
 }
 
 // ---------------------------------------------------------------------------
-// Buildings & walls under attack
-// ---------------------------------------------------------------------------
-
-export function buildingMaxHp(b) {
-  if (b.def.kind === 'monument') return monumentHp(b); // a site's, then the finished monument's (data/monuments.js)
-  if (b.def.hp) return b.def.hp;
-  return (b.house ? 45 : 80) * b.size * b.size;
-}
-
-/**
- * Raiders (or a raider ship's fire pot, `fromSea`) hurt a building; at 0 hit
- * points it burns or collapses. Fire pots alone never let a raid carry off
- * plunder: only raiders who reach the city on foot do. `legion`: Caesar's
- * army struck it (sim/legion.js), which is no part of a raid.
- */
-export function damageBuilding(game, b, dmg, { fromSea = false, legion = null, revolt = false } = {}) {
-  if (b.def.kind === 'village') return; // a native village is not the province's to lose
-  if (b.hp === undefined) b.hp = buildingMaxHp(b);
-  b.hp -= dmg;
-  b.lastRaided = game.time.totalDays;
-  const inv = legion || revolt ? null : game.military.active; // (a gladiator's work is no raid's: sim/revolt.js)
-  if (inv && !fromSea) inv.reached = true; // the warband made it to the city: plunder is possible
-  if (b.hp > 0) return;
-  // A monument already sacked has nothing more to lose until it is repaired.
-  if (b.mon && b.mon.sacked && !game.difficulty.monumentRaze) { b.hp = 0; return; }
-  if (inv) inv.buildingsLost++;
-  if (legion) {
-    legion.buildingsLost++;
-    const cs = game.military.caesar;
-    if (cs) cs.stats.buildingsLost = (cs.stats.buildingsLost || 0) + 1;
-  }
-  // (The raids' count; a revolt keeps its own, sim/revolt.js.)
-  if (!revolt) game.military.stats.buildingsLost++;
-  else if (game.military.revolt) game.military.revolt.buildingsLost = (game.military.revolt.buildingsLost || 0) + 1;
-  game.city.ratings.peace = Math.max(0, game.city.ratings.peace - 1);
-  // A monument never falls but on Insane: a site is set back, a finished
-  // one sacked (sim/monuments.js monumentStruck). It counts as lost all the same.
-  if (b.def.kind === 'monument') {
-    if (monumentStruck(game, b)) return;
-    game.message(`The ${b.def.name} has been razed! Everything built and delivered is lost; another monument may be started.`, 'bad', b.x, b.y);
-  }
-  const now = game.time.totalDays;
-  const loud = now - game.military.lastLossMessageDay >= 4;
-  if (loud) game.military.lastLossMessageDay = now;
-  // Raiders torch most of what they break.
-  // (A hippodrome's outer sections burn as the hippodrome does.)
-  const who = legion ? 'legion' : revolt ? 'revolt' : 'raid';
-  if (game.rng.chance(0.6) && riskRates(mainOf(game, b)).fire > 0) igniteBuilding(game, b, loud ? who : `${who}Quiet`);
-  else collapseBuilding(game, b, loud ? who : `${who}Quiet`);
-}
-
-/** Raiders (or, `legion`, Caesar's men; `revolt`, rebel gladiators) hit a wall or gate on tile i. */
-function damageWall(game, i, dmg, legion = false, revolt = false) {
-  const map = game.map;
-  const kind = map.wall[i];
-  if (!kind) return;
-  const hp = (game.wallHp.get(i) ?? WALL_HP[kind]) - dmg;
-  if (hp > 0) { game.wallHp.set(i, hp); return; }
-  game.wallHp.delete(i);
-  map.wall[i] = Wall.NONE;
-  if (!map.road[i]) {
-    map.rubble[i] = 1;
-    recordRuin(game, [i], TOOLS.wall.name, legion ? 'legionWall' : revolt ? 'revoltWall' : 'raidWall', { type: 'wall', x: game.map.xOf(i), y: game.map.yOf(i), size: 1 });
-  }
-  map.touch();
-  const now = game.time.totalDays;
-  if (now - game.military.lastWallMessageDay >= 5) {
-    game.military.lastWallMessageDay = now;
-    const who = legion ? 'Caesar\'s legions have' : revolt ? 'Rebel gladiators have' : 'Raiders have';
-    game.message(kind === Wall.GATE ? `${who} smashed a gate!` : `${who} broken through a wall!`, 'bad', map.xOf(i), map.yOf(i));
-  }
-  game.events.emit('collapse', { x: map.xOf(i), y: map.yOf(i), size: 1 });
-}
-
-export function wallHpOf(game, i) {
-  const kind = game.map.wall[i];
-  if (!kind) return { hp: 0, max: 0 };
-  return { hp: game.wallHp.get(i) ?? WALL_HP[kind], max: WALL_HP[kind] };
-}
-
-// ---------------------------------------------------------------------------
-// Raider flow field
-// ---------------------------------------------------------------------------
-
-/** Dijkstra from every building tile: cost for a raider to reach a building. */
-export function computeField(game) {
-  const map = game.map;
-  let field = game.enemyField;
-  if (!field || field.length !== map.size) field = game.enemyField = new Float32Array(map.size);
-  fillField(game, field, (id) => {
-    const b = game.buildings.get(id);
-    return !!b && b.def.kind !== 'village' && !monumentSpent(game, b); // (raiders pass native villages by, and a monument with nothing more to lose)
-  });
-  game.enemyFieldRev = map.revision;
-  game.enemyFieldTick = game.time.totalTicks;
-  computeRaidField(game);
-}
-
-// How much a raid's field toward its people's targets dislikes breaking
-// through a building that is not one (as Caesar's legions' does,
-// CONFIG.LEGION_BREAK_COST): enough that the warband walks round a block
-// rather than through it, not so much that it never comes in.
-const RAID_BREAK_COST = 20;
-
-/**
- * The buildings a raid's people make for first (data/peoples.js `target`),
- * as { key, isTarget } for fillField, or null when the warband simply goes
- * for the nearest building: the generic band, or a target of which nothing
- * stands.
- */
-export function raidTargets(game, kind) {
-  if (!kind || kind === 'nearest') return null;
-  if (kind === 'homes') {
-    const t = legionTargets(game); // the residence, else the best homes with people (sim/legion.js)
-    return t.what === 'anything' ? null : { key: `homes:${t.key}`, isTarget: t.isTarget };
-  }
-  const kinds = TARGET_KINDS[kind];
-  if (!kinds) return null;
-  const named = (b) => !!b && (kinds.has(b.def.kind) || kinds.has(b.type));
-  for (const b of game.buildings.values()) if (named(b)) return { key: kind, isTarget: (id) => named(game.buildings.get(id)) };
-  return null;
-}
-
-/** Building kinds (or types) each target names (data/peoples.js). */
-const TARGET_KINDS = {
-  food: new Set(['granary', 'warehouse', 'market', 'farm']),
-  stores: new Set(['granary', 'warehouse']),
-  troops: new Set(['fort', 'barracks', 'military_academy', 'prefecture']),
-};
-
-/**
- * The active raid's own field, toward its people's targets with other
- * buildings breakable (null: none, the raiders walk the plain field). A
- * raider standing where this field cannot reach (its targets across water)
- * walks the plain one.
- */
-function computeRaidField(game) {
-  const inv = game.military.active;
-  const t = inv ? raidTargets(game, inv.target) : null;
-  if (!t) { game.raidField = null; return; }
-  const map = game.map;
-  let field = game.raidField;
-  if (!field || field.length !== map.size) field = game.raidField = new Float32Array(map.size);
-  fillField(game, field, t.isTarget, RAID_BREAK_COST);
-}
-
-/**
- * Raider travel cost from each tile to the nearest building for which
- * isSource(buildingId) is true (0 on those buildings, Infinity if cut off).
- * Other buildings block the way, unless `breakCost` is given: then they can
- * be broken through for that much more (Caesar's legions, sim/legion.js).
- */
-export function fillField(game, field, isSource, breakCost = 0, wallsBlock = false) {
-  const map = game.map;
-  const n = map.size;
-  field.fill(Infinity);
-  const heap = new MinHeap(4096);
-  for (let i = 0; i < n; i++) {
-    if (map.building[i] && isSource(map.building[i])) { field[i] = 0; heap.push(0, i); }
-  }
-  const w = map.w;
-  while (heap.length) {
-    const i = heap.pop();
-    const d = field[i];
-    const x = i % w;
-    const y = (i / w) | 0;
-    for (let k = 0; k < 4; k++) {
-      const nx = x + (k === 1 ? 1 : k === 3 ? -1 : 0);
-      const ny = y + (k === 0 ? -1 : k === 2 ? 1 : 0);
-      if (nx < 0 || ny < 0 || nx >= w || ny >= map.h) continue;
-      const j = ny * w + nx;
-      // (A native village's pieces are never broken through, by Caesar's men
-      // or the villagers themselves: damageBuilding spares them, so a route
-      // through one left a legionary bashing at a hut for good.)
-      if (map.building[j] && (!breakCost || game.buildings.get(map.building[j])?.def.kind === 'village')) continue;
-      const t = map.terrain[j];
-      if (t === Terrain.ROCK) continue;
-      if (t === Terrain.WATER && map.road[j] !== Road.BRIDGE) continue;
-      let c = t === Terrain.TREES ? 1.6 : 1;
-      if (map.wall[j]) {
-        if (wallsBlock) continue; // (villagers never break walls or gates: sim/natives.js)
-        c += FIELD_WALL_COST;
-      }
-      if (map.building[j]) c += breakCost;
-      // Rounded as the field stores it (32-bit floats): compared unrounded,
-      // a cost the field cannot hold exactly (a forest's 1.6) kept "beating"
-      // its own stored value, and every one of the many equal paths across a
-      // big forest pushed the tile again. On a step-10 map's woods the heap
-      // grew past the memory there was.
-      const nd = Math.fround(d + c);
-      if (nd < field[j]) { field[j] = nd; heap.push(nd, j); }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Combat
 // ---------------------------------------------------------------------------
-
-/**
- * Strength multiplier for a unit: raiders scale with difficulty, Caesar's
- * men never do (the difficulty sets how many he sends, sim/legion.js), and
- * Rome's soldiers and liburnians strike harder only while Mars's Great
- * Sanctuary is at work (sim/monumentEffects.js).
- */
-export function enemyPower(game, u) {
-  if (u.side === 'rome') return fanumOf(game, 'mars') ? GIFTS.mars.attack : 1;
-  return u.side === 'enemy' && !u.legion && u.type !== 'imperial' ? game.difficulty.enemy : 1;
-}
-
-/** One blow or missile: attack (+-25%) less half the target's defense, at least 2. `defense`: the target's now (unitDefense). */
-export function rollDamage(game, attDef, tgtDef, power = 1, defense = tgtDef.defense) {
-  const raw = attDef.attack * power * (0.75 + game.rng.next() * 0.5) - defense * 0.5;
-  return Math.max(2, raw);
-}
-
-/**
- * Is a Roman soldier holding position: standing his ground, at his post (by
- * the fort, or where it was deployed) or standing to fight a raider in reach,
- * and not running after one or marching? A trained legionary holding
- * position is in close order. (Colonia's soldiers step out to meet a raider
- * near their post, and deployed ones go out to meet raiders around their
- * rally point, rather than wait in line, so standing still is the test, not
- * the spot: a test of "at his post" alone gave a garrison that charges no
- * close order at all.)
- */
-export function holdingPosition(game, u) {
-  if (u.moving || !u.fort) return false;
-  if (u.state === 'idle') return true;
-  if (u.state !== 'engage') return false;
-  // Standing to fight means his raider is in reach: one blocked from reaching
-  // his raider also stands still, but is no formation.
-  const t = u.target ? game.units.get(u.target) : null;
-  return !!t && Math.hypot(t.x - u.x, t.y - u.y) <= UNIT_TYPES[u.type].range;
-}
-
-/**
- * A unit's defense right now: its type's, plus what training gives
- * (data/units.js): trainedDefense always, holdDefense while holding
- * position. Untrained units (and every raider) have their type's.
- */
-export function unitDefense(game, u) {
-  const def = UNIT_TYPES[u.type];
-  if (!u.trained) return def.defense;
-  let d = def.defense + (def.trainedDefense || 0);
-  if (def.holdDefense && holdingPosition(game, u)) d += def.holdDefense;
-  return d;
-}
-
-/**
- * A missile's damage on arrival: a trained legionary holding position takes
- * only holdMissile of it; a unit with a thick hide (an elephant's
- * missileShare) takes that share of any.
- */
-export function missileDamage(game, target, dmg) {
-  const hide = UNIT_TYPES[target.type].missileShare;
-  if (hide) dmg *= hide;
-  if (!target.trained) return dmg;
-  const share = UNIT_TYPES[target.type].holdMissile;
-  return share && holdingPosition(game, target) ? dmg * share : dmg;
-}
-
-export function hurt(game, target, dmg) {
-  target.hp -= dmg;
-  target.hitTick = game.time.totalTicks;
-  if (target.hp <= 0) removeUnit(game, target, 'died');
-}
-
-/** Melee hit or launch a missile at another unit. */
-export function attackUnit(game, u, def, target) {
-  u.strikeTick = game.time.totalTicks;
-  u.cooldown = def.cooldown;
-  const sdx = (target.x - u.x) - (target.y - u.y);
-  if (Math.abs(sdx) > 0.01) u.facing = sdx > 0 ? 1 : -1;
-  const dmg = rollDamage(game, def, UNIT_TYPES[target.type], enemyPower(game, u), unitDefense(game, target));
-  if (def.ranged) {
-    game.projectiles.push({ x: u.x, y: u.y, z: 10, target: target.id, damage: dmg, speed: 0.4, kind: u.side === 'enemy' ? 'stone' : 'arrow', life: 60 });
-    game.events.emit('sound', { name: 'arrow' });
-  } else {
-    hurt(game, target, dmg);
-    game.events.emit('sound', { name: 'clash' });
-  }
-}
-
-/** Nearest hostile unit within `range` of (x, y). */
-export function nearestHostile(list, x, y, range) {
-  let best = null;
-  let bestD = range;
-  for (const e of list) {
-    const d = Math.hypot(e.x - x, e.y - y);
-    if (d > bestD) continue;
-    best = e;
-    bestD = d;
-  }
-  return best;
-}
 
 /** Deployed, an enemy within this share of a soldier's aggro of himself is fought wherever he is. */
 const DEPLOYED_SELF = 0.5;
@@ -1439,35 +613,6 @@ function marchOut(game, u) {
   }
   const d = marchTo(game, u, ex.x + 0.5, ex.y + 0.5, UNIT_TYPES[u.type].speed);
   if (d < 1.2 || game.time.totalTicks - (u.awayTick || 0) > AWAY_MAX_TICKS) leaveForBattle(game, u);
-}
-
-/**
- * One tick of a long march over open land to (tx, ty): along an A* route
- * where steering alone would not do, as a soldier marches to his post.
- * (Soldiers leaving for a distant battle, Caesar's men going home.)
- * @returns {number} the distance left before this tick's step
- */
-export function marchTo(game, u, tx, ty, speed) {
-  if (u.noPath > 0) u.noPath--;
-  const d = Math.hypot(tx - u.x, ty - u.y);
-  if (u.path) { followUnitPath(game, u, speed); return d; }
-  if ((d > 5 || !straightClear(game, u, tx, ty)) && u.stuck === 0 && !u.noPath) {
-    replan(game, u, tx, ty);
-    if (u.path) return d;
-  }
-  moveToward(game, u, tx, ty, speed);
-  if (u.stuck > 20) replan(game, u, tx, ty);
-  return d;
-}
-
-/** Plan an A* route, remembering failures for a while so we do not retry every tick. */
-function replan(game, u, x, y) {
-  u.stuck = 0;
-  if (u.noPath > 0) return;
-  u.path = planPath(game, u, x, y);
-  u.pathIndex = 0;
-  if (u.pathGate) u.pathGate = false; // (a route to a fort's gate says so after: marchToPost)
-  if (!u.path) u.noPath = 60;
 }
 
 /** One raider's tick. `romans`: the soldiers he can get at; `soldiers`: how many the city has at home. */
@@ -1719,19 +864,6 @@ export function updateMilitary(game) {
 // Invasions
 // ---------------------------------------------------------------------------
 
-const DIRS = ['east', 'north-east', 'north', 'north-west', 'west', 'south-west', 'south', 'south-east'];
-
-/** Compass direction of a tile as seen on screen from the map center. */
-export function screenDirection(map, x, y) {
-  const cx = map.w / 2;
-  const cy = map.h / 2;
-  const sx = (x - y) - (cx - cy);
-  const sy = (x + y) - (cx + cy);
-  const a = Math.atan2(-sy, sx); // screen up = north
-  const k = Math.round(a / (Math.PI / 4));
-  return DIRS[(k + 8) % 8];
-}
-
 /**
  * Pick a land tile on the map edge from which raiders can actually walk to
  * the city's homes (not just an outlying farm across a river), preferring
@@ -1892,29 +1024,6 @@ function raidAtTheDoor(game) {
   w.landing = { x: landing.x, y: landing.y };
   delete w.noShore;
   game.message(`Raider ships are a month off the coast: about ${w.size} ${many}, making for the shore near ${landing.x}, ${landing.y}${moved ? ' (not where the scouts first thought)' : ''}. Man the shore and send out the fleet!`, 'warn', landing.x, landing.y);
-}
-
-/**
- * One warrior of a warband, one roll. The generic band: horsemen from 1,200
- * people, slingers from 700. A people with a mix (data/peoples.js): its own
- * kinds in its own shares, whatever the city's size.
- */
-export function warbandType(game, people = raidPeople(game)) {
-  const roll = game.rng.next();
-  if (people.mix) {
-    let sum = 0;
-    for (const share of Object.values(people.mix)) sum += share;
-    let acc = 0;
-    for (const [type, share] of Object.entries(people.mix)) {
-      acc += share / sum;
-      if (roll < acc) return type;
-    }
-    return Object.keys(people.mix)[0];
-  }
-  const pop = game.city.population;
-  if (pop >= 1200 && roll < 0.22) return 'horseman';
-  if (pop >= 700 && roll > 0.8) return 'slinger';
-  return 'raider';
 }
 
 /** Health x attack of one man, the yardstick of a warband's strength. */
@@ -2141,6 +1250,4 @@ export function threatSummary(game) {
   return { level: 'calm', text: 'No known threats.', enemies: 0 };
 }
 
-export { WALL_HP, TOWER_RANGE, TOWER_COOLDOWN };
-// For Caesar's legionaries (sim/legion.js), who move and fight as raiders do.
-export { moveToward as moveUnitToward, attackUnit as attackWith, damageWall as damageWallAt };
+export { TOWER_RANGE, TOWER_COOLDOWN };

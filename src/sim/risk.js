@@ -62,7 +62,7 @@ function siteOf(b) {
 function fallingGround(game, b) {
   // A road under a building (a triumphal arch's middle, sim/construction.js
   // checkArch) stays road: no rubble, flames or ruin on it, as a broken gate
-  // leaves its road (sim/military.js damageWall). Nor on water: a waterside
+  // leaves its road (sim/damage.js damageWall). Nor on water: a waterside
   // building's rows out over the water fall into it and leave open water
   // (sim/entities.js removeBuilding), the wreck burning only on the shore.
   const { map } = game;

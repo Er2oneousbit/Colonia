@@ -34,8 +34,7 @@ import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { STABLE_CAPACITY } from '../data/units.js';
-import { militaryNeed, barracksHasRoom } from './military.js';
-import { navalNeed, navaliaHasRoom } from './navy.js';
+import { militaryNeed, barracksHasRoom, navalNeed, navaliaHasRoom } from './demand.js';
 
 /** Goods a barracks takes by cart (weapons, arrows, horses). */
 const BARRACKS_INPUTS = BUILDINGS.barracks.inputs;

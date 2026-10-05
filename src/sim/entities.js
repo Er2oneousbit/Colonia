@@ -259,7 +259,7 @@ export function mainOf(game, b) {
 }
 
 /**
- * Is a soldier inside his own fort's walls, in its yard (sim/military.js
+ * Is a soldier inside his own fort's walls, in its yard (sim/forts.js
  * yardSpot)? A fort's footprint is no ground for anyone else, so nothing
  * outside reaches him there: raiders, Caesar's men, villagers and wolves do
  * not pick him, and he catches no thief in the street.

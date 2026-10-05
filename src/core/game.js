@@ -69,7 +69,7 @@ import { newGovernorState, paySalary, salaryNewYear } from '../sim/governor.js';
 import { newMilitaryState, updateMilitary, updateBarracks, militaryDaily, militaryMonthly, updateDemand, disbandFort, peopleFor } from '../sim/military.js';
 import { updatePrefectFights } from '../sim/prefectFight.js';
 import { refreshWaterways } from '../sim/bridges.js';
-import { newWildlife, wildlifeDaily } from '../sim/wildlife.js';
+import { newWildlife, wildlifeDaily, wolfKilled } from '../sim/wildlife.js';
 import { GENERIC_PEOPLE } from '../data/peoples.js';
 import { updateNavalia, stationLost, shoreBerth } from '../sim/navy.js';
 import { caesarDaily } from '../sim/legion.js';
@@ -225,10 +225,17 @@ export class Game {
     this.city.natives ??= null; // a city with native villages: their state (sim/natives.js); none in older saves
     if (!restore) foundVillages(this); // a new game: the native villages of the missions that have them
     this.projectiles = []; // arrows and sling stones in flight (not saved)
-    this.enemyField = null; // raider flow field (derived, see military.js)
+    this.enemyField = null; // raider flow field (derived, see sim/field.js)
     this.events.on('buildingRemoved', ({ building }) => {
       if (building.def.kind === 'fort') disbandFort(this, building);
       if (building.def.kind === 'station') stationLost(this, building); // its ships go to another station, or are laid up
+    });
+    // A wolf killed is counted here, not in sim/units.js removeUnit (which
+    // emits this as the unit dies, synchronously): wildlife.js stands above
+    // units.js and may not be imported by it. This is subscribed before any
+    // UI listener, so the count moves at the same point as before.
+    this.events.on('unitDied', ({ type }) => {
+      if (type === 'wolf') wolfKilled(this);
     });
     this.pf = new PathFinder(this.map);
     this.processRoadChanges();

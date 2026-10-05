@@ -29,9 +29,10 @@
 import { UNIT_TYPES } from '../data/units.js';
 import { killWalker, shoreWaterAt } from './entities.js';
 import { followPath } from './movement.js';
-import { dockBerth, shipLeave, shipPath } from './trade.js';
+import { shipLeave } from './trade.js';
+import { dockBerth, shipPath, waterOf } from './berths.js';
 import { fishingBoatBlocked } from './fishing.js';
-import { waterOf, rehomeShips } from './navy.js';
+import { rehomeShips } from './navy.js';
 
 /** Tile index under a continuous position. */
 function tileOf(map, x, y) {

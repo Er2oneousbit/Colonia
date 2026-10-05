@@ -883,7 +883,7 @@ export function monumentsMonthly(game) {
 // ---------------------------------------------------------------------------
 
 /**
- * A monument at 0 hit points (sim/military.js damageBuilding). On Insane
+ * A monument at 0 hit points (sim/damage.js damageBuilding). On Insane
  * (difficulty monumentRaze) it is razed like any building: the caller goes
  * on to bring it down, and returns false here. Elsewhere it never falls:
  *   - a site is set back: the stage under way loses RAID_WORK_LOSS of its

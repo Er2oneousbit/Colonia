@@ -26,7 +26,7 @@
  *   was the last one found: here each village goes for its own), breaking
  *   through buildings in his way as raiders do. Rome's soldiers, towers and
  *   prefects fight villagers only while they attack (hostileToRome in
- *   sim/military.js); villagers never start a fight with a walker. When the
+ *   sim/combat.js); villagers never start a fight with a walker. When the
  *   attack ends (a missionary may end it, once no piece still angry has a
  *   city building on its land), they walk home. A villager
  *   is no enemy in the province (the victory waits for none), but a month
@@ -56,7 +56,11 @@ import { Terrain } from '../world/map.js';
 import { planVillages } from '../world/natives.js';
 import { addBuilding, spawnWalker, killWalker, inOwnFort } from './entities.js';
 import { followPath } from './movement.js';
-import { spawnUnit, removeUnit, moveToward, fillField, attackUnit, nearestHostile, buildingMaxHp } from './military.js';
+import { spawnUnit, removeUnit } from './units.js';
+import { moveToward } from './unitMove.js';
+import { attackUnit, nearestHostile } from './combat.js';
+import { buildingMaxHp } from './damage.js';
+import { fillField } from './field.js';
 import { fightPrefect } from './prefectFight.js';
 import { collapseBuilding } from './risk.js';
 import { monumentStruck } from './monuments.js';

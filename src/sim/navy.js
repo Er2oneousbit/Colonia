@@ -49,13 +49,24 @@ import { UNIT_TYPES, STATION_CAPACITY, RAM_REACH, RAM_COOLDOWN } from '../data/u
 import { GOODS } from '../data/goods.js';
 import { Terrain } from '../world/map.js';
 import { RNG } from '../core/rng.js';
-import { spawnUnit, removeUnit, passable, fillField, computeField, damageBuilding, enemyPower, rollDamage, hurt, screenDirection, warbandType, unitDefense } from './military.js';
+import { spawnUnit, removeUnit, enemyPower } from './units.js';
+import { passable } from './unitMove.js';
+import { rollDamage, hurt, screenDirection, warbandType, unitDefense } from './combat.js';
+import { damageBuilding } from './damage.js';
+import { fillField, computeField } from './field.js';
+import { waterPath, shoreBerth, waterOf } from './berths.js';
 import { portusFor, startDrill, endDrill, trainAt, trainsNow } from './training.js';
-import { awayCounts, awayOf, leaveForBattle, dropAway, postsAway, takesNewMen, AWAY_MAX_TICKS } from './battle.js';
-import { dockBerth } from './trade.js';
+import { awayCounts, awayOf, postsAway, takesNewMen, AWAY_MAX_TICKS } from './away.js';
+import { leaveForBattle, dropAway } from './battle.js';
 import { killWalker, STRIDE_WRAP } from './entities.js';
 import { riskRates } from './risk.js';
 import { logGoods } from './goodsLedger.js';
+
+// The berths and the ships' water route (sim/berths.js) and the fleet's
+// demand (sim/demand.js), re-exported for the UI, the renderer and the
+// tests; the sim modules import them from those leaf modules.
+export { waterPath, shoreBerth, waterOf } from './berths.js';
+export { navalNeed, navaliaHasRoom } from './demand.js';
 
 /** When there are fewer water tiles than ships at a spot, ships share tiles with these offsets. */
 const SHARE_OFFSETS = [[0, 0], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3], [-0.3, -0.3]];
@@ -75,14 +86,6 @@ export function isShip(u) {
 /** Tile index under a continuous position (clamped to the map). */
 function tileAt(map, x, y) {
   return map.idx(Math.max(0, Math.min(map.w - 1, Math.floor(x))), Math.max(0, Math.min(map.h - 1, Math.floor(y))));
-}
-
-/** Water route between two tiles of the same navigable water (ships pass under bridges), or null. */
-export function waterPath(game, from, to) {
-  const body = game.map.navBody;
-  const b = body[from];
-  if (!b || body[to] !== b) return null;
-  return game.pf.astar(from, to, (i) => (body[i] === b ? 1 : Infinity), { maxNodes: game.map.size * 4 });
 }
 
 /** Up to `n` tiles of the same navigable water around tile `start`, nearest first (breadth first, at most `r` tiles away). */
@@ -278,17 +281,6 @@ function shoot(game, u, def, target) {
 // ---------------------------------------------------------------------------
 // Naval stations and their squadrons
 // ---------------------------------------------------------------------------
-
-/** The water tile beside a station or navalia (its berths, its slip), or -1. Cached, with the side facing the water. */
-export function shoreBerth(game, b) {
-  return dockBerth(game, b);
-}
-
-/** Which navigable water a station or navalia stands by (0: none). */
-export function waterOf(game, b) {
-  const i = shoreBerth(game, b);
-  return i >= 0 ? game.map.navBody[i] : 0;
-}
 
 /** The liburnians of a station. */
 export function squadron(game, stationId) {
@@ -527,27 +519,6 @@ export function updateNavalDemand(game) {
   for (const [g, n] of Object.entries(CONFIG.LIBURNIAN_COST)) need[g] = room * n;
   game.military.navalDemand = need;
   return need;
-}
-
-/**
- * Units of a good that should still go to a navalia: what the fleet needs
- * minus what the navalia hold or have on the way. 0: deliver it elsewhere
- * (workshops and warehouses), as the barracks' goods do.
- */
-export function navalNeed(game, good) {
-  const want = game.military?.navalDemand?.[good] || 0;
-  if (want <= 0) return 0;
-  let held = 0;
-  for (const b of game.buildings.values()) {
-    if (b.def.kind === 'navalia') held += (b.stock[good] || 0) + (b.incoming[good] || 0);
-  }
-  return Math.max(0, want - held);
-}
-
-/** Can this navalia take `amount` more of a good right now (a staffed station on its water has an empty berth)? */
-export function navaliaHasRoom(b, good, amount) {
-  return b.def.kind === 'navalia' && b.efficiency > 0 && b.fleetNeeds !== false && b.stock[good] !== undefined
-    && b.stock[good] + b.incoming[good] + amount <= b.def.inputCap;
 }
 
 // ---------------------------------------------------------------------------

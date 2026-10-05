@@ -11,7 +11,7 @@
  * he can (a shove, not a jump to the tile's middle). Placing is never
  * refused for them: they make room, as a crowd does for builders.
  *
- * A unit's own fort's yard is his to stand in (sim/military.js yardSpot),
+ * A unit's own fort's yard is his to stand in (sim/forts.js yardSpot),
  * and ships never stand where anything is built. Walkers on the roads never
  * need this: nothing is built on a road. A soldier's spots and his fort's
  * gate need nothing either: they are worked out again whenever the map
@@ -21,7 +21,7 @@
  */
 
 import { UNIT_TYPES } from '../data/units.js';
-import { passable } from './military.js';
+import { passable } from './unitMove.js';
 import { inOwnFort } from './entities.js';
 import { landPassable, offRoadReroute } from './crime.js';
 import { nativeTraderReroute } from './natives.js';

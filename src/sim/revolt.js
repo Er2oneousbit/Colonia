@@ -31,7 +31,7 @@
  */
 
 import { killWalker } from './entities.js';
-import { spawnUnit } from './military.js';
+import { spawnUnit } from './units.js';
 
 /** How long a revolt lasts, in months (the original's 3). */
 export const REVOLT_MONTHS = 3;
