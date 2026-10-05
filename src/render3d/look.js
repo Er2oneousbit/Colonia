@@ -43,7 +43,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { BACK, TILE_LEN } from './projection.js';
-import { LOOK } from './materials.js';
+import { LOOK, paintSurfaces } from './materials.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -297,6 +297,8 @@ export function createLook(canvas, { pixelRatio = 1, shadowBox = 9, shadowMap = 
   renderer.info.autoReset = false;
   LOOK.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   LOOK.renderer = renderer;
+  // Surfaces asked for before the renderer was made are painted on its GPU now.
+  paintSurfaces();
 
   const scene = new Scene();
   const sun = new DirectionalLight(0xffffff, 3);

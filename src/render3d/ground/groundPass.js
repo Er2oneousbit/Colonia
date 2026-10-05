@@ -71,9 +71,7 @@ import {
 import { MOODS, sunDirection, makeSkyParts, skyEnvironment, moodColor } from '../look.js';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
-import { groundTextures, groundArrays, liveGroundArrays } from './groundTextures.js';
-import { pruneCache } from '../paint/cache.js';
-import { GROUND_LAYERS } from './groundSurfaces.js';
+import { groundTextures } from './groundTextures.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
 
@@ -149,8 +147,6 @@ export class GroundPass {
     this.stateKey = '';
     this.blit = null;
     this.redraws = 0; // pictures drawn into the cache (stats, tests)
-    // Start-up steps: the three arrays uploaded one a frame (stand-ins and what has come), then the compile.
-    this.stage = 0;
     this.compiled = false;
     this.compileMs = 0;
     this.sun.castShadow = quality === 'high';
@@ -173,24 +169,23 @@ export class GroundPass {
       else console.error('THREE.WebGLProgram: shader error', ctx.getProgramInfoLog(program));
     };
     this.steps = []; // [what, ms] of the start-up steps (stats, measuring)
-    // The layers: stand-ins at once, painted ones as they come (from the
-    // cache, or the paint pool's workers). The ground is drawn from the
-    // stand-ins as soon as its shader is compiled; it never waits for them.
-    const t0 = performance.now();
-    this.layers = groundTextures();
-    this.layers.whenDone.then(() => {
-      this.loadMs = performance.now() - t0;
-      if (!this.loadMs) this.loadMs = 1; // (all there already: a renderer switched off and on)
-      // Textures kept by an older build: free their space now that this one's are in.
-      pruneCache();
+    // The layers, painted on this GPU in the background (paint/painter.js),
+    // compiled alongside the ground's own shader; the ground's sprites draw
+    // until both are ready.
+    this.t0 = performance.now();
+    this.tex = groundTextures(gl, Math.min(8, gl.capabilities.getMaxAnisotropy()));
+    this.tex.whenReady.then(() => {
+      // (At least 1: already painted, a renderer switched off and on.)
+      this.loadMs = Math.max(1, performance.now() - this.t0);
+      this.cacheDirty = true;
     });
   }
 
   /** Can the ground be drawn (its shader did not fail)? */
   get ready() { return !this.failed; }
 
-  /** Are all the layers painted and in the arrays? */
-  get texturesReady() { return this.layers.done && (!this.tex || !this.tex.pendingLayers()); }
+  /** Are all the layers painted? */
+  get texturesReady() { return !!this.tex && this.tex.ready; }
 
   /** Draw at another quality: the material is remade (the textures are kept) and compiled again in the background. */
   setQuality(q) {
@@ -237,11 +232,9 @@ export class GroundPass {
   restored() {
     this.envDirty = true;
     this.cacheDirty = true;
-    // Everything on the GPU is gone: upload the arrays again a frame at a time, compile in the
-    // background again, and draw the shadow map at once (a map with no texture reads as all shadow).
-    this.stage = 0;
-    // (Layer updates pending from before the loss would make the new upload a partial one.)
-    if (this.tex) this.tex.lost();
+    // Everything on the GPU is gone: compile in the background again (the painter paints the
+    // layers again on its own), and draw the shadow map at once (a map with no texture reads
+    // as all shadow).
     this.warmed = false;
     this.warming = null;
     this.compiled = false;
@@ -259,22 +252,6 @@ export class GroundPass {
     if (!this.warmed && !this.warming) this.warmUp(camera);
     if (!this.ready) return false;
     const game = r.game;
-    if (!this.tex) {
-      const aniso = Math.min(8, this.gl.capabilities.getMaxAnisotropy());
-      this.tex = liveGroundArrays(this.layers, aniso);
-      // A painted layer changes what Low's kept picture shows.
-      this.tex.onLayer = () => { this.cacheDirty = true; };
-    }
-    // Painted layers that came, a few a frame (each uploads at the next draw).
-    this.tex.flush(4);
-    // Upload the arrays one a frame (each with its mipmaps), not all at the first draw.
-    if (this.stage < 3) {
-      const t0 = performance.now();
-      this.tex.upload(this.gl, this.stage);
-      this.steps.push([`upload ${this.stage}`, Math.round(performance.now() - t0)]);
-      this.stage++;
-      return false;
-    }
     if (this.map !== game.map) {
       this.dropGround();
       const map = game.map;
@@ -314,7 +291,8 @@ export class GroundPass {
       }
       return false;
     }
-    return true;
+    // (The layers are painted in the background: the sprites draw until they are in.)
+    return this.tex.ready;
   }
 
   /** The time of year, the weather and the light (see the header: the night's darkness is the 2D tint's). */
@@ -366,16 +344,13 @@ export class GroundPass {
 
   /**
    * Compile the ground's shader now, on a stand-in: a small empty map on
-   * placeholder textures, in the very scene (lights, sky, shadow) and
-   * output state it will be drawn in (see the header).
+   * the layers' arrays (painted or not: the program does not depend on
+   * their pixels), in the very scene (lights, sky, shadow) and output state
+   * it will be drawn in (see the header).
    */
   warmUp(camera) {
     const t0 = performance.now();
-    const blank = { albedo: new Uint8Array(4 * 4 * 4 * GROUND_LAYERS.length), size: 4, count: GROUND_LAYERS.length };
-    blank.normal = blank.albedo;
-    blank.orm = blank.albedo;
-    const tex = groundArrays(blank, 1);
-    const stand = new Ground(new GameMap(16, 16), tex, { quality: this.quality, ownOutput: this.quality === 'low' });
+    const stand = new Ground(new GameMap(16, 16), this.tex, { quality: this.quality, ownOutput: this.quality === 'low' });
     stand.material.depthWrite = false;
     stand.material.depthTest = false;
     this.root.add(stand.group);
@@ -383,7 +358,6 @@ export class GroundPass {
     const done = () => {
       this.root.remove(stand.group);
       stand.dispose();
-      tex.dispose();
       // (A quality changed or the context was lost meanwhile: the next frame warms that up.)
       if (this.warming !== job) return;
       this.warming = null;

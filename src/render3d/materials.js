@@ -26,13 +26,11 @@
  */
 
 import {
-  MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, RepeatWrapping,
-  LinearMipmapLinearFilter, LinearFilter, SRGBColorSpace, NoColorSpace, Vector2, Vector4, Color, Texture, DoubleSide,
+  MeshStandardMaterial, MeshPhysicalMaterial, DataTexture, RGBAFormat, UnsignedByteType, Vector2, Vector4, Color, Texture, DoubleSide,
 } from 'three';
-import { SURFACES, surfaceSize } from './surfaces.js';
+import { SURFACES, SURFACE_SET, surfaceSize, nameSeed } from './surfaces.js';
 import { Field } from './texgen.js';
-import { loadAll } from './paint/pool.js';
-import { standIn, fillPixels } from './paint/standIns.js';
+import { painterFor, surfaceTargets } from './paint/painter.js';
 
 /** A 1 x 1 white texture, the AO input until look.js gives the real one. */
 const WHITE = (() => {
@@ -58,9 +56,9 @@ export const LOOK = {
   },
   /** Max anisotropic filtering, set by look.js from the renderer before materials are made. */
   anisotropy: 8,
-  /** The renderer the look draws with (look.js sets it): painted surfaces are uploaded as they come. */
+  /** The renderer the look draws with (look.js sets it): its GPU paints the surfaces. */
   renderer: null,
-  /** Texture size factor (surfaces.js surfaceSize): 1; the tests paint at an eighth. */
+  /** Texture size factor (surfaces.js surfaceSize): 1; smaller for a quick check. */
   textureScale: 1,
 };
 
@@ -242,133 +240,84 @@ export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) 
 /** Textures of each surface, made once. */
 const TEXTURES = new Map();
 
-/**
- * Surfaces asked for since the last load went out: sent to the pool together
- * (paint/pool.js loadAll), so it sees them all and starts the biggest first.
- */
+/** Surfaces asked for since the last went to the painter (all go together: one compile, one go). */
 let asked = [];
-/** Painted maps waiting to go into their textures, one surface a frame. */
-const arrived = [];
-let draining = false;
-
-/** A tiling texture from bytes. */
-function dataTexture(bytes, size, srgb) {
-  const t = new DataTexture(bytes, size, size, RGBAFormat, UnsignedByteType);
-  t.wrapS = t.wrapT = RepeatWrapping;
-  t.generateMipmaps = true;
-  t.minFilter = LinearMipmapLinearFilter;
-  t.magFilter = LinearFilter;
-  t.anisotropy = LOOK.anisotropy;
-  t.colorSpace = srgb ? SRGBColorSpace : NoColorSpace;
-  t.needsUpdate = true;
-  return t;
-}
 
 /**
  * The three textures of a surface: { map, normalMap, orm, metres, size,
- * maps, ready, whenReady }. Returned at once, at their final size, holding
- * the surface's stand-in (paint/standIns.js: its average colour on a flat
- * normal); the painted maps go into these same textures when they come
- * (from the cache, or painted in the pool), so a material made on them
- * never changes its shader and nothing has to be swapped. `maps` (with
- * the height field, as a Field, for the paving) is null until then;
- * `whenReady` resolves to it.
+ * maps, ready, whenReady }. Returned at once, at their final size: render
+ * targets the GPU paints (paint/painter.js) as soon as its programs are
+ * compiled, a fraction of a second after the look's renderer starts; until
+ * then their pixels are undefined, so the lab draws its first frame only
+ * once they are all in (surfacesReady). `maps` (with the height field, as
+ * a Field, for the paving) is null until then; `whenReady` resolves to it.
+ * `copy` names a second set painted alike (the well's water drifts its own
+ * ripples, which a texture's own offset moves: it cannot share the ice's).
  */
-export function surfaceTextures(name) {
-  let t = TEXTURES.get(name);
+export function surfaceTextures(name, copy = '') {
+  const key = copy ? `${name}#${copy}` : name;
+  let t = TEXTURES.get(key);
   if (t) return t;
   const size = surfaceSize(name, LOOK.textureScale);
   const metres = SURFACES[name].metres;
-  const stand = standIn('surface', name);
-  const px = size * size;
+  const out = surfaceTargets(size, LOOK.anisotropy);
   t = {
-    map: dataTexture(fillPixels(new Uint8Array(px * 4), stand.albedo), size, true),
-    normalMap: dataTexture(fillPixels(new Uint8Array(px * 4), stand.normal), size, false),
-    orm: dataTexture(fillPixels(new Uint8Array(px * 4), stand.orm), size, false),
+    map: out.albedo.texture,
+    normalMap: out.normal.texture,
+    orm: out.orm.texture,
+    out,
     name,
     metres,
     size,
     maps: null,
     ready: false,
-    /** Copies of these textures made elsewhere (waterMaterial's ripples): they share the bytes, and take the upload too. */
-    copies: [],
   };
   t.whenReady = new Promise((resolve) => { t.resolveReady = resolve; });
   // UVs are in metres: one repeat of the texture covers `metres`.
   for (const k of ['map', 'normalMap', 'orm']) t[k].repeat.set(1 / metres, 1 / metres);
-  // (Kept for the page, as the materials made on them are: a texture freed by
-  // a scene torn down still takes its painted maps, and three uploads them
-  // again if a material on it is drawn after.)
-  TEXTURES.set(name, t);
+  // (Kept for the page, as the materials made on them are.)
+  TEXTURES.set(key, t);
   asked.push(t);
-  if (asked.length === 1) queueMicrotask(sendAsked);
+  if (asked.length === 1) queueMicrotask(paintSurfaces);
   return t;
 }
 
-/** Send the surfaces asked for to the pool (via the cache). */
-function sendAsked() {
+/**
+ * Hand the surfaces asked for to the painter of the look's renderer
+ * (look.js calls it once the renderer is made; until then they wait).
+ */
+export function paintSurfaces() {
+  const r = LOOK.renderer;
+  if (!r || !asked.length) return;
   const ts = asked;
   asked = [];
-  const jobs = ts.map((t) => ({ kind: 'surface', name: t.name, size: t.size }));
-  loadAll(jobs, (i, maps) => {
-    arrived.push([ts[i], maps]);
-    drain();
-  });
+  const painter = painterFor(r);
+  for (const t of ts) {
+    painter.paint({
+      set: SURFACE_SET, index: SURFACE_SET.names.indexOf(t.name), seed: nameSeed(t.name), size: t.size, out: t.out,
+      readHeight: !!SURFACES[t.name].height,
+    }).then((job) => {
+      t.maps = { size: t.size, metres: t.metres, height: job.height ? Field.wrap(t.size, job.height) : null };
+      t.ready = true;
+      t.resolveReady(t.maps);
+    }, (err) => {
+      console.warn(`Texture ${t.name} could not be painted:`, err);
+      t.ready = true;
+      t.resolveReady(null);
+    });
+  }
 }
 
-/**
- * Put arrived maps into their textures, one surface a frame: a cached load
- * brings them all at once, and uploading every one in the same frame (40 MB
- * with their mipmaps) would be one long frame.
- */
-function drain() {
-  if (draining) return;
-  draining = true;
-  const step = () => {
-    const next = arrived.shift();
-    if (!next) {
-      draining = false;
-      return;
-    }
-    fillTextures(next[0], next[1]);
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step);
-    else setTimeout(step, 0);
-  };
-  step();
-}
-
-/** A surface's painted maps into its textures (and their copies). */
-function fillTextures(t, maps) {
-  const put = (tex, data) => {
-    tex.image = { data, width: t.size, height: t.size };
-    tex.needsUpdate = true;
-  };
-  put(t.map, maps.albedo);
-  put(t.normalMap, maps.normal);
-  put(t.orm, maps.orm);
-  for (const c of t.copies) c.needsUpdate = true;
-  // Uploaded now, in this surface's own frame: three would otherwise send every
-  // texture that came before the first draw (all of them, from the cache) in that draw.
-  const r = LOOK.renderer;
-  if (r) for (const tex of [t.map, t.normalMap, t.orm, ...t.copies]) r.initTexture(tex);
-  t.maps = {
-    albedo: maps.albedo, normal: maps.normal, orm: maps.orm, size: t.size, metres: t.metres,
-    height: maps.height ? Field.wrap(t.size, maps.height) : null,
-  };
-  t.ready = true;
-  t.resolveReady(t.maps);
-}
-
-/** How many surfaces are painted and in their textures. */
+/** How many surfaces are painted. */
 export function surfacesCount() {
   let n = 0;
   for (const t of TEXTURES.values()) if (t.ready) n++;
   return n;
 }
 
-/** Are all the surfaces asked for so far painted and in their textures? */
+/** Are all the surfaces asked for so far painted (and the paving's height read back)? */
 export function surfacesReady() {
-  if (asked.length || arrived.length) return false;
+  if (asked.length) return false;
   for (const t of TEXTURES.values()) if (!t.ready) return false;
   return true;
 }
@@ -423,12 +372,8 @@ export function material(key, opts = {}) {
 export function waterMaterial() {
   let m = CACHE.get('water');
   if (m) return m;
-  const t = surfaceTextures('ripples');
-  const nm = t.normalMap.clone();
-  nm.needsUpdate = true;
-  nm.repeat.set(1 / t.metres, 1 / t.metres);
-  // (Its own offset drifts; the bytes are the ripples' own, painted maybe later.)
-  t.copies.push(nm);
+  // Its own copy of the ripples, whose offset drifts (look.js moves it).
+  const nm = surfaceTextures('ripples', 'water').normalMap;
   m = new MeshPhysicalMaterial({
     color: new Color('#1d5560'), // deep green-blue: a near-black read as a hole, not water
     roughness: 0.03,

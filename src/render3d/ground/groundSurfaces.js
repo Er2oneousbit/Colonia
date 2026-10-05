@@ -1,9 +1,10 @@
 /**
  * ground/groundSurfaces.js
  * ----------------------------------------------------------------------------
- * The procedural surfaces of the 3D ground: one tiling MapSet per layer of
- * the ground shader's texture arrays (groundMaterial.js), painted from noise
- * as surfaces.js paints the well's stone, but for ground seen from a city
+ * The procedural surfaces of the 3D ground: one layer each of the ground
+ * shader's texture arrays (groundMaterial.js), painted on the GPU
+ * (paint/painter.js; how a recipe is written: paint/recipe.js) as
+ * surfaces.js paints the well's stone, but for ground seen from a city
  * builder's height: a tile is 4 m, the closest zoom shows about 45 px a
  * metre, so 256 px textures over 2 to 5 m are sharp enough and cheap.
  *
@@ -13,244 +14,179 @@
  * wood's litter and moss, bare limestone, dune sand, a beach's finer sand
  * and shells, a farm's ploughed furrows, the silt and pebbles of a riverbed;
  * and what people laid on it: a gravelled road (via glareata), polygonal
- * polygonal basalt paving for a town's streets (as Pompeii's), a forum's
- * travertine flagstones in courses, and the rubble of a fallen building.
+ * basalt paving for a town's streets (as Pompeii's), a forum's travertine
+ * flagstones in courses, and the rubble of a fallen building.
  *
  * Every layer has the same size (a texture array's layers must) and packs:
- *   albedo  sRGB colour, ALPHA = height (0..1), which the shader blends
- *           kinds by: where two kinds meet, the higher one's bumps win, so
- *           grass grows over the edge of a road in tufts, not along a line
+ *   albedo  sRGB colour, ALPHA = height (0..1, normalised over the layer by
+ *           the painter), which the shader blends kinds by: where two kinds
+ *           meet, the higher one's bumps win, so grass grows over the edge
+ *           of a road in tufts, not along a line
  *   normal  tangent-space normal map
  *   orm     R occlusion, G roughness, B how much of the pixel is living
  *           plants (the season's colour tints only those: the soil between
  *           the blades stays brown in every month)
- *
- * Pure arithmetic (texgen.js): runs in node:test and in the paint pool's
- * workers (paint/pool.js).
  * ----------------------------------------------------------------------------
  */
 
-import {
-  Field, MapSet, fbm, ridge, voronoi, hash2, normalMap, cavity, rgb, mixRgb, clamp01, smoothstep, lerp,
-} from '../texgen.js';
+import { fbm, ridge, cells } from '../paint/recipe.js';
+import { rgb, rgbs, glf } from '../paint/glsl.js';
 
 /** Texture size of every layer (px). */
 export const GROUND_SIZE = 256;
-
-const cell = () => ({ id: 0, f1: 0, edge: 0, cx: 0, cy: 0 });
-
-function eachPixel(n, paint) {
-  for (let y = 0; y < n; y++) {
-    const v = (y + 0.5) / n;
-    for (let x = 0; x < n; x++) paint((x + 0.5) / n, v, y * n + x);
-  }
-}
-
-/** Store the height (normalised) in the albedo's alpha and the plant cover in the ORM's blue. */
-function finish(m, h, veg) {
-  const n = m.size;
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (let i = 0; i < n * n; i++) {
-    lo = Math.min(lo, h.data[i]);
-    hi = Math.max(hi, h.data[i]);
-  }
-  const k = hi > lo ? 1 / (hi - lo) : 0;
-  for (let i = 0; i < n * n; i++) {
-    m.albedo[i * 4 + 3] = Math.round(clamp01((h.data[i] - lo) * k) * 255);
-    m.orm[i * 4 + 2] = Math.round(clamp01(veg ? veg(i) : 0) * 255);
-  }
-  return m;
-}
-
-const scale = (c, k) => { c[0] *= k; c[1] *= k; c[2] *= k; return c; };
 
 /**
  * Grazed pasture: short blades in tufts, the blades streaking every way
  * (three directions of stretched noise), dark gaps between them, the odd
  * patch of bare earth and of clover. Painted green: the season tints it.
  */
-function grass(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const bare = new Field(n);
-  bare.fill((u, v) => smoothstep(0.66, 0.8, fbm(u, v, 6, 4, seed + 1)) * 0.7);
-  const blade = (u, v, s) => {
-    // Short strokes three ways: along u, along v and along the diagonal.
-    const a = fbm(u, v, 110, 2, s, 0.5, 4);
-    const b = fbm(v, u, 110, 2, s + 1, 0.5, 4);
-    const c = fbm((u + v) % 1, (v - u + 1) % 1, 80, 2, s + 2, 0.5, 4);
-    return Math.max(a, b, c);
-  };
-  h.fill((u, v, i) => {
-    const tuft = fbm(u, v, 14, 3, seed + 3);
-    return tuft * 0.45 + blade(u, v, seed + 4) * 0.55 - bare.data[i] * 0.4;
-  });
-  const cav = cavity(h, 2, 6);
-  const dark = rgb('#3c561c');
-  const mid = rgb('#5d7b2a');
-  const lite = rgb('#84a044');
-  const straw = rgb('#9a9450');
-  const soil = rgb('#6d5838');
-  const col = [0, 0, 0];
-  const veg = new Float32Array(n * n);
-  eachPixel(n, (u, v, i) => {
-    const t = clamp01((h.data[i] - 0.25) * 1.5);
-    mixRgb(dark, mid, smoothstep(0.1, 0.55, t), col);
-    mixRgb(col, lite, smoothstep(0.5, 0.95, t) * 0.7, col);
-    // Tufts a shade apart, tips gone to straw in streaks.
-    scale(col, 0.9 + fbm(u, v, 9, 3, seed + 5) * 0.2);
-    mixRgb(col, straw, smoothstep(0.62, 0.8, fbm(u, v, 12, 3, seed + 6)) * 0.3, col);
-    mixRgb(col, rgb('#4d7a2c'), smoothstep(0.72, 0.8, fbm(u, v, 9, 3, seed + 7)) * 0.4, col);
-    const b = bare.data[i] * (1 - t * 0.5);
-    mixRgb(col, soil, clamp01(b * 1.3), col);
-    mixRgb(col, rgb('#28311a'), cav.data[i] * 0.5, col);
-    veg[i] = 1 - clamp01(b * 1.3);
-    m.set(i, col, 1 - cav.data[i] * 0.55, 0.86 + b * 0.08);
-  });
-  m.normal = normalMap(h, 0.025 / 2.5);
-  return finish(m, h, (i) => veg[i]);
-}
+const grass = {
+  fields: {
+    noise: {
+      bareN: fbm(6, 4, 1), tuft: fbm(14, 3, 3),
+      // Short strokes three ways: along u, along v and along the diagonal.
+      bladeA: fbm(110, 2, 4, { sx: 4 }), bladeB: fbm(110, 2, 5, { sx: 4, coord: 'vu' }), bladeC: fbm(80, 2, 6, { sx: 4, coord: 'diag' }),
+    },
+    glsl: `
+      float bare = sstep( 0.66, 0.8, bareN ) * 0.7;
+      return vec4( tuft * 0.45 + max( bladeA, max( bladeB, bladeC ) ) * 0.55 - bare * 0.4, bare, 0.0, 0.0 );`,
+  },
+  blur: [2],
+  colour: {
+    noise: { shade: fbm(9, 3, 5), strawN: fbm(12, 3, 6), clover: fbm(9, 3, 7) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 6.0 );
+      float t = clamp( ( F.x - 0.25 ) * 1.5, 0.0, 1.0 );
+      col = mix( ${rgb('#3c561c')}, ${rgb('#5d7b2a')}, sstep( 0.1, 0.55, t ) );
+      col = mix( col, ${rgb('#84a044')}, sstep( 0.5, 0.95, t ) * 0.7 );
+      // Tufts a shade apart, tips gone to straw in streaks.
+      col *= 0.9 + shade * 0.2;
+      col = mix( col, ${rgb('#9a9450')}, sstep( 0.62, 0.8, strawN ) * 0.3 );
+      col = mix( col, ${rgb('#4d7a2c')}, sstep( 0.72, 0.8, clover ) * 0.4 );
+      float b = F.y * ( 1.0 - t * 0.5 );
+      col = mix( col, ${rgb('#6d5838')}, clamp( b * 1.3, 0.0, 1.0 ) );
+      col = mix( col, ${rgb('#28311a')}, cav * 0.5 );
+      orm = vec3( 1.0 - cav * 0.55, 0.86 + b * 0.08, 1.0 - clamp( b * 1.3, 0.0, 1.0 ) );`,
+  },
+  normal: { depth: 0.025 / 2.5 },
+};
 
 /**
  * Meadow, the fertile land: taller, softer grass laid over by the wind in
  * swathes, richer and yellower than the pasture, with clumps of clover and
  * flowers (yellow, white, a few purple) in drifts.
  */
-function meadow(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const lay = new Field(n);
-  // Swathes laid one way or another: which way the stems lean, in big soft patches.
-  lay.fill((u, v) => fbm(u, v, 3, 2, seed + 8));
-  h.fill((u, v, i) => {
-    const along = fbm(u, v, 70, 2, seed, 0.5, 3);
-    const across = fbm(v, u, 70, 2, seed + 2, 0.5, 3);
-    const stems = lerp(along, across, smoothstep(0.4, 0.6, lay.data[i]));
-    return stems * 0.5 + fbm(u, v, 10, 3, seed + 1) * 0.5;
-  });
-  const cav = cavity(h, 3, 4);
-  const low = rgb('#4c6a20');
-  const mid = rgb('#71892e');
-  const high = rgb('#9aa443');
-  const flowers = [rgb('#f0d23e'), rgb('#f2eee0'), rgb('#e6bd30'), rgb('#a982bd'), rgb('#f4f1e4'), rgb('#e9a43a')];
-  const col = [0, 0, 0];
-  eachPixel(n, (u, v, i) => {
-    const t = h.data[i];
-    mixRgb(low, mid, smoothstep(0.3, 0.55, t), col);
-    mixRgb(col, high, smoothstep(0.55, 0.8, t) * 0.7, col);
-    // Sheen where the laid stems catch the light.
-    mixRgb(col, rgb('#b3b25c'), smoothstep(0.55, 0.62, lay.data[i]) * smoothstep(0.62, 0.38, lay.data[i]) * 0.25, col);
-    mixRgb(col, rgb('#557a2c'), smoothstep(0.65, 0.78, fbm(u, v, 7, 3, seed + 3)) * 0.45, col);
-    mixRgb(col, rgb('#2c3615'), cav.data[i] * 0.45, col);
-    // Flowers: round heads on some cells, many more in the drifts.
-    voronoi(u, v, 40, seed + 4, 0.95, c);
-    const drift = smoothstep(0.5, 0.72, fbm(u, v, 5, 2, seed + 5));
-    if (hash2(c.id, 1, seed) < 0.05 + drift * 0.45) {
-      const head = smoothstep(0.3, 0.16, c.f1);
-      const kind = Math.floor(hash2(c.id, 2, seed) * flowers.length);
-      if (head > 0) mixRgb(col, flowers[kind], head * 0.95, col);
-    }
-    m.set(i, col, 1 - cav.data[i] * 0.45, 0.8);
-  });
-  m.normal = normalMap(h, 0.035 / 2.5);
-  return finish(m, h, () => 0.95);
-}
+const meadow = {
+  fields: {
+    // Swathes laid one way or another: which way the stems lean, in big soft patches.
+    noise: { lay: fbm(3, 2, 8), along: fbm(70, 2, 0, { sx: 3 }), across: fbm(70, 2, 2, { sx: 3, coord: 'vu' }), body: fbm(10, 3, 1) },
+    glsl: `
+      float stems = mix( along, across, sstep( 0.4, 0.6, lay ) );
+      return vec4( stems * 0.5 + body * 0.5, lay, 0.0, 0.0 );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { clover: fbm(7, 3, 3), flower: cells(40, 4, 0.95), driftN: fbm(5, 2, 5) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 4.0 );
+      float t = F.x;
+      float lay = F.y;
+      col = mix( ${rgb('#4c6a20')}, ${rgb('#71892e')}, sstep( 0.3, 0.55, t ) );
+      col = mix( col, ${rgb('#9aa443')}, sstep( 0.55, 0.8, t ) * 0.7 );
+      // Sheen where the laid stems catch the light.
+      col = mix( col, ${rgb('#b3b25c')}, sstep( 0.55, 0.62, lay ) * sstep( 0.62, 0.38, lay ) * 0.25 );
+      col = mix( col, ${rgb('#557a2c')}, sstep( 0.65, 0.78, clover ) * 0.45 );
+      col = mix( col, ${rgb('#2c3615')}, cav * 0.45 );
+      // Flowers: round heads on some cells, many more in the drifts.
+      int id = int( flower.id );
+      if ( hash2( id, 1, uSeed ) < 0.05 + sstep( 0.5, 0.72, driftN ) * 0.45 ) {
+        vec3 heads[6] = ${rgbs(['#f0d23e', '#f2eee0', '#e6bd30', '#a982bd', '#f4f1e4', '#e9a43a'])};
+        float head = sstep( 0.3, 0.16, flower.f1 );
+        if ( head > 0.0 ) col = mix( col, heads[int( hash2( id, 2, uSeed ) * 6.0 )], head * 0.95 );
+      }
+      orm = vec3( 1.0 - cav * 0.45, 0.8, 0.95 );`,
+  },
+  normal: { depth: 0.035 / 2.5 },
+};
 
 /**
  * Garrigue: pale stony soil, dry tussocks of straw-coloured grass and
  * round dark cushions of thyme, rosemary and kermes oak, each with a
  * shadowed rim.
  */
-function scrub(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const bush = new Field(n);
-  const stone = new Field(n);
-  const ids = new Int32Array(n * n);
-  bush.fill((u, v, i) => {
-    voronoi(u, v, 6, seed + 1, 1.0, c);
-    ids[i] = c.id;
-    // Cushions grow in loose groups: where the group noise is high, more and bigger.
-    const group = fbm(u, v, 3, 2, seed + 11);
-    const r = (0.12 + hash2(c.id, 1, seed) * 0.3) * (0.6 + group * 0.8);
-    const here = hash2(c.id, 2, seed) < 0.25 + group * 0.5;
-    return here ? smoothstep(r, r * 0.3, c.f1 * (0.8 + fbm(u, v, 24, 3, seed + 2) * 0.4)) : 0;
-  });
-  stone.fill((u, v) => {
-    voronoi(u, v, 30, seed + 3, 0.9, c);
-    return hash2(c.id, 1, seed) < 0.1 ? smoothstep(0.42, 0.22, c.f1) : 0;
-  });
-  h.fill((u, v, i) => {
-    const tuss = smoothstep(0.3, 0.6, fbm(u, v, 14, 3, seed + 4)) * 0.35 * (fbm(u, v, 80, 2, seed + 5, 0.5, 3) * 0.6 + 0.4);
-    return fbm(u, v, 6, 3, seed) * 0.15 + Math.sqrt(bush.data[i]) * 0.75 + stone.data[i] * 0.3 + tuss;
-  });
-  const cav = cavity(h, 3, 4);
-  const soil = rgb('#94805e');
-  const soil2 = rgb('#7f6c50');
-  const straw = rgb('#9c9558');
-  const leaf = [rgb('#4a5530'), rgb('#56603a'), rgb('#5d5a35'), rgb('#3f4b2c')];
-  const col = [0, 0, 0];
-  const veg = new Float32Array(n * n);
-  eachPixel(n, (u, v, i) => {
-    mixRgb(soil, soil2, smoothstep(0.4, 0.7, fbm(u, v, 5, 3, seed + 6)), col);
-    // Dry grass over most of it, in tussocks (straw on top, still green at the base).
-    const tuss = smoothstep(0.3, 0.55, fbm(u, v, 14, 3, seed + 4));
-    const blades = fbm(u, v, 80, 2, seed + 5, 0.5, 3);
-    mixRgb(col, mixRgb(rgb('#7c8448'), straw, smoothstep(0.35, 0.7, blades), [0, 0, 0]), tuss * 0.9, col);
-    if (stone.data[i] > 0) mixRgb(col, rgb('#a59c88'), stone.data[i] * 0.8, col);
-    const b = bush.data[i];
-    if (b > 0) {
-      const lc = mixRgb(leaf[Math.floor(hash2(ids[i], 3, seed) * leaf.length)], rgb('#76784a'), fbm(u, v, 60, 2, seed + 7) * 0.35, [0, 0, 0]);
-      // The cushion's lit crown and its shaded skirt.
-      scale(lc, 0.75 + 0.35 * b);
-      mixRgb(col, lc, smoothstep(0.0, 0.25, b), col);
-    }
-    mixRgb(col, rgb('#4a3c2a'), cav.data[i] * 0.55, col);
-    veg[i] = Math.max(smoothstep(0.0, 0.25, b), tuss * 0.6);
-    m.set(i, col, 1 - cav.data[i] * 0.6, 0.9 - b * 0.1);
-  });
-  m.normal = normalMap(h, 0.08 / 3);
-  return finish(m, h, (i) => veg[i]);
-}
+const scrub = {
+  fields: {
+    noise: {
+      bushC: cells(6, 1, 1.0), group: fbm(3, 2, 11), rim: fbm(24, 3, 2), stoneC: cells(30, 3, 0.9),
+      tussN: fbm(14, 3, 4), blades: fbm(80, 2, 5, { sx: 3 }), base: fbm(6, 3, 0),
+    },
+    glsl: `
+      // Cushions grow in loose groups: where the group noise is high, more and bigger.
+      int id = int( bushC.id );
+      float r = ( 0.12 + hash2( id, 1, uSeed ) * 0.3 ) * ( 0.6 + group * 0.8 );
+      float bush = hash2( id, 2, uSeed ) < 0.25 + group * 0.5 ? sstep( r, r * 0.3, bushC.f1 * ( 0.8 + rim * 0.4 ) ) : 0.0;
+      float stone = hash2( int( stoneC.id ), 1, uSeed ) < 0.1 ? sstep( 0.42, 0.22, stoneC.f1 ) : 0.0;
+      float tuss = sstep( 0.3, 0.6, tussN ) * 0.35 * ( blades * 0.6 + 0.4 );
+      return vec4( base * 0.15 + sqrt( bush ) * 0.75 + stone * 0.3 + tuss, bush, stone, 0.0 );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { soilN: fbm(5, 3, 6), tussN: fbm(14, 3, 4), blades: fbm(80, 2, 5, { sx: 3 }), bushC: cells(6, 1, 1.0), leafN: fbm(60, 2, 7) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 4.0 );
+      float b = F.y;
+      col = mix( ${rgb('#94805e')}, ${rgb('#7f6c50')}, sstep( 0.4, 0.7, soilN ) );
+      // Dry grass over most of it, in tussocks (straw on top, still green at the base).
+      float tuss = sstep( 0.3, 0.55, tussN );
+      col = mix( col, mix( ${rgb('#7c8448')}, ${rgb('#9c9558')}, sstep( 0.35, 0.7, blades ) ), tuss * 0.9 );
+      if ( F.z > 0.0 ) col = mix( col, ${rgb('#a59c88')}, F.z * 0.8 );
+      if ( b > 0.0 ) {
+        vec3 leaf[4] = ${rgbs(['#4a5530', '#56603a', '#5d5a35', '#3f4b2c'])};
+        vec3 lc = mix( leaf[int( hash2( int( bushC.id ), 3, uSeed ) * 4.0 )], ${rgb('#76784a')}, leafN * 0.35 );
+        // The cushion's lit crown and its shaded skirt.
+        lc *= 0.75 + 0.35 * b;
+        col = mix( col, lc, sstep( 0.0, 0.25, b ) );
+      }
+      col = mix( col, ${rgb('#4a3c2a')}, cav * 0.55 );
+      orm = vec3( 1.0 - cav * 0.6, 0.9 - b * 0.1, max( sstep( 0.0, 0.25, b ), tuss * 0.6 ) );`,
+  },
+  normal: { depth: 0.08 / 3 },
+};
 
 /** A wood's floor: leaf litter of oak and the needles of pine, twigs, cushions of moss, a fern or two. */
-function forest(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const leafId = new Int32Array(n * n);
-  const leafF = new Field(n);
-  leafF.fill((u, v, i) => {
-    voronoi(u, v, 70, seed + 1, 1.0, c, 1);
-    leafId[i] = c.id;
-    return smoothstep(0.55, 0.15, c.f1);
-  });
-  const needles = new Field(n);
-  needles.fill((u, v) => Math.max(fbm(u, v, 120, 2, seed + 6, 0.5, 6), fbm(v, u, 120, 2, seed + 7, 0.5, 6)));
-  const twig = new Field(n);
-  twig.fill((u, v) => Math.pow(ridge(u, v, 8, 3, seed + 2, 0.4), 22) * smoothstep(0.5, 0.65, fbm(u, v, 5, 2, seed + 3)));
-  const moss = new Field(n);
-  // Moss, ivy and the low evergreens of a Mediterranean wood's floor cover half of it.
-  moss.fill((u, v) => smoothstep(0.42, 0.6, fbm(u, v, 5, 4, seed + 4)) * (0.75 + fbm(u, v, 40, 2, seed + 8) * 0.5));
-  h.fill((u, v, i) => leafF.data[i] * 0.3 + needles.data[i] * 0.15 + fbm(u, v, 10, 3, seed) * 0.3 + twig.data[i] * 0.35 + moss.data[i] * 0.25);
-  const cav = cavity(h, 2, 6);
-  const litter = [rgb('#6b5134'), rgb('#7d5f39'), rgb('#5a4430'), rgb('#86663d'), rgb('#6f5838'), rgb('#7a6a45')];
-  const col = [0, 0, 0];
-  eachPixel(n, (u, v, i) => {
-    const lc = litter[Math.floor(hash2(leafId[i], 1, seed) * litter.length)];
-    mixRgb(rgb('#55432e'), lc, leafF.data[i], col);
-    mixRgb(col, rgb('#8a6c44'), smoothstep(0.6, 0.75, needles.data[i]) * 0.35, col);
-    mixRgb(col, mixRgb(rgb('#4c6226'), rgb('#6a7c36'), fbm(u, v, 30, 2, seed + 5), [0, 0, 0]), clamp01(moss.data[i]) * 0.9, col);
-    mixRgb(col, rgb('#9a8460'), twig.data[i] * 0.6, col);
-    mixRgb(col, rgb('#2a2016'), cav.data[i] * 0.55, col);
-    m.set(i, col, 1 - cav.data[i] * 0.6, 0.86 - moss.data[i] * 0.05);
-  });
-  m.normal = normalMap(h, 0.03 / 3);
-  return finish(m, h, (i) => clamp01(moss.data[i]));
-}
+const forest = {
+  fields: {
+    noise: {
+      leafC: cells(70, 1, 1.0), needleA: fbm(120, 2, 6, { sx: 6 }), needleB: fbm(120, 2, 7, { sx: 6, coord: 'vu' }),
+      twigN: ridge(8, 3, 2, { sx: 0.4 }), twigMask: fbm(5, 2, 3),
+      // Moss, ivy and the low evergreens of a Mediterranean wood's floor cover half of it.
+      mossN: fbm(5, 4, 4), mossFine: fbm(40, 2, 8), base: fbm(10, 3, 0),
+    },
+    glsl: `
+      float leaf = sstep( 0.55, 0.15, leafC.f1 );
+      float needles = max( needleA, needleB );
+      float twig = pow( twigN, 22.0 ) * sstep( 0.5, 0.65, twigMask );
+      float moss = sstep( 0.42, 0.6, mossN ) * ( 0.75 + mossFine * 0.5 );
+      return vec4( leaf * 0.3 + needles * 0.15 + base * 0.3 + twig * 0.35 + moss * 0.25, leaf, moss, twig );`,
+  },
+  blur: [2],
+  colour: {
+    noise: { leafC: cells(70, 1, 1.0), needleA: fbm(120, 2, 6, { sx: 6 }), needleB: fbm(120, 2, 7, { sx: 6, coord: 'vu' }), mossTone: fbm(30, 2, 5) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 6.0 );
+      vec3 litter[6] = ${rgbs(['#6b5134', '#7d5f39', '#5a4430', '#86663d', '#6f5838', '#7a6a45'])};
+      col = mix( ${rgb('#55432e')}, litter[int( hash2( int( leafC.id ), 1, uSeed ) * 6.0 )], F.y );
+      col = mix( col, ${rgb('#8a6c44')}, sstep( 0.6, 0.75, max( needleA, needleB ) ) * 0.35 );
+      col = mix( col, mix( ${rgb('#4c6226')}, ${rgb('#6a7c36')}, mossTone ), clamp( F.z, 0.0, 1.0 ) * 0.9 );
+      col = mix( col, ${rgb('#9a8460')}, F.w * 0.6 );
+      col = mix( col, ${rgb('#2a2016')}, cav * 0.55 );
+      orm = vec3( 1.0 - cav * 0.6, 0.86 - F.z * 0.05, clamp( F.z, 0.0, 1.0 ) );`,
+  },
+  normal: { depth: 0.03 / 3 },
+};
+
+/** The rock layer's boulders, warped (fields and colour read the same cells). */
+const ROCK_CELLS = { wU: fbm(6, 3, 1), wV: fbm(6, 3, 2), rockC: cells(5, 0, 0.8, { warp: { u: ['wU', 0.08, -0.5], v: ['wV', 0.08, -0.5] } }) };
 
 /**
  * Rocky ground: grey limestone breaking through thin soil, as on a karst
@@ -258,331 +194,296 @@ function forest(n, seed) {
  * lichen on the stone and tufts of dry grass in the pockets of soil. (On a
  * rock tile the game stands its boulders on this.)
  */
-function rock(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const ids = new Int32Array(n * n);
-  const boulder = new Field(n);
-  boulder.fill((u, v, i) => {
-    const wu = u + (fbm(u, v, 6, 3, seed + 1) - 0.5) * 0.08;
-    const wv = v + (fbm(u, v, 6, 3, seed + 2) - 0.5) * 0.08;
-    voronoi(wu, wv, 5, seed, 0.8, c);
-    ids[i] = c.id;
-    const r = hash2(c.id, 1, seed);
-    if (r > 0.75) return 0;
-    // A rounded stone round its point, its outline roughened.
-    const R = 0.22 + r * 0.32;
-    const d = c.f1 * (0.85 + fbm(u, v, 18, 3, seed + 3) * 0.3);
-    const x = clamp01(1 - d / R);
-    return Math.sqrt(x) * (0.6 + r * 0.5);
-  });
-  const scree = new Field(n);
-  const sIds = new Int32Array(n * n);
-  scree.fill((u, v, i) => {
-    voronoi(u, v, 40, seed + 3, 0.9, c);
-    sIds[i] = c.id;
-    return hash2(c.id, 1, seed) < 0.18 ? smoothstep(0.42, 0.2, c.f1) * 0.3 : 0;
-  });
-  h.fill((u, v, i) => Math.max(boulder.data[i] * (0.9 + (fbm(u, v, 24, 3, seed + 4) - 0.5) * 0.25), scree.data[i]) + fbm(u, v, 6, 3, seed + 5) * 0.1);
-  const cav = cavity(h, 4, 3);
-  const greys = [rgb('#8e897e'), rgb('#827d73'), rgb('#99927f'), rgb('#7d776d'), rgb('#9d9584')];
-  const col = [0, 0, 0];
-  const veg = new Float32Array(n * n);
-  eachPixel(n, (u, v, i) => {
-    const b = boulder.data[i];
-    // Between the stones: brown stony soil, tufts of grass in its pockets.
-    mixRgb(rgb('#86735a'), rgb('#74644c'), smoothstep(0.4, 0.7, fbm(u, v, 5, 3, seed + 6)), col);
-    const tuft = smoothstep(0.6, 0.7, fbm(u, v, 20, 3, seed + 7)) * (1 - smoothstep(0, 0.1, b));
-    mixRgb(col, rgb('#66703a'), tuft * 0.75, col);
-    if (scree.data[i] > 0) mixRgb(col, greys[Math.floor(hash2(sIds[i], 2, seed) * greys.length)], smoothstep(0, 0.15, scree.data[i]) * 0.7, col);
-    if (b > 0) {
-      const sc = mixRgb(greys[Math.floor(hash2(ids[i], 2, seed) * greys.length)], rgb('#b0a894'), smoothstep(0.5, 0.8, fbm(u, v, 10, 4, seed + 8)) * 0.35, [0, 0, 0]);
-      scale(sc, 0.9 + fbm(u, v, 60, 2, seed + 9) * 0.18);
-      const li = smoothstep(0.62, 0.7, fbm(u, v, 22, 3, seed + 10)) * smoothstep(0.3, 0.7, b);
-      mixRgb(sc, hash2(ids[i], 4, seed) < 0.5 ? rgb('#b3b08e') : rgb('#b3924f'), li * 0.5, sc);
-      mixRgb(col, sc, smoothstep(0.0, 0.1, b), col);
-    }
-    mixRgb(col, rgb('#3e3a33'), cav.data[i] * 0.65, col);
-    veg[i] = tuft;
-    m.set(i, col, 1 - cav.data[i] * 0.7, b > 0 ? 0.78 : 0.92);
-  });
-  m.normal = normalMap(h, 0.5 / 6);
-  return finish(m, h, (i) => veg[i]);
-}
+const rock = {
+  fields: {
+    noise: { ...ROCK_CELLS, rough: fbm(18, 3, 3), screeC: cells(40, 3, 0.9), knobs: fbm(24, 3, 4), base: fbm(6, 3, 5) },
+    glsl: `
+      // A rounded stone round its point, its outline roughened.
+      float r = hash2( int( rockC.id ), 1, uSeed );
+      float boulder = 0.0;
+      if ( r <= 0.75 ) {
+        float R = 0.22 + r * 0.32;
+        float x = clamp( 1.0 - rockC.f1 * ( 0.85 + rough * 0.3 ) / R, 0.0, 1.0 );
+        boulder = sqrt( x ) * ( 0.6 + r * 0.5 );
+      }
+      float scree = hash2( int( screeC.id ), 1, uSeed ) < 0.18 ? sstep( 0.42, 0.2, screeC.f1 ) * 0.3 : 0.0;
+      return vec4( max( boulder * ( 0.9 + ( knobs - 0.5 ) * 0.25 ), scree ) + base * 0.1, boulder, scree, 0.0 );`,
+  },
+  blur: [4],
+  colour: {
+    noise: {
+      ...ROCK_CELLS, screeC: cells(40, 3, 0.9), soilN: fbm(5, 3, 6), tuftN: fbm(20, 3, 7), paleN: fbm(10, 4, 8),
+      grainN: fbm(60, 2, 9), lichenN: fbm(22, 3, 10),
+    },
+    glsl: `
+      float cav = cavity( F.x, B.x, 3.0 );
+      float b = F.y;
+      vec3 greys[5] = ${rgbs(['#8e897e', '#827d73', '#99927f', '#7d776d', '#9d9584'])};
+      // Between the stones: brown stony soil, tufts of grass in its pockets.
+      col = mix( ${rgb('#86735a')}, ${rgb('#74644c')}, sstep( 0.4, 0.7, soilN ) );
+      float tuft = sstep( 0.6, 0.7, tuftN ) * ( 1.0 - sstep( 0.0, 0.1, b ) );
+      col = mix( col, ${rgb('#66703a')}, tuft * 0.75 );
+      if ( F.z > 0.0 ) col = mix( col, greys[int( hash2( int( screeC.id ), 2, uSeed ) * 5.0 )], sstep( 0.0, 0.15, F.z ) * 0.7 );
+      if ( b > 0.0 ) {
+        int id = int( rockC.id );
+        vec3 sc = mix( greys[int( hash2( id, 2, uSeed ) * 5.0 )], ${rgb('#b0a894')}, sstep( 0.5, 0.8, paleN ) * 0.35 );
+        sc *= 0.9 + grainN * 0.18;
+        float li = sstep( 0.62, 0.7, lichenN ) * sstep( 0.3, 0.7, b );
+        sc = mix( sc, hash2( id, 4, uSeed ) < 0.5 ? ${rgb('#b3b08e')} : ${rgb('#b3924f')}, li * 0.5 );
+        col = mix( col, sc, sstep( 0.0, 0.1, b ) );
+      }
+      col = mix( col, ${rgb('#3e3a33')}, cav * 0.65 );
+      orm = vec3( 1.0 - cav * 0.7, b > 0.0 ? 0.78 : 0.92, tuft );`,
+  },
+  normal: { depth: 0.5 / 6 },
+};
 
 /** Dune sand: warm, with wind ripples and the odd darker grain. */
-function sand(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  h.fill((u, v) => {
-    const w = fbm(u, v, 3, 3, seed + 1) * 0.6;
-    const rip = Math.sin((v * 22 + w * 2 + fbm(u, v, 6, 2, seed + 2) * 0.6) * Math.PI * 2);
-    return 0.5 + rip * 0.18 * smoothstep(0.25, 0.6, fbm(u, v, 4, 2, seed + 3)) + fbm(u, v, 5, 3, seed) * 0.3;
-  });
-  const col = [0, 0, 0];
-  eachPixel(n, (u, v, i) => {
-    mixRgb(rgb('#b49c70'), rgb('#c4ae84'), smoothstep(0.35, 0.7, fbm(u, v, 5, 4, seed + 4)), col);
-    mixRgb(col, rgb('#9c8059'), smoothstep(0.45, 0.25, h.data[i]) * 0.35, col);
-    scale(col, 0.95 + hash2(Math.floor(u * n), Math.floor(v * n), seed + 5) * 0.08);
-    m.set(i, col, 1, 0.92);
-  });
-  m.normal = normalMap(h, 0.02 / 3);
-  return finish(m, h, () => 0);
-}
+const sand = {
+  fields: {
+    noise: { w: fbm(3, 3, 1), wob: fbm(6, 2, 2), ripMask: fbm(4, 2, 3), base: fbm(5, 3, 0) },
+    glsl: `
+      float rip = sin( ( uv.y * 22.0 + w * 0.6 * 2.0 + wob * 0.6 ) * 6.283185307179586 );
+      return vec4( 0.5 + rip * 0.18 * sstep( 0.25, 0.6, ripMask ) + base * 0.3, 0.0, 0.0, 0.0 );`,
+  },
+  colour: {
+    noise: { tone: fbm(5, 4, 4) },
+    glsl: `
+      col = mix( ${rgb('#b49c70')}, ${rgb('#c4ae84')}, sstep( 0.35, 0.7, tone ) );
+      col = mix( col, ${rgb('#9c8059')}, sstep( 0.45, 0.25, F.x ) * 0.35 );
+      col *= 0.95 + hash2( px.x, px.y, uSeed + 5 ) * 0.08;
+      orm = vec3( 1.0, 0.92, 0.0 );`,
+  },
+  normal: { depth: 0.02 / 3 },
+};
 
 /** A beach: pale fine sand, broken shells and a few smooth pebbles (the wet band is the shader's). */
-function beach(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const shell = new Field(n);
-  const ids = new Int32Array(n * n);
-  shell.fill((u, v, i) => {
-    voronoi(u, v, 50, seed + 1, 0.95, c);
-    ids[i] = c.id;
-    return hash2(c.id, 1, seed) < 0.08 ? smoothstep(0.32, 0.16, c.f1) : 0;
-  });
-  h.fill((u, v, i) => fbm(u, v, 6, 4, seed) * 0.5 + fbm(u, v, 40, 2, seed + 2) * 0.2 + shell.data[i] * 0.35);
-  const cav = cavity(h, 2, 6);
-  const col = [0, 0, 0];
-  const bits = [rgb('#f0e8d8'), rgb('#e3cfb0'), rgb('#8f8676'), rgb('#c9b9a2')];
-  eachPixel(n, (u, v, i) => {
-    mixRgb(rgb('#bfad86'), rgb('#cbbd98'), smoothstep(0.35, 0.7, fbm(u, v, 4, 3, seed + 3)), col);
-    scale(col, 0.96 + hash2(Math.floor(u * n), Math.floor(v * n), seed + 4) * 0.07);
-    if (shell.data[i] > 0) mixRgb(col, bits[Math.floor(hash2(ids[i], 2, seed) * bits.length)], shell.data[i], col);
-    mixRgb(col, rgb('#9c8a68'), cav.data[i] * 0.5, col);
-    m.set(i, col, 1 - cav.data[i] * 0.4, 0.88 - shell.data[i] * 0.3);
-  });
-  m.normal = normalMap(h, 0.015 / 3);
-  return finish(m, h, () => 0);
-}
+const beach = {
+  fields: {
+    noise: { shellC: cells(50, 1, 0.95), a: fbm(6, 4, 0), b: fbm(40, 2, 2) },
+    glsl: `
+      float shell = hash2( int( shellC.id ), 1, uSeed ) < 0.08 ? sstep( 0.32, 0.16, shellC.f1 ) : 0.0;
+      return vec4( a * 0.5 + b * 0.2 + shell * 0.35, shell, 0.0, 0.0 );`,
+  },
+  blur: [2],
+  colour: {
+    noise: { tone: fbm(4, 3, 3), shellC: cells(50, 1, 0.95) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 6.0 );
+      vec3 bits[4] = ${rgbs(['#f0e8d8', '#e3cfb0', '#8f8676', '#c9b9a2'])};
+      col = mix( ${rgb('#bfad86')}, ${rgb('#cbbd98')}, sstep( 0.35, 0.7, tone ) );
+      col *= 0.96 + hash2( px.x, px.y, uSeed + 4 ) * 0.07;
+      if ( F.y > 0.0 ) col = mix( col, bits[int( hash2( int( shellC.id ), 2, uSeed ) * 4.0 )], F.y );
+      col = mix( col, ${rgb('#9c8a68')}, cav * 0.5 );
+      orm = vec3( 1.0 - cav * 0.4, 0.88 - F.y * 0.3, 0.0 );`,
+  },
+  normal: { depth: 0.015 / 3 },
+};
 
 /** A farm's tilled soil: ploughed furrows along u (a field lies square to the map), clods, a few weeds. */
-function soil(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const FURROWS = 6; // per 3 m repeat: one every 50 cm
-  h.fill((u, v) => {
-    const w = (fbm(u, v, 4, 2, seed + 1) - 0.5) * 0.04;
-    const f = 0.5 + 0.5 * Math.cos((v + w) * FURROWS * Math.PI * 2);
-    return Math.pow(f, 0.7) * 0.6 + fbm(u, v, 30, 3, seed + 2) * 0.35;
-  });
-  const cav = cavity(h, 3, 4);
-  const col = [0, 0, 0];
-  const weed = new Field(n);
-  weed.fill((u, v) => smoothstep(0.72, 0.8, fbm(u, v, 30, 2, seed + 5)) * smoothstep(0.5, 0.8, fbm(u, v, 3, 2, seed + 6)));
-  eachPixel(n, (u, v, i) => {
-    mixRgb(rgb('#5e4430'), rgb('#7c5f42'), smoothstep(0.3, 0.8, h.data[i]), col);
-    mixRgb(col, rgb('#8f7656'), smoothstep(0.6, 0.8, fbm(u, v, 5, 3, seed + 3)) * 0.3, col);
-    mixRgb(col, rgb('#5c6e2c'), weed.data[i] * 0.8, col);
-    mixRgb(col, rgb('#2e2118'), cav.data[i] * 0.6, col);
-    m.set(i, col, 1 - cav.data[i] * 0.6, 0.94);
-  });
-  m.normal = normalMap(h, 0.07 / 3);
-  return finish(m, h, (i) => weed.data[i]);
-}
+const soil = {
+  fields: {
+    noise: { wob: fbm(4, 2, 1), clods: fbm(30, 3, 2), weedN: fbm(30, 2, 5), weedMask: fbm(3, 2, 6) },
+    glsl: `
+      const float FURROWS = 6.0; // per 3 m repeat: one every 50 cm
+      float f = 0.5 + 0.5 * cos( ( uv.y + ( wob - 0.5 ) * 0.04 ) * FURROWS * 6.283185307179586 );
+      float weed = sstep( 0.72, 0.8, weedN ) * sstep( 0.5, 0.8, weedMask );
+      return vec4( pow( max( f, 0.0 ), 0.7 ) * 0.6 + clods * 0.35, weed, 0.0, 0.0 );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { pale: fbm(5, 3, 3) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 4.0 );
+      col = mix( ${rgb('#5e4430')}, ${rgb('#7c5f42')}, sstep( 0.3, 0.8, F.x ) );
+      col = mix( col, ${rgb('#8f7656')}, sstep( 0.6, 0.8, pale ) * 0.3 );
+      col = mix( col, ${rgb('#5c6e2c')}, F.y * 0.8 );
+      col = mix( col, ${rgb('#2e2118')}, cav * 0.6 );
+      orm = vec3( 1.0 - cav * 0.6, 0.94, F.y );`,
+  },
+  normal: { depth: 0.07 / 3 },
+};
 
 /** The bed under water: grey-olive silt, pebbles, and dark weed in patches. */
-function bed(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const peb = new Field(n);
-  const ids = new Int32Array(n * n);
-  peb.fill((u, v, i) => {
-    voronoi(u, v, 30, seed + 1, 0.9, c);
-    ids[i] = c.id;
-    return hash2(c.id, 1, seed) < 0.35 ? smoothstep(0.45, 0.2, c.f1) : 0;
-  });
-  h.fill((u, v, i) => fbm(u, v, 5, 4, seed) * 0.5 + peb.data[i] * 0.5);
-  const cav = cavity(h, 2, 5);
-  const col = [0, 0, 0];
-  const stones = [rgb('#8d8778'), rgb('#a59b86'), rgb('#6c6a60'), rgb('#7d7262')];
-  eachPixel(n, (u, v, i) => {
-    mixRgb(rgb('#a39a7a'), rgb('#857d62'), smoothstep(0.3, 0.7, fbm(u, v, 4, 3, seed + 2)), col);
-    if (peb.data[i] > 0) mixRgb(col, stones[Math.floor(hash2(ids[i], 2, seed) * 4)], peb.data[i], col);
-    mixRgb(col, rgb('#3f4a2a'), smoothstep(0.62, 0.75, fbm(u, v, 6, 3, seed + 3)) * 0.7, col);
-    mixRgb(col, rgb('#4a4436'), cav.data[i] * 0.5, col);
-    m.set(i, col, 1 - cav.data[i] * 0.5, 0.7);
-  });
-  m.normal = normalMap(h, 0.04 / 3);
-  return finish(m, h, () => 0);
-}
+const bed = {
+  fields: {
+    noise: { pebC: cells(30, 1, 0.9), silt: fbm(5, 4, 0) },
+    glsl: `
+      float peb = hash2( int( pebC.id ), 1, uSeed ) < 0.35 ? sstep( 0.45, 0.2, pebC.f1 ) : 0.0;
+      return vec4( silt * 0.5 + peb * 0.5, peb, 0.0, 0.0 );`,
+  },
+  blur: [2],
+  colour: {
+    noise: { tone: fbm(4, 3, 2), weed: fbm(6, 3, 3), pebC: cells(30, 1, 0.9) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 5.0 );
+      vec3 stones[4] = ${rgbs(['#8d8778', '#a59b86', '#6c6a60', '#7d7262'])};
+      col = mix( ${rgb('#a39a7a')}, ${rgb('#857d62')}, sstep( 0.3, 0.7, tone ) );
+      if ( F.y > 0.0 ) col = mix( col, stones[int( hash2( int( pebC.id ), 2, uSeed ) * 4.0 )], F.y );
+      col = mix( col, ${rgb('#3f4a2a')}, sstep( 0.62, 0.75, weed ) * 0.7 );
+      col = mix( col, ${rgb('#4a4436')}, cav * 0.5 );
+      orm = vec3( 1.0 - cav * 0.5, 0.7, 0.0 );`,
+  },
+  normal: { depth: 0.04 / 3 },
+};
 
 /**
  * Via glareata: a road of rammed gravel, as most of the provinces' roads
  * were: light stones bedded in packed earth, larger ones worked up to the
  * top, finer grit where wheels and feet go.
  */
-function gravel(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const ids = new Int32Array(n * n);
-  const stone = new Field(n);
-  stone.fill((u, v, i) => {
-    voronoi(u, v, 48, seed + 1, 0.95, c);
-    ids[i] = c.id;
-    return hash2(c.id, 1, seed) < 0.55 ? smoothstep(0.5, 0.2, c.f1 * (0.8 + hash2(c.id, 2, seed) * 0.5)) : 0;
-  });
-  h.fill((u, v, i) => stone.data[i] * 0.6 + fbm(u, v, 6, 3, seed) * 0.3 + fbm(u, v, 90, 2, seed + 2) * 0.15);
-  const cav = cavity(h, 2, 5);
-  const col = [0, 0, 0];
-  const stones = [rgb('#c9bda5'), rgb('#b7a98f'), rgb('#d3c8b0'), rgb('#a39784'), rgb('#bba78a')];
-  eachPixel(n, (u, v, i) => {
-    mixRgb(rgb('#a8946f'), rgb('#bba886'), smoothstep(0.35, 0.7, fbm(u, v, 5, 3, seed + 3)), col);
-    if (stone.data[i] > 0) mixRgb(col, stones[Math.floor(hash2(ids[i], 3, seed) * stones.length)], smoothstep(0, 0.5, stone.data[i]), col);
-    mixRgb(col, rgb('#6e5e48'), cav.data[i] * 0.6, col);
-    m.set(i, col, 1 - cav.data[i] * 0.55, 0.84 - stone.data[i] * 0.1);
-  });
-  m.normal = normalMap(h, 0.03 / 2);
-  return finish(m, h, () => 0);
-}
+const gravel = {
+  fields: {
+    noise: { stoneC: cells(48, 1, 0.95), bedN: fbm(6, 3, 0), grit: fbm(90, 2, 2) },
+    glsl: `
+      int id = int( stoneC.id );
+      float stone = hash2( id, 1, uSeed ) < 0.55 ? sstep( 0.5, 0.2, stoneC.f1 * ( 0.8 + hash2( id, 2, uSeed ) * 0.5 ) ) : 0.0;
+      return vec4( stone * 0.6 + bedN * 0.3 + grit * 0.15, stone, 0.0, 0.0 );`,
+  },
+  blur: [2],
+  colour: {
+    noise: { tone: fbm(5, 3, 3), stoneC: cells(48, 1, 0.95) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 5.0 );
+      vec3 stones[5] = ${rgbs(['#c9bda5', '#b7a98f', '#d3c8b0', '#a39784', '#bba78a'])};
+      col = mix( ${rgb('#a8946f')}, ${rgb('#bba886')}, sstep( 0.35, 0.7, tone ) );
+      if ( F.y > 0.0 ) col = mix( col, stones[int( hash2( int( stoneC.id ), 3, uSeed ) * 5.0 )], sstep( 0.0, 0.5, F.y ) );
+      col = mix( col, ${rgb('#6e5e48')}, cav * 0.6 );
+      orm = vec3( 1.0 - cav * 0.55, 0.84 - F.y * 0.1, 0.0 );`,
+  },
+  normal: { depth: 0.03 / 2 },
+};
+
+/** Joint half width of the ground's paving, in cell units: wide enough to read at 256 px. */
+const GROUT = 0.03;
 
 /**
  * Basalt paving of a town's streets (silice stratae): big polygonal lava
  * blocks fitted close, each its own tone and tilt, polished on top, grit in
- * the joints. The well's street (surfaces.js basalt) at a game's scale:
- * joints wide enough to read at 256 px.
+ * the joints. The well's street (surfaces.js basalt) at a game's scale.
  */
-function basalt(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const ids = new Int32Array(n * n);
-  const edgeF = new Field(n);
-  const GROUT = 0.03;
-  h.fill((u, v, i) => {
-    const wu = u + (fbm(u, v, 3, 3, seed + 11) - 0.5) * 0.09;
-    const wv = v + (fbm(u, v, 3, 3, seed + 12) - 0.5) * 0.09;
-    voronoi(wu, wv, 9, seed, 1.0, c);
-    ids[i] = c.id;
-    edgeF.data[i] = c.edge;
-    const level = 0.8 + (hash2(c.id, 1, seed) - 0.5) * 0.15;
-    const bevel = smoothstep(GROUT, GROUT + 0.06, c.edge);
-    return lerp(0.15, level + (fbm(u, v, 22, 3, seed + 2) - 0.5) * 0.05, bevel);
-  });
-  const cav = cavity(h, 3, 3);
-  const tones = [rgb('#4a453f'), rgb('#524b42'), rgb('#45423e'), rgb('#4e473d'), rgb('#5a5146')];
-  const col = [0, 0, 0];
-  eachPixel(n, (u, v, i) => {
-    const e = edgeF.data[i];
-    const inJoint = 1 - smoothstep(GROUT * 0.6, GROUT + 0.02, e);
-    const wear = smoothstep(GROUT + 0.08, 0.35, e);
-    mixRgb(tones[Math.floor(hash2(ids[i], 2, seed) * tones.length)], rgb('#8c8172'), (1 - wear) * 0.2 + fbm(u, v, 9, 3, seed + 6) * 0.1, col);
-    scale(col, 0.88 + fbm(u, v, 40, 3, seed + 7) * 0.24);
-    mixRgb(col, rgb('#2c2722'), inJoint, col);
-    mixRgb(col, rgb('#38342f'), cav.data[i] * 0.4, col);
-    m.set(i, col, 1 - Math.max(inJoint * 0.5, cav.data[i] * 0.5), lerp(0.62 - wear * 0.15, 0.95, inJoint));
-  });
-  m.normal = normalMap(h, 0.03 / 4.8);
-  return finish(m, h, () => 0);
-}
+const basalt = {
+  fields: {
+    noise: {
+      wU: fbm(3, 3, 11), wV: fbm(3, 3, 12),
+      stone: cells(9, 0, 1.0, { warp: { u: ['wU', 0.09, -0.5], v: ['wV', 0.09, -0.5] } }), topN: fbm(22, 3, 2),
+    },
+    glsl: `
+      float level = 0.8 + ( hash2( int( stone.id ), 1, uSeed ) - 0.5 ) * 0.15;
+      float bevel = sstep( ${glf(GROUT)}, ${glf(GROUT + 0.06)}, stone.edge );
+      return vec4( mix( 0.15, level + ( topN - 0.5 ) * 0.05, bevel ), stone.id, stone.edge, 0.0 );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { dust: fbm(9, 3, 6), mott: fbm(40, 3, 7) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 3.0 );
+      int id = int( F.y );
+      float e = F.z;
+      vec3 tones[5] = ${rgbs(['#4a453f', '#524b42', '#45423e', '#4e473d', '#5a5146'])};
+      float inJoint = 1.0 - sstep( ${glf(GROUT * 0.6)}, ${glf(GROUT + 0.02)}, e );
+      float wear = sstep( ${glf(GROUT + 0.08)}, 0.35, e );
+      col = mix( tones[int( hash2( id, 2, uSeed ) * 5.0 )], ${rgb('#8c8172')}, ( 1.0 - wear ) * 0.2 + dust * 0.1 );
+      col *= 0.88 + mott * 0.24;
+      col = mix( col, ${rgb('#2c2722')}, inJoint );
+      col = mix( col, ${rgb('#38342f')}, cav * 0.4 );
+      orm = vec3( 1.0 - max( inJoint * 0.5, cav * 0.5 ), mix( 0.62 - wear * 0.15, 0.95, inJoint ), 0.0 );`,
+  },
+  normal: { depth: 0.03 / 4.8 },
+};
+
+/** Flagstones' joint half width (relative to the 4 m repeat). */
+const JOINT = 0.006;
 
 /**
  * A forum's flagstones: rectangular slabs of travertine laid in courses
  * along u, each course its own width, each slab its own length and tone,
  * with worn corners and dark joints.
  */
-function flags(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const ids = new Int32Array(n * n);
-  const edgeF = new Field(n);
-  // Courses: 4 m in 4 courses of 0.8 to 1.2 m (relative widths summing to 1).
-  const ws = [0.27, 0.22, 0.29, 0.22];
-  const JOINT = 0.006;
-  const slabAt = (u, v) => {
-    let v0 = 0;
-    let row = 0;
-    while (row < ws.length - 1 && v >= v0 + ws[row]) { v0 += ws[row]; row++; }
-    const v1 = v0 + ws[row];
-    // Slabs along the course: lengths from 0.25 to 0.45 of the repeat (1 to 1.8 m), wrapping.
-    const L = [0.3, 0.25, 0.45];
-    const off = hash2(row, 7, seed);
-    let uu = (u + off) % 1;
-    let k = 0;
-    let s0 = 0;
-    const order = [L[row % 3], L[(row + 1) % 3], L[(row + 2) % 3]];
-    while (k < 2 && uu >= s0 + order[k]) { s0 += order[k]; k++; }
-    const s1 = k === 2 ? 1 : s0 + order[k];
-    const e = Math.min(uu - s0, s1 - uu, v - v0, v1 - v);
-    return { id: row * 7 + k, e };
-  };
-  h.fill((u, v, i) => {
-    const s = slabAt(u, v);
-    ids[i] = s.id;
-    edgeF.data[i] = s.e;
-    const lvl = 0.8 + (hash2(s.id, 1, seed) - 0.5) * 0.08;
-    return lerp(0.2, lvl + (fbm(u, v, 16, 3, seed + 1) - 0.5) * 0.04, smoothstep(JOINT, JOINT + 0.012, s.e));
-  });
-  const cav = cavity(h, 2, 4);
-  const tones = [rgb('#cbbd9c'), rgb('#d6c9aa'), rgb('#c2b190'), rgb('#d0c1a0'), rgb('#bfae8c')];
-  const col = [0, 0, 0];
-  const c = cell();
-  eachPixel(n, (u, v, i) => {
-    const inJoint = 1 - smoothstep(JOINT * 0.5, JOINT + 0.006, edgeF.data[i]);
-    mixRgb(tones[Math.floor(hash2(ids[i], 2, seed) * tones.length)], rgb('#e0d6c0'), smoothstep(0.55, 0.8, fbm(u, v, 6, 3, seed + 2)) * 0.4, col);
+const flags = {
+  fields: {
+    noise: { top: fbm(16, 3, 1) },
+    glsl: `
+      // Courses: 4 m in 4 courses of 0.8 to 1.2 m (relative widths summing to 1).
+      float ws[4] = float[4]( 0.27, 0.22, 0.29, 0.22 );
+      float v0 = 0.0;
+      int row = 0;
+      for ( int k = 0; k < 3; k++ ) {
+        if ( uv.y >= v0 + ws[row] ) { v0 += ws[row]; row++; }
+      }
+      float v1 = v0 + ws[row];
+      // Slabs along the course: lengths from 0.25 to 0.45 of the repeat (1 to 1.8 m), wrapping.
+      float L[3] = float[3]( 0.3, 0.25, 0.45 );
+      float uu = fract( uv.x + hash2( row, 7, uSeed ) );
+      float order[3] = float[3]( L[row % 3], L[( row + 1 ) % 3], L[( row + 2 ) % 3] );
+      int k = 0;
+      float s0 = 0.0;
+      for ( int q = 0; q < 2; q++ ) {
+        if ( uu >= s0 + order[k] ) { s0 += order[k]; k++; }
+      }
+      float s1 = k == 2 ? 1.0 : s0 + order[k];
+      float e = min( min( uu - s0, s1 - uu ), min( uv.y - v0, v1 - uv.y ) );
+      int id = row * 7 + k;
+      float lvl = 0.8 + ( hash2( id, 1, uSeed ) - 0.5 ) * 0.08;
+      return vec4( mix( 0.2, lvl + ( top - 0.5 ) * 0.04, sstep( ${glf(JOINT)}, ${glf(JOINT + 0.012)}, e ) ), float( id ), e, 0.0 );`,
+  },
+  blur: [2],
+  colour: {
     // Travertine's pores: small dark pits stretched along the bedding.
-    voronoi(u, v, 70, seed + 3, 0.95, c, 2.5);
-    const pore = hash2(c.id, 1, seed) < 0.15 ? smoothstep(0.25, 0.08, c.f1) : 0;
-    mixRgb(col, rgb('#8d7c5e'), pore * 0.6, col);
-    mixRgb(col, rgb('#5d5243'), inJoint, col);
-    mixRgb(col, rgb('#8a7c62'), cav.data[i] * 0.5, col);
-    m.set(i, col, 1 - Math.max(inJoint * 0.5, cav.data[i] * 0.4), lerp(0.7, 0.95, inJoint));
-  });
-  m.normal = normalMap(h, 0.02 / 4);
-  return finish(m, h, () => 0);
-}
+    noise: { pale: fbm(6, 3, 2), pore: cells(70, 3, 0.95, { sy: 2.5 }) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 4.0 );
+      vec3 tones[5] = ${rgbs(['#cbbd9c', '#d6c9aa', '#c2b190', '#d0c1a0', '#bfae8c'])};
+      float inJoint = 1.0 - sstep( ${glf(JOINT * 0.5)}, ${glf(JOINT + 0.006)}, F.z );
+      col = mix( tones[int( hash2( int( F.y ), 2, uSeed ) * 5.0 )], ${rgb('#e0d6c0')}, sstep( 0.55, 0.8, pale ) * 0.4 );
+      float p = hash2( int( pore.id ), 1, uSeed ) < 0.15 ? sstep( 0.25, 0.08, pore.f1 ) : 0.0;
+      col = mix( col, ${rgb('#8d7c5e')}, p * 0.6 );
+      col = mix( col, ${rgb('#5d5243')}, inJoint );
+      col = mix( col, ${rgb('#8a7c62')}, cav * 0.5 );
+      orm = vec3( 1.0 - max( inJoint * 0.5, cav * 0.4 ), mix( 0.7, 0.95, inJoint ), 0.0 );`,
+  },
+  normal: { depth: 0.02 / 4 },
+};
 
 /**
  * Rubble of a fallen building: broken stone and brick, roof tile shards,
  * lumps of mortar, charred timber and ash.
  */
-function rubble(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  const c = cell();
-  const ids = new Int32Array(n * n);
-  const lump = new Field(n);
-  lump.fill((u, v, i) => {
-    voronoi(u, v, 14, seed + 1, 1.0, c);
-    ids[i] = c.id;
-    const r = hash2(c.id, 1, seed);
-    return r < 0.75 ? smoothstep(0.0, 0.12, c.edge) * (0.5 + r * 0.6) : 0;
-  });
-  const fine = new Field(n);
-  fine.fill((u, v) => {
-    voronoi(u, v, 46, seed + 2, 1.0, c);
-    return hash2(c.id, 1, seed) < 0.5 ? smoothstep(0.0, 0.08, c.edge) : 0;
-  });
-  h.fill((u, v, i) => lump.data[i] * 0.7 + fine.data[i] * 0.25 + fbm(u, v, 8, 3, seed) * 0.2);
-  const cav = cavity(h, 3, 3);
-  const bits = [rgb('#a59c8c'), rgb('#8c8373'), rgb('#94604a'), rgb('#b2a690'), rgb('#7a6f60'), rgb('#5a4c40'), rgb('#9a8a74'), rgb('#857a6a')];
-  const col = [0, 0, 0];
-  eachPixel(n, (u, v, i) => {
-    mixRgb(rgb('#6f655a'), rgb('#504840'), smoothstep(0.4, 0.7, fbm(u, v, 5, 3, seed + 3)), col);
-    if (lump.data[i] > 0) mixRgb(col, bits[Math.floor(hash2(ids[i], 2, seed) * bits.length)], smoothstep(0, 0.4, lump.data[i]), col);
-    else if (fine.data[i] > 0) mixRgb(col, bits[Math.floor(hash2(i >> 9, 3, seed) * 4)], fine.data[i] * 0.6, col);
-    // Soot and ash in drifts.
-    mixRgb(col, rgb('#2a2522'), smoothstep(0.6, 0.75, fbm(u, v, 4, 3, seed + 4)) * 0.55, col);
-    mixRgb(col, rgb('#2c2622'), cav.data[i] * 0.7, col);
-    m.set(i, col, 1 - cav.data[i] * 0.7, 0.9);
-  });
-  m.normal = normalMap(h, 0.12 / 3);
-  return finish(m, h, () => 0);
-}
+const rubble = {
+  fields: {
+    noise: { lumpC: cells(14, 1, 1.0), fineC: cells(46, 2, 1.0), base: fbm(8, 3, 0) },
+    glsl: `
+      float r = hash2( int( lumpC.id ), 1, uSeed );
+      float lump = r < 0.75 ? sstep( 0.0, 0.12, lumpC.edge ) * ( 0.5 + r * 0.6 ) : 0.0;
+      float fine = hash2( int( fineC.id ), 1, uSeed ) < 0.5 ? sstep( 0.0, 0.08, fineC.edge ) : 0.0;
+      return vec4( lump * 0.7 + fine * 0.25 + base * 0.2, lump, fine, 0.0 );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { tone: fbm(5, 3, 3), soot: fbm(4, 3, 4), lumpC: cells(14, 1, 1.0) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 3.0 );
+      vec3 bits[8] = ${rgbs(['#a59c8c', '#8c8373', '#94604a', '#b2a690', '#7a6f60', '#5a4c40', '#9a8a74', '#857a6a'])};
+      col = mix( ${rgb('#6f655a')}, ${rgb('#504840')}, sstep( 0.4, 0.7, tone ) );
+      if ( F.y > 0.0 ) col = mix( col, bits[int( hash2( int( lumpC.id ), 2, uSeed ) * 8.0 )], sstep( 0.0, 0.4, F.y ) );
+      else if ( F.z > 0.0 ) col = mix( col, bits[int( hash2( ( px.y * n + px.x ) >> 9, 3, uSeed ) * 4.0 )], F.z * 0.6 );
+      // Soot and ash in drifts.
+      col = mix( col, ${rgb('#2a2522')}, sstep( 0.6, 0.75, soot ) * 0.55 );
+      col = mix( col, ${rgb('#2c2622')}, cav * 0.7 );
+      orm = vec3( 1.0 - cav * 0.7, 0.9, 0.0 );`,
+  },
+  normal: { depth: 0.12 / 3 },
+};
 
 /** Ripples for water: only the normal map matters (two scales of swell). */
-function ripples(n, seed) {
-  const m = new MapSet(n);
-  const h = new Field(n);
-  h.fill((u, v) => fbm(u, v, 3, 5, seed, 0.55) * 0.65 + fbm(u, v, 11, 3, seed + 1) * 0.35);
-  eachPixel(n, (u, v, i) => m.set(i, [0.5, 0.5, 0.5], 1, 0.05));
-  m.normal = normalMap(h, 0.06);
-  return finish(m, h, () => 0);
-}
+const ripples = {
+  fields: {
+    noise: { swell: fbm(3, 5, 0, { gain: 0.55 }), chop: fbm(11, 3, 1) },
+    glsl: 'return vec4( swell * 0.65 + chop * 0.35, 0.0, 0.0, 0.0 );',
+  },
+  colour: { glsl: 'col = vec3( 0.5 ); orm = vec3( 1.0, 0.05, 0.0 );' },
+  normal: { depth: 0.06 },
+};
 
 /**
  * The layers of the ground's texture arrays, in order (a layer's index is
@@ -592,32 +493,24 @@ function ripples(n, seed) {
  * furrows, the paving's joints and the flagstones' courses.
  */
 export const GROUND_LAYERS = Object.freeze([
-  { name: 'grass', metres: 2.5, make: grass, anti: true },
-  { name: 'meadow', metres: 2.5, make: meadow, anti: true },
-  { name: 'scrub', metres: 3.5, make: scrub, anti: true },
-  { name: 'forest', metres: 3, make: forest, anti: true },
-  { name: 'rock', metres: 6, make: rock, anti: true },
-  { name: 'sand', metres: 3, make: sand, anti: true },
-  { name: 'beach', metres: 3, make: beach, anti: true },
-  { name: 'soil', metres: 3, make: soil, anti: false },
-  { name: 'bed', metres: 3, make: bed, anti: true },
-  { name: 'gravel', metres: 2, make: gravel, anti: true },
-  { name: 'basalt', metres: 4.8, make: basalt, anti: false },
-  { name: 'flags', metres: 4, make: flags, anti: false },
-  { name: 'rubble', metres: 3, make: rubble, anti: true },
-  { name: 'ripples', metres: 6, make: ripples, anti: false },
+  { name: 'grass', metres: 2.5, anti: true, ...grass },
+  { name: 'meadow', metres: 2.5, anti: true, ...meadow },
+  { name: 'scrub', metres: 3.5, anti: true, ...scrub },
+  { name: 'forest', metres: 3, anti: true, ...forest },
+  { name: 'rock', metres: 6, anti: true, ...rock },
+  { name: 'sand', metres: 3, anti: true, ...sand },
+  { name: 'beach', metres: 3, anti: true, ...beach },
+  { name: 'soil', metres: 3, anti: false, ...soil },
+  { name: 'bed', metres: 3, anti: true, ...bed },
+  { name: 'gravel', metres: 2, anti: true, ...gravel },
+  { name: 'basalt', metres: 4.8, anti: false, ...basalt },
+  { name: 'flags', metres: 4, anti: false, ...flags },
+  { name: 'rubble', metres: 3, anti: true, ...rubble },
+  { name: 'ripples', metres: 6, anti: false, ...ripples },
 ]);
 
 /** Layer index by name. */
 export const LAYER = Object.freeze(Object.fromEntries(GROUND_LAYERS.map((l, i) => [l.name, i])));
 
-/** Make one layer's maps (seeded by its name), `size` px square. */
-export function makeGroundLayer(name, size = GROUND_SIZE) {
-  const l = GROUND_LAYERS[LAYER[name]];
-  if (!l) throw new Error(`Unknown ground layer: ${name}`);
-  let k = 0;
-  for (let i = 0; i < name.length; i++) k = (k * 31 + name.charCodeAt(i)) | 0;
-  const maps = l.make(size, k);
-  maps.metres = l.metres;
-  return maps;
-}
+/** The layers as one set of recipes (one program paints them all: paint/painter.js). */
+export const GROUND_SET = Object.freeze({ key: 'ground', recipes: GROUND_LAYERS, names: GROUND_LAYERS.map((l) => l.name) });

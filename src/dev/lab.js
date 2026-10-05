@@ -15,12 +15,12 @@
  * free orbit (drag, pinch, wheel). Moods: day, golden hour, night, winter.
  * A stats line: frames per second, the frame's draw calls and triangles
  * (every pass: shadows, AO, scene, post), the well's own budget, and how
- * long the first frame and the textures took. The scene draws before its
- * textures are painted (render3d/paint/: stand-ins first, then the painted
- * maps from the browser's cache or the paint pool's workers).
+ * long the first frame and the textures took. The textures are painted on
+ * the GPU (render3d/paint/) while the scene's programs compile, and the
+ * first frame waits for both.
  *
  * For tests and measurement, window.__lab: ready (a promise), timings
- * (firstFrame, wellReady, groundReady), clearTextures(), setMood(name),
+ * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
  * setScene('well'|'ground'), setSeason(name), setSnow(0..3), setWet(on),
@@ -40,10 +40,9 @@ import { SURFACES } from '../render3d/surfaces.js';
 import { buildWell, wellLife, WELL } from '../render3d/models/well.js';
 import { buildStreet } from '../render3d/models/street.js';
 import { buildFigure } from '../render3d/models/figure.js';
-import { groundTextures, liveGroundArrays } from '../render3d/ground/groundTextures.js';
+import { groundTextures } from '../render3d/ground/groundTextures.js';
 import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
-import { paintPool } from '../render3d/paint/pool.js';
-import { cacheStats, clearCache, pruneCache } from '../render3d/paint/cache.js';
+import { painterFor } from '../render3d/paint/painter.js';
 import { buildGroundScene } from './labGround.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
@@ -126,10 +125,9 @@ async function main() {
     loading.querySelector('.msg').textContent = 'This page needs WebGL 2, which this browser does not offer.';
     return;
   }
-  // The scene draws at once: every material on its stand-in (its average
-  // colour), the painted textures going in as they come, from the browser's
-  // cache or the paint pool's workers (render3d/paint/). A thin bar along
-  // the top fills as they come.
+  // The textures are painted on the GPU (render3d/paint/) as soon as its
+  // programs are compiled, alongside the scene's; a thin bar along the top
+  // fills as they come.
   const t0 = performance.now();
   const timings = { start: t0, firstFrame: 0, wellReady: 0, groundReady: 0 };
   const paintBar = el('div', { class: 'paintbar' });
@@ -138,8 +136,8 @@ async function main() {
   const pr = Math.min(window.devicePixelRatio || 1, 2);
   const look = createLook(canvas, { pixelRatio: pr, shadowBox: 9.5, shadowMap: 4096 });
   const { scene } = look;
-  // The ground's layers start first (the well's surfaces are asked for as its meshes are made).
-  const groundSrc = groundTextures();
+  // Every texture asked for at once: the painter compiles once and paints them all in one go.
+  const groundTex = groundTextures(look.renderer, LOOK.anisotropy);
   for (const name of Object.keys(SURFACES)) surfaceTextures(name);
 
   const well = buildWell();
@@ -195,15 +193,7 @@ async function main() {
   controls.enabled = false;
 
   // The Ground scene: every kind of the game's 3D ground on one patch.
-  const tex = liveGroundArrays(groundSrc, LOOK.anisotropy);
-  // On the GPU now (stand-ins and what has come), so each layer that comes later uploads alone.
-  for (let k = 0; k < 3; k++) tex.upload(look.renderer, k);
-  // A lost context lost them: whole again (three listens first, so its new context is up by now).
-  canvas.addEventListener('webglcontextrestored', () => {
-    tex.lost();
-    for (let k = 0; k < 3; k++) tex.upload(look.renderer, k);
-  });
-  const gs = buildGroundScene(tex, 'high');
+  const gs = buildGroundScene(groundTex, 'high');
   const groundGroup = gs.ground.group;
   groundGroup.visible = false;
   scene.add(groundGroup);
@@ -409,13 +399,13 @@ async function main() {
     return {
       fps, cpuMs: cpu, calls: r.calls, triangles: r.triangles, wellTriangles: well.triangles, wellDraws,
       streetTriangles: street.triangles, textureMs: since(timings.wellReady), groundMs: since(timings.groundReady), firstFrameMs: since(timings.firstFrame),
-      cache: { ...cacheStats }, workers: paintPool().started, pixelRatio: pr, mood: state.mood, view: state.view, turn: state.turn,
+      paint: { ...painterFor(look.renderer).stats }, pixelRatio: pr, mood: state.mood, view: state.view, turn: state.turn,
     };
   }
   function showStats() {
     const s = stats();
     const tx = timings.wellReady && timings.groundReady
-      ? `textures ${s.textureMs} ms, ground ${s.groundMs} ms (${s.cache.hits ? `${s.cache.hits} from the cache, ` : ''}${s.workers} workers)`
+      ? `textures ${s.textureMs} ms, ground ${s.groundMs} ms (${s.paint.textures} painted on the GPU, ${s.paint.programs} programs)`
       : 'painting textures...';
     statsEl.textContent = `${s.fps.toFixed(0)} fps  cpu ${s.cpuMs.toFixed(1)} ms  frame: ${s.calls} draws, ${(s.triangles / 1000).toFixed(0)}k tris\n`
       + `well: ${wellDraws} meshes, ${(well.triangles / 1000).toFixed(1)}k tris  first frame ${s.firstFrameMs} ms, ${tx}`;
@@ -426,14 +416,12 @@ async function main() {
   function paintProgress(now) {
     if (timings.wellReady && timings.groundReady) return;
     if (!timings.wellReady && surfacesReady()) timings.wellReady = now;
-    if (!timings.groundReady && groundSrc.done) timings.groundReady = now;
-    const painted = surfacesCount() + groundSrc.count;
+    if (!timings.groundReady && groundTex.ready) timings.groundReady = now;
+    const painted = surfacesCount() + (groundTex.ready ? GROUND_LAYERS.length : 0);
     paintBar.style.width = `${Math.round((painted / total) * 100)}%`;
     if (timings.wellReady && timings.groundReady) {
       paintBar.classList.add('done');
       if (timings.firstFrame) showStats();
-      // Textures kept by an older build: free their space now that this one's are in.
-      pruneCache();
       return;
     }
     requestAnimationFrame(paintProgress);
@@ -452,7 +440,6 @@ async function main() {
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
     gs.ground.material.userData.ground.uGTime.value = t;
-    tex.flush(4); // (painted ground layers that came, a few a frame)
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
     if (lit) {
@@ -490,13 +477,16 @@ async function main() {
   resize();
   // Compile every program before the first frame shows (no hitch on the first mood change), in
   // the background where the browser can (KHR_parallel_shader_compile), so the page stays alive
-  // and the workers' textures keep coming meanwhile. (The materials' programs do not depend on
-  // the textures' pixels: the painted ones go into the same textures, nothing compiles again.)
+  // and the GPU paints the textures meanwhile. (The materials' programs do not depend on the
+  // textures' pixels.) The first frame waits for both: an unpainted texture is undefined.
   const compiled = look.renderer.compileAsync(scene, ortho).catch(() => look.renderer.compile(scene, ortho));
-  compiled.then(() => {
-    timings.compiled = performance.now();
-    requestAnimationFrame(frame);
+  const painted = new Promise((resolve) => {
+    const check = () => (surfacesReady() && groundTex.ready ? resolve() : requestAnimationFrame(check));
+    check();
   });
+  compiled.then(() => { timings.compiled = performance.now(); });
+  const started = Promise.all([compiled, painted]);
+  started.then(() => requestAnimationFrame(frame));
 
   /** Draw `n` frames back to back, waiting for the GPU after each: the true cost of a frame. */
   function bench(n = 60) {
@@ -514,11 +504,9 @@ async function main() {
   }
 
   window.__lab = {
-    ready: compiled.then(() => true),
+    ready: started.then(() => true),
     /** When the first frame was drawn and the well's and the ground's textures were all in (performance.now()). */
     timings,
-    /** Forget the textures kept in the browser (the next load paints them again). */
-    clearTextures: clearCache,
     setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
