@@ -59,7 +59,8 @@ export const TILE_M = 4;
  * contrast, saturation, lift (shadows' tint), gain (highlights' tint),
  * vignette. lamps: the lantern and the torch, 0 off. snow, wet: the
  * materials' winter (materials.js); grass: a tint for the grass (winter's
- * is dry straw).
+ * is dry straw). water, waterRefl: the sky as still water shows it (linear
+ * rgb) and how strongly (the 3D ground, ground/groundMaterial.js).
  */
 export const MOODS = {
   day: {
@@ -71,6 +72,7 @@ export const MOODS = {
     bloom: [0.1, 0.5, 6],
     grade: { contrast: 1.0, saturation: 1.0, lift: [0.0, 0.0, 0.0], gain: [1.0, 1.0, 1.0], vignette: 0.3 },
     lamps: 0, snow: 0, wet: 0, ice: false,
+    water: [0.5, 0.64, 0.82], waterRefl: 0.3,
   },
   golden: {
     label: 'Golden hour',
@@ -81,6 +83,7 @@ export const MOODS = {
     bloom: [0.14, 0.55, 5],
     grade: { contrast: 1.02, saturation: 1.0, lift: [0.0, 0.0, 0.01], gain: [1.02, 1.0, 0.96], vignette: 0.4 },
     lamps: 0, snow: 0, wet: 0, ice: false,
+    water: [0.95, 0.66, 0.42], waterRefl: 0.35,
   },
   night: {
     label: 'Night',
@@ -92,6 +95,7 @@ export const MOODS = {
     bloom: [0.55, 0.6, 1.6],
     grade: { contrast: 1.02, saturation: 0.95, lift: [0.0, 0.003, 0.012], gain: [1.0, 1.0, 1.0], vignette: 0.5 },
     lamps: 1, snow: 0, wet: 0, ice: false,
+    water: [0.05, 0.065, 0.11], waterRefl: 0.3,
   },
   winter: {
     label: 'Winter',
@@ -102,6 +106,7 @@ export const MOODS = {
     bloom: [0.08, 0.5, 6],
     grade: { contrast: 1.0, saturation: 0.9, lift: [0.0, 0.0, 0.008], gain: [0.99, 1.0, 1.02], vignette: 0.3 },
     lamps: 0, snow: 1, wet: 1, ice: true, grass: '#a88f62',
+    water: [0.62, 0.66, 0.72], waterRefl: 0.25,
   },
 };
 

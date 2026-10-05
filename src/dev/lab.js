@@ -29,15 +29,24 @@ import { SURFACES } from '../render3d/surfaces.js';
 import { buildWell, wellLife, WELL } from '../render3d/models/well.js';
 import { buildStreet } from '../render3d/models/street.js';
 import { buildFigure } from '../render3d/models/figure.js';
+import { groundLayers, groundArrays } from '../render3d/ground/groundTextures.js';
+import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
+import { buildGroundScene } from './labGround.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
 const GAME_ZOOM = 2;
 
 const VIEWS = {
+  wide: { label: 'Mid zoom', zoom: GAME_ZOOM / 2, key: 'M' },
   game1: { label: 'Game zoom', zoom: GAME_ZOOM, key: 'G' },
   game2: { label: 'Zoom x2', zoom: GAME_ZOOM * 2, key: 'Z' },
   orbit: { label: 'Orbit', key: 'O' },
 };
+
+/** The Ground scene's seasons: a position along the 2D art's looks (weather.js MONTH_LOOK; ground.js seasonAt). */
+const SEASONS = { spring: { label: 'Spring', pos: 1 }, summer: { label: 'Summer', pos: 2 }, autumn: { label: 'Autumn', pos: 3 }, winter: { label: 'Winter', pos: 0 } };
+/** Snow levels as the game's console sets them (ui/console.js snow): the weather's cover. */
+const SNOW_COVER = [0, 0.28, 0.62, 0.95];
 
 const INFO = `
 <button class="close" type="button" aria-label="Close">Close</button>
@@ -65,6 +74,26 @@ Pompeii's streets and fountains). Everything here is made in code: geometry, tex
 <li>1 to 4: day, golden hour, night, winter. Q / E: turn the view a quarter.</li>
 <li>G: the game's camera at its closest zoom; Z: twice that; O: free orbit (drag, pinch or wheel).</li>
 <li>B: 100 wells (instanced), to measure. I: this panel.</li>
+</ul>`;
+
+const GROUND_INFO = `
+<button class="close" type="button" aria-label="Close">Close</button>
+<h2>The ground</h2>
+<p>Every kind of ground on the game's maps, side by side on a patch of 24 by 24 tiles, drawn by the same material as the game's
+WebGL renderer: <b>pasture</b> (short grazed grass, bare earth between), <b>meadow</b> (the fertile land farms need: lush, combed by
+the wind, with flowers), <b>scrub</b> (the garrigue of dry grass far from water: pale stony soil and cushions of thyme and kermes oak),
+<b>forest floor</b> (leaf litter, twigs, moss), bare <b>limestone</b>, <b>dune sand</b>, a <b>beach</b> by the sea, a farm's ploughed
+<b>soil</b>, and under the water a river's silt or the sea's sand.</p>
+<p>What people laid on it: an ordinary road is gravel rammed into the earth (a <i>via glareata</i>, the provinces' common road), with
+wheel ruts on a straight run; the Imperial road is paved with polygonal basalt between limestone kerbs, as the Via Appia was; a
+forum's plaza is travertine flagstones in courses; a fallen house leaves rubble of stone, roof tile and ash.</p>
+<p>Water deepens from its edge, from the bed seen through clear shallows to a river's green-blue or the sea's blue, with drifting
+ripples, the sky in it and foam lapping at the shore. Where two kinds meet, the higher one's bumps win, so the edges wander.</p>
+<h3>Controls</h3>
+<ul>
+<li>W: the well and its street; R: the ground. 1 to 4: day, golden hour, night, winter.</li>
+<li>Spring, summer, autumn, winter: the season's colour on what grows. N: snow lying (none to deep). T: rain (wet ground, puddles).</li>
+<li>M: the game's middle zoom, G: its closest, Z: twice that, O: orbit. Q / E: turn the view.</li>
 </ul>`;
 
 /** Wait for the next animation frame (lets the loading bar paint between surfaces). */
@@ -95,15 +124,23 @@ async function main() {
     // No media queries: keep full size.
   }
   // Textures first, one surface a frame, so the bar moves.
+  // The ground's layers are painted in a worker meanwhile (groundTextures.js).
   const names = Object.keys(SURFACES);
   const fill = loading.querySelector('.fill');
   const t0 = performance.now();
+  let done = 0;
+  const total = names.length + GROUND_LAYERS.length;
+  const progress = () => { fill.style.width = `${Math.round((done / total) * 100)}%`; };
+  let groundMs = 0;
+  const groundReady = groundLayers(() => { done++; progress(); }).then((l) => { groundMs = performance.now() - t0; return l; });
   for (let i = 0; i < names.length; i++) {
     surfaceTextures(names[i]);
-    fill.style.width = `${Math.round(((i + 1) / names.length) * 100)}%`;
+    done++;
+    progress();
     await nextFrame();
   }
   const texMs = performance.now() - t0;
+  const layers = await groundReady;
 
   const pr = Math.min(window.devicePixelRatio || 1, 2);
   const look = createLook(canvas, { pixelRatio: pr, shadowBox: 9.5, shadowMap: 4096 });
@@ -161,18 +198,33 @@ async function main() {
   controls.maxDistance = 40;
   controls.enabled = false;
 
-  const state = { mood: 'day', view: 'game1', turn: 0 };
-  // The world fades out past the 3 x 3 tile patch (6 m from the middle) into the backdrop.
-  LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
+  // The Ground scene: every kind of the game's 3D ground on one patch.
+  const tex = groundArrays(layers, undefined, LOOK.anisotropy);
+  const gs = buildGroundScene(tex, 'high');
+  const groundGroup = gs.ground.group;
+  groundGroup.visible = false;
+  scene.add(groundGroup);
+
+  const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false };
   const target = new Vector3(0, 0.4, 0);
+  /** Where the world fades into the backdrop: past the well's 3 x 3 tile patch, or the ground's 24 x 24. */
+  function setFade() {
+    if (state.scene === 'well') LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
+    else LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
+  }
+  setFade();
 
   // UI.
   const hud = el('div', { class: 'hud' }, '<h1>Colonia Look Lab</h1><div class="stats"></div>');
   app.appendChild(hud);
   const statsEl = hud.querySelector('.stats');
-  const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About the well' }, INFO);
+  const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
-  info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
+  const fillInfo = () => {
+    info.innerHTML = state.scene === 'well' ? INFO : GROUND_INFO;
+    info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
+  };
+  fillInfo();
   const bar = el('div', { class: 'bar' });
   app.appendChild(bar);
   const group = (items) => {
@@ -185,14 +237,67 @@ async function main() {
       return b;
     });
   };
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Ground', 'R', () => setScene('ground')]]);
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
+  // The Ground scene's own controls: the season, the snow lying, rain.
+  const seasonBtns = group(Object.entries(SEASONS).map(([k, v]) => [v.label, '', () => setSeason(k)]));
+  const snowBtns = group(SNOW_COVER.map((c, i) => [i ? `Snow ${i}` : 'No snow', i ? '' : 'N', () => setSnow(i)]));
+  const wetBtns = group([['Rain', 'T', () => setWet(!state.wet)]]);
+  const groundBars = [seasonBtns, snowBtns, wetBtns].map((b) => b[0].parentElement);
   group([['About', 'I', () => info.classList.toggle('open')]]);
 
   function refreshButtons() {
+    ['well', 'ground'].forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
     Object.keys(MOODS).forEach((k, i) => moodBtns[i].setAttribute('aria-pressed', String(k === state.mood)));
     Object.keys(VIEWS).forEach((k, i) => viewBtns[i].setAttribute('aria-pressed', String(k === state.view)));
+    Object.keys(SEASONS).forEach((k, i) => seasonBtns[i].setAttribute('aria-pressed', String(k === state.season)));
+    snowBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === state.snow)));
+    wetBtns[0].setAttribute('aria-pressed', String(state.wet));
+    for (const g of groundBars) g.style.display = state.scene === 'ground' ? '' : 'none';
+  }
+
+  /** The ground's season and weather, and the well's snow with it in the Ground scene. */
+  function applyGround() {
+    const snow = gs.groundSnow(SNOW_COVER[state.snow]);
+    gs.ground.setSky({ season: SEASONS[state.season].pos, snow, wet: state.wet ? 1 : 0, rain: state.wet ? 1 : 0, time: LOOK.uniforms.uLookTime.value });
+    const m = MOODS[state.mood];
+    gs.ground.setReflection(m.water, m.waterRefl, m.lamps ? 0 : m.sun.elev < 15 ? 0.6 : 1);
+    if (state.scene === 'ground') {
+      LOOK.uniforms.uLookSnow.value = Math.max(m.snow, snow);
+      LOOK.uniforms.uLookWet.value = Math.max(m.wet, state.wet ? 1 : 0);
+    } else {
+      LOOK.uniforms.uLookSnow.value = m.snow;
+      LOOK.uniforms.uLookWet.value = m.wet;
+    }
+  }
+  function setScene(name) {
+    state.scene = name;
+    const g = name === 'ground';
+    street.group.visible = !g;
+    woman.visible = !g;
+    man.visible = !g;
+    groundGroup.visible = g;
+    setFade();
+    fillInfo();
+    applyGround();
+    refreshButtons();
+  }
+  function setSeason(k) {
+    state.season = k;
+    applyGround();
+    refreshButtons();
+  }
+  function setSnow(i) {
+    state.snow = i;
+    applyGround();
+    refreshButtons();
+  }
+  function setWet(on) {
+    state.wet = on;
+    applyGround();
+    refreshButtons();
   }
 
   function aim() {
@@ -207,9 +312,19 @@ async function main() {
   }
 
   function setMood(name) {
+    // Into winter, the ground takes the winter's season and snow (they can be changed after).
+    if (name === 'winter' && state.mood !== 'winter') {
+      state.season = 'winter';
+      state.snow = 3;
+      state.wet = false;
+    } else if (name !== 'winter' && state.mood === 'winter') {
+      state.season = 'summer';
+      state.snow = 0;
+    }
     state.mood = name;
     look.setMood(name);
     setIce(MOODS[name].ice);
+    applyGround();
     refreshButtons();
   }
   function setView(name) {
@@ -241,6 +356,11 @@ async function main() {
     else if (k === 'q') setTurn(state.turn - 1);
     else if (k === 'e') setTurn(state.turn + 1);
     else if (k === 'g') setView('game1');
+    else if (k === 'm') setView('wide');
+    else if (k === 'w') setScene('well');
+    else if (k === 'r') setScene('ground');
+    else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
+    else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
     else if (k === 'o') setView('orbit');
     else if (k === 'i') info.classList.toggle('open');
@@ -284,13 +404,13 @@ async function main() {
     const r = look.renderer.info.render;
     return {
       fps, cpuMs: cpu, calls: r.calls, triangles: r.triangles, wellTriangles: well.triangles, wellDraws,
-      streetTriangles: street.triangles, textureMs: Math.round(texMs), pixelRatio: pr, mood: state.mood, view: state.view, turn: state.turn,
+      streetTriangles: street.triangles, textureMs: Math.round(texMs), groundMs: Math.round(groundMs), pixelRatio: pr, mood: state.mood, view: state.view, turn: state.turn,
     };
   }
   function showStats() {
     const s = stats();
     statsEl.textContent = `${s.fps.toFixed(0)} fps  cpu ${s.cpuMs.toFixed(1)} ms  frame: ${s.calls} draws, ${(s.triangles / 1000).toFixed(0)}k tris\n`
-      + `well: ${wellDraws} meshes, ${(well.triangles / 1000).toFixed(1)}k tris  textures ${s.textureMs} ms`;
+      + `well: ${wellDraws} meshes, ${(well.triangles / 1000).toFixed(1)}k tris  textures ${s.textureMs} ms, ground ${s.groundMs} ms (worker)`;
   }
 
   // The loop.
@@ -303,6 +423,7 @@ async function main() {
     const wm = waterMaterial();
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
+    gs.ground.material.userData.ground.uGTime.value = t;
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
     if (lit) {
@@ -356,7 +477,9 @@ async function main() {
 
   window.__lab = {
     ready: Promise.resolve(true),
-    setMood, setView, setTurn, stats, bench, wells100,
+    setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
+    /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
+    aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     orbit(az, el, dist, ty = 0.9, tx = 0, tz = 0) {
       setView('orbit');
       const a = (az * Math.PI) / 180;
