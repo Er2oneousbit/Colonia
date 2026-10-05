@@ -2020,7 +2020,15 @@ try {
     await page.waitForTimeout(100);
     const readout = await page.textContent('.empire-readout');
     check('pointing at the warband reads it out', /Warband of 14 from the north-west, in 2 months/.test(readout), readout);
-    const before = await page.evaluate(() => { const c = window.colonia.renderer.camera; const r = window.colonia.canvas.getBoundingClientRect(); return c.screenToTile(r.width / 2, r.height / 2); });
+    // From the map's middle: on a random map the view could start within 3 tiles
+    // of that edge, where the camera's bounds leave no room to move toward it.
+    const before = await page.evaluate(() => {
+      const app = window.colonia;
+      const c = app.renderer.camera;
+      c.centerOnTile(app.game.map.w / 2, app.game.map.h / 2);
+      const r = app.canvas.getBoundingClientRect();
+      return c.screenToTile(r.width / 2, r.height / 2);
+    });
     await page.mouse.click(band.x, band.y);
     await page.waitForTimeout(1200);
     const after = await page.evaluate(() => { const c = window.colonia.renderer.camera; const r = window.colonia.canvas.getBoundingClientRect(); return { kind: window.colonia.ui.modalKind, at: c.screenToTile(r.width / 2, r.height / 2) }; });
@@ -3820,8 +3828,15 @@ try {
             const x = rect.left + q.x / cam.dpr;
             const y = rect.top + q.y / cam.dpr;
             if (x < rect.left + 360 || x > rect.right - 40 || y < rect.top + 80 || y > rect.bottom - 120) continue;
-            if (r.pickWalker(x - rect.left, y - rect.top) !== s.id) continue;
-            return { id: s.id, x, y };
+            // A click arrives at whole pixels, so the walker must be the one picked at
+            // every whole pixel round the point: where two walkers overlap, a fraction of
+            // a pixel picked the other one (CI, v0.20.3).
+            const xi = Math.round(x);
+            const yi = Math.round(y);
+            let same = true;
+            for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) if (r.pickWalker(xi + dx - rect.left, yi + dy - rect.top) !== s.id) same = false;
+            if (!same) continue;
+            return { id: s.id, x: xi, y: yi };
           }
           return null;
         };
@@ -3968,11 +3983,18 @@ try {
           return [rr / 25, gg / 25, bb / 25].map(Math.round);
         }, [p.x, p.y]);
       };
+      // Wait for what was asked to be drawn, not a fixed time: under a software GL
+      // a redraw of the ground takes about half a second, and a fixed 600 ms read
+      // the view before the turn back (CI, v0.20.2).
+      const frames = (n) => gq.evaluate((k) => new Promise((done) => { let i = 0; const f = () => (++i >= k ? done() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+      const redraws = await gq.evaluate(() => window.colonia.renderer.stats.groundRedraws);
+      const wasTurned = await gq.evaluate(() => window.colonia.renderer.viewTurn !== 0);
       await gq.evaluate(() => window.colonia.turnView(-window.colonia.renderer.viewTurn));
-      await gq.waitForTimeout(600);
+      if (wasTurned) await gq.waitForFunction((n) => window.colonia.renderer.stats.groundRedraws > n, redraws, { timeout: 15000 }).catch(() => {});
+      await frames(3);
       const tintBefore = await tint();
       await gq.evaluate(() => window.colonia.setOverlay('water'));
-      await gq.waitForTimeout(600);
+      await frames(3);
       const tintAfter = await tint();
       await gq.evaluate(() => window.colonia.setOverlay('none'));
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d-overlay.png') });
