@@ -13,6 +13,13 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.5)
+
+* **The fountain in 3D, in four looks that follow its neighbourhood** (under WebGL): a plain lava lacus like most of Pompeii's street fountains, a limestone lacus with a carved water-god head, a marble basin with a bronze lion's-head spout, and a small nymphaeum with a mosaic niche, columns and a nymph pouring water. The look comes from the desirability of the fountain's tile, as fountains looked finer in finer quarters in the original (render only: the rules do not change). Water runs from the spout with rings and an overflow; a fountain with water but no workers stands still, one without water is dry and stained; in hard frost the water keeps running under icicles
+* **The look lab's well and fountain in the game**: the WebGL renderer now draws them with the lab's materials, casting real shadows on the 3D ground, many at once in a handful of draw calls, simpler when zoomed out; placing one shows the model as a see-through ghost. Measured with 100 wells and 100 fountains on an Uber map: 76 to 91 draw calls (was up to 3,041)
+* Headless sim: identical to v0.20.4 on every difficulty
+* 1130 unit tests, 234 browser checks
+
 ## Done (v0.20.4)
 
 * **Every kind of ground in 3D**: farms now grow on the 3D ground, wheat, vegetables and flax from ploughed to sprouting, growing, ripening and ripe (wheat turns gold, flax flowers blue), stubble while resting in winter and weeds when nobody works them; orchards, olive groves and vineyards hoed round each tree and vine; a pig pen's mud and straw and a ranch's grazed paddock; trodden yards round buildings; worn grass along walls and aqueducts; a burned ruin of ash and charred beams with scorched grass round it, embers while it burns, the snow melted round a fire; native villages' yards and plots. Pasture, meadow and scrub flower in spring, the forest floor is oak leaves, needles and moss turning russet in autumn, beaches are warmer sand, and only the sea has surf. A new tiling hides repeats even at the closest zoom. Frame time unchanged; the 3D ground first appears about half a second later (a longer shader to prepare)
