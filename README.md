@@ -51,6 +51,7 @@ Saved games stay in your browser. To keep a backup or move a city to another com
 * **Wolves** in the woods of the northern provinces (and a sandbox switch): packs that fall on cart pushers, traders and settlers who pass near, and grow back until your soldiers kill the last of them. And the **gladiators' revolt** in Urbs Magna and Puteoli, if a gladiator school is at work.
 * **The Emperor's wrath and his wars:** let his favor sink to 10 and Caesar sends his own legions against your residence and finest homes, a year's march from Rome, with reminders halfway and a month out of what your favor would make them do; win back his favor before they arrive and they turn for home. He also calls for troops to save a city of the empire: send your forts (and, for a city by the sea, your fleet) in time and strong enough, and he grants you a triumphal arch to build across a road.
 * **A living world:** day and night, four seasons with snow in winter, rain and thunderstorms, fluttering flags, busy markets, crowds at the shows, chariots racing round the spina.
+* **A WebGL renderer (beta):** *Settings > Renderer* draws the same city with your graphics card, the well already as a 3D model, the first of more to come; the Classic renderer stays the default.
 * **Music:** ten original tracks of a few minutes each for building and for the night, festival music, and war drums when raiders attack, all played live by synthesized lyre, pipes and drums.
 
 Press **F1** in the game for the full manual. The rules and numbers are in [docs/GAMEPLAY.md](docs/GAMEPLAY.md).
@@ -119,7 +120,7 @@ Found a bug? [Open an issue](https://github.com/Er2oneousbit/Caesar/issues/new/c
 
 ## License and credits
 
-[MIT License](LICENSE). Designed and developed with Claude (Anthropic) using Claude Code. Inspired by the classic Roman city builders of the late 1990s; Roman gods, places and history belong to everyone.
+[MIT License](LICENSE). Designed and developed with Claude (Anthropic) using Claude Code. Inspired by the classic Roman city builders of the late 1990s; Roman gods, places and history belong to everyone. The WebGL renderer is built on [three.js](https://threejs.org/) (MIT License, copyright the three.js authors).
 
 Developer notes (building, testing, debug tools): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 

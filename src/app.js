@@ -23,6 +23,7 @@ import { log } from './core/debug.js';
 import { Game } from './core/game.js';
 import { saveToSlot, readSlot, deserializeGame, exportToFile, exportSlotToFile, importFromFile, serializeGame, canDownloadFiles } from './core/save.js';
 import { Renderer } from './render/renderer.js';
+import { WebGLBackend } from './render3d/webglBackend.js';
 import { OVERLAYS } from './render/overlays.js';
 import { UI } from './ui/ui.js';
 import { h } from './ui/dom.js';
@@ -52,7 +53,7 @@ import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
 const FORT_KEY_DOUBLE_MS = 450;
 const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
 
-const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
+const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
 
 /** Does the player's system ask for less motion (accessibility setting)? */
 function prefersReducedMotion() {
@@ -208,6 +209,7 @@ export class App {
     r.dayNightOn = s.dayNight !== false;
     r.seasonsOn = s.seasons !== false;
     r.weatherOn = s.weather !== false;
+    this.applyRenderer();
     // Only touch the theme attribute if the player picked a theme; 'auto'
     // leaves whatever the page host (or the OS) decided.
     const root = document.documentElement;
@@ -219,6 +221,30 @@ export class App {
       this.themeSetByGame = false;
     }
     writeJson(`${CONFIG.STORAGE_PREFIX}settings`, s);
+  }
+
+  /**
+   * Who draws the city (render/renderer.js back ends): the Classic 2D canvas,
+   * or WebGL (beta, render3d/) when Settings or the URL (?renderer=3d, which
+   * wins until the player picks in Settings) ask for it. Where WebGL cannot
+   * start, the Classic one keeps drawing and Settings says why
+   * (`rendererNote`); it is tried again only when the choice changes.
+   */
+  applyRenderer() {
+    const want = (this.flags.renderer || this.settings.renderer) === 'webgl' ? 'webgl' : 'classic';
+    if (want === this.rendererWant) return;
+    this.rendererWant = want;
+    const r = this.renderer;
+    this.rendererNote = '';
+    if (want === 'classic') { r.setBackend(null); return; }
+    try {
+      r.setBackend(new WebGLBackend(r));
+    } catch (err) {
+      r.setBackend(null);
+      this.rendererNote = 'WebGL is not available in this browser, so the Classic renderer draws the city.';
+      log.warn(`WebGL renderer: ${err && err.message}`);
+      if (this.ui) this.ui.toastError(this.rendererNote);
+    }
   }
 
   // ------------------------------------------------------------ game setup

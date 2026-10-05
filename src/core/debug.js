@@ -29,6 +29,8 @@
  *                  a skipmenu=1 sandbox): wages,land,sea,water,mine,clay, or none
  *   nofog=1        reserved for future use
  *   mute=1         start with sound off
+ *   renderer=3d    draw with the WebGL renderer (beta; render3d/), or
+ *                  renderer=2d with the Classic one, whatever Settings say
  *
  * The logger keeps the last 300 lines in memory so the crash screen can offer
  * a "copy error report" button with recent context.
@@ -59,6 +61,7 @@ export function parseFlags(source) {
     wolves: null,
     events: null,
     mute: false,
+    renderer: null,
   };
   let params;
   try {
@@ -97,6 +100,10 @@ export function parseFlags(source) {
   const events = get('events') == null ? null : parseEventsOption(get('events'));
   if (events) flags.events = events;
   flags.mute = truthy(get('mute'));
+  // The renderer's back end: 'webgl' or 'classic' (null: as Settings say).
+  const rd = String(get('renderer') ?? '').toLowerCase();
+  if (['3d', 'webgl', 'gl'].includes(rd)) flags.renderer = 'webgl';
+  else if (['2d', 'classic', 'canvas'].includes(rd)) flags.renderer = 'classic';
   return flags;
 }
 

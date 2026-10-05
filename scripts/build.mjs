@@ -71,7 +71,7 @@ async function main() {
     format: 'iife',
     target: ['es2020'],
     minify: opts.minify,
-    legalComments: 'none',
+    legalComments: 'eof', // (three.js's MIT notice travels with its code; the game's own sources have none)
     write: false,
     logLevel: 'warning',
   });

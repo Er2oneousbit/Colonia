@@ -107,7 +107,7 @@ export function shadowLength(b) {
   return Math.min(1.1, heightFor(b.type, b.size) / 70);
 }
 
-function heightFor(key, size) {
+export function heightFor(key, size) {
   if (key.startsWith('temple_large_')) return 84;
   if (key.startsWith('temple_')) return 56;
   if (key.startsWith('farm_')) return 34;
