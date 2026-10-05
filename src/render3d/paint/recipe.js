@@ -13,14 +13,16 @@
  *            (how far a pixel sits below it), or a low-passed height
  *   colour   the albedo (sRGB, mixed as a painter mixes) and occlusion,
  *            roughness and metalness (or, for the ground, plants), per pixel
- *            from F, B and noises of its own
+ *            from F, B and noises of its own; and `dec`, into the ORM's
+ *            alpha (0 unless set): for the ground, what only shows in its
+ *            season (flowers in a meadow, fresh leaves on a wood's floor)
  *   normal   a tangent-space normal map by Sobel from a mix of F's and B's
  *            channels (the height by default), `depth` deep
  *
  *   recipe = {
  *     fields: { noise: { name: spec, ... }, glsl: 'statements; return vec4(h, ...);' },
  *     blur: [rx, ry, rz, rw],
- *     colour: { noise: { ... }, glsl: 'statements setting col (vec3) and orm (vec3)' },
+ *     colour: { noise: { ... }, glsl: 'statements setting col (vec3), orm (vec3), maybe dec (float)' },
  *     normal: { depth, F: [wx, wy, wz, ww], B: [...] },
  *   }
  *
@@ -125,7 +127,8 @@ export function packRecipe(recipe) {
  * The fragment shader of a program painting `recipes` (an array: the
  * uniform uRecipe is an index into it). uStage: 0 the fields, 1 the albedo
  * (alpha 1, or for a ground layer, uGround, its height normalised by the
- * range in uRange), 2 the occlusion, roughness and metalness (or plants).
+ * range in uRange), 2 the occlusion, roughness and metalness (or plants),
+ * with `dec` in the alpha.
  */
 export function recipeShader(recipes) {
   const fns = [];
@@ -137,12 +140,12 @@ export function recipeShader(recipes) {
   ${p.fields.decl}
   ${r.fields.glsl.trim()}
 }
-void colour${i}( vec2 uv, ivec2 px, int n, vec4 F, vec4 B, inout vec3 col, inout vec3 orm ) {
+void colour${i}( vec2 uv, ivec2 px, int n, vec4 F, vec4 B, inout vec3 col, inout vec3 orm, inout float dec ) {
   ${p.colour.decl}
   ${r.colour.glsl.trim()}
 }`);
     fieldCases.push(`    case ${i}: F = fields${i}( uv, px, n ); break;`);
-    colourCases.push(`    case ${i}: colour${i}( uv, px, n, F, B, col, orm ); break;`);
+    colourCases.push(`    case ${i}: colour${i}( uv, px, n, F, B, col, orm, dec ); break;`);
   });
   return `${GLSL_TOOLBOX}
 ${GLSL_NOISES}
@@ -175,6 +178,7 @@ ${fieldCases.join('\n')}
   vec4 B = texelFetch( uB, px, 0 );
   vec3 col = vec3( 0.5 );
   vec3 orm = vec3( 1.0, 1.0, 0.0 );
+  float dec = 0.0;
   switch ( uRecipe ) {
 ${colourCases.join('\n')}
     default: break;
@@ -187,7 +191,7 @@ ${colourCases.join('\n')}
     }
     outColor = vec4( srgbToLinear( col ), a );
   } else {
-    outColor = vec4( clamp( orm, 0.0, 1.0 ), 1.0 );
+    outColor = vec4( clamp( orm, 0.0, 1.0 ), clamp( dec, 0.0, 1.0 ) );
   }
 }
 `;

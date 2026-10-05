@@ -22,7 +22,30 @@
  *      smoothly round the tiles' corners instead of in steps, the depth of
  *      the water from its edge out, and the wet band on the beach.
  *   A  bits 0-1 the water's kind (WATER_KIND: a river or lake's green-blue,
- *      the open sea's blue), bit 2 a building stands on the tile.
+ *      the open sea's blue), bit 2 a building stands on the tile, bit 3 the
+ *      rubble is a burned building's (ash and charred timber, the ground
+ *      round it scorched), bit 4 it is still burning (embers glow).
+ *
+ * A second texture of the same size, the SITE map (`detail`), says what
+ * people made of a tile that is not a road: a building's yard of trodden
+ * earth, a farm's field (its crop and how far it has grown, resting in
+ * winter, left idle), a pig pen's mud, the footing of a wall or an
+ * aqueduct. One RGBA byte quad a tile (siteWord):
+ *
+ *   R  the site (SITE)
+ *   G  how far its crop has grown, 0..255 (a field's)
+ *   B  bits 0-3 which of its four sides (N E S W) carry on into the same
+ *      site (the same building's, the same kind): an edge is drawn only
+ *      where the site ends, so a field is one clean plot with a margin
+ *      round it, not a quilt of tiles; bit 4 resting for the winter; bit 5
+ *      idle (no one works it: weeds come up); bits 6-7 the site's size - 1
+ *   A  bits 0-2 and 3-5 the tile's place (u, v) in its building's
+ *      footprint, bits 6-7 the building's turn: the shader finds where the
+ *      sprite's trees and vines stand, and which way a field's rows run
+ *
+ * The sim keeps none of this: it is read from the buildings (groundSites.js)
+ * and drawn under the sprites, which in the 3D ground's view leave a farm's
+ * field to it (render/buildingArt.js farmArt, `bare`).
  *
  * The map's tiles never change shape, only what is on them, so the type map
  * is rebuilt where the map changed (GroundMap.update): the layers it reads
@@ -57,6 +80,48 @@ export const G_BRIDGE = 128;
 /** The water's kinds (A bits 0-1). */
 export const WATER_KIND = Object.freeze({ LAND: 0, FRESH: 1, SEA: 2 });
 export const A_BUILDING = 4;
+/** A burned building's rubble (A bit 3), and still burning (bit 4): burnAt's bits, shifted. */
+export const A_BURNT = 8;
+export const A_BURNING = 16;
+/** burnAt(i)'s answer: the rubble is a fire's, and the fire is still burning. */
+export const BURN = Object.freeze({ NONE: 0, BURNT: 1, BURNING: 2 });
+
+/**
+ * What people made of a tile (the site map's R). A field's kind is its crop:
+ * the shader draws grain, vegetables and flax itself (the farm's sprite then
+ * draws only its house), and under the sprite's orchard trees and vines the
+ * ground they grow in.
+ */
+export const SITE = Object.freeze({
+  NONE: 0,
+  YARD: 1, // a building's ground: trodden earth (a farm's farmhouse yard too)
+  FOOTING: 2, // under a wall or an aqueduct: earth and stone chips, the grass worn
+  SOIL: 3, // ploughed earth, nothing sown that shows (a native village's plot)
+  GRAIN: 4, // wheat
+  VEG: 5, // vegetables in rows
+  FLAX: 6, // flax, blue in flower
+  ORCHARD: 7, // fruit trees in grass, the earth worked round each
+  OLIVE: 8, // olives: the same, drier, paler
+  VINES: 9, // vine rows, worked earth under each, grass between
+  PEN: 10, // a pig pen: trampled mud, straw, wallows
+  PADDOCK: 11, // horses' paddock: grazed short and trodden
+});
+/** Site map B: resting for the winter, idle (no workers). */
+export const S_RESTING = 16;
+export const S_IDLE = 32;
+
+/**
+ * A site word (siteAt's answer, before the links GroundMap adds): `site`,
+ * `growth` 0..1, `flags` (S_RESTING, S_IDLE), the footprint `size` (1..4
+ * kept), the tile's place (`u`, `v`) in it, and the building's `turn`.
+ */
+export function siteWord(site, growth = 0, flags = 0, size = 1, u = 0, v = 0, turn = 0) {
+  if (!site) return 0;
+  const g = Math.max(0, Math.min(255, Math.round(growth * 255)));
+  const b = (flags & (S_RESTING | S_IDLE)) | ((Math.max(1, Math.min(4, size)) - 1) << 6);
+  const a = (Math.min(7, u) & 7) | ((Math.min(7, v) & 7) << 3) | ((turn & 3) << 6);
+  return (site | (g << 8) | (b << 16) | (a << 24)) >>> 0;
+}
 
 /** Tiles along a chunk's side: one mesh each (ground.js), and the unit the type map reports dirty. */
 export const CHUNK = 32;
@@ -186,10 +251,13 @@ export function waterKinds(map, shore) {
   return out;
 }
 
-/** The kind of ground of a land or water tile (see the header). */
-export function kindOf(terrain, x, y, shoreD, farm) {
+/**
+ * The kind of ground of a land or water tile (see the header): what nature
+ * made of it. (What people made, a farm's field, a yard, is the site map's:
+ * the natural kind stays under it and shows at its margins.)
+ */
+export function kindOf(terrain, x, y, shoreD) {
   if (terrain === Terrain.WATER) return KIND.BED;
-  if (farm) return KIND.SOIL;
   switch (terrain) {
     case Terrain.MEADOW: return KIND.MEADOW;
     case Terrain.TREES: return KIND.FOREST;
@@ -225,10 +293,20 @@ export function roadByte(map, x, y, town = () => false) {
   return g | links | (surface << 4);
 }
 
+/** No hooks: a map with nothing on it (the tests', and the stand-in the shader compiles on). */
+const NO = () => 0;
+
 /**
- * The type map of a map and its buildings, kept up to date as the map
- * changes. `farmAt(i)` says whether tile i lies under a farm (ground.js asks
- * the game's buildings; the lab gives its own).
+ * The type map and the site map of a map and its buildings, kept up to
+ * date as the map changes. `hooks` say what stands on tile i (ground.js
+ * asks the game, groundSites.js; the lab gives its own):
+ *   farmAt(i)      a farm stands there (a road beside it stays a country road)
+ *   buildingAt(i)  a building stands there
+ *   siteAt(i)      its site word (siteWord), 0 for none
+ *   ownerAt(i)     whose site it is (a building's id): sides link only to the same owner's
+ *   burnAt(i)      BURN bits: the rubble is a fire's, and still burning
+ * A farm's growth and a fire change without the map's revision: refresh()
+ * repacks the tiles they lie on (`live`), cheaply, every frame.
  */
 export class GroundMap {
   constructor(map) {
@@ -237,6 +315,7 @@ export class GroundMap {
     this.h = map.h;
     const n = map.w * map.h;
     this.data = new Uint8Array(n * 4);
+    this.detail = new Uint8Array(n * 4);
     this.shore = null;
     this.water = null;
     // The layers read last time (null: nothing packed yet).
@@ -252,25 +331,57 @@ export class GroundMap {
     this.waterHook = null; // (i, waterKind) => waterKind
   }
 
-  /** Pack tile (x, y). */
-  pack(x, y, farmAt, buildingAt) {
+  /** The hooks with every one there (missing ones: nothing stands anywhere). */
+  static hooks(h = {}) {
+    return { farmAt: h.farmAt || NO, buildingAt: h.buildingAt || NO, siteAt: h.siteAt || NO, ownerAt: h.ownerAt || NO, burnAt: h.burnAt || NO };
+  }
+
+  /** The site word of tile i with its links: the sides whose neighbour is the same site of the same owner. */
+  siteOf(i, x, y, hk) {
+    const word = hk.siteAt(i);
+    if (!word) return 0;
+    const site = word & 255;
+    const owner = hk.ownerAt(i);
+    const { w, h } = this;
+    const same = (j) => (hk.siteAt(j) & 255) === site && hk.ownerAt(j) === owner;
+    const links = (y > 0 && same(i - w) ? 1 : 0) | (x < w - 1 && same(i + 1) ? 2 : 0) | (y < h - 1 && same(i + w) ? 4 : 0) | (x > 0 && same(i - 1) ? 8 : 0);
+    return (word | (links << 16)) >>> 0;
+  }
+
+  /** A's bits for a fire: burnt rubble (changes with the map's revision) and burning (without it). */
+  burnBits(i, hk) {
+    const b = hk.burnAt(i);
+    return (b & BURN.BURNT ? A_BURNT : 0) | (b & BURN.BURNING ? A_BURNING : 0);
+  }
+
+  /** Pack tile (x, y): both maps. */
+  pack(x, y, hk) {
     const map = this.map;
     const i = y * this.w + x;
     const d = this.shore[i];
     const o = i * 4;
-    const kind = kindOf(map.terrain[i], x, y, d, farmAt(i));
+    const kind = kindOf(map.terrain[i], x, y, d);
     const water = this.water[i];
     this.data[o] = this.kindHook ? this.kindHook(i, kind) : kind;
-    this.data[o + 1] = roadByte(map, x, y, (j) => buildingAt(j) && !farmAt(j));
+    this.data[o + 1] = roadByte(map, x, y, (j) => hk.buildingAt(j) && !hk.farmAt(j));
     this.data[o + 2] = shoreByte(d);
-    this.data[o + 3] = (this.waterHook ? this.waterHook(i, water) : water) | (buildingAt(i) ? A_BUILDING : 0);
+    this.data[o + 3] = (this.waterHook ? this.waterHook(i, water) : water) | (hk.buildingAt(i) ? A_BUILDING : 0) | this.burnBits(i, hk);
+    this.putSite(o, this.siteOf(i, x, y, hk));
+  }
+
+  putSite(o, word) {
+    this.detail[o] = word & 255;
+    this.detail[o + 1] = (word >>> 8) & 255;
+    this.detail[o + 2] = (word >>> 16) & 255;
+    this.detail[o + 3] = (word >>> 24) & 255;
   }
 
   /**
-   * Bring the type map up to date. Returns true when anything changed.
-   * `farmAt(i)` and `buildingAt(i)` describe what stands on tile i.
+   * Bring the maps up to date with the map's layers and what stands on it.
+   * Returns true when anything changed. `hooks`: see the class's header.
    */
-  update(farmAt = () => false, buildingAt = () => false) {
+  update(hooks = {}) {
+    const hk = GroundMap.hooks(hooks);
     const map = this.map;
     const { w, h } = this;
     const n = w * h;
@@ -282,67 +393,113 @@ export class GroundMap {
       road: map.road,
       rubble: map.rubble,
       fixed: map.fixedRoad,
+      wall: map.wall,
+      aqueduct: map.aqueduct,
     };
     const first = !this.seen;
     let waterChanged = first;
     const changed = new Uint8Array(n);
     let any = first;
+    // What stands on each tile, read once: a farm, a building, its site, whose it is, a fire's rubble.
+    const farm = new Uint8Array(n);
+    const bld = new Uint8Array(n);
+    const owner = new Int32Array(n);
+    const site = new Uint8Array(n);
+    const burnt = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      farm[i] = hk.farmAt(i) ? 1 : 0;
+      bld[i] = hk.buildingAt(i) ? 1 : 0;
+      owner[i] = hk.ownerAt(i) | 0;
+      site[i] = hk.siteAt(i) & 255;
+      burnt[i] = hk.burnAt(i) & BURN.BURNT;
+    }
     if (!first) {
       const s = this.seen;
       for (let i = 0; i < n; i++) {
-        const farm = farmAt(i) ? 1 : 0;
-        const bld = buildingAt(i) ? 1 : 0;
-        if (now.terrain[i] !== s.terrain[i] || now.road[i] !== s.road[i] || now.rubble[i] !== s.rubble[i] || now.fixed[i] !== s.fixed[i] || farm !== s.farm[i] || bld !== s.bld[i]) {
+        if (now.terrain[i] !== s.terrain[i] || now.road[i] !== s.road[i] || now.rubble[i] !== s.rubble[i] || now.fixed[i] !== s.fixed[i]
+          || now.wall[i] !== s.wall[i] || now.aqueduct[i] !== s.aqueduct[i]
+          || farm[i] !== s.farm[i] || bld[i] !== s.bld[i] || owner[i] !== s.owner[i] || site[i] !== s.site[i] || burnt[i] !== s.burnt[i]) {
           changed[i] = 1;
           any = true;
           if ((now.terrain[i] === Terrain.WATER) !== (s.terrain[i] === Terrain.WATER)) waterChanged = true;
         }
       }
     }
-    if (!any) return false;
-    if (waterChanged) {
-      this.shore = shoreField(map);
-      this.water = waterKinds(map, this.shore);
-    }
-    const dirtyChunks = new Set();
-    const repack = (x, y) => {
-      this.pack(x, y, farmAt, buildingAt);
-      dirtyChunks.add(Math.floor(y / CHUNK) * this.chunksX + Math.floor(x / CHUNK));
-    };
-    if (waterChanged) {
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) repack(x, y);
-    } else {
-      // A changed tile, and its four neighbours (their road links point at it).
-      const done = new Uint8Array(n);
-      for (let i = 0; i < n; i++) {
-        if (!changed[i]) continue;
-        const x = i % w;
-        const y = (i / w) | 0;
-        for (const [dx, dy] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]]) {
-          const tx = x + dx;
-          const ty = y + dy;
-          if (tx < 0 || ty < 0 || tx >= w || ty >= h || done[ty * w + tx]) continue;
-          done[ty * w + tx] = 1;
-          repack(tx, ty);
+    if (any) {
+      if (waterChanged) {
+        this.shore = shoreField(map);
+        this.water = waterKinds(map, this.shore);
+      }
+      const dirtyChunks = new Set();
+      const repack = (x, y) => {
+        this.pack(x, y, hk);
+        dirtyChunks.add(Math.floor(y / CHUNK) * this.chunksX + Math.floor(x / CHUNK));
+      };
+      if (waterChanged) {
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) repack(x, y);
+      } else {
+        // A changed tile, and its four neighbours (their road links and site links point at it).
+        const done = new Uint8Array(n);
+        for (let i = 0; i < n; i++) {
+          if (!changed[i]) continue;
+          const x = i % w;
+          const y = (i / w) | 0;
+          for (const [dx, dy] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]]) {
+            const tx = x + dx;
+            const ty = y + dy;
+            if (tx < 0 || ty < 0 || tx >= w || ty >= h || done[ty * w + tx]) continue;
+            done[ty * w + tx] = 1;
+            repack(tx, ty);
+          }
         }
       }
+      this.dirty = [...dirtyChunks].sort((a, b) => a - b);
     }
     // Keep what was read, to compare with next time.
-    const farm = new Uint8Array(n);
-    const bld = new Uint8Array(n);
-    for (let i = 0; i < n; i++) {
-      farm[i] = farmAt(i) ? 1 : 0;
-      bld[i] = buildingAt(i) ? 1 : 0;
-    }
     this.seen = {
       terrain: now.terrain.slice(),
       road: now.road.slice(),
       rubble: now.rubble.slice(),
       fixed: now.fixed.slice(),
+      wall: now.wall.slice(),
+      aqueduct: now.aqueduct.slice(),
       farm,
       bld,
+      owner,
+      site,
+      burnt,
     };
-    this.dirty = [...dirtyChunks].sort((a, b) => a - b);
-    return true;
+    return any;
+  }
+
+  /**
+   * Repack what changes between the map's revisions on the tiles `live`
+   * (a farm's growth, resting and idling; a fire burning or gone out):
+   * their site word and burn bits. The links stay (what a site is and
+   * whose never changes between revisions). Returns { types, sites }:
+   * which of the two maps changed (each is uploaded again only then).
+   */
+  refresh(live, hooks = {}) {
+    const hk = GroundMap.hooks(hooks);
+    const n = this.w * this.h;
+    let types = false;
+    let sites = false;
+    if (!this.seen) return { types, sites };
+    for (const i of live) {
+      if (!(i >= 0 && i < n)) continue;
+      const o = i * 4;
+      const a = (this.data[o + 3] & ~(A_BURNT | A_BURNING)) | this.burnBits(i, hk);
+      if (a !== this.data[o + 3]) {
+        this.data[o + 3] = a;
+        types = true;
+      }
+      const word = hk.siteAt(i);
+      const next = word ? (word | ((this.detail[o + 2] & 15) << 16)) >>> 0 : 0;
+      if ((next & 255) !== this.detail[o] || ((next >>> 8) & 255) !== this.detail[o + 1] || ((next >>> 16) & 255) !== this.detail[o + 2] || (next >>> 24) !== this.detail[o + 3]) {
+        this.putSite(o, next);
+        sites = true;
+      }
+    }
+    return { types, sites };
   }
 }

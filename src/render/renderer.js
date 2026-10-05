@@ -79,7 +79,7 @@ import { Camera, tileOfWorld } from './camera.js';
 import { SpriteCache } from './sprites.js';
 import { groundTileSpec, groundBlendSpec, waterTileSpec, shoreSpec, roadSpec, plazaSpec, bridgeSpec, bridgeFootSpec, lowBridgeSpec, rubbleSpec, treesSpec, rocksSpec, aqueductSpec, BLEND_RANK, roadblockSpec } from './terrainArt.js';
 import { bridgeLook, footLook, bridgeFeet, deckLift, mastClip } from './bridgeProfile.js';
-import { buildingSpec, artState, drawWarehouseStock, drawGranaryStock, shadowLength, flagsFor, templeAltar } from './buildingArt.js';
+import { buildingSpec, artState, drawWarehouseStock, drawGranaryStock, shadowLength, flagsFor, templeAltar, FARM_BARE } from './buildingArt.js';
 import { drawFlag, drawShoppers, drawCrowd, drawAltarFlame, drawMapGate, GATE_H, drawNoRoadSign, drawSickSign, NO_ROAD_SIGN_R } from './liveArt.js';
 import { lacksRoad, accessEdgeTiles } from '../sim/roadAccess.js';
 import { drawWalker, drawChariot } from './walkerArt.js';
@@ -1469,7 +1469,9 @@ export class Renderer {
       }
       return;
     }
-    const state = artState(b, farmDormant(this.game, b));
+    // A farm whose field the 3D ground draws: its sprite keeps only what stands up (buildingArt.js FARM_BARE).
+    const bareField = b.def.kind === 'farm' && b.herd === undefined && !!this.be?.drawsGround;
+    const state = artState(b, farmDormant(this.game, b)) + (bareField ? FARM_BARE : 0);
     const variant = this.artVariant(b);
     const key = buildingKey(b, variant, state, vt);
     const sick = key.endsWith(':sick');

@@ -26,7 +26,7 @@
 
 import { GameMap, Terrain, Road } from '../world/map.js';
 import { Ground, groundSnow } from '../render3d/ground/ground.js';
-import { KIND, WATER_KIND } from '../render3d/ground/groundMap.js';
+import { KIND, WATER_KIND, SITE, siteWord } from '../render3d/ground/groundMap.js';
 
 export const GROUND_N = 24;
 /** Where the map's tile (0, 0) corner lies (metres): tile (12, 12)'s middle at the origin. */
@@ -88,10 +88,18 @@ export function labGroundMap() {
  */
 export function buildGroundScene(tex, quality = 'high') {
   const { map, scrub, farm } = labGroundMap();
+  // The farm: a wheat field three tiles wide, nearly ripe (its plot's place in a 3 x 3 footprint).
+  const fx = (i) => map.xOf(i) - 8;
+  const fy = (i) => (map.yOf(i) - 18) % 3;
   const ground = new Ground(map, tex, {
     quality,
     scale: 4,
-    farmAt: (i) => !!farm[i],
+    hooks: {
+      farmAt: (i) => !!farm[i],
+      buildingAt: (i) => !!farm[i],
+      siteAt: (i) => (farm[i] ? siteWord(SITE.GRAIN, 0.75, 0, 3, fx(i), fy(i), 0) : 0),
+      ownerAt: (i) => (farm[i] ? 1 + Math.floor((map.yOf(i) - 18) / 3) : 0),
+    },
     kindHook: (i, k) => (scrub[i] && k === KIND.GRASS ? KIND.SCRUB : k),
     // The patch's sea is too small to be deep: it is the open sea all the same.
     waterHook: (i, w) => (w && map.yOf(i) <= 6 ? WATER_KIND.SEA : w),

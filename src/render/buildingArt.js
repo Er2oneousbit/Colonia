@@ -2052,11 +2052,23 @@ const CROP = {
   farm_flax: { young: '#79a052', ripe: '#6f9548', kind: 'flax', fruit: '#6f8fd8', bloom: '#b9cdf3' },
 };
 
+/**
+ * Added to a farm's art state when the 3D ground draws its field
+ * (render3d/ground/: the ploughed earth, the rows of grain, vegetables and
+ * flax as they grow, ripen and rest, the grass and worked earth under trees
+ * and vines, the pen's mud, and the snow on them): the sprite then draws
+ * only what stands up, the farmhouse, its haystack, the trees, the vines,
+ * the pen's fence and its pigs.
+ */
+export const FARM_BARE = 16;
+
 /** Winter tones for a resting farm: the crop stands (as high as it grew) but dry and dull. */
 const WINTER_STRAW = '#a39a6c';
 const WINTER_OLIVE = '#6f7358';
 
 function farmArt(ctx, S, variant, stage, key) {
+  const bare = stage >= FARM_BARE;
+  if (bare) stage -= FARM_BARE;
   // Stages 5..9: the same growth stage, resting for an Insane winter. The crop
   // keeps its height (progress is frozen, not lost) but turns dry and dull:
   // no fruit, bare orchard trees and vines, most pigs in the sty.
@@ -2066,8 +2078,8 @@ function farmArt(ctx, S, variant, stage, key) {
   const crop = resting
     ? { ...base, young: mix(base.young, WINTER_STRAW, 0.7), ripe: mix(base.ripe, WINTER_STRAW, 0.7), fruit: null }
     : base;
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, crop.kind === 'pigs' ? '#9a8a5c' : COL.soil);
-  const sn = roofSnowAmount();
+  if (!bare) quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, crop.kind === 'pigs' ? '#9a8a5c' : COL.soil);
+  const sn = bare ? 0 : roofSnowAmount();
   if (sn > 0) {
     // Snow lying on the field (the rows and plants still show through).
     ctx.globalAlpha = 0.35 + 0.55 * sn;
@@ -2075,7 +2087,9 @@ function farmArt(ctx, S, variant, stage, key) {
     ctx.globalAlpha = 1;
   }
   const t = stage / 4; // 0..1 growth
-  if (crop.kind === 'rows' || crop.kind === 'heads') {
+  if (bare && (crop.kind === 'rows' || crop.kind === 'heads' || crop.kind === 'flax')) {
+    // (The 3D ground draws these crops in its field.)
+  } else if (crop.kind === 'rows' || crop.kind === 'heads') {
     for (let r = 0; r < 9; r++) {
       const v = 0.2 + r * ((S - 0.4) / 8);
       const p = P(1.0, v);
