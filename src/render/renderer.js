@@ -1081,7 +1081,14 @@ export class Renderer {
     // A building being placed that the back end draws as a 3D model: its ghost is that model.
     this.placeGhostModels(be);
     // The scene is whole: the WebGL back end copies its picture onto the 2D canvas.
+    const tPresent = performance.now();
+    this.stats.copyMs = null;
+    this.stats.gpuMs = null;
     be.present();
+    const tScene = performance.now();
+    // Stage times for the performance readout (render/perf.js). Classic draws as it collects: its draw is in `collect`.
+    this.stats.collectMs = tPresent - t0;
+    this.stats.drawMs = Math.max(0, tScene - tPresent - (this.stats.copyMs || 0));
 
     // --- particles (dust, smoke), under the night and the weather ----------
     this.effects.update(dt);
@@ -1152,7 +1159,9 @@ export class Renderer {
     // Every sprite of the new look is ready: drop the old look, so the next
     // frame shows the new one whole.
     if (this.sprites.pending === 0) this.finishLookChange();
-    this.stats.ms = performance.now() - t0;
+    const tEnd = performance.now();
+    this.stats.overlayMs = tEnd - tScene;
+    this.stats.ms = tEnd - t0;
   }
 
   /**

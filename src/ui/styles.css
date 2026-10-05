@@ -580,7 +580,9 @@ table.tbl.fame td.num, table.tbl.fame-parts td.num { white-space: nowrap; }
   padding: 6px 8px;
   border-radius: 6px;
   pointer-events: none;
-  white-space: pre;
+  /* (The integrated-GPU hint is a long line: wrapped, the readout stays in its corner.) */
+  white-space: pre-wrap;
+  max-width: min(560px, calc(100vw - var(--sidebar-w) - 40px));
 }
 #console {
   position: absolute;

@@ -71,6 +71,8 @@ import { SunRig } from './sunRig.js';
 import { ModelPass, lodFor } from './modelPass.js';
 import { LOOK, paintSurfaces, resetLook } from './materials.js';
 import { tileOfWorld } from '../render/camera.js';
+import { GpuTimer } from './gpuTimer.js';
+import { gpuOf, isSoftwareGpu } from '../render/perf.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -157,13 +159,19 @@ export class WebGLBackend {
     gl.setClearColor(BACKGROUND, 1);
     gl.info.autoReset = false; // (both renders of a frame are counted: stats.drawCalls)
     this.lost = false;
+    // The graphics chip it draws with (the performance readout names it), and the GPU's own time a frame.
+    this.gpu = gpuOf(gl.getContext());
+    this.timer = new GpuTimer(gl.getContext());
     this.canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
       this.lost = true;
+      this.timer.reset();
       this.models.lose();
     }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
+      // (A restored context's extensions are new objects: the timer asks again.)
+      this.timer = new GpuTimer(gl.getContext());
       this.rig.restored();
       this.models.restored();
       if (this.groundPass) this.groundPass.restored();
@@ -313,6 +321,8 @@ export class WebGLBackend {
     this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
     // The models' programs, compiled in the background for the light they are drawn in.
     this.models.warm(this.camera, this.rig.sun.castShadow);
+    // (Never waiting silently: a GPU that will not ready them is told to the console and the readout.)
+    this.models.watch();
   }
 
   /** The slot of texture `tex` in the batch being filled (a new batch when it is full). */
@@ -543,6 +553,9 @@ export class WebGLBackend {
 
   present() {
     const r = this.r;
+    // (The GPU's time from here: the live art's upload is GPU work too.)
+    this.timer.poll();
+    this.timer.begin();
     this.closeBatch();
     this.paintLive();
     // Batches -> the mesh's groups, each with its textures (unused slots hold white).
@@ -612,6 +625,8 @@ export class WebGLBackend {
     gl.render(this.quadScene, this.camera);
     // The build ghost over the sprites, as the 2D ghost is drawn (sunRig.js renderGhosts).
     if (this.ghosts.length) this.rig.renderGhosts(this.camera);
+    this.timer.end();
+    const tCopy = performance.now();
     // Onto the 2D canvas, under everything the renderer draws after the scene.
     const ctx = r.ctx;
     ctx.save();
@@ -625,6 +640,8 @@ export class WebGLBackend {
     ctx.drawImage(this.canvas, 0, 0);
     ctx.restore();
     const st = r.stats;
+    st.copyMs = performance.now() - tCopy;
+    st.gpuMs = this.timer.ms;
     st.models = built;
     // (By type, their triangles, the level of detail: the smoke test and the console read them.)
     st.modelPass = this.models.stats;
@@ -693,15 +710,7 @@ function autoGround(renderer) {
 
 /** Does this renderer draw without a GPU (SwiftShader, llvmpipe: the CI)? False when it cannot tell. */
 function softwareGL(renderer) {
-  try {
-    const c = renderer.getContext();
-    const ext = c.getExtension('WEBGL_debug_renderer_info');
-    const name = String(c.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : c.RENDERER));
-    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
-  } catch {
-    // No name to go by.
-    return false;
-  }
+  return isSoftwareGpu(gpuOf(renderer.getContext()).name);
 }
 
 /** Stands for the live-art texture in a batch: it is only made, or remade bigger, once the frame's art is all in. */

@@ -50,7 +50,7 @@ export const KEY_HELP = [
   ['Home', 'Glide to the map entrance'],
   ['F1', 'Help'],
   ['F2', 'Advisors'],
-  ['F3', 'Toggle debug HUD'],
+  ['F3', 'Performance readout: frames a second, where the time of a frame goes, the graphics chip in use'],
   ['F5 / F9', 'Quick save / quick load'],
   ['` (backtick)', 'Debug console'],
   ['Esc', 'Cancel / close / game menu'],

@@ -89,6 +89,8 @@ export const CONSOLE_HELP = [
   ['sky <0-1>|off', 'Freeze the time of day (0.3 noon, 0.67 sunset, 0.8 night) or let it run'],
   ['ground [auto|high|low|off]', 'The WebGL renderer\'s ground: 3D at high or low quality, or flat sprites (off), to compare'],
   ['textures', 'The 3D textures, painted on the GPU: whether the ground\'s layers are in, and what painting them cost'],
+  ['perf [on|off]', 'The performance readout: frames a second, ms by stage, the GPU in use (F3 shows it in a corner)'],
+  ['models', 'The WebGL renderer\'s 3D models: ready, or what they wait for, and the looks built'],
   ['music [on|off|next]', 'Music status, switch it, or skip to a new piece'],
   ['music tracks', 'List the music tracks (and the moods they play in)'],
   ['music play <track>', 'Play a track now, by name (e.g. music play prima lux)'],
@@ -577,6 +579,20 @@ export class DebugConsole {
         app.flags.ground = mode;
         app.applyGround();
         return `Ground: ${be.groundMode}${mode === 'auto' ? ' (auto)' : ''}. Settings > Ground keeps the choice for next time.`;
+      }
+      case 'perf': {
+        // The performance readout (render/perf.js); on or off shows it in its corner, as F3 does.
+        const sub = (args[0] || '').toLowerCase();
+        if (sub === 'on' || sub === 'off') app.debugHud = sub === 'on';
+        else if (sub) throw new Error('usage: perf [on|off]');
+        return app.perfReport().join('\n');
+      }
+      case 'models': {
+        const be = app.renderer.backend;
+        if (be.kind !== 'webgl') return 'Models: only the WebGL renderer draws 3D models (Settings > Renderer).';
+        const m = be.models;
+        const kits = [...m.kits.values()].map((k) => `${k.id} x${k.meshes.reduce((n, im) => Math.max(n, im.count), 0)}`);
+        return `Models: ${m.status()}; ${kits.length} looks built${kits.length ? `: ${kits.join(', ')}` : ''}; drawn this frame ${app.renderer.stats.models || 0}.`;
       }
       case 'textures': {
         // The procedural 3D textures, painted on the GPU: whether the ground's are in, and what painting cost.

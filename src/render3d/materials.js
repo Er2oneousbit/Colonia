@@ -346,9 +346,23 @@ export function paintSurfaces() {
     }, (err) => {
       console.warn(`Texture ${t.name} could not be painted:`, err);
       t.ready = true;
+      // (The models read it: a surface left unpainted would draw as garbage, so they give way to the sprites.)
+      t.failed = true;
       t.resolveReady(null);
     });
   }
+}
+
+/** The surfaces that could not be painted on this GPU (their names). */
+export function surfacesFailed() {
+  const out = [];
+  for (const t of TEXTURES.values()) if (t.failed) out.push(t.name);
+  return out;
+}
+
+/** How many surfaces were asked for so far. */
+export function surfacesAsked() {
+  return TEXTURES.size;
 }
 
 /** How many surfaces are painted. */

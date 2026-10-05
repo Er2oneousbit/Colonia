@@ -257,7 +257,19 @@ export class Painter {
       scene.add(mesh);
     }
     const gl = this.gl;
-    const job = (gl.compileAsync ? gl.compileAsync(scene, this.camera) : Promise.resolve(gl.compile(scene, this.camera)))
+    let started;
+    try {
+      started = gl.compileAsync ? gl.compileAsync(scene, this.camera) : Promise.resolve(gl.compile(scene, this.camera));
+    } catch (err) {
+      // A compile that throws at once left every texture waiting for good (and with them the
+      // models and the 3D ground, their sprites standing in silently): fail them, loudly.
+      console.error('Textures: the GPU could not compile the painter\'s programs:', err);
+      const jobs = this.queue;
+      this.queue = [];
+      for (const j of jobs) j.reject(err);
+      return;
+    }
+    const job = started
       .catch(() => {})
       .then(() => {
         if (this.compiling !== job) return;
@@ -265,7 +277,12 @@ export class Painter {
         this.stats.compileMs += performance.now() - t0;
         // (Only these: a program made meanwhile is compiled by the next run.)
         for (const p of fresh) p.ready = true;
-        this.flush();
+        try {
+          this.flush();
+        } catch (err) {
+          // (flush rejected the jobs it held: their textures say they failed.)
+          console.error('Textures: painting failed on this GPU:', err);
+        }
         if (this.queue.length) this.schedule();
       });
     this.compiling = job;
@@ -318,10 +335,14 @@ export class Painter {
     this.tell('painted');
     this.stats.submitMs += performance.now() - t0;
     for (const [j, read] of reads) {
+      // (A height that cannot be read back leaves the texture painted: only the lab's paving wants it.)
       read.then((h) => {
         j.height = h;
         j.resolve(j);
-      }, j.reject);
+      }, (err) => {
+        console.warn('A texture\'s height could not be read back:', err);
+        j.resolve(j);
+      });
     }
   }
 

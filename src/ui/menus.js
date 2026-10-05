@@ -449,7 +449,7 @@ export function settingsMenu(app) {
     check('dayNight', 'Day and night', 'The sun sets every few minutes of game time and the city lights its lamps. Tool previews stay bright.'),
     check('seasons', 'Seasons', 'Grass and trees change color through the year: spring blossoms, autumn leaves, bare winter trees. Switched off, the map and the weather stay in summer (no snow); the calendar season still shows next to the date.'),
     check('weather', 'Weather: clouds, rain, snow and thunderstorms', 'Visual only, it never affects the city. Snow settles on the ground, trees and roofs (with Seasons on) and melts after. Falling rain and snow and lightning are not drawn when your system asks for reduced motion; snow on the ground still shows.'),
-    check('showFps', 'Show performance counters (debug HUD)'),
+    check('showFps', 'Show the performance readout (F3)', 'Frames a second, where the time of each frame goes, and which graphics chip the browser draws with (laptops often have two).'),
     h('div', { class: 'field' }, h('label', {}, 'Theme'),
       h('select', { onchange: (e) => { s.theme = e.target.value; app.applySettings(); } },
         [['auto', 'Match system'], ['light', 'Marble (light)'], ['dark', 'Basalt (dark)']].map(([k, n]) => h('option', { value: k, selected: s.theme === k }, n)))),

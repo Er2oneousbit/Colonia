@@ -132,6 +132,10 @@ export class GroundPass {
       // (At least 1: already painted, a renderer switched off and on.)
       this.loadMs = Math.max(1, performance.now() - this.t0);
       this.cacheDirty = true;
+    }, (err) => {
+      // (Layers the GPU could not paint: the flat ground for good, said once, rather than "loading" for ever.)
+      this.failed = true;
+      console.error('3D ground: its textures could not be painted on this GPU; the flat ground is drawn instead.', err);
     });
   }
 

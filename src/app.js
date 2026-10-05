@@ -23,6 +23,7 @@ import { log } from './core/debug.js';
 import { Game } from './core/game.js';
 import { saveToSlot, readSlot, deserializeGame, exportToFile, exportSlotToFile, importFromFile, serializeGame, canDownloadFiles } from './core/save.js';
 import { Renderer } from './render/renderer.js';
+import { PerfMeter, perfLines, gpuOf } from './render/perf.js';
 import { WebGLBackend } from './render3d/webglBackend.js';
 import { OVERLAYS } from './render/overlays.js';
 import { UI } from './ui/ui.js';
@@ -127,6 +128,7 @@ export class App {
     this.acc = 0;
     this.lastFrame = performance.now();
     this.perf = { fps: 0, frames: 0, fpsTime: 0, frameMs: 0, simMs: 0, ticks: 0 };
+    this.perfMeter = new PerfMeter(); // the performance readout's means (render/perf.js)
     this.debugHud = !!flags.debug;
     this.errorCount = 0;
     this.gameUnsub = [];
@@ -1058,6 +1060,52 @@ export class App {
   }
 
   toggleDebugHud() { this.debugHud = !this.debugHud; }
+
+  /**
+   * The graphics chip the browser draws with: the WebGL back end's, or with
+   * Classic a small WebGL context's made once to ask (and let go at once).
+   */
+  gpuInfo() {
+    const be = this.renderer.backend;
+    if (be.kind === 'webgl' && be.gpu) return be.gpu;
+    if (!this.gpuProbe) {
+      this.gpuProbe = { name: '', integrated: false, software: false };
+      try {
+        const c = document.createElement('canvas');
+        const gl = c.getContext('webgl2', { powerPreference: 'high-performance' }) || c.getContext('webgl');
+        if (gl) {
+          this.gpuProbe = gpuOf(gl);
+          gl.getExtension('WEBGL_lose_context')?.loseContext();
+        }
+      } catch {
+        // (No WebGL: no name.)
+      }
+    }
+    return this.gpuProbe;
+  }
+
+  /** The performance readout's lines (render/perf.js): F3, the console's `perf`. */
+  perfReport() {
+    const r = this.renderer;
+    const st = r.stats;
+    const cam = r.camera;
+    const be = r.be;
+    const gpu = this.gpuInfo();
+    const webgl = be.kind === 'webgl';
+    const info = {
+      backend: be.kind,
+      size: `${cam.viewW}x${cam.viewH}`,
+      dpr: Math.round(cam.dpr * 100) / 100,
+      scene: webgl && be.sceneSize ? `${be.sceneSize} (${Math.round(be.sceneScale * 100)}%)` : '',
+      drawCalls: st.drawCalls,
+      gpuTimer: webgl && be.timer && be.timer.available,
+      ground: webgl ? st.ground : '',
+      models: webgl && be.models ? `${be.models.status()}, ${be.models.kits.size} looks built, ${st.models || 0} drawn` : '',
+      gpuName: gpu.name,
+      integrated: gpu.integrated,
+    };
+    return perfLines(this.perfMeter.last, info);
+  }
   toggleConsole() { this.ui.console.toggle(); }
 
   showBriefing() {
@@ -1105,7 +1153,12 @@ export class App {
       this.input.update(dt);
       this.renderer.render(alpha, dt);
       this.music.setMood(this.musicMood());
+      const tUi = performance.now();
       this.ui.update(dt, now);
+      const st = this.renderer.stats;
+      this.perfMeter.frame(dt, performance.now() - frameStart, {
+        sim: simMs, collect: st.collectMs, draw: st.drawMs, copy: st.copyMs, overlay: st.overlayMs, ui: performance.now() - tUi, gpu: st.gpuMs,
+      });
       // performance counters
       const p = this.perf;
       p.frames++;
