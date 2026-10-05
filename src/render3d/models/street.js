@@ -22,7 +22,7 @@
  */
 
 import {
-  Group, Mesh, InstancedMesh, BufferGeometry, Float32BufferAttribute, PlaneGeometry, CylinderGeometry, Matrix4,
+  Group, Mesh, InstancedMesh, BufferGeometry, BoxGeometry, Float32BufferAttribute, PlaneGeometry, CylinderGeometry, Matrix4,
   Quaternion, Vector3, Euler, Color, PointLight, BackSide, DoubleSide, MeshBasicMaterial, AdditiveBlending,
 } from 'three';
 import { block, revolve, profileOf, tube, merge, tintGeometry, boxUV, triangles } from '../shapes.js';
@@ -304,7 +304,7 @@ function house(seed) {
   // The dark room behind (seen through the door): a box seen from inside.
   const room = new CylinderGeometry(1, 1, 1, 4, 1, false);
   room.rotateY(Math.PI / 4);
-  room.scale(2.6 / Math.SQRT2, 2.8, 1.6 / Math.SQRT2);
+  room.scale((d1 - d0 + 1.2) / Math.SQRT2, 2.8, 1.6 / Math.SQRT2);
   room.translate((d0 + d1) / 2, y0 + 1.4, z - T - 0.8);
   // A small barred window high up, left of the door.
   const iron = [];
@@ -362,6 +362,31 @@ function house(seed) {
     af.translate(x + tegW, eaveY + 0.0, z + over + 0.03);
     tiles.push(af);
   }
+  // The house behind its front: a mass under the roof, its top following the slope, so the
+  // view turned to the back or the side shows a building, not a stage flat. It leaves the room
+  // behind the door hollow.
+  const back = z + over - imL * Math.cos(slope) + 0.12; // tucked under the roof's last row
+  const rise = Math.tan(slope);
+  const mass = (xa, xb, za, zb, ya) => {
+    const g = new BoxGeometry(xb - xa, 1, za - zb, 1, 1, 1);
+    g.translate((xa + xb) / 2, 0.5, (za + zb) / 2);
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const top = pos.getY(i) > 0.5;
+      // The top follows the roof's underside, a hand below the tiles.
+      const yTop = eaveY - 0.05 + (z + over - pos.getZ(i)) * rise - over * rise;
+      pos.setY(i, top ? yTop : ya);
+    }
+    g.computeVertexNormals();
+    boxUV(g, 0, -y0);
+    wall.push(tintGeometry(g));
+  };
+  const [r0, r1] = [d0 - 0.6, d1 + 0.6];
+  const roomBack = z - T - 1.6;
+  mass(-E, r0, z - T, back, y0);
+  mass(r1, E, z - T, back, y0);
+  mass(r0, r1, roomBack, back, y0);
+  mass(r0, r1, z - T, roomBack, y0 + 2.8);
   return { wall, stone, wood, iron, tiles, room: tintGeometry(room), recess: tintGeometry(recess) };
 }
 

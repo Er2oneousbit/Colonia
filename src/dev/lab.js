@@ -160,7 +160,7 @@ async function main() {
 
   const state = { mood: 'day', view: 'game1', turn: 0 };
   // The world fades out past the 3 x 3 tile patch (6 m from the middle) into the backdrop.
-  LOOK.uniforms.uLookFade.value.set(0, 0, 8, 12);
+  LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
   const target = new Vector3(0, 0.4, 0);
 
   // UI.

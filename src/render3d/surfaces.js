@@ -100,10 +100,10 @@ function travertine(n, seed) {
     return band * 0.35 + grain * 0.3 - pore.data[i] * 0.9;
   });
   const cav = cavity(h, 2, 5);
-  const a = rgb('#d3c19c');
-  const b = rgb('#bca37b');
-  const lite = rgb('#e3d7bf');
-  const hole = rgb('#6d5d47');
+  const a = rgb('#c4ad86');
+  const b = rgb('#ad9470');
+  const lite = rgb('#d6c8aa');
+  const hole = rgb('#806b50');
   const col = [0, 0, 0];
   eachPixel(n, (u, v, i) => {
     const band = fbm(u, v, 12, 4, seed + 7, 0.5, 10);

@@ -199,7 +199,9 @@ const FRAG_AO = /* glsl */ `
 const FRAG_FADE = /* glsl */ `
 #include <opaque_fragment>
 {
-  float d = length( vLookWPos.xz - uLookFade.xy );
+  // Square in the world, so a diamond on the screen: the patch reads as a piece of the game map.
+  vec2 q = abs( vLookWPos.xz - uLookFade.xy );
+  float d = max( q.x, q.y );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, uLookFadeColor, smoothstep( uLookFade.z, uLookFade.w, d ) );
 }
 `;
