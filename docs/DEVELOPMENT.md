@@ -66,7 +66,7 @@ npm i --no-save playwright && npx playwright install chromium
 
 `dist/colonia.html` is committed on purpose, so players can download one file and double-click it. CI rebuilds it and fails if the committed copy is stale: commit the rebuilt file with every source change.
 
-The same file is the web version: after CI passes on the release branch, `.github/workflows/pages.yml` publishes the commit CI tested to GitHub Pages as `index.html` (https://er2oneousbit.github.io/Colonia/). It needs Settings > Pages > Source: **GitHub Actions**, and can be run by hand from the Actions tab. The workflows run on a pinned runner image (`ubuntu-24.04`, not `ubuntu-latest`), so a new Ubuntu cannot break the browser test's Chromium unannounced: move to a newer image on purpose, and check the smoke test passes there.
+The same file is the web version: after CI passes on `main`, `.github/workflows/pages.yml` publishes the commit CI tested to GitHub Pages as `index.html` (https://er2oneousbit.github.io/Colonia/). It needs Settings > Pages > Source: **GitHub Actions**, and can be run by hand from the Actions tab. The workflows run on a pinned runner image (`ubuntu-24.04`, not `ubuntu-latest`), so a new Ubuntu cannot break the browser test's Chromium unannounced: move to a newer image on purpose, and check the smoke test passes there.
 
 ## Debug options
 
