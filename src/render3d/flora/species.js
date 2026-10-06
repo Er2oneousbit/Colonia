@@ -96,9 +96,9 @@ export const SPECIES = Object.freeze({
   },
   pine: {
     name: 'Stone pine', latin: 'Pinus pinea', evergreen: true,
-    size: { h: 7.4, r: 2.8 }, form: 'parasol',
-    trunk: { h: 4.6, r: 0.24, lean: 0.12, stems: 1 },
-    limbs: { n: 6, from: 0.82, rise: 0.75, bow: 0.25 },
+    size: { h: 7.6, r: 3.3 }, form: 'parasol',
+    trunk: { h: 5.0, r: 0.25, lean: 0.12, stems: 1 },
+    limbs: { n: 7, from: 0.8, rise: 0.85, bow: 0.3 },
     twig: { branches: 4, twigs: 3 },
     leaf: { tex: 'leaf-needle', card: 0.85, dens: 13, core: 0.25, rough: 0.7 },
     bark: { tex: 'bark-plates', tint: 0xa0705a },

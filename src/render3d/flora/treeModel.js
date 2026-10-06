@@ -54,7 +54,7 @@ export const ENVELOPES = Object.freeze({
   // A flame: widest a quarter of the way up, drawn to a point.
   flame: { y0: 0.04, y1: 1, radius: (t) => Math.pow(Math.sin(Math.PI * Math.min(1, Math.pow(t, 0.55) * 0.98 + 0.02)), 0.85) * (1 - t * 0.25) },
   // A parasol: a flat cushion on top, rounded at its rim.
-  parasol: { y0: 0.66, y1: 1, radius: (t) => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(t * 2 - 1.15), 3)), 0.35) },
+  parasol: { y0: 0.7, y1: 1, radius: (t) => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(t * 2 - 1), 4)), 0.25) * (1 - 0.15 * t) },
   dome: { y0: 0.22, y1: 1, radius: (t) => Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.42) / 0.58, 2))) },
   broad: { y0: 0.3, y1: 1, radius: (t) => Math.pow(Math.max(0, 1 - Math.pow((t - 0.45) / 0.55, 2)), 0.42) },
   'tall-dome': { y0: 0.3, y1: 1, radius: (t) => Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.45) / 0.55, 2))) },
@@ -383,6 +383,8 @@ export function buildTree({ species = 'holm', variant = 0, look = 'leaf', lod = 
       if (rnd() * maxR > cr.env.radius(t)) continue;
       const az = rnd() * 6.28;
       if (Math.sin(az * 2 + gapPh) * Math.sin(t * 7 + gapPh * 2) > gappy) continue;
+      // (The parasol is a cushion of tufts seen from above: its underside is the limbs, mostly bare.)
+      if (s.form === 'parasol' && t < 0.4 && rnd() < 0.7) continue;
       return { p: onEnvelope(cr, az, t, deep ? 0.45 + rnd() * 0.3 : 0.8 + rnd() * 0.24, 0), depth: deep ? 1 : 0 };
     }
     return anchors[Math.floor(rnd() * anchors.length)] || { p: center.clone(), depth: 1 };
@@ -435,13 +437,18 @@ function card(a, cr, center, size, rnd, c, s) {
   out.normalize();
   if (out.lengthSq() < 0.5) out.set(0, 1, 0);
   // Along the spray: outward and up, more up for the cypress's sprays, the pine's tufts.
-  const up = s.form === 'flame' ? 0.8 : s.form === 'parasol' ? 0.55 : 0.35;
-  const dir = out.clone().multiplyScalar(1 - up).add(V(0, up, 0)).add(V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(0.9)).normalize();
+  // The stone pine's tufts lie flat, spread out over the parasol's top (seen from above, a
+  // cushion); the rest point outward and up, the cypress's sprays nearly straight up.
+  const flat = s.form === 'parasol';
+  const up = s.form === 'flame' ? 0.8 : flat ? 0.12 : 0.35;
+  const outward = flat ? V(out.x, 0, out.z).normalize() : out;
+  if (outward.lengthSq() < 0.5) outward.set(1, 0, 0);
+  const dir = outward.clone().multiplyScalar(1 - up).add(V(0, up, 0)).add(V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(flat ? 0.5 : 0.9)).normalize();
   // Across: square to the spray, turned at random about it, kept mostly facing outward.
   let side = V(0, 1, 0).cross(dir);
   if (side.lengthSq() < 1e-4) side = V(1, 0, 0);
   side.normalize();
-  side.applyAxisAngle(dir, (rnd() - 0.5) * 1.6);
+  side.applyAxisAngle(dir, (rnd() - 0.5) * (flat ? 0.5 : 1.6));
   // The foot pulled back a little into the crown: the spray grows from a twig behind it.
   const p = a.p.clone().addScaledVector(dir, -size * 0.3).add(V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(size * 0.4));
   return { p, dir, side, size, cell: Math.floor(rnd() * 4), out, c };
