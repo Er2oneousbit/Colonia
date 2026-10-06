@@ -63,7 +63,7 @@ function noise3(seed) {
  * rounded and its faces made uneven by noise, the bottom flattened and
  * sunk `sink` of its height. Returns an indexed geometry, normals smooth.
  */
-function stone({ detail, sx, sy, sz, cuts = 0, rough = 0.08, round = 0.25, sink = 0.2, seed = 1 }) {
+function stone({ detail, sx, sy, sz, cuts = 0, rough = 0.08, round = 0.25, sink = 0.2, seed = 1, box = 2 }) {
   const rnd = artRng(seed);
   const n1 = noise3(seed * 13 + 1);
   const n2 = noise3(seed * 13 + 2);
@@ -83,6 +83,8 @@ function stone({ detail, sx, sy, sz, cuts = 0, rough = 0.08, round = 0.25, sink 
   const p = new Vector3();
   for (let i = 0; i < pos.count; i++) {
     p.fromBufferAttribute(pos, i);
+    // Boxier than a ball (a superellipsoid of power `box`): a block of a bed, its edges worn round.
+    if (box !== 2) p.divideScalar(Math.pow(Math.pow(Math.abs(p.x), box) + Math.pow(Math.abs(p.y), box) + Math.pow(Math.abs(p.z), box), 1 / box));
     // Cut: pull what is past a plane back onto it, softly (a worn edge, not a knife's).
     for (const pl of planes) {
       const over = p.dot(pl.n) - pl.d;
@@ -197,7 +199,7 @@ function outcrop(rnd, seed, lod) {
       const bd = (axisX ? d : w) * (0.86 + rnd() * 0.14);
       const s = stone({
         detail: detailOf(lod, Math.max(bw, bd)), sx: (axisX ? bw : bd) * 0.5, sy: th * 0.62, sz: (axisX ? bd : bw) * 0.5,
-        cuts: lod === 2 ? 3 : 5, rough: 0.06, round: 0.22, sink: 0, seed: seed * 17 + b * 5 + k,
+        cuts: lod === 2 ? 1 : 3, rough: 0.07, round: 0.22, sink: 0, seed: seed * 17 + b * 5 + k, box: 4.5,
       });
       s.rotateZ(dip);
       s.translate(cx + (axisX ? along * w : 0) + (rnd() - 0.5) * 0.1, y, cz + (axisX ? 0 : along * d) + (rnd() - 0.5) * 0.1);
@@ -218,14 +220,14 @@ function boulder(rnd, seed, lod) {
   const s = 1.2 + rnd() * 0.5;
   const g = stone({
     detail: detailOf(lod, s), sx: s * (0.5 + rnd() * 0.15), sy: s * (0.34 + rnd() * 0.12), sz: s * (0.42 + rnd() * 0.12),
-    cuts: lod === 2 ? 3 : 4 + Math.floor(rnd() * 3), rough: 0.07, round: 0.2, sink: 0.22, seed,
+    cuts: lod === 2 ? 2 : 3 + Math.floor(rnd() * 3), rough: 0.08, round: 0.2, sink: 0.22, seed, box: 3.2,
   });
   return [finish(g, { tone: 0.88 + rnd() * 0.2, moss: 0.5, seed })];
 }
 
 /** Scree: angular stones fallen in a spread round the tile's middle. */
 function scree(rnd, seed, lod) {
-  const n = lod === 0 ? 22 : lod === 1 ? 12 : 6;
+  const n = lod === 0 ? 14 : lod === 1 ? 9 : 5;
   const parts = [];
   for (let i = 0; i < n; i++) {
     const s = 0.16 + Math.pow(rnd(), 2) * 0.42;
@@ -244,7 +246,7 @@ function lavaBoulder(rnd, seed, lod) {
   const s = 1.1 + rnd() * 0.6;
   const g = stone({
     detail: detailOf(lod, s), sx: s * 0.5, sy: s * (0.36 + rnd() * 0.1), sz: s * (0.44 + rnd() * 0.1),
-    cuts: lod === 2 ? 0 : 2, rough: 0.12, round: 0.4, sink: 0.25, seed,
+    cuts: lod === 2 ? 0 : 2, rough: 0.14, round: 0.4, sink: 0.25, seed, box: 2.4,
   });
   return [finish(g, { tone: 0.95 + rnd() * 0.1, moss: 0.3, seed, base: [0.85, 0.82, 0.8] })];
 }

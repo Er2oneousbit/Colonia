@@ -48,13 +48,13 @@ import { buildRock } from './rockModel.js';
 import { ImpostorAtlas, impostorGeometry, CAM_R, CAM_B, UPRIGHT } from './impostors.js';
 import { lin } from '../models/rural.js';
 
-/** Tiles a chunk's side. */
-export const CHUNK = 32;
+/** Tiles a chunk's side (culled whole: 16 keeps what is drawn off the screen to a margin). */
+export const CHUNK = 16;
 /** Metres a tile (models.js TILE_M). */
 const TILE_M = 4;
 /** A tile at least this wide on the screen (device px) draws the full trees; at least LOD1_PX the middle ones; else the impostors. */
 export const FLORA_LOD0_PX = 300;
-export const FLORA_LOD1_PX = 110;
+export const FLORA_LOD1_PX = 180;
 /** Frames a kit is kept unseen before it is freed. */
 const KEEP_FRAMES = 900;
 /** First room in a base's instance buffer (it doubles as needed). */
@@ -206,7 +206,8 @@ export class Flora {
   /** The impostors face the camera: turned by `a` about the vertical (the lab turns its camera; the game's never turns). */
   setFacing(a) {
     this.facing = a;
-    this.impGroup.rotation.set(0, a, 0);
+    // (Its x along the screen, its z toward the camera across the ground: the camera's axes, an eighth of a turn about y from the world's, then turned by `a`.)
+    this.impGroup.rotation.set(0, a + Math.PI / 4, 0);
     this.impGroup.updateMatrixWorld(true);
     const c = Math.cos(a);
     const s = Math.sin(a);
@@ -251,13 +252,14 @@ export class Flora {
    * Prepare and draw this frame's flora. `o`: { chunks (indices in view, or
    * null for all), lod (0..2), month (or null), turn, hidden (a Set of map
    * tiles to leave out, or null), budget (ms for building kits; Infinity
-   * builds all at once), shadows (cast into the sun's shadow map) }.
+   * builds all at once), shadows (cast into the sun's shadow map), bake
+   * (the textures are painted: impostors may be baked) }.
    * Returns how many are drawn.
    */
   update(o) {
     this.frame++;
     if (!this.map) return 0;
-    const { lod = 1, month = null, turn = 0, hidden = null, budget = 8, shadows = false } = o;
+    const { lod = 1, month = null, turn = 0, hidden = null, budget = 8, shadows = false, bake = true } = o;
     const until = performance.now() + budget;
     // 1. The kits this frame wants: every base on the map, at this month's look and this level.
     let missing = 0;
@@ -286,7 +288,8 @@ export class Flora {
     }
     // 3. The impostors, far out: baked from level 1 (each base's look), all or none.
     let impostors = false;
-    if (lod === 2) impostors = this.bakeImpostors(month, until);
+    // (Never before the textures are painted: a picture taken of unpainted sprays is kept for the season.)
+    if (lod === 2 && bake) impostors = this.bakeImpostors(month, until);
     // 4. The instances, filled again only when something they depend on changed.
     const chunks = o.chunks || this.chunks.map((_, c) => c);
     const hidKey = hidden && hidden.size ? [...hidden].join(',') : '';
@@ -343,7 +346,7 @@ export class Flora {
       const im = new InstancedMesh(part.geometry, part.material, room);
       im.instanceMatrix = base.attr;
       im.frustumCulled = false; // (culled by chunk: flora.update's caller)
-      im.receiveShadow = true;
+      im.receiveShadow = part.material.userData.receive !== false;
       im.castShadow = false;
       im.count = 0;
       im.visible = false;
@@ -423,14 +426,26 @@ export class Flora {
     const imp = impostors ? this.impostorMesh() : null;
     const R = this.axR;
     const B = this.axB;
+    // Nearest the camera first: a crown in front writes its depth before the ones behind it are
+    // shaded, and the GPU's early depth test throws most of theirs away (layered sprays are most
+    // of the flora's cost: a wood is many crowns deep on the screen).
+    const list = this.fillList || (this.fillList = []);
+    list.length = 0;
     for (const c of chunks) {
       const ch = this.chunks[c];
       if (!ch) continue;
       for (const r of ch.recs) {
         if (hidden && hidden.has(r.i)) continue;
-        const base = this.bases[r.b];
-        if (!base.shown) continue;
+        if (!this.bases[r.b].shown) continue;
         const [vx, vz] = toView(r.x, r.z, turn, W, H);
+        list.push({ r, vx, vz, d: vx * B.x + vz * B.z });
+      }
+    }
+    list.sort((a, b) => b.d - a.d);
+    for (const e of list) {
+      {
+        const { r, vx, vz } = e;
+        const base = this.bases[r.b];
         const k = r.s / TILE_M;
         if (imp && base.tree && base.cell) {
           if (impN >= this.imp.room) this.growImpostors(impN + 1, impN);
@@ -490,6 +505,12 @@ export class Flora {
         this.imp.cells.needsUpdate = true;
       }
     }
+  }
+
+  /** Make the impostors' atlas and card now (empty), so their program can be compiled before they are wanted. */
+  prepareImpostors() {
+    if (!this.atlas) this.atlas = new ImpostorAtlas(this.gl);
+    this.impostorMesh();
   }
 
   /** The impostors' instanced card (made the first time). */

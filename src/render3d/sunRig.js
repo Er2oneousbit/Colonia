@@ -200,7 +200,14 @@ export class SunRig {
     const hidden = [];
     if (parts !== 'all') {
       for (const o of this.modelSlot.children) {
-        if (!o.visible || !o.material) continue;
+        if (!o.visible) continue;
+        // (A group of opaque meshes, the flora's: drawn with the opaque parts only.)
+        if (!o.material && o.userData.opaque && parts === 'see-through') {
+          o.visible = false;
+          hidden.push(o);
+          continue;
+        }
+        if (!o.material) continue;
         if (o.material.transparent === (parts === 'opaque')) {
           o.visible = false;
           hidden.push(o);

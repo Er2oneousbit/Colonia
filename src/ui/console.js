@@ -93,6 +93,7 @@ export const CONSOLE_HELP = [
   ['scale [auto|1|0.75|0.5]', 'The WebGL renderer\'s render scale: the share of the device pixels its 3D scene is drawn with'],
   ['perf [on|off]', 'The performance readout: frames a second, ms by stage, the GPU in use (F3 shows it in a corner)'],
   ['models', 'The WebGL renderer\'s 3D models: ready, or what they wait for, and the looks built'],
+  ['flora [on|off]', 'The WebGL renderer\'s 3D trees and rocks (with the 3D ground): what is drawn, its level of detail and memory; off draws their sprites, to compare'],
   ['music [on|off|next]', 'Music status, switch it, or skip to a new piece'],
   ['music tracks', 'List the music tracks (and the moods they play in)'],
   ['music play <track>', 'Play a track now, by name (e.g. music play prima lux)'],
@@ -616,6 +617,16 @@ export class DebugConsole {
         const m = be.models;
         const kits = [...m.kits.values()].map((k) => `${k.id} x${k.meshes.reduce((n, im) => Math.max(n, im.count), 0)}`);
         return `Models: ${m.status()}; ${kits.length} looks built${kits.length ? `: ${kits.join(', ')}` : ''}; drawn this frame ${app.renderer.stats.models || 0}.`;
+      }
+      case 'flora': {
+        const be = app.renderer.backend;
+        if (be.kind !== 'webgl') return 'Flora: only the WebGL renderer draws 3D trees and rocks (Settings > Renderer).';
+        const sub = (args[0] || '').toLowerCase();
+        if (sub === 'on' || sub === 'off') be.flora.enabled = sub === 'on';
+        else if (sub) throw new Error('usage: flora [on|off]');
+        const f = be.flora.stats;
+        const state = !be.flora.enabled ? 'off (the sprites)' : f.ready ? 'drawn' : be.drawsGround ? 'getting ready' : 'waiting for the 3D ground (ground high or low)';
+        return `Flora: ${state}; ${f.trees} trees and ${f.rocks} rocks on the map, ${f.drawn} in view at detail ${f.lod}${f.impostors ? ' (impostors)' : ''}, ${Math.round(f.triangles / 1000)}k triangles; ${f.kits} looks built, ${f.geometryMB} MB of geometry, ${f.atlasMB} MB of impostors.`;
       }
       case 'textures': {
         // The procedural 3D textures, painted on the GPU: whether the ground's are in, and what painting cost.

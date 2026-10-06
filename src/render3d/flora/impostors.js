@@ -34,7 +34,7 @@ import {
 import { patchLook, LOOK_KIND, LOOK } from '../materials.js';
 
 /** A cell's size (px) and the atlas's (cells across, down). */
-export const CELL = 160;
+export const CELL = 192;
 export const ATLAS_COLS = 12;
 export const ATLAS_ROWS = 3;
 

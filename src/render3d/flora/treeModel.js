@@ -66,7 +66,7 @@ export const ENVELOPES = Object.freeze({
 });
 
 /** Sprays a square metre of crown at each level of detail, and their size against level 0's. */
-const LOD_CARDS = [1.5, 0.45];
+const LOD_CARDS = [1.2, 0.3];
 const LOD_SIZE = [1.25, 2.1];
 
 const V = (x, y, z) => new Vector3(x, y, z);
@@ -408,8 +408,8 @@ export function buildTree({ species = 'holm', variant = 0, look = 'leaf', lod = 
     const bl = s.colours.blossom;
     place(n, (a) => shadeOf(leafLin(bl[Math.floor(rnd() * bl.length)]).map((v) => v * 0.68), a, cr, 0.55), flowerCards);
   }
-  if (leafCards.length) add(cardGeometry(leafCards, s.leaf.tex, lod === 0), foliageMaterial(species), 'leaves');
-  if (flowerCards.length) add(cardGeometry(flowerCards, 'leaf-blossom', lod === 0), foliageMaterial(species, 'leaf-blossom'), 'blossom');
+  if (leafCards.length) add(cardGeometry(leafCards, s.leaf.tex, lod === 0), foliageMaterial(species, null, lod > 0), 'leaves');
+  if (flowerCards.length) add(cardGeometry(flowerCards, 'leaf-blossom', lod === 0), foliageMaterial(species, 'leaf-blossom', lod > 0), 'blossom');
   let tris = 0;
   for (const m of meshes) tris += triangles(m.geometry);
   return { group, meshes, triangles: tris, height: cr.y1, radius: cr.R };
@@ -512,7 +512,7 @@ export function buildPalm({ variant = 0, lod = 0 } = {}) {
     const colour = dead ? leafLin(s.colours.dead[i % 2]) : leafLin(s.colours.leaf[Math.floor(rnd() * 3)]).map((v) => v * (0.78 + rnd() * 0.3));
     fronds.push({ path, fa, colour, width: len * 0.25, cell: Math.floor(rnd() * 4), twist: (rnd() - 0.5) * 0.6 });
   }
-  add(frondGeometry(fronds), foliageMaterial('palm'), 'leaves');
+  add(frondGeometry(fronds), foliageMaterial('palm', null, lod > 0), 'leaves');
   let tris = 0;
   for (const m of meshes) tris += triangles(m.geometry);
   return { group, meshes, triangles: tris, height: top.y + 1, radius: L };

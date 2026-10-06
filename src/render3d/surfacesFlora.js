@@ -568,7 +568,7 @@ const crag = {
     },
     glsl: `
       float p = hash2( int( pit.id ), 1, uSeed ) < 0.3 ? sstep( 0.3, 0.05, pit.f1 ) : 0.0;
-      float cr = pow( crack, 28.0 );
+      float cr = pow( crack, 60.0 ) * 0.6;
       float h = body * 0.5 + grain * 0.15 - pow( flute, 6.0 ) * 0.06 - p * 0.25 - cr * 0.3;
       return vec4( h, cr, p, flute );`,
   },
@@ -577,7 +577,7 @@ const crag = {
     noise: { tone: fbm(3, 4, 9), lichA: fbm(8, 4, 10), lichB: fbm(14, 3, 11), streak: fbm(5, 3, 12, { sx: 0.15 }), speck: fbm(70, 2, 13) },
     glsl: `
       float cav = cavity( F.x, B.x, 5.0 );
-      col = mix( ${rgb('#c4beb0')}, ${rgb('#a8a294')}, sstep( 0.35, 0.75, tone ) );
+      col = mix( ${rgb('#b4ae9e')}, ${rgb('#968f80')}, sstep( 0.35, 0.75, tone ) );
       col *= 0.93 + speck * 0.12;
       // Black streaks where water runs down from the top.
       col = mix( col, ${rgb('#4c4a44')}, sstep( 0.66, 0.84, streak ) * 0.45 );
