@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 
 import { Box3, Group, Vector3 } from 'three';
 import { CONFIG, HALF_H } from '../src/config.js';
-import { MODELS, hasModel, modelMatrix, TILE_M } from '../src/render3d/models.js';
+import { MODELS, hasModel, modelMatrix, modelLamps, TILE_M } from '../src/render3d/models.js';
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { WARE_GOODS, displayStep, displayShows } from '../src/render3d/models/wares.js';
@@ -32,7 +32,7 @@ import { marketWares, marketState, marketShows, stallOrder, MARKET_GOODS, MARKET
 import { forumState, forumShows } from '../src/render3d/models/forum.js';
 import { warehouseLoads, loadsOf, slotOrder, BAYS, SLOT_COUNT, warehouseState, fitLoads } from '../src/render3d/models/warehouse.js';
 import { WAREHOUSE_GOODS, FOOD_TYPES, HOUSE_GOODS } from '../src/data/goods.js';
-import { lightsFromLamps } from '../src/render/lighting.js';
+
 
 const SIZE = { market: 2, forum: 2, warehouse: 3 };
 
@@ -57,8 +57,8 @@ test('commerce3d: the market, forum and warehouse have models, a stock-less ghos
   for (const t of ['market', 'forum', 'warehouse']) assert.ok(hasModel(t), t);
   // (A ghost has no stock: nothing but the building.)
   const ghost = { id: null, type: 'warehouse', efficiency: 1 };
-  assert.deepEqual(MODELS.warehouse.variant(ghost, { snow: 0 }, null).extras, []);
-  assert.deepEqual(MODELS.market.variant({ ...ghost, type: 'market' }, { snow: 0 }, null).extras, []);
+  assert.deepEqual(MODELS.warehouse.variant(ghost, { snow: 0 }, null).more, []);
+  assert.deepEqual(MODELS.market.variant({ ...ghost, type: 'market' }, { snow: 0 }, null).more, []);
 });
 
 test('commerce3d: a model of S tiles stands S tiles wide (metres to tiles is a quarter, whatever the footprint)', () => {
@@ -220,7 +220,7 @@ test('commerce3d: the game draws the loads as instances, builds a kit once a goo
   const r = { game: { map }, weather: {}, time: 0 };
   const b = { id: 9, type: 'warehouse', size: 3, x: 0, y: 0, efficiency: 1, stock: { wine: 450, oil: 0 } };
   const placed = () => [{ b, T: 0, vx: 0, vy: 0, state: 0, snow: 0 }];
-  // (A frame builds kits for 12 ms at most, at least one: a few frames and every look is built.)
+  // (A frame builds kits for a few ms, drawing others at a level already built: a few frames and every look is built.)
   const frames = (n = 4) => { for (let i = 0; i < n; i++) mp.update(r, placed(), 2); };
   frames();
   const count = (key) => {
@@ -229,14 +229,16 @@ test('commerce3d: the game draws the loads as instances, builds a kit once a goo
   };
   assert.equal(count('warehouse:load:wine'), 5);
   assert.equal(count('warehouse'), 1);
-  const kits = mp.kits.size;
+  // (Kits at this level: the pass also builds the next level's ahead when it has time.)
+  const atLod = () => [...mp.kits.keys()].filter((id) => id.endsWith('|2')).length;
+  const kits = atLod();
   // A tick's worth of change: more wine, some oil. One more kit (oil's), the rest as they were.
   b.stock.wine = 900;
   b.stock.oil = 150;
   frames();
   assert.equal(count('warehouse:load:wine'), 9);
   assert.equal(count('warehouse:load:oil'), 2);
-  assert.equal(mp.kits.size, kits + 1);
+  assert.equal(atLod(), kits + 1);
   const wine = mp.kits.get('warehouse:load:wine|2');
   for (let i = 0; i < 5; i++) mp.update(r, placed(), 2);
   assert.equal(mp.kits.get('warehouse:load:wine|2'), wine, 'the same kit frame after frame');
@@ -250,26 +252,25 @@ test('commerce3d: the game draws the loads as instances, builds a kit once a goo
   const shown = (name) => shell.meshes.find((im) => im.userData.part.when === name)?.count || 0;
   assert.equal(shown('shut'), 1);
   assert.equal(shown('open'), 0);
-  // With this frame's building time spent, a look not built at this level shows at one that is, or waits.
-  mp.buildMs = 1e9;
-  mp.builtThisFrame = true;
-  assert.equal(mp.kitNear('warehouse', 0), shell, 'the far shell while the close one waits');
-  assert.equal(mp.kitNear('warehouse:load:iron', 0), null, 'nothing built yet: drawn from a later frame');
+  // With this frame's building time spent, a look not built at this level shows at one that is.
+  mp.buildUntil = 1;
+  assert.equal(mp.kitFor('warehouse', 0), shell, 'the far shell while the close one waits');
+  mp.buildUntil = 0;
   mp.dispose();
   assert.equal(rig.modelSlot.children.length, 0, 'every instanced mesh freed');
 });
 
-test('commerce3d: the models hang their lamps where the night lights them, turned with them', () => {
+test('commerce3d: the models light their lamps while staffed, where the night lights them, the side in view', () => {
   for (const type of ['market', 'forum', 'warehouse']) {
     const S = SIZE[type];
-    const lamps = MODELS[type].lights(S);
-    assert.ok(lamps.length >= 1, type);
-    for (const [u, v, z] of lamps) assert.ok(u >= 0 && u <= S && v >= 0 && v <= S && z > 5 && z < 60, `${type}: ${u}, ${v}, ${z}`);
-    // Turned half round (render/turn.js: (u, v) -> (S - u, S - v)), the lamp is mirrored through the footprint's middle.
-    const z = lamps[0][2];
-    const a = lightsFromLamps(`t:${type}:0`, S, lamps, 0).torches[0];
-    const b = lightsFromLamps(`t:${type}:2`, S, lamps, 2).torches[0];
-    assert.ok(Math.abs(a[0] + b[0]) < 1e-9 && Math.abs(a[1] + b[1] - (2 * S * HALF_H - 2 * z)) < 1e-9, `${type}: ${a} / ${b}`);
+    const b = { type, size: S, efficiency: 1 };
+    assert.deepEqual(modelLamps({ ...b, efficiency: 0 }, 0), [], `${type}: dark with nobody at work`);
+    const lit = [0, 1, 2, 3].map((T) => modelLamps(b, T));
+    for (const pts of lit) for (const [u, v, z] of pts) assert.ok(u >= 0 && u <= S && v >= 0 && v <= S && z > 5 && z < 60, `${type}: ${u}, ${v}, ${z}`);
+    // The tholos's lamp hangs in the open: lit at every turn, once.
+    if (type === 'market') assert.ok(lit.every((pts) => pts.length === 1));
+    // A door's and a gate's lamps face out of their front: seen at two turns of four.
+    else assert.equal(lit.filter((pts) => pts.length).length, 2, type);
   }
 });
 
@@ -286,15 +287,12 @@ test('commerce3d: every good a warehouse or a market can hold has a look, and a 
   assert.deepEqual(fitLoads([4, 4], 32), [4, 4]);
 });
 
-test('commerce3d: a building is drawn whatever the frame\'s building time: only its goods may wait', () => {
+test('commerce3d: a look with no level built is built at once, whatever the frame\'s building time', () => {
   const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
   const mp = new ModelPass(null, rig);
-  // A frame whose building time is spent (as after a zoom into a city of stores): the shells are built all the same.
-  mp.buildMs = 1e9;
-  mp.builtThisFrame = true;
-  for (const type of ['forum', 'warehouse']) mp.put(type, 2, modelMatrix(0, 0, SIZE[type], 0), MODELS[type].shows, 'open', false, true);
-  assert.ok(mp.kits.has('forum|2') && mp.kits.has('warehouse|2'), 'the shells were built');
-  mp.put('warehouse:load:iron', 2, modelMatrix(0, 0, 3, 0), MODELS.warehouse.shows, 1, false);
-  assert.ok(!mp.kits.has('warehouse:load:iron|2'), 'a good waits for a frame with time to spare');
+  // A frame whose building time is spent (as after a zoom into a city of stores): nothing else to draw, so built.
+  mp.buildUntil = 1;
+  for (const key of ['forum', 'warehouse', 'warehouse:load:iron']) assert.ok(mp.kitFor(key, 2) && mp.kits.has(`${key}|2`), key);
+  mp.buildUntil = 0;
   mp.dispose();
 });

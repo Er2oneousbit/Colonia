@@ -27,7 +27,7 @@
  *     not part of this model: warehouseLoads() says which good's load
  *     (models/wares.js buildLoad) stands on which square metre, and the
  *     game draws each good as a kit of its own placed in this model's
- *     frame (render3d/models.js `extras`), so the warehouse shows how
+ *     frame (render3d/models.js `more`), so the warehouse shows how
  *     full it is and what it holds, load by load.
  *
  * States (meshes tagged in userData.when): 'open' (staffed) the gate's
@@ -94,6 +94,9 @@ export function slotOrder(T) {
 }
 const ORDERS = [0, 1, 2, 3].map(slotOrder);
 
+/** What a building with no stock (a ghost) holds. */
+const NONE = Object.freeze([]);
+
 /** The cache of each warehouse's loads (by its stock: freed with it). */
 const CACHE = new WeakMap();
 
@@ -114,7 +117,7 @@ export function loadsOf(amount) {
  * array while nothing changed.
  */
 export function warehouseLoads(stock, T = 0) {
-  if (!stock) return [];
+  if (!stock) return NONE;
   let sig = String(T & 3);
   for (const g of WARE_GOODS) sig += `,${loadsOf(stock[g] || 0)}`;
   const was = CACHE.get(stock);

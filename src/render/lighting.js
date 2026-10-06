@@ -157,22 +157,6 @@ export function lightsOf(key, type, S, variant, state, turn = 0) {
   return info;
 }
 
-/**
- * The lights of a building drawn as a 3D model (render3d/models.js
- * `lights`): its lamps only, [u, v, z] in its footprint as TORCHES, turned
- * with it; no windows (its sprite's would hang in the air beside it).
- * Cached under `key`, which must name the type, size and turn.
- */
-export function lightsFromLamps(key, S, lamps, turn = 0) {
-  let info = lightCache.get(key);
-  if (info) return info;
-  const [cx, cy] = lp(S / 2, S / 2, 8);
-  info = { windows: [], doors: [], torches: lamps.map(([u, v, z]) => lp(...turnUV(u, v, S, turn), z)), cx, cy };
-  if (lightCache.size > 2000) lightCache.clear();
-  lightCache.set(key, info);
-  return info;
-}
-
 /** Is this building lit at night (at this lamp level)? Homes switch on one by one. */
 export function isLit(b, lamps) {
   if (b.house) return b.house.pop > 0 && lamps > 0.1 + hash01(b.id, 7) * 0.5;

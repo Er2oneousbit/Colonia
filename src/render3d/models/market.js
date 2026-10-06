@@ -29,7 +29,7 @@
  * not part of this model: marketWares() says which good's display
  * (models/wares.js buildDisplay, and the fish here: buildTholosFish) stands
  * at which stall and how full, the game draws each as a kit of its own,
- * placed in this model's frame (render3d/models.js `extras`).
+ * placed in this model's frame (render3d/models.js `more`).
  *
  * In metres, y up, the footprint's middle at the origin (-4..4), as
  * models/well.js. Levels of detail 0 to 2 as the fountain's.
@@ -107,6 +107,9 @@ export function stallOrder(T) {
 }
 const ORDERS = [0, 1, 2, 3].map(stallOrder);
 
+/** What a building with no stock (a ghost) shows. */
+const NONE = Object.freeze([]);
+
 /** The cache of each market's wares (by building: freed with it). */
 const CACHE = new WeakMap();
 
@@ -119,7 +122,8 @@ const CACHE = new WeakMap();
  * array while nothing changed.
  */
 export function marketWares(stock, T = 0) {
-  if (!stock) return [];
+  // (A ghost has no stock: the one empty list, so nothing is made for it frame after frame.)
+  if (!stock) return NONE;
   let sig = T & 3;
   for (let i = 0; i < MARKET_GOODS.length; i++) sig = sig * 4 + displayStep(stock[MARKET_GOODS[i]], i < 4 ? CONFIG.MARKET_FOOD_CAP : CONFIG.MARKET_GOODS_CAP);
   sig = sig * 4 + displayStep(stock.fish, CONFIG.MARKET_FOOD_CAP);

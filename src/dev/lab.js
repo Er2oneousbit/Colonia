@@ -10,7 +10,9 @@
  * every kind of ground the game can show on its own labelled card, to be
  * judged one by one; and the Fountain scene (labFountain.js): the street
  * fountain's four looks, from a plain lava lacus to a small nymphaeum,
- * running and dry, on the well's street.
+ * running and dry, on the well's street; and the Farms and Granary scenes
+ * (labRural.js): the eight farms on the game's ground, granaries from empty
+ * to full.
  *
  * Built into one self-contained page: node scripts/build.mjs --lab --out <file>
  *
@@ -27,12 +29,12 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'|'fountain'|'market'|'forum'|'warehouse'),
- * setSeason(name), setSnow(0..3), setWet(on), aimAt(x, z), cards (the
- * Ground types' cards), setCard(id or index), overview(), fountains (the
- * Fountain scene's), setFountainLod(0..2), fountainTriangles(lod),
- * setCommerceLod(0..2), commerceTriangles(id, lod). The Market, Forum and
- * Warehouse scenes (labCommerce.js): K, U, H.
+ * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'),
+ * setSeason(name), setSnow(0..3),
+ * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
+ * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
+ * fountainTriangles(lod), setCommerceLod(0..2), commerceTriangles(id, lod)
+ * (the Market, Forum and Warehouse scenes, labCommerce.js: K, J, X).
  * ----------------------------------------------------------------------------
  */
 
@@ -54,8 +56,9 @@ import { painterFor } from '../render3d/paint/painter.js';
 import { buildGroundScene } from './labGround.js';
 import { buildGallery } from './labGallery.js';
 import { buildFountainScene } from './labFountain.js';
-import { fountainLife } from '../render3d/models/fountain.js';
+import { ruralScenes } from './labRural.js';
 import { buildCommerceScenes } from './labCommerce.js';
+import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
@@ -285,6 +288,8 @@ async function main() {
   const fs = buildFountainScene();
   fs.group.visible = false;
   scene.add(fs.group);
+  // The Farms and Granary scenes (labRural.js), made with the lab's buttons below.
+  let rural = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
   const commerce = buildCommerceScenes();
   for (const s of Object.values(commerce)) {
@@ -313,6 +318,7 @@ async function main() {
     if (state.scene === 'well') LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
     else if (state.scene === 'fountain') LOOK.uniforms.uLookFade.value.set(0, 0, 9.5, 12.5);
     else if (state.scene === 'ground') LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
+    else if (rural && rural.fade(state.scene)) LOOK.uniforms.uLookFade.value.set(...rural.fade(state.scene));
     else if (commerce[state.scene]) LOOK.uniforms.uLookFade.value.set(...commerce[state.scene].fade);
     else LOOK.uniforms.uLookFade.value.set(0, 0, 1e5, 2e5);
   }
@@ -325,7 +331,7 @@ async function main() {
   const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
   const fillInfo = () => {
-    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO }[state.scene] || commerce[state.scene].info;
+    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO, ...(rural ? rural.info : {}) }[state.scene] || commerce[state.scene].info;
     info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
   };
   fillInfo();
@@ -341,9 +347,9 @@ async function main() {
       return b;
     });
   };
-  const SCENES = ['well', 'fountain', 'ground', 'types', ...Object.keys(commerce)];
-  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')],
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')], ['Farms', 'H', () => setScene('farms')], ['Granary', 'U', () => setScene('granary')],
     ...Object.values(commerce).map((s) => [s.title, s.key, () => setScene(s.id)])]);
+  const SCENES = ['well', 'fountain', 'ground', 'types', 'farms', 'granary', ...Object.keys(commerce)];
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
@@ -382,6 +388,9 @@ async function main() {
     fLabels.appendChild(e);
     return e;
   });
+  // The Farms and Granary scenes (labRural.js), on the game's ground as the Ground scene is, with their own buttons.
+  rural = ruralScenes({ scene, look, groundTex, group, el, app, shadowBox: 9.5 });
+  grounds.push(...rural.grounds);
   // The commerce scenes' labels, one over each building.
   const cLabels = el('div', { class: 'cardlabels' });
   app.appendChild(cLabels);
@@ -422,6 +431,8 @@ async function main() {
     }
     // In a hard frost the fountains' running water grows icicles, a dry tank's puddle freezes.
     fs.setWinter(!!m.ice || state.snow >= 2);
+    // The farms' trees and vines take the season's look.
+    if (rural) rural.season(state.season);
     if (state.scene !== 'well') {
       LOOK.uniforms.uLookSnow.value = Math.max(m.snow, snow);
       LOOK.uniforms.uLookWet.value = Math.max(m.wet, state.wet ? 1 : 0);
@@ -445,6 +456,7 @@ async function main() {
     man.visible = !g;
     well.group.visible = name === 'well' || name === 'ground';
     fs.group.visible = name === 'fountain';
+    rural.show(name);
     groundGroup.visible = name === 'ground';
     galGroup.visible = name === 'types';
     for (const s of Object.values(commerce)) s.group.visible = name === s.id;
@@ -542,6 +554,7 @@ async function main() {
   function placeLabels() {
     if (state.scene === 'fountain') placeFountainLabels();
     if (commerce[state.scene]) placeCommerceLabels();
+    rural.placeLabels(state.view === 'orbit' ? persp : ortho, canvas.clientWidth, canvas.clientHeight, state.view !== 'game2' && state.view !== 'orbit');
     if (state.scene !== 'types') return;
     // (In the overview the names only: the notes would cover each other.)
     labels.classList.toggle('compact', state.overview);
@@ -634,12 +647,15 @@ async function main() {
     else if (k === 'g') setView('game1');
     else if (k === 'm') setView('wide');
     else if (k === 'w') setScene('well');
+    else if (k === 'h') setScene('farms');
+    else if (k === 'u') setScene('granary');
     else if (k === 'f') setScene('fountain');
+    else if (rural.key(k)) refreshButtons();
     else if (k === 'l' && state.scene === 'fountain') setFountainLod((fs.lod + 1) % 3);
     else if (k === 'l' && commerce[state.scene]) setFountainLod((commerce[state.scene].lod + 1) % 3);
     else if (k === 'k') setScene('market');
-    else if (k === 'u') setScene('forum');
-    else if (k === 'h') setScene('warehouse');
+    else if (k === 'j') setScene('forum');
+    else if (k === 'x') setScene('warehouse');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
@@ -733,6 +749,7 @@ async function main() {
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
     fountainLife(t);
+    rural.life(t);
     for (const g of grounds) g.material.userData.ground.uGTime.value = t;
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
@@ -785,7 +802,7 @@ async function main() {
   lampsCast(false);
   const warm = look.warm(ortho, {
     mood: 'day',
-    later: [groundGroup, galGroup, fs.group, ...Object.values(commerce).map((s) => s.group)],
+    later: [groundGroup, galGroup, fs.group, ...rural.later, ...Object.values(commerce).map((s) => s.group)],
     variants: [() => {
       lampsCast(true);
       return () => lampsCast(look.lamps[0].on > 0);
@@ -834,6 +851,14 @@ async function main() {
     /** The Market, Forum and Warehouse scenes: a model's triangles at a level of detail (and its goods'). */
     commerceTriangles: (id, l) => commerce[id].triangles(l),
     setCommerceLod: (n) => setFountainLod(n),
+    /** The Farms and Granary scenes (labRural.js): their state, level of detail and triangles. */
+    rural: {
+      setFarms: (st) => rural.setFarms(st),
+      setLod: (n) => rural.setLod(n),
+      farmTriangles: (l) => rural.farms.triangles(l),
+      granaryTriangles: (l) => rural.gran.triangles(l),
+      get farms() { return rural.farms.farms.map((f) => ({ type: f.type, look: f.look, triangles: f.tris })); },
+    },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */

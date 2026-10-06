@@ -90,7 +90,7 @@ import { isWagon } from './cargoArt.js';
 import { drawGulls } from './waterArt.js';
 import { Effects, drawFlames, drawSpray, drawGlint } from './effects.js';
 import { Ambient } from './ambient.js';
-import { NightLights, NOON, skyAt, dayTime, lightsOf, lightsFromLamps, isLit } from './lighting.js';
+import { NightLights, NOON, skyAt, dayTime, lightsOf, isLit } from './lighting.js';
 import { Weather, seasonPalette } from './weather.js';
 import { hash01 } from './draw.js';
 import { turnUV, turnDir } from './turn.js';
@@ -1444,6 +1444,25 @@ export class Renderer {
     return b.house ? b.id % 8 : b.variant;
   }
 
+  /** Pools and glows of a model's lamps (modelLamps), fading in with the night as a building's do. */
+  modelLampLights(b, lamps, tile, flick) {
+    const pts = this.be.modelLamps ? this.be.modelLamps(b, artTurn(b, this.viewTurn)) : [];
+    if (!pts.length) return;
+    const k = this.camera.scale;
+    const cam = this.camera;
+    const L = this.lights;
+    const foot = this.footAt(b.x, b.y, b.size);
+    const a = Math.min(1, (lamps - 0.05 - hash01(b.id, 7) * 0.2) / 0.15);
+    if (a <= 0) return;
+    pts.forEach(([u, v, z], n) => {
+      const x = (foot.wx + (u - v) * HALF_W - cam.x) * k;
+      const y = (foot.wy + (u + v) * HALF_H - z - cam.y) * k;
+      const f = flick(b.id * 3 + n);
+      L.pool(x, y + 10 * k, tile * 1.6, a * 0.45 * f, true);
+      L.glow(x, y, 6 * k * f, a * 0.9 * f, true);
+    });
+  }
+
   /**
    * Queue this frame's night lights: lit homes and public buildings (window
    * glows, torches), wall gates, fires, and lanterns carried by walkers,
@@ -1460,16 +1479,19 @@ export class Renderer {
     const vt = this.viewTurn;
     if (lamps > 0.01) {
       for (const b of visibleBuildings) {
-        // A building drawn as a 3D model lights the lamps it hangs by its doors (render3d/models.js
-        // `lights`), while it is staffed, not its sprite's windows.
-        const lamps3d = this.be?.modelLights && this.be.hasModel(b.type) ? this.be.modelLights(b.type, b.size) : null;
-        if (lamps3d ? !(b.efficiency > 0 && lamps > 0.05 + hash01(b.id, 7) * 0.2) : !isLit(b, lamps)) continue;
+        // A 3D model's own lamps (render3d/models.js modelLamps: the granary's lanterns, the forum's by
+        // its door, a warehouse's at its gate), whatever its kind's windows do; with a model only, so
+        // Classic's night is as it was. Its sprite's windows and torches are not where the model's
+        // walls are: a model's lamps are its only lights.
+        if (this.be?.hasModel(b.type)) {
+          this.modelLampLights(b, lamps, tile, flick);
+          continue;
+        }
+        if (!isLit(b, lamps)) continue;
         const variant = this.artVariant(b);
         const state = artState(b, farmDormant(game, b));
         const T = artTurn(b, vt);
-        const info = lamps3d
-          ? lightsFromLamps(`3d:${b.type}:${b.size}${turnKey(T)}`, b.size, lamps3d, T)
-          : lightsOf(`${b.type}:${b.size}:${variant}:${state}${turnKey(T)}`, b.type, b.size, variant, state, T);
+        const info = lightsOf(`${b.type}:${b.size}:${variant}:${state}${turnKey(T)}`, b.type, b.size, variant, state, T);
         const foot = this.footAt(b.x, b.y, b.size);
         const ox = (foot.wx - cam.x) * k;
         const oy = (foot.wy - cam.y) * k;
@@ -1704,7 +1726,7 @@ export class Renderer {
     }
     if (model) this.be.model(b, { T, state, snow, vx: foot.vx, vy: foot.vy, rise });
     const kind = b.def.kind;
-    // (A store drawn as a model shows its stock itself.)
+    // (A store drawn as a 3D model shows its stock itself: a granary in its portico, a warehouse in its court.)
     if ((kind === 'warehouse' || kind === 'granary') && !model) {
       items.push({ d: front + 0.0005, kind: K_EXTRA, b, wx, wy, stock: true });
     }

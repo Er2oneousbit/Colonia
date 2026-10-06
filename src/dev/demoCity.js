@@ -1022,6 +1022,30 @@ export function buildDemoCloth(game, center) {
 }
 
 /**
+ * One farm of every kind the mission allows on meadow beside the city, at
+ * different steps of their year (a fifth apart), a horse ranch with a grown
+ * herd, and a granary near them stocked with every food: the 3D look's
+ * farms and granary to look at (the console's `farms`). Dev only: it sets
+ * the farms' progress, the herd and the granary's stock directly.
+ * @returns {{ok:boolean, farms:object[], granary?:object}}
+ */
+export function buildDemoFarms(game, center) {
+  const kinds = ['farm_wheat', 'farm_veg', 'farm_fruit', 'farm_olive', 'farm_vine', 'farm_flax', 'farm_pig', 'horse_ranch'];
+  const farms = [];
+  kinds.forEach((type, k) => {
+    if (!game.isUnlocked(type)) return;
+    const b = placeNear(game, type, 3, center, 6, 44, true);
+    if (!b) return;
+    b.progress = (k % 5) * 20 + 10;
+    if (b.herd !== undefined) b.herd = 6;
+    farms.push(b);
+  });
+  const granary = game.isUnlocked('granary') && farms.length ? placeNear(game, 'granary', 3, farms[0], 3, 16) : null;
+  if (granary) Object.assign(granary.stock, { wheat: 700, vegetables: 300, fruit: 200, meat: 200, fish: 100 });
+  return { ok: farms.length > 0, farms, granary };
+}
+
+/**
  * The goods every market is topped up with each month by the uptown's
  * `monthly()` (to MARKET_GOODS_CAP): a stand-in for a potter, a carpenter
  * and an oil press, with buyers to fetch their wares, that never run short.

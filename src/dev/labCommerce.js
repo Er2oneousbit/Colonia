@@ -64,7 +64,7 @@ const LAYOUT = {
   },
   forum: {
     title: 'Forum',
-    key: 'U',
+    key: 'J',
     spacing: 10,
     items: [
       { x: -5, z: 0, name: 'Working', state: 'open' },
@@ -73,7 +73,7 @@ const LAYOUT = {
   },
   warehouse: {
     title: 'Warehouse',
-    key: 'H',
+    key: 'X',
     spacing: 14,
     items: [
       ...[0, 0.25, 0.5, 0.75, 1].map((f, i) => ({
@@ -119,7 +119,7 @@ function ground(w, d, streets) {
 
 const CONTROLS = `<h3>Controls</h3>
 <ul>
-<li>K: the market; U: the forum; H: the warehouse; W: the well; F: the fountains. 1 to 4: day, golden hour, night, winter.</li>
+<li>K: the market; J: the forum; X: the warehouse; W: the well; F: the fountains. 1 to 4: day, golden hour, night, winter.</li>
 <li>L: the level of detail (0 close, 1 middle, 2 far: what the game draws as it zooms out).</li>
 <li>N: snow lying; T: rain. M, G, Z: the game's zooms; O: orbit. Q / E: turn the view (the goods move to the stalls and bays the camera sees best, as in the game).</li>
 </ul>`;

@@ -1724,10 +1724,19 @@ try {
     const seen = () => [...g.walkers.values()].find((w) => w.type === 'prefect' && w.state === 'extinguish' && g.fires.has(w.fireTile));
     for (let t = 0; t < 8 * 20 && !seen(); t++) g.runTicks(1); // up to 8 days (20 ticks a day)
     const p = seen();
-    return p ? { id: p.id, tile: p.fireTile } : null;
+    if (p) return { id: p.id, tile: p.fireTile };
+    // (None came: say what the prefects were doing. This check failed once on a
+    // random map with no cause found, v0.20.9: a lead is crews still running to
+    // fires the steps before cleared, which count as out.)
+    const t0 = window.__torch;
+    const posts = [...g.buildings.values()].filter((b) => b.type === 'prefecture').map((b) => ({
+      at: [b.x, b.y], eff: b.efficiency, road: b.accessRoad >= 0, crew: (b.walkers || []).map((id) => g.walkers.get(id)).filter(Boolean)
+        .map((w) => `${w.state}${w.fireTile !== undefined ? (g.fires.has(w.fireTile) ? ':live' : ':gone') : ''}`),
+    }));
+    return { none: true, burning: g.fires.size, at: t0 && [t0.x, t0.y], posts, seed: g.seed };
   }) : null;
   let douse = null;
-  if (fought) {
+  if (fought && !fought.none) {
     await page.waitForTimeout(200); // a few frames drawn with him at work
     douse = await page.evaluate((f) => {
       const app = window.colonia;
@@ -1739,7 +1748,7 @@ try {
     }, fought);
   }
   check('a prefect fights a burning building and its panel says "Being put out by a prefect"',
-    !!fought && /Being put out by a prefect/.test(douse?.text || '') && errors.length === douseErrors, JSON.stringify({ torch3, lit3, fought, douse, errors: errors.slice(douseErrors, douseErrors + 3) }));
+    !!fought && !fought.none && /Being put out by a prefect/.test(douse?.text || '') && errors.length === douseErrors, JSON.stringify({ torch3, lit3, fought, douse, errors: errors.slice(douseErrors, douseErrors + 3) }));
   await page.evaluate((was) => {
     const app = window.colonia;
     app.game.fires.clear();
@@ -1830,14 +1839,23 @@ try {
     const bk = [...g.buildings.values()].find((b) => b.type === 'barracks');
     const why = bk ? { eff: bk.efficiency, labor: bk.laborAccess, road: bk.accessRoad, stock: bk.stock, workforce: g.city.workforce, jobs: g.city.jobs, prio: g.city.laborPriority, fortsStaffed: forts.filter((f) => f.efficiency > 0).length } : { barracks: false };
     // Undeployed forts hold their ground: every soldier stands by his fort (its formation reaches 5 tiles from its post).
-    const strays = [...g.units.values()].filter((u) => u.side === 'rome' && u.fort).filter((u) => {
+    const away = [...g.units.values()].filter((u) => u.side === 'rome' && u.fort).filter((u) => {
       const f = g.buildings.get(u.fort);
       return !f || f.rally || Math.hypot(u.x - (f.x + f.size / 2), u.y - (f.y + f.size / 2)) > f.size / 2 + 7;
-    }).length;
-    return { out, forts: forts.length, soldiers, strays, fortId: fort ? fort.id : 0, fx: fort ? fort.x : 0, fy: fort ? fort.y : 0, why, seed: g.seed };
+    });
+    // (When one is away, say who and why: his state, target, trip and the nearest foe.
+    // This check failed once on a random map with no cause found, v0.20.9.)
+    const strayWhy = away.map((u) => {
+      const f = g.buildings.get(u.fort);
+      const t = u.target ? g.units.get(u.target) : null;
+      const foes = [...g.units.values()].filter((o) => o.side !== 'rome' && o.hp > 0);
+      const near = foes.sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
+      return { type: u.type, state: u.state, at: [Math.round(u.x), Math.round(u.y)], fort: f ? [f.type, f.x, f.y, !!f.rally] : null, target: t ? `${t.side}/${t.type}` : null, drill: u.drill || 0, foe: near ? `${near.side}/${near.type} ${Math.round(Math.hypot(near.x - u.x, near.y - u.y))} tiles` : null };
+    });
+    return { out, forts: forts.length, soldiers, strays: away.length, strayWhy, fortId: fort ? fort.id : 0, fx: fort ? fort.x : 0, fy: fort ? fort.y : 0, why, seed: g.seed };
   });
   check('garrison: forts built and soldiers recruited', gar.forts >= 1 && gar.soldiers >= 1, `${gar.forts} forts, ${gar.soldiers} soldiers; ${gar.out}; ${JSON.stringify(gar.why)}; seed ${gar.seed}`);
-  check('garrison: undeployed soldiers stand by their forts', gar.strays === 0, `${gar.strays} of ${gar.soldiers} away from their fort`);
+  check('garrison: undeployed soldiers stand by their forts', gar.strays === 0, `${gar.strays} of ${gar.soldiers} away from their fort; seed ${gar.seed}; ${JSON.stringify(gar.strayWhy)}`);
   if (gar.fortId) {
     await page.evaluate((id) => { window.colonia.renderer.camera.centerOnTile(window.colonia.game.buildings.get(id).x, window.colonia.game.buildings.get(id).y); window.colonia.ui.info.showBuilding(id); }, gar.fortId);
     await page.click('#info-panel button:has-text("Deploy")');
@@ -4283,9 +4301,42 @@ try {
       await gq.evaluate(() => window.colonia.setOverlay('none'));
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d-overlay.png') });
       check('3D ground: an overlay\'s tint shows over it (the water overlay turns the well\'s tiles blue)', tintAfter[2] - tintAfter[0] > tintBefore[2] - tintBefore[0] + 15, JSON.stringify({ tintBefore, tintAfter }));
+      // The farms and the granary as models (render3d/models/farm.js, granary.js): the console's
+      // "farms" builds one of every kind and a stocked granary; on the 3D ground they draw as
+      // models, a click on each picks it; with the ground's sprites the farms keep theirs.
+      const farmSite = await gq.evaluate(() => {
+        const app = window.colonia;
+        const said = app.ui.console.run('farms');
+        const g = app.game;
+        const olive = [...g.buildings.values()].find((b) => b.type === 'farm_olive');
+        const gran = [...g.buildings.values()].filter((b) => b.type === 'granary').pop();
+        if (olive) app.renderer.camera.centerOnTile(olive.x + 1.5, olive.y + 1.5);
+        return { said, olive: olive && { id: olive.id, x: olive.x, y: olive.y }, gran: gran && { id: gran.id, x: gran.x, y: gran.y } };
+      });
+      await gq.waitForFunction(() => (window.colonia.renderer.stats.modelPass?.byType?.farm_olive || 0) > 0, null, { timeout: 30000 }).catch(() => {});
+      await frames(3);
+      const farmDrawn = await gq.evaluate(() => ({ byType: window.colonia.renderer.stats.modelPass?.byType || {}, ground: window.colonia.renderer.stats.ground }));
+      if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-farms3d.png') });
+      const farmPick = farmSite.olive ? await pickAt(farmSite.olive.x + 1.5, farmSite.olive.y + 1.5) : null;
+      let granPick = null;
+      if (farmSite.gran) {
+        await gq.evaluate((v) => window.colonia.renderer.camera.centerOnTile(v.x + 1.5, v.y + 1.5), farmSite.gran);
+        await frames(3);
+        granPick = await pickAt(farmSite.gran.x + 1.5, farmSite.gran.y + 1.5);
+      }
+      const granDrawn = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType?.granary || 0);
+      check('3D farms: on the 3D ground a farm and the granary draw as models, and a click picks each',
+        !!farmSite.olive && !!farmSite.gran && farmDrawn.byType.farm_olive >= 1 && granDrawn >= 1
+          && farmPick?.kind === 'building' && farmPick.id === farmSite.olive.id && granPick?.kind === 'building' && granPick.id === farmSite.gran.id,
+        JSON.stringify({ farmSite, farmDrawn, farmPick, granDrawn, granPick }));
+      await gq.evaluate(() => window.colonia.ui.info.close());
       await gq.evaluate(() => window.colonia.ui.console.run('ground off'));
       await gq.waitForTimeout(400);
       const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
+      await frames(3);
+      const farmsOff = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType || {});
+      check("3D farms: with the ground's sprites the farms keep their sprites (which draw their fields), the granary stays a model",
+        !(farmsOff.farm_olive > 0) && !(farmsOff.farm_wheat > 0) && farmsOff.granary >= 1, JSON.stringify(farmsOff));
       check('3D ground: "ground off" goes back to the flat sprites', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50, JSON.stringify(off));
       check('3D ground: no page errors', qerrors.length === 0, qerrors.join(' | '));
       await gq.close();
