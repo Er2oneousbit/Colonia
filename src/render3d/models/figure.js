@@ -101,3 +101,25 @@ export function buildFigure({ cloth = 0xc9bca2, cloth2 = null, long = false, rea
   }
   return g;
 }
+
+/**
+ * A figure's meshes as geometry lists by material, placed (x, y, z), turned
+ * `ry`, at `scale`: for a model that merges its people into its own parts
+ * (the forum's clerk, the watch house's vigiles, the builders).
+ */
+export function figureParts(opts, x, y, z, ry, scale = 1) {
+  const f = buildFigure(opts);
+  f.scale.setScalar(scale);
+  f.rotation.y = ry;
+  f.position.set(x, y, z);
+  f.updateMatrixWorld(true);
+  const parts = [];
+  f.traverse((o) => {
+    if (!o.isMesh) return;
+    const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+    for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'color'].includes(k)) g.deleteAttribute(k);
+    parts.push({ g, material: o.material });
+  });
+  f.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  return parts;
+}
