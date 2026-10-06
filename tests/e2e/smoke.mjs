@@ -4061,6 +4061,67 @@ try {
       }
       check('WebGL renderer: a click on a walker opens its panel', !!walker && wpick.target?.kind === 'walker' && wpick.target.id === walker.id && wpick.ring === walker.id && wpick.live > 0, JSON.stringify({ walker, wpick }));
       await gp.evaluate(() => window.colonia.ui.info.close());
+      // Closer zooms under WebGL (config.js ZOOM_LEVELS_3D): the wheel goes on past Classic's 2x to
+      // the closest level, and at 4x a click picks the well (a model, by its footprint) and a walker.
+      await gp.evaluate((v) => { const cam = window.colonia.renderer.camera; cam.zoomIndex = 4; cam.centerOnTile(v.x, v.y); }, well);
+      await gp.waitForTimeout(200);
+      const wheelAt = await onPage(well.x + 0.5, well.y + 0.5);
+      await gp.mouse.move(wheelAt.x, wheelAt.y);
+      const wheelSeen = [];
+      for (let k = 0; k < 4; k++) {
+        await gp.mouse.wheel(0, -100);
+        await gp.waitForTimeout(400);
+        wheelSeen.push(await gp.evaluate(() => window.colonia.renderer.camera.targetZoom));
+      }
+      await gp.waitForTimeout(400);
+      const closest = await gp.evaluate(() => { const c = window.colonia.renderer.camera; return { zoom: c.zoom, levels: c.levels, moving: c.moving, spriteScale: c.spriteScale }; });
+      await gp.evaluate((v) => { const app = window.colonia; app.renderer.camera.zoomIndex = 6; app.renderer.camera.centerOnTile(v.x, v.y); app.ui.info.close(); }, well);
+      await gp.waitForTimeout(300);
+      const close4 = await onPage(well.x + 0.5, well.y + 0.5);
+      await gp.mouse.click(close4.x, close4.y);
+      await gp.waitForTimeout(150);
+      const wellAt4 = await gp.evaluate(() => {
+        const r = window.colonia.renderer;
+        // (A model's own sprite, never drawn, only read for what hides a figure: from the small cover cache, not at 4x's scale.)
+        const wellKeys = (m) => [...m.keys()].filter((k) => k.startsWith('b:well:')).length;
+        return { zoom: r.camera.zoom, target: window.colonia.ui.info.target, models: r.stats.models, drawnSprites: wellKeys(r.sprites.current), cover: wellKeys(r.coverSprites.current) };
+      });
+      await gp.evaluate(() => window.colonia.ui.info.close());
+      const walker4 = await gp.evaluate(() => {
+        const app = window.colonia;
+        const r = app.renderer;
+        const cam = r.camera;
+        const rect = app.canvas.getBoundingClientRect();
+        const g = app.game;
+        // A walker on a road in the middle of the view, picked the same at every whole pixel round the point.
+        for (const w of [...g.walkers.values()].filter((v) => g.map.road[g.map.idx(v.x, v.y)] && v.kind !== 'ship').slice(0, 40)) {
+          cam.centerOnTile(w.x, w.y);
+          r.render(0, 0);
+          const s = r.walkerSpots.find((q) => q.id === w.id);
+          if (!s) continue;
+          const q = cam.toScreen(s.wx, s.wy - 9);
+          const x = Math.round(rect.left + q.x / cam.dpr);
+          const y = Math.round(rect.top + q.y / cam.dpr);
+          let same = true;
+          for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) if (r.pickWalker(x + dx - rect.left, y + dy - rect.top) !== w.id) same = false;
+          if (same) return { id: w.id, x, y };
+        }
+        return null;
+      });
+      let wpick4 = null;
+      if (walker4) {
+        await gp.mouse.click(walker4.x, walker4.y);
+        await gp.waitForTimeout(150);
+        wpick4 = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+      }
+      if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-zoom4.png') });
+      const top = closest.levels.at(-1);
+      check('WebGL renderer: the wheel zooms in past 2x to its closest level, and at 4x a click picks the well (its sprite only in the small cover cache) and a walker',
+        top >= 4 && wheelSeen.join() === closest.levels.slice(5).concat([top, top, top, top]).slice(0, 4).join() && closest.zoom === top && !closest.moving
+          && wellAt4.zoom === 4 && wellAt4.models >= 1 && wellAt4.target?.kind === 'building' && wellAt4.target.id === well.id && wellAt4.drawnSprites === 0 && wellAt4.cover >= 1
+          && !!walker4 && wpick4?.kind === 'walker' && wpick4.id === walker4.id,
+        JSON.stringify({ wheelSeen, closest, wellAt4, walker4, wpick4 }));
       // The page's canvases: the WebGL one on the page under a transparent 2D overlay, #view on
       // top, see-through, still the one a click lands on (Renderer.mountLayers).
       const layers = await gp.evaluate(() => {
@@ -4176,11 +4237,18 @@ try {
       await gp.keyboard.press('Escape'); // the game menu
       await gp.click('.modal .btn:has-text("Settings")');
       const shown = await gp.evaluate(() => document.querySelector('select[aria-label="Renderer"]')?.value || null);
+      // (At 4x, closer than Classic goes: Classic takes its closest, 2x.)
+      await gp.evaluate(() => { window.colonia.renderer.camera.zoomIndex = 6; });
       await gp.selectOption('select[aria-label="Renderer"]', 'classic');
       await gp.waitForTimeout(300);
-      const switched = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, kind: window.colonia.renderer.backend.kind, setting: window.colonia.settings.renderer, stored: JSON.parse(localStorage.getItem('colonia.settings')).renderer }));
+      const switched = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, kind: window.colonia.renderer.backend.kind, setting: window.colonia.settings.renderer, stored: JSON.parse(localStorage.getItem('colonia.settings')).renderer, zoom: window.colonia.renderer.camera.zoom, levels: window.colonia.renderer.camera.levels.length }));
       await gp.click('.modal .btn:has-text("Done")');
-      check('WebGL renderer: Settings shows it, and switches back to Classic (kept in the settings)', shown === 'webgl' && switched.backend === '2d' && switched.kind === '2d' && switched.setting === 'classic' && switched.stored === 'classic', JSON.stringify({ shown, switched }));
+      // The wheel in Classic stops at 2x.
+      await gp.mouse.move(640, 400);
+      await gp.mouse.wheel(0, -100);
+      await gp.waitForTimeout(500);
+      const classicZoom = await gp.evaluate(() => window.colonia.renderer.camera.targetZoom);
+      check("WebGL renderer: Settings shows it, and switches back to Classic (kept in the settings), from 4x to Classic's closest, 2x, where the wheel stops", shown === 'webgl' && switched.backend === '2d' && switched.kind === '2d' && switched.setting === 'classic' && switched.stored === 'classic' && switched.zoom === 2 && switched.levels === 5 && classicZoom === 2, JSON.stringify({ shown, switched, classicZoom }));
       check('WebGL renderer: no page errors', gerrors.length === 0, gerrors.join(' | '));
       await gp.close();
 

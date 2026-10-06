@@ -919,20 +919,49 @@ export function woodpile(L = 1.6, h = 0.7, seed = 1, lod = 0) {
   return out;
 }
 
-/** Tufts of weeds round a neglected place: n small green cones, for the `leaf` material. */
+/**
+ * Tufts of weeds round a neglected place: n small green clumps, for the
+ * `leaf` material. Up close (LOD 0, 1) each is a lumpy rounded clump shaded
+ * smooth: twenty flat faces read as a cut gem at the WebGL renderer's
+ * closest zooms. Far out, twenty faces are plenty.
+ */
 export function weeds(n, x0, x1, z0, z1, seed = 1, lod = 0) {
   const rnd = artRng(seed);
+  const lumps = artRng(seed + 7); // (its own draws: the tufts stand in the same places at every level)
   const parts = [];
   const green = lin(0x6f7f3a);
   const dry = lin(0x9a8f55);
   for (let k = 0; k < n; k++) {
-    const g = new IcosahedronGeometry(0.16 + rnd() * 0.14, 0);
+    const g = lod === 2 ? new IcosahedronGeometry(0.16 + rnd() * 0.14, 0) : clump(0.16 + rnd() * 0.14, lod === 0 ? 3 : 1, lumps);
     g.scale(1, 0.7 + rnd() * 0.6, 1);
     g.translate(x0 + rnd() * (x1 - x0), 0.06, z0 + rnd() * (z1 - z0));
     parts.push(paint(g, mixc(green, dry, rnd() * 0.5), (x, y) => 0.6 + 0.4 * smoothstep(0, 0.3, y)));
     if (lod >= 2 && k > n / 3) break;
   }
   return parts;
+}
+
+/** A rounded clump of radius about r: a welded icosphere of `detail`, its surface lumpy by a few waves of seeded phase. */
+function clump(r, detail, rnd) {
+  const ico = new IcosahedronGeometry(1, detail);
+  ico.deleteAttribute('normal');
+  ico.deleteAttribute('uv');
+  const g = mergeVertices(ico);
+  ico.dispose();
+  const a = rnd() * 6.28;
+  const b = rnd() * 6.28;
+  const c = rnd() * 6.28;
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i);
+    const y = p.getY(i);
+    const z = p.getZ(i);
+    const k = r * (1 + 0.14 * Math.sin(4 * x + a) * Math.sin(4 * z + b) + 0.08 * Math.sin(7 * y + 3 * x + c));
+    p.setXYZ(i, x * k, y * k, z * k);
+  }
+  g.computeVertexNormals();
+  boxUV(g);
+  return g;
 }
 
 /** Weld a geometry's vertices (after building it from separate faces) so it shades smooth. */

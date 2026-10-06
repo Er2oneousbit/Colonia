@@ -540,6 +540,10 @@ export class Renderer {
     this.lastAlpha = 0;
     this.camera = new Camera();
     this.sprites = new SpriteCache();
+    // The sprites of buildings drawn as 3D models: never drawn, only read for what hides a figure
+    // (coverStrips) and where a sign stands, both in world px. Made at one world px a pixel
+    // whatever the zoom: at WebGL's closest zooms a farm's sprite at the zoom's scale was 3.5 MB.
+    this.coverSprites = new SpriteCache();
     this.effects = new Effects();
     this.game = null;
     this.overlay = overlayByKey('none');
@@ -866,6 +870,7 @@ export class Renderer {
     this.canvas.style.height = `${cssH}px`;
     this.sizeLayers();
     if (oldDpr !== this.camera.dpr) this.sprites.clear();
+    // (The cover sprites are at one world px a pixel whatever the screen: kept.)
   }
 
   setOverlay(key) { this.overlay = overlayByKey(key); }
@@ -1407,6 +1412,7 @@ export class Renderer {
   /** Forget sprites whose key ends with a suffix (an old season look or snow level). */
   dropSuffix(suffix) {
     this.sprites.invalidateWhere((key) => key.endsWith(suffix));
+    this.coverSprites.invalidateWhere((key) => key.endsWith(suffix));
   }
 
   /** The new look is fully drawn: drop the sprites of the old one. */
@@ -1693,14 +1699,18 @@ export class Renderer {
     const sick = key.endsWith(':sick');
     // `true`: live flags (the sprite has bare poles; drawExtra adds fluttering cloth).
     const snow = this.pal.snow;
-    const spr = this.sprites.get(key + this.snowKey, () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T), this.snowPrev === null ? null : key + this.snowPrev);
-    if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
-    if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     // A building the back end draws as a 3D model (render3d/models.js): its
     // strips are not drawn, but they are still kept for clicks, so a figure
     // behind it is hidden where its sprite would be (coverDepthAt).
     // (`be` is missing on a renderer made without its constructor, as some tests do: no model then.)
     const model = !!this.be?.hasModel(b.type);
+    const spec = () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T);
+    // (A model's sprite from the small cover cache, at once: it is cheap at its scale and the old
+    // look need not stay on screen while the new one is made, as nothing of it shows.)
+    const spr = model ? this.coverSprites.get(key + this.snowKey, spec)
+      : this.sprites.get(key + this.snowKey, spec, this.snowPrev === null ? null : key + this.snowPrev);
+    if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
+    if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     const n = depths.length;
     // Just built: rise out of the ground and fade in (half a second).
     let alpha;

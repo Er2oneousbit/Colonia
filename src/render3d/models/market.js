@@ -215,15 +215,42 @@ function awning(x0, x1, z0, y0, z1, y1, colours, lod) {
   return [g];
 }
 
-/** An awning rolled up on its back beam (the stall shut): a striped roll. */
+/**
+ * An awning rolled up on its back beam (the stall shut): a striped roll, a
+ * short cylinder a stripe so each stripe's edge is sharp (one cylinder
+ * tinted by its vertices blended each stripe into the next, a smear at the
+ * closest zooms). Far out, one cylinder in the stripes' mean colour.
+ */
 function rolledAwning(x0, x1, y, z, colours, lod) {
-  const g = new CylinderGeometry(0.1, 0.1, x1 - x0, lod ? 6 : 10, lod === 2 ? 1 : lod ? 6 : 12, lod === 2);
-  g.rotateZ(Math.PI / 2);
-  g.translate((x0 + x1) / 2, y, z);
-  boxUV(g);
   const c0 = lin(colours[0]);
   const c1 = lin(colours[1]);
-  return tintGeometry(g, (x) => (Math.floor((x - x0) / 0.3) % 2 ? c1 : c0));
+  if (lod === 2) {
+    const g = new CylinderGeometry(0.1, 0.1, x1 - x0, 6, 1, true);
+    g.rotateZ(Math.PI / 2);
+    g.translate((x0 + x1) / 2, y, z);
+    boxUV(g);
+    return tintGeometry(g, () => c0.map((v, i) => (v + c1[i]) / 2));
+  }
+  const n = Math.max(1, Math.round((x1 - x0) / 0.3));
+  const parts = [];
+  for (let k = 0; k < n; k++) {
+    const xa = x0 + ((x1 - x0) * k) / n;
+    const xb = x0 + ((x1 - x0) * (k + 1)) / n;
+    // (Closed at both ends only where the roll ends: the caps between stripes would never show.)
+    const g = new CylinderGeometry(0.1, 0.1, xb - xa, lod ? 8 : 20, 1, true);
+    g.rotateZ(Math.PI / 2);
+    g.translate((xa + xb) / 2, y, z);
+    boxUV(g);
+    parts.push(tintGeometry(g, () => (k % 2 ? c1 : c0)));
+  }
+  for (const [x, c] of [[x0, c0], [x1, (n - 1) % 2 ? c1 : c0]]) {
+    const cap = new CylinderGeometry(0.1, 0.1, 0.002, lod ? 8 : 20, 1, false);
+    cap.rotateZ(Math.PI / 2);
+    cap.translate(x, y, z);
+    boxUV(cap);
+    parts.push(tintGeometry(cap, () => c));
+  }
+  return merge(parts);
 }
 
 /** One side of the court (side 0: along x at z +): the low wall, the counters, the frame, the awnings. */
