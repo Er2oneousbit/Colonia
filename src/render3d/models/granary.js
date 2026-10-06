@@ -19,24 +19,26 @@
  * So, in 12 m: a raised platform of limestone (cart high: 0.8 m) with vents
  * along its face; on it a square store of rubble with bands of brick every
  * metre or so (opus mixtum), buttresses and dressed quoins, a door in the
- * middle of each side and narrow vent slits up under the eaves, a tiled
- * gable roof; and round it, on the platform, a portico of timber posts on
- * stone bases under lean-to roofs, where the goods wait to go in or out,
- * steps up in the middle of each side.
+ * middle of each side under a little tiled hood on brackets, narrow vent
+ * slits up under the eaves, a tiled gable roof; round the store the open
+ * loading platform, where the goods wait to go in or out, steps up in the
+ * middle of each side. (A portico of posts and lean-to roofs round it was
+ * tried first: from the game's camera its roofs hid the goods under them.)
  *
- * How full it is shows in the portico: STOCK_SLOTS places for a cart's load
- * each (a twentieth of the granary), filled in turn round all four sides
- * (granaryStock), so whichever way the view is turned the two sides it
- * shows hold their share; each food in its own way (stockSlot): sacks of
- * wheat, baskets of vegetables and of fruit, hams hanging on a rack beside
- * salting tubs, baskets of fish beside amphorae. Empty, the portico is bare.
+ * How full it is shows on the platform: STOCK_SLOTS places for a cart's
+ * load each (a twentieth of the granary), filled in turn round all four
+ * sides (granaryStock), so whichever way the view is turned the two sides
+ * it shows hold their share; each food in its own way (buildStockSlot):
+ * sacks of wheat, baskets of vegetables and of fruit, hams hanging on a
+ * rack beside salting tubs, baskets of fish beside amphorae. Empty, the
+ * platform is bare.
  *
  * States: worked (doors open, the lantern at the front door lit at night in
  * the lab; in the game the night's light map draws its glow, models.js
  * modelLamps), idle (doors shut, the lantern out).
  *
  * Metres, the footprint's middle at the origin, y up; the front (+z) has
- * the lantern and the steelyard.
+ * the lantern.
  * ----------------------------------------------------------------------------
  */
 
@@ -52,13 +54,11 @@ import {
 export const GRANARY = Object.freeze({
   half: 5.1, // the platform's half side (its steps reach out to the footprint's edge)
   floorY: 0.8, // the platform's top: a cart's bed
-  core: 3.6, // the store's half side (outer face)
+  core: 3.2, // the store's half side (outer face): a 6.4 m store, leaving the platform room for the goods
   wall: 0.6,
-  eaveY: 5.5,
-  porticoTop: 3.7, // where the lean-to roofs meet the store's walls
-  porticoEave: 3.05,
+  eaveY: 5.3,
   /** The lantern by the front door (x, y, z). */
-  lamp: Object.freeze([1.35, 3.0, 3.75]),
+  lamp: Object.freeze([1.62, 3.0, 3.35]),
 });
 
 /** The foods a granary keeps (data/goods.js FOOD_TYPES), in the order they fill the portico. */
@@ -71,8 +71,8 @@ export const GRANARY_FOODS = Object.freeze(['wheat', 'vegetables', 'fruit', 'mea
  * nearest the doors first, the corners last.
  */
 export const STOCK_SLOTS = (() => {
-  const C = 4.35; // the portico's middle, out from the store's wall
-  const along = [1.65, -1.65, 3.05, -3.05];
+  const C = 4.15; // the platform's middle, out from the store's wall
+  const along = [1.6, -1.6, 3.05, -3.05];
   const sides = [[0, 1], [1, 0], [0, -1], [-1, 0]]; // +z, +x, -z, -x: the yaw turns the slot's front (+z) outward
   const out = [];
   for (const a of along) {
@@ -181,7 +181,7 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
   const E = G.eaveY;
   const doorW = 1.6;
   const doorH = 2.6;
-  const slits = (a) => [-2.7, -1.15, 1.15, 2.7].map((x) => ({ a: a + x - 0.11, b: a + x + 0.11, lo: 4.15, hi: 5.05 }));
+  const slits = (a) => [-2.4, -0.98, 0.98, 2.4].map((x) => ({ a: a + x - 0.11, b: a + x + 0.11, lo: 4.15, hi: 5.05 }));
   const door = { a: -doorW / 2, b: doorW / 2, lo: F, hi: F + doorH };
   p.add('wall', wallRun('x', -C, C, C - T / 2, T, F, E, [door, ...slits(0)], seed + 100, lod));
   p.add('wall', wallRun('x', -C, C, -C + T / 2, T, F, E, [door, ...slits(0)], seed + 200, lod));
@@ -218,7 +218,7 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     // Buttresses against the grain's push, between the slits; quoins at the corners.
     const stone = [];
     for (const [sx, sz] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
-      for (const a of [-1.95, 1.95]) {
+      for (const a of [-1.7, 1.7]) {
         const g = blk(lod, sz ? 0.5 : 0.32, E - F - 0.15, sz ? 0.32 : 0.5, { bevel: 0.02, seed: seed + 500 + a * 3 + sx, wobble: 0.004, grime: 0.3, seg: 1 });
         // A buttress's face slopes back toward its top.
         const pos = g.attributes.position;
@@ -244,7 +244,7 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     if (lod === 0) {
       const wood = [];
       for (const [sx, sz] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
-        for (const a of [-2.7, -1.15, 1.15, 2.7]) {
+        for (const a of [-2.4, -0.98, 0.98, 2.4]) {
           for (let k = 0; k < 3; k++) {
             const g = new BoxGeometry(sz ? 0.22 : 0.3, 0.03, sz ? 0.3 : 0.22);
             g.rotateX(sz ? sz * 0.6 : 0);
@@ -282,39 +282,22 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     }
   }
   // The roof: a tiled gable over the store, along x.
-  const roof = gableRoof({ x0: -C, x1: C, z0: -C, z1: C, eaveY: E, pitch: D(22), along: 'x', lod, seed: seed + 800, over: 0.4, gableOver: 0.3 });
+  const roof = gableRoof({ x0: -C, x1: C, z0: -C, z1: C, eaveY: E, pitch: D(22), along: 'x', lod, seed: seed + 800, over: 0.55, gableOver: 0.35 });
   p.add('tile', roof.tile).add('wood', roof.wood);
-  // The portico round it: posts on stone bases at the platform's edge, a beam along them, lean-to roofs.
-  const PE = G.porticoEave;
-  const PT = G.porticoTop;
-  const edge = H - 0.25;
-  const postAt = [-edge, -2.35, -0.95, 0.95, 2.35, edge];
-  const seen = new Set();
+  // Over each door a hood: a short tiled lean-to on two timber brackets, keeping the rain off the
+  // doorway while sacks go in (the platform itself is open, so the goods on it show from afar).
   for (const [sx, sz] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
-    for (const a of postAt) {
-      const x = sz ? a : sx * edge;
-      const z = sx ? a : sz * edge;
-      const k = `${x.toFixed(2)},${z.toFixed(2)}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      const ps = post(0, 0, PE - F, { r: 0.11, seed: seed + 900 + seen.size, lod });
-      for (const g of [...ps.wood, ...ps.stone]) g.translate(x, F, z);
-      p.add('wood', ps.wood).add('stone', ps.stone);
-    }
-    const a0 = [sz ? -edge : sx * edge, PE, sx ? -edge : sz * edge];
-    const a1 = [sz ? edge : sx * edge, PE, sx ? edge : sz * edge];
-    p.add('wood', beam(a0, a1, 0.16, seed + 950 + sx + sz * 3, lod));
-    // The lean-to: full length on the ends along z, between them along x.
     const yaw = Math.atan2(sx, sz);
-    const L = sz ? 2 * H + 0.3 : 2 * C;
-    const lt = leanTo({ L, span: H - C, topY: PT, eaveY: PE, lod, seed: seed + 960 + sx * 2 + sz, over: 0.3 });
-    for (const g of [...lt.tile, ...lt.wood]) {
+    const hood = leanTo({ L: doorW + 1.1, span: 1.0, topY: F + doorH + 0.75, eaveY: F + doorH + 0.35, lod, seed: seed + 960 + sx * 2 + sz, over: 0.15 });
+    const wood = [...hood.wood];
+    if (lod < 2) for (const s of [-1, 1]) wood.push(beam([s * (doorW / 2 + 0.4), F + doorH - 0.15, 0.02], [s * (doorW / 2 + 0.4), F + doorH + 0.38, 0.98], 0.09, seed + 970 + s, lod));
+    for (const g of [...hood.tile, ...wood]) {
       g.rotateY(yaw);
       g.translate(sx * C, 0, sz * C);
     }
-    p.add('tile', lt.tile).add('wood', lt.wood);
+    p.add('tile', hood.tile).add('wood', wood);
   }
-  // At the front door: the lantern on its bracket, and a steelyard (statera) hanging from the beam.
+  // At the front door: the lantern on its bracket.
   let paneGeo = null;
   if (lod < 2) {
     const [lx, ly, lz] = G.lamp;
@@ -331,19 +314,9 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     boxUV(paneGeo);
     paneGeo = tintGeometry(paneGeo);
     p.add('iron', iron).add('bronze', bronze);
-    if (lod === 0) {
-      // The steelyard: a beam with a hook and a sliding weight, hung from the portico's beam.
-      const sx0 = -1.6;
-      const sz0 = H - 0.25;
-      p.add('iron', beam([sx0, PE - 0.4, sz0], [sx0, PE - 0.02, sz0], 0.012, 992, 1));
-      p.add('iron', beam([sx0 - 0.35, PE - 0.42, sz0], [sx0 + 0.55, PE - 0.38, sz0], 0.022, 993, 1));
-      const wt = new IcosahedronGeometry(0.05, 1);
-      wt.translate(sx0 + 0.42, PE - 0.5, sz0);
-      p.add('bronze', tintGeometry(wt));
-      p.add('iron', beam([sx0 - 0.3, PE - 0.8, sz0], [sx0 - 0.3, PE - 0.42, sz0], 0.01, 994, 1));
-    }
   }
-  const pane = material('granary-lantern', { color: 0xc89a5a, roughness: 0.45, emissive: 0xffb25c, emissiveIntensity: 0, snow: 0 });
+  // (A shut granary's lantern is out: its own glass, never lit.)
+  const pane = material(idle ? 'granary-lantern-out' : 'granary-lantern', { color: 0xc89a5a, roughness: 0.45, emissive: 0xffb25c, emissiveIntensity: 0, snow: 0 });
   if (paneGeo) p.add('pane', paneGeo);
   const out = p.build(idle ? 'granary-idle' : 'granary', {
     extra: { bronze: material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.7 }), pane },
@@ -479,7 +452,8 @@ export function granaryLamp() {
 const SLOT_MATS = (() => {
   const m = new Matrix4();
   const q = new Quaternion();
-  const s = new Vector3(1, 1, 1);
+  // (A little larger than life: a cart's load reads as a pile from the game's camera.)
+  const s = new Vector3(1.3, 1.3, 1.3);
   const p = new Vector3();
   const up = new Vector3(0, 1, 0);
   const out = new Float32Array(16 * STOCK_SLOTS.length);

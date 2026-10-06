@@ -63,7 +63,7 @@ const rubble = {
     noise: {
       warpU: fbm(4, 3, 7), warpV: fbm(4, 3, 8),
       stone: cells(11, 0, 1.0, { sy: 1, warp: { u: ['warpU', 0.05, -0.5], v: ['warpV', 0.05, -0.5] } }),
-      bump: fbm(30, 3, 1), washN: fbm(4, 5, 2), chip: fbm(50, 2, 3),
+      bump: fbm(30, 3, 1), washN: fbm(7, 5, 2), chip: fbm(50, 2, 3),
     },
     glsl: `
       int id = int( stone.id );
@@ -71,22 +71,23 @@ const rubble = {
       float joint = sstep( 0.025, 0.1, stone.edge );
       float h = mix( 0.12 + chip * 0.08, face, joint );
       // The lime wash: a thin flat skin over stone and joint alike, where it holds.
-      float wash = sstep( 0.5, 0.56, washN + ( 0.5 - uv.y ) * 0.12 );
-      return vec4( mix( h, 0.62 + bump * 0.04, wash * 0.85 ), joint, stone.id, wash );`,
+      float wash = sstep( 0.36, 0.42, washN + ( 0.5 - uv.y ) * 0.08 );
+      return vec4( mix( h, 0.62 + bump * 0.04, wash * 0.6 ), joint, stone.id, wash );`,
   },
   blur: [3],
   colour: {
     noise: { tone: fbm(3, 3, 9), dirt: fbm(10, 3, 10, { sx: 0.2 }) },
     glsl: `
       float cav = cavity( F.x, B.x, 4.0 );
-      vec3 stones[5] = ${rgbs(['#8c8576', '#a59877', '#9d8a63', '#7a6f60', '#b0a58c'])};
+      vec3 stones[5] = ${rgbs(['#9a8c74', '#b09c78', '#a68c62', '#8a7a64', '#bcac8c'])};
       vec3 s = stones[int( hash2( int( F.z ), 2, uSeed ) * 5.0 )];
       s *= 0.88 + hash2( int( F.z ), 3, uSeed ) * 0.2;
       vec3 mortar = mix( ${rgb('#b2a790')}, ${rgb('#958a74')}, tone );
       col = mix( mortar, s, F.y );
       // The wash: chalky cream, greyed by rain.
-      vec3 wash = mix( ${rgb('#d8d0bc')}, ${rgb('#b9b09c')}, sstep( 0.4, 0.75, tone ) );
-      col = mix( col, wash, F.w * 0.9 );
+      vec3 wash = mix( ${rgb('#e2d6bc')}, ${rgb('#c8b898')}, sstep( 0.4, 0.75, tone ) );
+      // A thin wash over all of it, the stone's grain showing through, thicker where it was renewed.
+      col = mix( col, wash, 0.35 + F.w * 0.45 );
       // Streaks down the wall and dirt splashed up from the yard.
       col = mix( col, ${rgb('#6f6554')}, sstep( 0.6, 0.85, dirt ) * 0.25 );
       col = mix( col, ${rgb('#4c4234')}, cav * 0.55 );
@@ -146,10 +147,10 @@ const wicker = {
     glsl: `
       float cav = cavity( F.x, B.x, 4.0 );
       float tone = hash2( int( F.z ), 7, uSeed );
-      col = mix( ${rgb('#a2804f')}, ${rgb('#7d6141')}, tone );
+      col = mix( ${rgb('#c09a62')}, ${rgb('#9c7a50')}, tone );
       col = mix( col, ${rgb('#8b836f')}, sstep( 0.45, 0.8, greyN ) * 0.5 );
-      col *= 0.75 + F.y * 0.3;
-      col = mix( col, ${rgb('#2f251b')}, cav * 0.7 );
+      col *= 0.82 + F.y * 0.25;
+      col = mix( col, ${rgb('#3a2e22')}, cav * 0.5 );
       orm = vec3( 1.0 - cav * 0.6, 0.85, 0.0 );`,
   },
   normal: { depth: 0.006 / 0.4 },

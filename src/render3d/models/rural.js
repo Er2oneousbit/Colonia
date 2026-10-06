@@ -77,7 +77,7 @@ export function ruralMaterials() {
     thatch: material('thatch', { surface: 'thatch', vertexColors: true, snow: 1 }),
     bark: material('bark', { surface: 'bark', vertexColors: true, snow: 0.6 }),
     wicker: material('wicker', { surface: 'wicker', vertexColors: true, snow: 0.8 }),
-    sack: material('sacking', { surface: 'wool', vertexColors: true, color: 0xd9c7a0, snow: 0.8 }),
+    sack: material('sacking', { surface: 'wool', vertexColors: true, color: 0xc2a477, snow: 0.8 }),
     earth: material('beaten-earth', { surface: 'earth', vertexColors: true, snow: 1 }),
     // Plain colours carried by the vertices: leaves and blossom, the animals' coats, fruit and
     // vegetables (one program for all: materials.js PLAIN).
@@ -331,9 +331,10 @@ export function gableRoof({ x0, x1, z0, z1, eaveY, pitch = D(22), along = 'z', l
       for (let k = 0; k <= n; k++) {
         const x = -L / 2 + 0.15 + (k * (L - 0.3)) / n;
         const r = blk(lod, 0.09, 0.11, over + 0.2, { bevel: 0.012, seed: seed + 30 + k, wobble: 0.003, grime: 0, seg: 1 });
-        r.translate(0, -0.05, 0);
+        // (Under the boards: its top a hand below the tiles over it, as a rafter's end shows under an eave.)
+        r.translate(0, -0.11, 0);
         r.rotateX(s * pitch);
-        r.translate(x, eaveY + 0.02, s * (H + over / 2 - 0.05));
+        r.translate(x, eaveY + 0.02 - (over / 2 - 0.05) * Math.tan(pitch) - 0.06, s * (H + over / 2 - 0.05));
         if (!alongX) r.rotateY(Math.PI / 2);
         r.translate(cx, 0, cz);
         wood.push(r);
@@ -669,13 +670,13 @@ export function wattleFence(points, { h = 0.95, seed = 1, lod = 0 } = {}) {
  * A sack of grain (or of beans, flour, chaff), standing: a soft bag of
  * coarse cloth, bulging, its neck tied. w x h, on y = 0.
  */
-export function sack(w = 0.42, h = 0.62, seed = 1, lod = 0) {
-  const g = block(w, h * 0.86, w * 0.78, { bevel: Math.min(w, h) * 0.32, seed, wobble: 0.025, grime: 0.15, seg: lod ? 1 : 2, topSag: 0.06 });
+export function sack(w = 0.42, h = 0.62, seed = 1, lod = 0, tie = 0.25) {
+  const g = block(w, h * 0.86, w * 0.78, { bevel: Math.min(w, h) * 0.32, seed, wobble: 0.025, grime: 0.15, seg: 1, topSag: 0.06 });
   // Bulge the middle, pinch toward the neck.
   const pos = g.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i) / (h * 0.86);
-    const k = 1 + 0.12 * Math.sin(Math.PI * Math.min(1, y * 1.1)) - 0.25 * smoothstep(0.75, 1, y);
+    const k = 1 + 0.12 * Math.sin(Math.PI * Math.min(1, y * 1.1)) - tie * smoothstep(0.75, 1, y);
     pos.setX(i, pos.getX(i) * k);
     pos.setZ(i, pos.getZ(i) * k);
   }
@@ -693,7 +694,8 @@ export function sack(w = 0.42, h = 0.62, seed = 1, lod = 0) {
 
 /** A sack lying on its side (a stack's lower rows). */
 export function sackLying(w = 0.42, h = 0.62, seed = 1, lod = 0) {
-  const g = sack(w, h, seed, lod);
+  // (Laid down, a sack slumps into a pillow: its neck folded under, hardly pinched.)
+  const g = sack(w, h, seed, lod, 0.08);
   g.translate(0, -h / 2, 0);
   g.rotateZ(Math.PI / 2);
   g.translate(0, w * 0.39, 0);
