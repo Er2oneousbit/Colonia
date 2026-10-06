@@ -21,6 +21,7 @@
 import { fbm, ridge, cells } from './paint/recipe.js';
 import { rgb, rgbs, glf } from './paint/glsl.js';
 import { RURAL_SURFACES } from './surfacesRural.js';
+import { FLORA_SURFACES } from './surfacesFlora.js';
 
 /**
  * Limestone of the puteal (the well's curb): a fine pale stone with grain,
@@ -559,6 +560,8 @@ export const SURFACES = Object.freeze({
   brick: { metres: 0.96, size: 512, ...brick },
   // The farms' and the granary's (surfacesRural.js).
   ...RURAL_SURFACES,
+  // The countryside's trees and rocks (surfacesFlora.js): sprays of leaves cut out by their alpha, barks, limestone.
+  ...FLORA_SURFACES,
 });
 
 /** The surfaces as one set of recipes (one program paints them all: paint/painter.js). */

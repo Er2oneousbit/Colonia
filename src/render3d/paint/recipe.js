@@ -126,8 +126,8 @@ export function packRecipe(recipe) {
 /**
  * The fragment shader of a program painting `recipes` (an array: the
  * uniform uRecipe is an index into it). uStage: 0 the fields, 1 the albedo
- * (alpha 1, or for a ground layer, uGround, its height normalised by the
- * range in uRange), 2 the occlusion, roughness and metalness (or plants),
+ * (alpha 1; for a ground layer, uGround 1, its height normalised by the
+ * range in uRange; for a cut-out, uGround 2, the fields' w), 2 the occlusion, roughness and metalness (or plants),
  * with `dec` in the alpha.
  */
 export function recipeShader(recipes) {
@@ -188,6 +188,9 @@ ${colourCases.join('\n')}
     if ( uGround == 1 ) {
       vec2 r = texelFetch( uRange, ivec2( 0 ), 0 ).xy;
       a = r.y > r.x ? clamp( ( F.x - r.x ) / ( r.y - r.x ), 0.0, 1.0 ) : 0.0;
+    } else if ( uGround == 2 ) {
+      // A cut-out (a spray of leaves): its coverage, the fields' w.
+      a = clamp( F.w, 0.0, 1.0 );
     }
     outColor = vec4( srgbToLinear( col ), a );
   } else {
