@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.13)
+
+* **Trees and rocks in 3D** (under WebGL with the 3D ground): fourteen species of Italy and the western provinces as the Roman writers describe them, each known by its outline: the Italian cypress's flame, the stone pine's parasol, holm and downy oaks, the sweet chestnut, the oriental plane, white poplars and pollarded willows by the water, wild olive, laurel and myrtle, wild cherry and almond in blossom in spring, date palms at desert oases. Where each grows comes from the map (banks, dry ground, the province), in stands of one kind. Deciduous trees turn in autumn and stand bare in winter, snow lies on the branches, the crowns sway in the wind and rain darkens the bark. Rocks are bedded limestone outcrops with lichen and moss, boulders and scree, dark lava on volcanic maps. Far out, trees are drawn as pictures baked on the GPU, so a whole Uber map of forest costs a fraction of a millisecond; up close, about 3 ms a frame
+* Headless sim: identical to v0.20.12 on every difficulty
+* 1186 unit tests, 251 browser checks
+
 ## Done (v0.20.12)
 
 * **Closer zoom under WebGL**: three more zoom levels, 3x, 4x and 6x, to see the 3D art up close (the wheel, + and -, and a pinch reach them); the models show their finest detail there, the market's awnings and the idle farms' weeds were remade to hold up at 6x, and the flat art still in use is drawn sharp up to 4x and smoothly enlarged past it. Classic keeps its five levels: switching to it, or opening a game saved at 4x in it, goes to its closest zoom on the same spot. Measured on a Large city at a pixel ratio of 2: about 20 ms a frame at every zoom; the F3 readout shows the zoom and the sprite memory
@@ -876,7 +882,7 @@ Ideas that would change the original's economy or rules; each would come as an o
 * Performance: cache static terrain into chunk canvases for the most zoomed-out view. When the screen is full of tiles (the middle of a Large or Uber map) that view costs about 16 ms a frame in headless Chromium against 4 ms one zoom level in; chunks would cut its thousands of ground draw calls to a few dozen (see ARCHITECTURE.md, *Draw calls*).
 * Smaller saves for very big cities: buildings are about 0.8 KB each in a save (mostly the house record), so a 1,500-building capital needs about 1.5 MB per slot. Dropping default-valued fields, or compressing the whole save, would stretch the ~5 MB browser allowance further.
 * **The capacity model and the Arena's longer walk** (v0.19.11): the model still plans the Great Arena's performers at 26 tiles, not 52; planning them at 52 lowers the job ceilings of missions 5 to 10 by 400 to 1,100 people, so it waits for the next look at the late missions' goals.
-* **A street-level camera (WebGL)**: tilt and turn the camera down to street height to see the 3D art up close, at first as a photo mode for looking round the city. It needs the trees, the common buildings and the walkers as 3D models first: today's flat sprites are drawn for the overhead view and would read as cards lying on the ground from low down. 
+* **A street-level camera (WebGL)**: tilt and turn the camera down to street height to see the 3D art up close, at first as a photo mode for looking round the city. It needs the common buildings and the walkers as 3D models first (the trees and rocks are 3D since v0.20.13): today's flat sprites are drawn for the overhead view and would read as cards lying on the ground from low down. 
 * **The WebGL renderer, phase 2**: more 3D models, one building type at a time, then walkers and units; terrain relief; real lighting and shadows in place of the 2D shadow shapes and the night light map for what is still a sprite (the models cast real shadows already); the night lit in 3D, so water and stone catch the lamps; models fading in as they are built (they now pop in opaque while rising); overlays, coverage and signs merged into the scene's depth; a sprite atlas to cut the sprites' draw calls (the models are instanced already); loading three.js only for players who pick WebGL, so Classic players do not download its 543 KB.
 
 ## Decisions
