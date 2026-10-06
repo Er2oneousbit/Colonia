@@ -96,8 +96,20 @@ export function ruralMaterials() {
  * hundred triangles each.
  */
 export function blk(lod, w, h, d, opts = {}) {
-  if (lod === 0) return block(w, h, d, opts);
+  // (A board or a rung under 7 cm thick shows no bevel at any zoom: a plain box at every level.)
+  if (lod === 0 && Math.min(w, h, d) >= 0.07) {
+    // (Sizes to the nearest 4 cm and the bevel to a centimetre: shapes.js keeps a rounded box made
+    // for each size, and making one is most of a block's cost; a farm's hundred stones of a few
+    // sizes then share a few. The wobble hides the rounding.)
+    const q = (v) => (v < 0.1 ? Math.max(0.01, Math.round(v * 200) / 200) : Math.round(v * 25) / 25);
+    return block(q(w), q(h), q(d), { ...opts, bevel: Math.max(0.005, Math.round((opts.bevel ?? 0.02) * 100) / 100) });
+  }
   const g = new BoxGeometry(w, h, d);
+  if (lod === 0) {
+    // (Its wobble, a little, so a thin board is not ruler-straight next to a bevelled stone.)
+    const rot = ((((opts.seed || 0) * 0.3779) % 1) - 0.5) * (opts.wobble || 0) * 3;
+    g.rotateY(rot);
+  }
   g.translate(0, h / 2, 0);
   boxUV(g, ((opts.seed || 0) * 0.37) % 3, ((opts.seed || 0) * 0.61) % 3);
   const grime = opts.grime || 0;

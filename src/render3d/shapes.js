@@ -222,7 +222,8 @@ function roundedBox(w, h, d, seg, r) {
     g.deleteAttribute('normal');
     g.deleteAttribute('uv');
     g = mergeVertices(g, 1e-5);
-    if (BOXES.size > 256) BOXES.clear();
+    // (A farm or a granary has a few hundred sizes: kept whole while a city's models are built.)
+    if (BOXES.size > 1024) BOXES.clear();
     BOXES.set(key, g);
   }
   return g;

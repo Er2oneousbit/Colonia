@@ -71,6 +71,13 @@ const FIRST_ROOM = 8;
  */
 const SLOW_S = 20;
 const COMPILE_GIVE_UP_S = 30;
+/**
+ * Milliseconds of a frame spent building kits for a new look or level of
+ * detail before the rest wait for the next frames, drawn meanwhile at a
+ * level already built (a farm is a dozen kits: all at once, a zoom to a new
+ * level stalled a frame for 300 ms).
+ */
+const BUILD_MS = 8;
 /** Tries at compiling that may throw before the models give way to the sprites for good. */
 const WARM_TRIES = 3;
 
@@ -240,6 +247,16 @@ export class ModelPass {
     const id = `${key}|${lod}`;
     let k = this.kits.get(id);
     if (k) return k;
+    // Over this frame's budget: the same look at another level, if one is built, until a later frame.
+    if (this.buildUntil && performance.now() > this.buildUntil) {
+      for (const l of [lod + 1, lod - 1, lod + 2, lod - 2]) {
+        const o = this.kits.get(`${key}|${l}`);
+        if (o) {
+          this.deferred++;
+          return o;
+        }
+      }
+    }
     const kit = withColourManagement(() => {
       const group = modelFor(key).build(key, lod);
       const out = kitOf(group);
@@ -248,7 +265,7 @@ export class ModelPass {
       return out;
     });
     const meshes = kit.parts.map((p) => this.instanced(p, FIRST_ROOM));
-    k = { kit, meshes, seen: this.frame, id };
+    k = { kit, meshes, seen: this.frame, id, key, lod };
     this.kits.set(id, k);
     return k;
   }
@@ -312,6 +329,8 @@ export class ModelPass {
     this.month = r.seasonsOn === false || !r.game || !r.game.time ? null : r.game.time.month;
     this.clock = r.motionOn ? r.time || 0 : 0;
     this.life(r);
+    this.buildUntil = performance.now() + BUILD_MS;
+    this.deferred = 0;
     for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
     const byType = {};
     // (The shadow map is cleared rather than drawn when no model wants it: sunRig.js fitShadow.)
@@ -335,6 +354,8 @@ export class ModelPass {
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
     }
     for (const g of ghosts) this.placeGhost(g, lod);
+    this.prefetch(lod);
+    this.buildUntil = 0;
     let tris = 0;
     for (const [id, k] of this.kits) {
       for (const im of k.meshes.concat(ghostMeshes(k))) {
@@ -355,8 +376,30 @@ export class ModelPass {
     if (this.frame % KEEP_FRAMES === 0) {
       for (const [id, e] of this.tiers) if (this.frame - e.seen > KEEP_FRAMES) this.tiers.delete(id);
     }
-    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod };
+    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod, deferred: this.deferred };
     return placed.length;
+  }
+
+  /**
+   * With time left in this frame's budget, build the looks in view at the
+   * levels either side of this one (a zoom step in or out then finds them
+   * ready), one kit a frame at most; those already built are kept alive.
+   */
+  prefetch(lod) {
+    const used = [];
+    for (const k of this.kits.values()) if (k.seen === this.frame && k.lod === lod) used.push(k.key);
+    let built = false;
+    for (const key of used) {
+      for (const l of [lod - 1, lod + 1]) {
+        if (l < 0 || l > 2) continue;
+        const near = this.kits.get(`${key}|${l}`);
+        if (near) near.seen = this.frame;
+        else if (!built && performance.now() < this.buildUntil) {
+          this.kitFor(key, l).seen = this.frame;
+          built = true;
+        }
+      }
+    }
   }
 
   /** One more copy of kit `k` at matrix `m`: its parts that show in `state` (partShows). */
