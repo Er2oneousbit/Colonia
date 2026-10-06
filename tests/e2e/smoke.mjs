@@ -4259,11 +4259,24 @@ try {
       const wasTurned = await gq.evaluate(() => window.colonia.renderer.viewTurn !== 0);
       await gq.evaluate(() => window.colonia.turnView(-window.colonia.renderer.viewTurn));
       if (wasTurned) await gq.waitForFunction((n) => window.colonia.renderer.stats.groundRedraws > n, redraws, { timeout: 15000 }).catch(() => {});
+      // Then read once the picture holds still: two reads three frames apart that agree.
+      // A fixed three frames read a picture still settling under a software GL (the
+      // same overlay read [84,128,181] in one run and [115,145,163] in another).
+      const settled = async () => {
+        let last = await tint();
+        for (let k = 0; k < 20; k++) {
+          await frames(3);
+          const now = await tint();
+          if (now.every((v, c) => Math.abs(v - last[c]) <= 2)) return now;
+          last = now;
+        }
+        return last;
+      };
       await frames(3);
-      const tintBefore = await tint();
+      const tintBefore = await settled();
       await gq.evaluate(() => window.colonia.setOverlay('water'));
       await frames(3);
-      const tintAfter = await tint();
+      const tintAfter = await settled();
       await gq.evaluate(() => window.colonia.setOverlay('none'));
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d-overlay.png') });
       check('3D ground: an overlay\'s tint shows over it (the water overlay turns the well\'s tiles blue)', tintAfter[2] - tintAfter[0] > tintBefore[2] - tintBefore[0] + 15, JSON.stringify({ tintBefore, tintAfter }));
