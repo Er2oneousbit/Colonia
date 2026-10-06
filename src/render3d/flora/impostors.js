@@ -36,7 +36,8 @@ import { patchLook, LOOK_KIND, LOOK } from '../materials.js';
 /** A cell's size (px) and the atlas's (cells across, down). */
 export const CELL = 192;
 export const ATLAS_COLS = 12;
-export const ATLAS_ROWS = 3;
+// (Room for a season's looks and the next one's, baked behind them: flora.js bakeImpostors.)
+export const ATLAS_ROWS = 4;
 
 /** The game camera's axes in the world (projection.js): across the screen, up it, back toward the viewer. */
 const SIN = 0.5;

@@ -254,3 +254,17 @@ test('flora3d: rocks sit in the ground, each level lighter', () => {
     }
   }
 });
+
+test('flora3d: a desert province\'s rocks are bases of their own (their limestone is tinted): a new map never shows the last one\'s', () => {
+  const m = riverMap('rocks');
+  const f = new Flora(null, { slot: new Group() });
+  f.setMap(m, TYR);
+  const keys = (ctx) => {
+    f.setMap(m, ctx);
+    return f.bases.filter((b) => !b.tree && b.total).map((b) => b.key);
+  };
+  const plain = keys(TYR);
+  const warm = keys(climateOf({ type: 'desert', region: 'Hispania' }));
+  assert.ok(plain.length && warm.length);
+  assert.ok(warm.every((k) => k.endsWith(':warm')) && plain.every((k) => !k.endsWith(':warm')));
+});

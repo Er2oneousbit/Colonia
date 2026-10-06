@@ -10,7 +10,7 @@
  * has trees while it is forest with no road or building on it, rocks while
  * it is rock with no building (as the 2D renderer draws their sprites).
  *
- *   - Chunks of 32 x 32 tiles hold their tiles' plants and rocks. A change
+ *   - Chunks of 16 x 16 tiles hold their tiles' plants and rocks. A change
  *     of the map (its revision) is looked for in its layers (terrain, roads,
  *     buildings), and only the chunks whose tiles changed are laid out
  *     again: a timber yard's clearing or a building placed over a wood shows
@@ -81,7 +81,8 @@ export function tileFlora(map, i) {
 
 /** A base's key: a species in a shape, or a rock kind in a shape. */
 const treeBase = (sp, v) => `t:${sp}:${v}`;
-const rockBase = (kind, v) => `r:${kind}:${v}`;
+// (A rock's kit is tinted by the province, the desert's limestone yellower: its base says which.)
+const rockBase = (kind, v, warm) => `r:${kind}:${v}${warm ? ':warm' : ''}`;
 
 export class Flora {
   /**
@@ -187,7 +188,7 @@ export class Flora {
           }
         } else if (s === 2) {
           for (const p of rocksOfTile(map, i, this.ctx)) {
-            const b = this.baseOf(rockBase(p.kind, p.v), false, p.kind, p.v);
+            const b = this.baseOf(rockBase(p.kind, p.v, this.ctx && this.ctx.desert), false, p.kind, p.v);
             ch.recs.push({ b, i, x: x + p.x, z: y + p.z, yaw: p.yaw, s: p.s });
           }
         }
@@ -265,7 +266,7 @@ export class Flora {
   update(o) {
     this.frame++;
     if (!this.map) return 0;
-    const { lod = 1, month = null, turn = 0, hidden = null, budget = 8, shadows = false, bake = true, rect = null } = o;
+    const { lod = 1, month = null, turn = 0, hidden = null, budget = 8, shadows = false, bake = true, rect = null, swapOk = true } = o;
     const until = performance.now() + budget;
     // 1. The kits this frame wants: every base on the map, at this month's look and this level.
     let missing = 0;
@@ -282,8 +283,9 @@ export class Flora {
         swap = false;
       }
     }
-    // 2. Swapped in whole: every base takes the wanted kit once all are built.
-    if (swap) {
+    // 2. Swapped in whole: every base takes the wanted kit once all are built (and, the caller says,
+    // their programs compiled: a program first made at its draw stalls the page).
+    if (swap && (swapOk || this.bases.some((b) => b.total && !b.shown))) {
       for (const base of this.bases) {
         if (!base.total) continue;
         const look = this.lookOf(base, month);
@@ -383,44 +385,50 @@ export class Flora {
    */
   bakeImpostors(month, until) {
     if (!this.atlas) this.atlas = new ImpostorAtlas(this.gl);
+    const trees = this.bases.filter((b) => b.tree && b.total);
+    // (None shown yet, the first zoom out: nothing else to draw them with but their meshes, so all at once.)
+    const first = !trees.some((b) => b.cell);
     let all = true;
-    for (const base of this.bases) {
-      if (!base.tree || !base.total) continue;
+    for (const base of trees) {
       const look = this.lookOf(base, month);
       const key = `${base.key}|${look}`;
-      if (this.atlas.cells.has(key)) {
-        base.cell = this.atlas.cells.get(key);
-        continue;
-      }
-      if (performance.now() > until) {
+      if (this.atlas.cells.has(key)) continue;
+      if (!first && performance.now() > until) {
         all = false;
         continue;
       }
-      const k = this.kitFor(base, look, 1, true);
+      const k = this.kitFor(base, look, 1, first || performance.now() < until);
+      if (!k) {
+        all = false;
+        continue;
+      }
       k.seen = this.frame;
       // (The tree's mean colour clears its cell: its mipmaps fade toward it, not toward black.)
       k.kit.mean = meanColour(base.name, look);
-      // An atlas full of last season's looks: let the looks no base shows go.
+      // An atlas full of last season's looks: let the looks no base shows or wants go.
       if (this.atlas.full) this.freeCells(month);
-      const cell = this.atlas.bake(key, k.kit);
-      if (!cell) {
-        all = false;
-        continue;
+      if (!this.atlas.bake(key, k.kit)) all = false;
+    }
+    // A season's new pictures swapped in whole, as the kits are: until all are baked the last
+    // season's stand (a far wood never drops to its meshes for the frames the bakes take).
+    if (all) {
+      for (const base of trees) {
+        const key = `${base.key}|${this.lookOf(base, month)}`;
+        const cell = this.atlas.cells.get(key);
+        if (base.cell !== cell) {
+          base.cell = cell;
+          base.cellKey = key;
+          this.sig = '';
+        }
       }
-      base.cell = cell;
-      this.sig = '';
     }
-    // Every base must have its cell for this look.
-    for (const base of this.bases) {
-      if (!base.tree || !base.total) continue;
-      if (!this.atlas.cells.has(`${base.key}|${this.lookOf(base, month)}`)) all = false;
-    }
-    return all;
+    return trees.every((b) => b.cell);
   }
 
-  /** Free the impostor cells of looks no base wants this month. */
+  /** Free the impostor cells of looks no base wants this month or shows still. */
   freeCells(month) {
     const want = new Set(this.bases.filter((b) => b.tree && b.total).map((b) => `${b.key}|${this.lookOf(b, month)}`));
+    for (const b of this.bases) if (b.cellKey) want.add(b.cellKey);
     for (const key of [...this.atlas.cells.keys()]) if (!want.has(key)) this.atlas.drop(key);
   }
 
@@ -573,6 +581,28 @@ export class Flora {
     return out;
   }
 
+  /**
+   * A group holding one card of every material of every kit built (shown or
+   * not: a kit is built behind the one shown), for compiling their programs
+   * before they draw (floraPass.js warm). The caller frees it.
+   */
+  warmGroup() {
+    const g = new Group();
+    const seen = new Set();
+    for (const k of this.kits.values()) {
+      for (const part of k.kit.parts) {
+        if (seen.has(part.material)) continue;
+        seen.add(part.material);
+        const im = new InstancedMesh(part.geometry, part.material, 1);
+        im.receiveShadow = part.material.userData.receive !== false;
+        im.castShadow = part.cast;
+        im.count = 0;
+        g.add(im);
+      }
+    }
+    return g;
+  }
+
   /** Is every base on the map shown (some look, some level)? */
   get complete() {
     return this.bases.every((b) => !b.total || b.shown);
@@ -604,7 +634,10 @@ export class Flora {
       this.imp.mesh.dispose();
       this.imp = null;
     }
-    for (const b of this.bases) b.cell = null;
+    for (const b of this.bases) {
+      b.cell = null;
+      b.cellKey = null;
+    }
     this.sig = '';
   }
 

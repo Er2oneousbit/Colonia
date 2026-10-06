@@ -425,7 +425,7 @@ export class WebGLBackend {
     this.drawsGround = !!this.groundPass && this.groundPass.sync(r, this.camera);
     this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
     // The trees and rocks: their map's changes, and whether they draw as models this frame.
-    this.drawsFlora = this.flora.sync(r, this.drawsGround);
+    this.drawsFlora = this.flora.sync(r, this.drawsGround, !!this.groundPass);
     // The models' programs, compiled in the background for the light they are drawn in.
     this.models.warm(this.camera, this.rig.sun.castShadow);
     // (Never waiting silently: a GPU that will not ready them is told to the console and the readout.)

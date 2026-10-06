@@ -47,6 +47,8 @@ const RISE_PX = 150;
 const REACH_PX = 80;
 /** Trees cast into the sun's shadow map only with fewer than this many in view (a wide view's shadows are a few pixels and cost a pass over every tree). */
 const SHADOW_MAX_TREES = 3500;
+/** World px a tree's shadow may reach into the view from off it (a low sun: about a tile and a half of the 2D projection's ground per 10 m of tree). */
+const SHADOW_REACH_PX = 260;
 
 /** Run `fn` with three's colour management on (the look's colours are sRGB to convert: modelPass.js). */
 function withColour(fn) {
@@ -78,12 +80,7 @@ export class FloraPass {
     // (Drawn with the opaque parts; sunRig.js renderModels leaves it out of the see-through draw.)
     this.flora.group.userData.opaque = true;
     this.flora.group.visible = false;
-    for (const name of Object.keys(FLORA_SURFACES)) {
-      const t = surfaceTextures(name);
-      // The sprays without anisotropic filtering: a card seen edge on asked for up to eight times the
-      // reads of every layer of a wood, for an edge the alpha cuts anyway.
-      if (FLORA_SURFACES[name].alpha) for (const k of ['map', 'normalMap', 'orm']) t[k].anisotropy = 1;
-    }
+    this.asked = false;
     // The impostors' card and material from the start, so the first compile makes their program too.
     this.flora.prepareImpostors();
     this.map = null;
@@ -102,7 +99,18 @@ export class FloraPass {
    * At the frame's start: the map's changes, and whether the flora draws
    * this frame (with the 3D ground drawn, `ground`).
    */
-  sync(r, ground) {
+  sync(r, ground, hasGround) {
+    this.hasGround = hasGround;
+    // The textures, asked for with the 3D ground (with the flat ground nothing of this is drawn).
+    if (hasGround && !this.asked) {
+      this.asked = true;
+      for (const name of Object.keys(FLORA_SURFACES)) {
+        const t = surfaceTextures(name);
+        // The sprays without anisotropic filtering: a card seen edge on asked for up to eight times
+        // the reads of every layer of a wood, for an edge the alpha cuts anyway.
+        if (FLORA_SURFACES[name].alpha) for (const k of ['map', 'normalMap', 'orm']) t[k].anisotropy = 1;
+      }
+    }
     const game = r.game;
     if (!game || !game.map) return (this.ready = false);
     if (game.map !== this.map) {
@@ -132,10 +140,17 @@ export class FloraPass {
     if (this.compiling || this.lost) return;
     const key = this.programKey();
     if (key === this.compiledFor || !this.flora.materials().size) return;
+    // Every kit built, shown or not (the next level's, the next season's: built behind the shown ones),
+    // a card of each material in a hidden group with the flora's own (three compiles what is hidden too).
     const g = this.flora.group;
+    const extra = this.flora.warmGroup();
+    extra.visible = false;
+    g.add(extra);
     const job = this.rig.withOutput(() => this.gl.compileAsync(g, camera, this.rig.scene));
     this.compiling = job;
     const done = () => {
+      g.remove(extra);
+      for (const im of extra.children) im.dispose();
       if (this.compiling !== job) return;
       this.compiling = null;
       this.compiledFor = key;
@@ -183,7 +198,11 @@ export class FloraPass {
    */
   update(r, camera, draw, groundMode) {
     const f = this.flora;
-    if (!this.map) return 0;
+    // (The flat ground: the sprites stand for the trees, and nothing of theirs is prepared.)
+    if (!this.map || !this.hasGround) {
+      f.group.visible = false;
+      return 0;
+    }
     const cam = r.camera;
     const scale = groundMode === 'low' ? cam.scale / 2 : cam.scale;
     this.lod = floraLod(CONFIG.TILE_W * scale);
@@ -192,7 +211,13 @@ export class FloraPass {
     const chunks = this.chunksInView(cam, turn);
     f.group.visible = draw;
     const rect = { x0: cam.x, y0: cam.y, x1: cam.x + cam.viewW / cam.scale, y1: cam.y + cam.viewH / cam.scale };
-    this.drawn = f.update({ chunks, rect, lod: this.lod, month, turn, hidden: null, budget: draw ? BUILD_MS : FIRST_BUILD_MS, shadows: false, bake: !!this.painted && !this.lost });
+    // Casting, the trees just off the view's top and left (the sun's side) throw their shadows into it.
+    if (this.lod <= 1 && this.rig.sun.castShadow) {
+      rect.x0 -= SHADOW_REACH_PX;
+      rect.y0 -= SHADOW_REACH_PX;
+    }
+    const swapOk = !this.compiling && this.compiledFor === this.programKey();
+    this.drawn = f.update({ chunks, rect, swapOk, lod: this.lod, month, turn, hidden: null, budget: draw ? BUILD_MS : FIRST_BUILD_MS, shadows: false, bake: !!this.painted && !this.lost });
     this.warm(camera);
     return draw ? this.drawn : 0;
   }
