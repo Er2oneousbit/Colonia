@@ -194,7 +194,7 @@ function balls(lod, n, r, x, y, z, colours, seed, spread = 0.12) {
     const count = rr < r * 0.6 ? 1 : Math.max(3, Math.floor((Math.PI * 2 * rr) / (r * 2.05)));
     const turn = rnd() * Math.PI * 2;
     for (let j = 0; j < count && k < n; j++, k++) {
-      // (Twenty faces: a fruit is a few pixels across at the game's closest zoom.)
+      // (Twenty faces: a fruit is about a dozen pixels across even at the WebGL renderer's closest zoom, 6x.)
       const g = new IcosahedronGeometry(r * (0.85 + rnd() * 0.3), 0);
       const a = turn + (j / count) * Math.PI * 2;
       g.translate(x + Math.cos(a) * rr, y + r + layer * r * 1.25, z + Math.sin(a) * rr);

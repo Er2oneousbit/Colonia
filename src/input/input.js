@@ -28,7 +28,7 @@ import { BUILDINGS } from '../data/buildings.js';
 
 export const KEY_HELP = [
   ['W A S D / Arrow keys', 'Scroll the map'],
-  ['Mouse wheel, + / -', 'Zoom in / out (eases toward the cursor)'],
+  ['Mouse wheel, + / -', 'Zoom in / out (eases toward the cursor); the WebGL renderer zooms in closer, to 6x, to see the 3D models up close'],
   ['Left click (no tool)', 'Inspect a building, a walker or a tile'],
   ['Left drag (no tool)', 'Scroll the map; let go while moving to fling it'],
   ['Right click', 'Cancel tool / close panel'],

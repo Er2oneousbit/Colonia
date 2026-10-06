@@ -134,11 +134,17 @@ export class Minimap {
     // camera frame: 1 minimap px = HALF_W world px
     const v = camera.viewRect();
     const unit = HALF_W; // world px per minimap px
-    const fx = ox + (v.x / unit + VH - 1) * scale;
-    const fy = oy + (v.y / unit) * scale;
+    // (Never smaller than 6 x 4 px, round the same middle: at the WebGL renderer's closest zooms
+    // on a big map the view is a few minimap pixels across, and a frame that small was lost.)
+    const w = (v.w / unit) * scale;
+    const h = (v.h / unit) * scale;
+    const fw = Math.max(6, Math.round(w));
+    const fh = Math.max(4, Math.round(h));
+    const fx = ox + (v.x / unit + VH - 1) * scale + (fw > Math.round(w) ? (w - fw) / 2 : 0);
+    const fy = oy + (v.y / unit) * scale + (fh > Math.round(h) ? (h - fh) / 2 : 0);
     ctx.strokeStyle = '#fff5d6';
     ctx.lineWidth = 1;
-    ctx.strokeRect(Math.round(fx) + 0.5, Math.round(fy) + 0.5, Math.round((v.w / unit) * scale), Math.round((v.h / unit) * scale));
+    ctx.strokeRect(Math.round(fx) + 0.5, Math.round(fy) + 0.5, fw, fh);
     // soldiers (white), raiders (red) and wolves (amber), drawn live every frame
     for (const u of game.units.values()) {
       const [px, py] = at(u.x, u.y);

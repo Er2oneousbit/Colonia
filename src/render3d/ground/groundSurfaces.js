@@ -5,8 +5,10 @@
  * shader's texture arrays (groundMaterial.js), painted on the GPU
  * (paint/painter.js; how a recipe is written: paint/recipe.js) as
  * surfaces.js paints the well's stone, but for ground seen from a city
- * builder's height: a tile is 4 m, the closest zoom shows about 45 px a
- * metre, so 256 px textures over 2 to 5 m are sharp enough and cheap.
+ * builder's height: a tile is 4 m, 2x shows about 45 px a metre, so 256 px
+ * textures over 2 to 5 m are sharp enough and cheap (the WebGL renderer's
+ * 4x shows about 90, about a texel a pixel for grass; 6x about 136, a little
+ * soft, with no repeat to be seen: docs/ARCHITECTURE.md "The textures").
  *
  * The kinds follow the Mediterranean countryside of the Roman provinces:
  * short grazed pasture, lush meadow with flowers (the fertile land farms
