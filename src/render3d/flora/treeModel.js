@@ -66,8 +66,8 @@ export const ENVELOPES = Object.freeze({
 });
 
 /** Sprays a square metre of crown at each level of detail, and their size against level 0's. */
-const LOD_CARDS = [1.2, 0.3];
-const LOD_SIZE = [1.25, 2.1];
+const LOD_CARDS = [0.55, 0.2];
+const LOD_SIZE = [1.45, 2.1];
 
 const V = (x, y, z) => new Vector3(x, y, z);
 

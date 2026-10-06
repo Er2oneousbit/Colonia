@@ -78,7 +78,12 @@ export class FloraPass {
     // (Drawn with the opaque parts; sunRig.js renderModels leaves it out of the see-through draw.)
     this.flora.group.userData.opaque = true;
     this.flora.group.visible = false;
-    for (const name of Object.keys(FLORA_SURFACES)) surfaceTextures(name);
+    for (const name of Object.keys(FLORA_SURFACES)) {
+      const t = surfaceTextures(name);
+      // The sprays without anisotropic filtering: a card seen edge on asked for up to eight times the
+      // reads of every layer of a wood, for an edge the alpha cuts anyway.
+      if (FLORA_SURFACES[name].alpha) for (const k of ['map', 'normalMap', 'orm']) t[k].anisotropy = 1;
+    }
     // The impostors' card and material from the start, so the first compile makes their program too.
     this.flora.prepareImpostors();
     this.map = null;
@@ -186,7 +191,8 @@ export class FloraPass {
     const turn = cam.turn & 3;
     const chunks = this.chunksInView(cam, turn);
     f.group.visible = draw;
-    this.drawn = f.update({ chunks, lod: this.lod, month, turn, hidden: null, budget: draw ? BUILD_MS : FIRST_BUILD_MS, shadows: false, bake: !!this.painted && !this.lost });
+    const rect = { x0: cam.x, y0: cam.y, x1: cam.x + cam.viewW / cam.scale, y1: cam.y + cam.viewH / cam.scale };
+    this.drawn = f.update({ chunks, rect, lod: this.lod, month, turn, hidden: null, budget: draw ? BUILD_MS : FIRST_BUILD_MS, shadows: false, bake: !!this.painted && !this.lost });
     this.warm(camera);
     return draw ? this.drawn : 0;
   }

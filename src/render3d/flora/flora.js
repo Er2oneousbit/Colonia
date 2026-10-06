@@ -47,6 +47,11 @@ import { buildTree } from './treeModel.js';
 import { buildRock } from './rockModel.js';
 import { ImpostorAtlas, impostorGeometry, CAM_R, CAM_B, UPRIGHT } from './impostors.js';
 import { lin } from '../models/rural.js';
+import { HALF_W, HALF_H } from '../../config.js';
+
+/** World px a tree may reach across from its foot, and rise above it (the tallest crown at the 2D projection's scale). */
+const REACH_PX = 80;
+const RISE_PX = 150;
 
 /** Tiles a chunk's side (culled whole: 16 keeps what is drawn off the screen to a margin). */
 export const CHUNK = 16;
@@ -251,7 +256,8 @@ export class Flora {
   /**
    * Prepare and draw this frame's flora. `o`: { chunks (indices in view, or
    * null for all), lod (0..2), month (or null), turn, hidden (a Set of map
-   * tiles to leave out, or null), budget (ms for building kits; Infinity
+   * tiles to leave out, or null), rect (the view in world px, { x0, y0, x1,
+   * y1 }: what is off it is left out; null for all), budget (ms for building kits; Infinity
    * builds all at once), shadows (cast into the sun's shadow map), bake
    * (the textures are painted: impostors may be baked) }.
    * Returns how many are drawn.
@@ -259,7 +265,7 @@ export class Flora {
   update(o) {
     this.frame++;
     if (!this.map) return 0;
-    const { lod = 1, month = null, turn = 0, hidden = null, budget = 8, shadows = false, bake = true } = o;
+    const { lod = 1, month = null, turn = 0, hidden = null, budget = 8, shadows = false, bake = true, rect = null } = o;
     const until = performance.now() + budget;
     // 1. The kits this frame wants: every base on the map, at this month's look and this level.
     let missing = 0;
@@ -293,10 +299,13 @@ export class Flora {
     // 4. The instances, filled again only when something they depend on changed.
     const chunks = o.chunks || this.chunks.map((_, c) => c);
     const hidKey = hidden && hidden.size ? [...hidden].join(',') : '';
-    const sig = `${chunks.join(',')}|${turn}|${lod}|${impostors}|${this.version}|${hidKey}|${this.bases.map((b) => (b.shown ? b.shown.id : '')).join(';')}`;
+    // (The view's rectangle by steps of an eighth of its width: panning refills a few times across a screen, not every frame.)
+    const q = rect ? Math.max(64, (rect.x1 - rect.x0) / 8) : 0;
+    const rk = rect ? [rect.x0, rect.y0, rect.x1, rect.y1].map((v) => Math.floor(v / q)).join(',') : '';
+    const sig = `${chunks.join(',')}|${rk}|${turn}|${lod}|${impostors}|${this.version}|${hidKey}|${this.bases.map((b) => (b.shown ? b.shown.id : '')).join(';')}`;
     if (sig !== this.sig) {
       this.sig = sig;
-      this.fill(chunks, turn, hidden, impostors);
+      this.fill(chunks, turn, hidden, impostors, rect && { x0: (Math.floor(rect.x0 / q) - 1) * q, y0: (Math.floor(rect.y0 / q) - 1) * q, x1: (Math.floor(rect.x1 / q) + 2) * q, y1: (Math.floor(rect.y1 / q) + 2) * q });
     }
     // 5. Shadows (near the view only: the caller says), kits seen, the old ones freed.
     let tris = 0;
@@ -416,7 +425,7 @@ export class Flora {
   }
 
   /** Fill every base's instances (and the impostors') from the chunks in view. */
-  fill(chunks, turn, hidden, impostors) {
+  fill(chunks, turn, hidden, impostors, rect = null) {
     const map = this.map;
     const W = map.w;
     const H = map.h;
@@ -438,6 +447,13 @@ export class Flora {
         if (hidden && hidden.has(r.i)) continue;
         if (!this.bases[r.b].shown) continue;
         const [vx, vz] = toView(r.x, r.z, turn, W, H);
+        // Off the view (in world px, the 2D projection's: a crown reaches a tile across and rises
+        // two above its foot), not drawn: a chunk is many screens' worth of trees close up.
+        if (rect) {
+          const X = (vx - vz) * HALF_W;
+          const Y = (vx + vz) * HALF_H;
+          if (X < rect.x0 - REACH_PX || X > rect.x1 + REACH_PX || Y < rect.y0 || Y > rect.y1 + RISE_PX) continue;
+        }
         list.push({ r, vx, vz, d: vx * B.x + vz * B.z });
       }
     }

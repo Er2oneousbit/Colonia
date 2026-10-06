@@ -187,7 +187,7 @@ function leafSpray({ leaves, len, pet, half, angle = 0.8, tipward = 0, serr = 0,
  * lobes (the radius by the angle from the leaf's axis), veins from the
  * stalk's end to each lobe.
  */
-function palmateSpray({ leaves = 9, len = 0.3 } = {}) {
+function palmateSpray({ leaves = 12, len = 0.32 } = {}) {
   return `${CELL(2, 2)}
       ${TWIG(0.76)}
       for ( int k = 0; k < ${leaves}; k++ ) {
@@ -234,7 +234,7 @@ function palmateSpray({ leaves = 9, len = 0.3 } = {}) {
  * The stone pine's shoot: needles in pairs all along it, angled forward
  * and out, a brush of them at its tip; two shorter shoots off its foot.
  */
-function needleSpray({ pairs = 22 } = {}) {
+function needleSpray({ pairs = 30 } = {}) {
   return `${CELL(2, 2)}
       ${TWIG(0.7, 0.014)}
       for ( int k = 0; k < ${pairs + 8}; k++ ) {
@@ -592,12 +592,12 @@ const crag = {
 
 /** The countryside's flora and rock surfaces, in surfaces.js's form (metres a repeat, texture size, recipe). */
 export const FLORA_SURFACES = Object.freeze({
-  'leaf-ovate': { metres: 1, size: 512, ...spray(leafSpray({ leaves: 24, len: 0.2, pet: 0.1, half: '0.3 * pow( sin( 3.14159 * pow( s, 0.72 ) ), 0.85 )', angle: 0.85 })) },
-  'leaf-lobed': { metres: 1, size: 512, ...spray(leafSpray({ leaves: 15, len: 0.28, pet: 0.06, half: '0.36 * pow( sin( 3.14159 * pow( s, 0.85 ) ), 0.75 )', angle: 0.9, tipward: 0.7, lobes: 4.5 })) },
-  'leaf-lance': { metres: 1, size: 512, ...spray(leafSpray({ leaves: 27, len: 0.27, pet: 0.05, half: '0.12 * pow( sin( 3.14159 * s ), 1.1 )', angle: 0.55 })) },
-  'leaf-serrate': { metres: 1, size: 256, ...spray(leafSpray({ leaves: 12, len: 0.34, pet: 0.06, half: '0.17 * pow( sin( 3.14159 * pow( s, 0.9 ) ), 0.9 )', angle: 0.75, serr: 0.16, tipward: 0.3 })) },
+  'leaf-ovate': { metres: 1, size: 512, ...spray(leafSpray({ leaves: 36, len: 0.23, pet: 0.1, half: '0.3 * pow( sin( 3.14159 * pow( s, 0.72 ) ), 0.85 )', angle: 0.85 })) },
+  'leaf-lobed': { metres: 1, size: 512, ...spray(leafSpray({ leaves: 21, len: 0.3, pet: 0.06, half: '0.36 * pow( sin( 3.14159 * pow( s, 0.85 ) ), 0.75 )', angle: 0.9, tipward: 0.7, lobes: 4.5 })) },
+  'leaf-lance': { metres: 1, size: 512, ...spray(leafSpray({ leaves: 39, len: 0.29, pet: 0.05, half: '0.12 * pow( sin( 3.14159 * s ), 1.1 )', angle: 0.55 })) },
+  'leaf-serrate': { metres: 1, size: 256, ...spray(leafSpray({ leaves: 18, len: 0.36, pet: 0.06, half: '0.17 * pow( sin( 3.14159 * pow( s, 0.9 ) ), 0.9 )', angle: 0.75, serr: 0.16, tipward: 0.3 })) },
   'leaf-palmate': { metres: 1, size: 512, ...spray(palmateSpray()) },
-  'leaf-deltoid': { metres: 1, size: 256, ...spray(leafSpray({ leaves: 15, len: 0.22, pet: 0.32, half: '0.48 * min( 1.0, s * 4.0 ) * pow( 1.0 - s, 0.85 )', angle: 0.95 })) },
+  'leaf-deltoid': { metres: 1, size: 256, ...spray(leafSpray({ leaves: 21, len: 0.24, pet: 0.32, half: '0.48 * min( 1.0, s * 4.0 ) * pow( 1.0 - s, 0.85 )', angle: 0.95 })) },
   'leaf-needle': { metres: 1, size: 512, ...spray(needleSpray(), LEAF_COLOUR, 0.008) },
   'leaf-scale': { metres: 1, size: 512, ...spray(scaleSpray(), LEAF_COLOUR, 0.01) },
   'leaf-frond': { metres: 1, size: 512, ...spray(frondSpray()) },
