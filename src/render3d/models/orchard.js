@@ -47,10 +47,10 @@ import { ruralMaterials, lin, mixc, paint, beam, blk } from './rural.js';
 
 /** The kinds of tree and how each grows (metres). */
 export const TREES = Object.freeze({
-  apple: { trunkH: 1.0, trunkR: 0.11, scaffolds: 4, spread: 0.95, limb: 1.25, crownR: 1.15, crownY: 2.05, leafSize: 0.2, leaves: 520, fruitR: 0.048, fruitN: 34, stems: 1 },
-  pear: { trunkH: 1.25, trunkR: 0.11, scaffolds: 4, spread: 0.55, limb: 1.45, crownR: 0.95, crownY: 2.55, leafSize: 0.19, leaves: 520, fruitR: 0.042, fruitN: 30, stems: 1, tall: 1.35 },
-  fig: { trunkH: 0.45, trunkR: 0.09, scaffolds: 5, spread: 1.05, limb: 1.35, crownR: 1.2, crownY: 1.75, leafSize: 0.3, leaves: 300, fruitR: 0.04, fruitN: 26, stems: 3 },
-  olive: { trunkH: 1.05, trunkR: 0.2, scaffolds: 3, spread: 0.8, limb: 1.3, crownR: 1.2, crownY: 2.25, leafSize: 0.16, leaves: 500, fruitR: 0.026, fruitN: 48, stems: 2, gnarled: true },
+  apple: { trunkH: 1.0, trunkR: 0.11, scaffolds: 4, spread: 0.95, limb: 1.25, crownR: 1.15, crownY: 2.05, leafSize: 0.15, leaves: 560, fruitR: 0.06, fruitN: 40, stems: 1 },
+  pear: { trunkH: 1.25, trunkR: 0.11, scaffolds: 4, spread: 0.55, limb: 1.45, crownR: 0.95, crownY: 2.55, leafSize: 0.14, leaves: 560, fruitR: 0.052, fruitN: 34, stems: 1, tall: 1.35 },
+  fig: { trunkH: 0.45, trunkR: 0.09, scaffolds: 5, spread: 1.05, limb: 1.35, crownR: 1.2, crownY: 1.75, leafSize: 0.24, leaves: 340, fruitR: 0.05, fruitN: 30, stems: 3 },
+  olive: { trunkH: 1.05, trunkR: 0.2, scaffolds: 3, spread: 0.8, limb: 1.3, crownR: 1.2, crownY: 2.25, leafSize: 0.12, leaves: 560, fruitR: 0.032, fruitN: 48, stems: 2, gnarled: true },
 });
 
 /** The colours (sRGB) of each tree's leaves by look, blossom, fruit growing and ripe. */
@@ -58,7 +58,7 @@ const COLOURS = {
   apple: { leaf: [0x4f7d33, 0x5e8a3a, 0x46702e], autumn: [0xc8932e, 0xb9652b, 0xd6b04a, 0x8f8a3a], blossom: [0xf4e9ec, 0xf0d2dc, 0xe6a9bf], young: 0x95b84e, fruit: [0x9fb24a, 0xb8322a, 0xc9542c, 0xa62a24] },
   pear: { leaf: [0x3c6a2c, 0x467a33, 0x355f27], autumn: [0xa8402a, 0xc96a2e, 0xd2a648, 0x7a3a24], blossom: [0xf6f4ec, 0xefeee4, 0xe8e6da], young: 0x8fb04a, fruit: [0x8fa848, 0xc9b84a, 0xb9a43c, 0xd0be5a] },
   fig: { leaf: [0x5a8a3c, 0x67953f, 0x4f7e36], autumn: [0xc9b245, 0xb59a3a, 0x9a8f3a], blossom: [0x9cc055, 0x8fb84e], young: 0x9cc055, fruit: [0x7f9a4a, 0x4b2a44, 0x5a3050, 0x3e2238] },
-  olive: { leaf: [0x4a5a32, 0x56643a, 0x404f2d], under: [0x7f8a6a, 0x77805f], autumn: [0x4a5a32, 0x56643a], blossom: [0x4a5a32, 0x56643a], young: 0x66744a, fruit: [0x6f8a3a, 0x2b2030, 0x3a2838, 0x4a3a2c] },
+  olive: { leaf: [0x6a7a50, 0x76855a, 0x5e6c47], under: [0x9ea78a, 0x929c7e], autumn: [0x6a7a50, 0x76855a], blossom: [0x6a7a50, 0x76855a], young: 0x7d8a5c, fruit: [0x6f8a3a, 0x2b2030, 0x3a2838, 0x4a3a2c] },
 };
 
 const V = (a) => new Vector3(a[0], a[1], a[2]);
@@ -373,7 +373,39 @@ export function buildTree({ species = 'apple', look = 'leaf', fruit = 0, lod = 0
       cards.push({ p, n, s: sz, a: rnd() * Math.PI * 2, tilt: (rnd() - 0.5) * 1.2, c: c1.map((v) => v * shade), c2: c2 ? c2.map((v) => v * shade) : null });
     }
   }
-  add(leafCards(cards, { long }), m.leaf, 'leaves');
+  // Inside each cluster a darker lump of the same colour: the leaves behind the leaves, so a crown
+  // reads as a mass with the cards as its broken surface, not as paper scraps with sky between.
+  const cores = [];
+  // (The cards' own average colour: a blossoming crown's core is pale, an autumn one's gold.)
+  const coreCol = [0, 0, 0];
+  for (const cd of cards) for (let q = 0; q < 3; q++) coreCol[q] += cd.c[q] / Math.max(1, cards.length);
+  for (const c of sk.clusters) {
+    const r = c.r * 0.72;
+    const at = reach([...c.p], CROWN_REACH - r - margin);
+    const g = new IcosahedronGeometry(r, lod === 0 ? 1 : 0);
+    const pos = g.attributes.position;
+    const nor = g.attributes.normal;
+    const col = [];
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i) + at[0];
+      const y = pos.getY(i) * 0.85 + at[1];
+      const z = pos.getZ(i) + at[2];
+      pos.setXYZ(i, x, y, z);
+      // Shaded as the crown is: its normal out of the crown's middle, a little of its own.
+      const nx = x - centre[0] + nor.getX(i) * 0.4;
+      const ny = (y - centre[1]) * 0.8 + 0.4 * R + nor.getY(i) * 0.4;
+      const nz = z - centre[2] + nor.getZ(i) * 0.4;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      nor.setXYZ(i, nx / l, ny / l, nz / l);
+      const k = 0.55 * (0.8 + 0.4 * smoothstep(centre[1] - R, centre[1] + R, y));
+      col.push(coreCol[0] * k, coreCol[1] * k, coreCol[2] * k);
+    }
+    g.setAttribute('color', new Float32BufferAttribute(col, 3));
+    g.deleteAttribute('uv');
+    g.setAttribute('uv', new Float32BufferAttribute(new Float32Array(pos.count * 2), 2));
+    cores.push(g);
+  }
+  add(merge([leafCards(cards, { long }), ...cores]), m.leaf, 'leaves');
   // Fruit, hanging at the crown's surface.
   if (fruit > 0 && look !== 'blossom') {
     const n = Math.round(sp.fruitN * (lod === 0 ? 1 : 0.5) * (fruit === 1 ? 0.8 : 1));
@@ -464,7 +496,7 @@ export function buildVineRow({ L = 7.6, look = 'leaf', fruit = 0, lod = 0, seed 
     return finish();
   }
   const scale = lod === 0 ? 1 : 2;
-  const count = Math.round((L * 46 * dens) / (scale * scale));
+  const count = Math.round((L * 60 * dens) / (scale * scale));
   const cards = [];
   for (let k = 0; k < count; k++) {
     const x = -L / 2 + rnd() * L;
@@ -472,9 +504,34 @@ export function buildVineRow({ L = 7.6, look = 'leaf', fruit = 0, lod = 0, seed 
     const z = (rnd() - 0.5) * 0.7 * (0.6 + 0.4 * smoothstep(Y - 0.3, Y + 0.3, y));
     const shade = 0.55 + 0.45 * smoothstep(0, 0.32, Math.abs(z)) * (0.8 + 0.2 * smoothstep(Y, Y + 0.6, y));
     const c = lin(cols[Math.floor(rnd() * cols.length)]).map((v) => v * shade);
-    cards.push({ p: [x, y, z], n: [0, 0.6 + (y - Y) * 0.8, z * 2.2], s: 0.19 * scale * (0.8 + rnd() * 0.4), a: rnd() * 6.28, tilt: (rnd() - 0.5) * 1.4, c });
+    cards.push({ p: [x, y, z], n: [0, 0.6 + (y - Y) * 0.8, z * 2.2], s: 0.16 * scale * (0.8 + rnd() * 0.4), a: rnd() * 6.28, tilt: (rnd() - 0.5) * 1.4, c });
   }
-  add(leafCards(cards, { long: 1.05 }), m.leaf, 'leaves');
+  // A darker mass of leaves along the pole, a lump to each vine, under the cards (as a tree's core).
+  const avg = [0, 0, 0];
+  for (const cd of cards) for (let q = 0; q < 3; q++) avg[q] += cd.c[q] / Math.max(1, cards.length);
+  const lumps = [];
+  for (let k = 0; k < n; k++) {
+    const g = new IcosahedronGeometry(1, lod === 0 ? 1 : 0);
+    const pos = g.attributes.position;
+    // Lumpy, not a smooth pod: each vertex pushed in or out a little.
+    for (let i = 0; i < pos.count; i++) {
+      const j = 0.8 + 0.35 * hashUnit(k * 131 + Math.round((pos.getX(i) + 2) * 50) * 7 + Math.round((pos.getY(i) + 2) * 50) * 13 + Math.round((pos.getZ(i) + 2) * 50));
+      pos.setXYZ(i, pos.getX(i) * j, pos.getY(i) * j, pos.getZ(i) * j);
+    }
+    g.scale((L / n) * 0.46, 0.17 * dens + 0.07, 0.15 * (0.6 + 0.4 * dens));
+    g.translate(-L / 2 + (k + 0.5) * (L / n), Y + 0.1 * dens, 0);
+    const nor = g.attributes.normal;
+    for (let i = 0; i < nor.count; i++) {
+      // Lit as the hedge is: up and out of the row.
+      const nx = nor.getX(i) * 0.3;
+      const ny = 0.6 + (pos.getY(i) - Y) * 0.8;
+      const nz = pos.getZ(i) * 2.2;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      nor.setXYZ(i, nx / l, ny / l, nz / l);
+    }
+    lumps.push(paint(g, avg.map((v) => v * 0.5)));
+  }
+  add(merge([leafCards(cards, { long: 1.05 }), ...lumps]), m.leaf, 'leaves');
   // The bunches, hanging under the pole on both sides of the row.
   if (fruit > 0 && look !== 'blossom') {
     const items = [];
@@ -491,7 +548,7 @@ export function buildVineRow({ L = 7.6, look = 'leaf', fruit = 0, lod = 0, seed 
         const t = g / per;
         const rr = (1 - t) * len * 0.32;
         const a = rnd() * 6.28;
-        items.push({ p: [bx + Math.cos(a) * rr, Y - 0.12 - t * len, bz + Math.sin(a) * rr], r: (lod === 0 ? 0.03 : 0.05) * (ripe ? 1 : 0.8), c: base.map((v) => v * (0.8 + rnd() * 0.3)) });
+        items.push({ p: [bx + Math.cos(a) * rr, Y - 0.12 - t * len, bz + Math.sin(a) * rr], r: (lod === 0 ? 0.034 : 0.055) * (ripe ? 1 : 0.8), c: base.map((v) => v * (0.8 + rnd() * 0.3)) });
       }
     }
     add(balls(items, -1), m.produce, 'grapes');
@@ -503,6 +560,13 @@ export function buildVineRow({ L = 7.6, look = 'leaf', fruit = 0, lod = 0, seed 
     for (const mesh of meshes) tris += triangles(mesh.geometry);
     return { group, meshes, triangles: tris };
   }
+}
+
+/** A stable 0..1 from an integer (the vines' lumps). */
+function hashUnit(i) {
+  let h = Math.imul(i | 0, 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
 }
 
 /** The tree look for a month (0 = Ianuarius), or null for the seasons off: summer's. */

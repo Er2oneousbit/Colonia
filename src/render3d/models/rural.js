@@ -625,7 +625,7 @@ export function railFence(points, { h = 1.15, rails = [0.45, 0.95], seed = 1, lo
  * Columella and Varro describe the cheap one: stakes with withies woven
  * through), `h` high: wicker panels and stakes. Returns { wicker, wood }.
  */
-export function wattleFence(points, { h = 0.95, seed = 1, lod = 0 } = {}) {
+export function wattleFence(points, { h = 0.85, seed = 1, lod = 0 } = {}) {
   const rnd = artRng(seed);
   const wicker = [];
   const wood = [];
@@ -859,7 +859,7 @@ export function strawStack(r = 1.1, h = 2.4, seed = 1, lod = 0, slump = 0) {
       p.x *= k;
       p.z *= k;
     },
-    tint: (p) => 0.62 + 0.38 * smoothstep(0, top * 0.4, p.y),
+    tint: (p) => 0.78 + 0.22 * smoothstep(0, top * 0.4, p.y),
   });
   const wood = [];
   if (lod < 2) {

@@ -384,19 +384,21 @@ function olive(p, lod, step, cond) {
   // The open shed over the mill: four posts and a tiled gable roof.
   const sx0 = -5.65;
   const sx1 = -2.4;
-  const sz0 = -0.3;
-  const sz1 = 2.9;
+  // (The shed at the yard's far end over the oil jars; the mill in the open before the house, where
+  // the camera sees it.)
+  const sz0 = 3.15;
+  const sz1 = 5.85;
   for (const [x, z] of [[sx0 + 0.15, sz0 + 0.15], [sx1 - 0.15, sz0 + 0.15], [sx0 + 0.15, sz1 - 0.15], [sx1 - 0.15, sz1 - 0.15]]) {
     const pst = post(x, z, 2.05, { seed: 870 + x * 3 + z, lod });
     p.add('wood', pst.wood).add('stone', pst.stone);
   }
   p.add('wood', beam([sx0 + 0.15, 2.05, sz0 + 0.15], [sx1 - 0.15, 2.05, sz0 + 0.15], 0.12, 875, lod));
   p.add('wood', beam([sx0 + 0.15, 2.05, sz1 - 0.15], [sx1 - 0.15, 2.05, sz1 - 0.15], 0.12, 876, lod));
-  const roof = gableRoof({ x0: sx0 + 0.05, x1: sx1 - 0.05, z0: sz0 + 0.05, z1: sz1 - 0.05, eaveY: 2.17, pitch: D(24), along: 'x', lod, seed: 880, over: 0.3, gableOver: 0.15 });
+  const roof = gableRoof({ x0: sx0 + 0.05, x1: sx1 - 0.05, z0: sz0 + 0.05, z1: sz1 - 0.05, eaveY: 2.17, pitch: D(24), along: 'x', lod, seed: 880, over: 0.15, gableOver: 0.12 });
   p.add('tile', roof.tile).add('wood', roof.wood);
-  trapetum(p, -4.0, 1.3, lod);
-  // Dolia for the oil, half sunk.
-  for (const [k, x, z] of [[0, -5.15, 4.3], [1, -4.0, 4.85], [2, -2.85, 4.3]]) {
+  trapetum(p, -4.0, 1.35, lod);
+  // Dolia for the oil under the shed, half sunk.
+  for (const [k, x, z] of [[0, -5.0, 4.5], [1, -4.0, 4.6], [2, -3.0, 4.5]]) {
     const d = jar({ sunk: 0.45, lod, seed: 890 + k });
     d.translate(x, 0, z);
     p.add('clay', d);
@@ -430,11 +432,11 @@ function olive(p, lod, step, cond) {
     }
     for (let k = 0; k < 3; k++) {
       const b = basket(0.24, 0.26, 1, lod);
-      b.wicker.translate(-3.0 + k * 0.1, 0, 3.4 + k * 0.55);
+      b.wicker.translate(-2.65, 0, 0.0 + k * 0.6);
       p.add('wicker', b.wicker);
       const h = heap(lod === 2 ? 2 : 16, 0.18, 0.24, 0.032, [lin(0x2b2030), lin(0x3a2838)], 930 + k, lod);
       if (h) {
-        h.translate(-3.0 + k * 0.1, 0, 3.4 + k * 0.55);
+        h.translate(-2.65, 0, 0.0 + k * 0.6);
         p.add('produce', h);
       }
     }

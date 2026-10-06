@@ -41,11 +41,11 @@ const thatch = {
     noise: { greyN: fbm(5, 4, 4), mossN: fbm(7, 3, 5), fib: fbm(140, 2, 6, { sx: 0.05 }) },
     glsl: `
       float cav = cavity( F.x, B.x, 5.0 );
-      col = mix( ${rgb('#b69a5c')}, ${rgb('#8e7b55')}, sstep( 0.35, 0.75, greyN ) );
+      col = mix( ${rgb('#cfb072')}, ${rgb('#a8946a')}, sstep( 0.45, 0.85, greyN ) );
       col *= 0.82 + F.z * 0.3 + fib * 0.08;
       // The cut ends at each course's foot are darker.
       col = mix( col, ${rgb('#5e4c33')}, sstep( 0.25, 0.0, F.y ) * 0.55 );
-      col = mix( col, ${rgb('#5d6440')}, sstep( 0.68, 0.82, mossN ) * 0.45 );
+      col = mix( col, ${rgb('#6d6a44')}, sstep( 0.74, 0.86, mossN ) * 0.3 );
       col = mix( col, ${rgb('#3c3226')}, cav * 0.6 );
       orm = vec3( 1.0 - cav * 0.5, 0.92, 0.0 );`,
   },
@@ -161,5 +161,5 @@ export const RURAL_SURFACES = Object.freeze({
   thatch: { metres: 1.0, size: 512, ...thatch },
   rubble: { metres: 2.0, size: 512, ...rubble },
   bark: { metres: 0.8, size: 256, ...bark },
-  wicker: { metres: 0.4, size: 256, ...wicker },
+  wicker: { metres: 0.9, size: 256, ...wicker },
 });

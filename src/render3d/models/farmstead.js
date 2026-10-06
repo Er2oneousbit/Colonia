@@ -120,7 +120,7 @@ export function buildFarmstead({ lod = 0, idle = false, seed = 3 } = {}) {
   const wp = woodpile(0.8, 0.7, 72, lod);
   for (const g of wp) g.translate(-5.25, 0, F.z1 + 0.35);
   parts.add('bark', wp);
-  for (const [k, x, z, lean] of [[0, -2.75, F.z1 + 0.3, 0.12], [1, -2.95, F.z1 + 0.45, -0.1]]) {
+  for (const [k, x, z, lean] of [[0, -2.72, F.z1 + 0.24, -0.06], [1, -3.0, F.z1 + 0.22, -0.05]]) {
     const a = jar({ amphora: true, lod, seed: 80 + k });
     a.translate(0, 0.08, 0);
     a.rotateX(lean);
