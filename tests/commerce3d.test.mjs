@@ -30,7 +30,8 @@ import { ModelPass } from '../src/render3d/modelPass.js';
 import { WARE_GOODS, displayStep, displayShows } from '../src/render3d/models/wares.js';
 import { marketWares, marketState, marketShows, stallOrder, MARKET_GOODS, MARKET_STALLS } from '../src/render3d/models/market.js';
 import { forumState, forumShows } from '../src/render3d/models/forum.js';
-import { warehouseLoads, loadsOf, slotOrder, BAYS, SLOT_COUNT, warehouseState } from '../src/render3d/models/warehouse.js';
+import { warehouseLoads, loadsOf, slotOrder, BAYS, SLOT_COUNT, warehouseState, fitLoads } from '../src/render3d/models/warehouse.js';
+import { WAREHOUSE_GOODS, FOOD_TYPES, HOUSE_GOODS } from '../src/data/goods.js';
 import { lightsFromLamps } from '../src/render/lighting.js';
 
 const SIZE = { market: 2, forum: 2, warehouse: 3 };
@@ -270,4 +271,30 @@ test('commerce3d: the models hang their lamps where the night lights them, turne
     const b = lightsFromLamps(`t:${type}:2`, S, lamps, 2).torches[0];
     assert.ok(Math.abs(a[0] + b[0]) < 1e-9 && Math.abs(a[1] + b[1] - (2 * S * HALF_H - 2 * z)) < 1e-9, `${type}: ${a} / ${b}`);
   }
+});
+
+test('commerce3d: every good a warehouse or a market can hold has a look, and a crowded warehouse hides no good', () => {
+  assert.deepEqual([...WARE_GOODS].sort(), [...WAREHOUSE_GOODS].sort(), 'a load for every good a warehouse stores');
+  assert.deepEqual([...MARKET_GOODS, 'fish'].sort(), [...FOOD_TYPES, ...HOUSE_GOODS].sort(), 'a stall (or the tholos) for every good a market holds');
+  // Twenty goods at 160 units each: 3,200 units but 40 loads rounded up. Every good keeps one.
+  const crowd = Object.fromEntries(WARE_GOODS.map((g) => [g, 160]));
+  const list = warehouseLoads(crowd, 0);
+  assert.equal(list.length, 32);
+  assert.equal(new Set(list.map((e) => e.key.split(':')[2])).size, WARE_GOODS.length);
+  assert.deepEqual(fitLoads([5, 1, 3], 6), [2, 1, 3]);
+  assert.deepEqual(fitLoads([1, 1, 1], 2), [1, 1, 0]);
+  assert.deepEqual(fitLoads([4, 4], 32), [4, 4]);
+});
+
+test('commerce3d: a building is drawn whatever the frame\'s building time: only its goods may wait', () => {
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  // A frame whose building time is spent (as after a zoom into a city of stores): the shells are built all the same.
+  mp.buildMs = 1e9;
+  mp.builtThisFrame = true;
+  for (const type of ['forum', 'warehouse']) mp.put(type, 2, modelMatrix(0, 0, SIZE[type], 0), MODELS[type].shows, 'open', false, true);
+  assert.ok(mp.kits.has('forum|2') && mp.kits.has('warehouse|2'), 'the shells were built');
+  mp.put('warehouse:load:iron', 2, modelMatrix(0, 0, 3, 0), MODELS.warehouse.shows, 1, false);
+  assert.ok(!mp.kits.has('warehouse:load:iron|2'), 'a good waits for a frame with time to spare');
+  mp.dispose();
 });

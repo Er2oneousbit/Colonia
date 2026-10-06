@@ -753,7 +753,8 @@ export function buildDisplay(good, lod = 0, step = 0) {
       // A chopping block with a joint on it; joints hanging from the beam over the counter.
       b.add('wood', at(slab(0.4, 0.12, 0.3, { bevel: 0.02, seed: s }), 0.3, T, 0.0), f(1));
       b.add('meat', at(joint(lod, s + 1), 0.3, T + 0.12, 0.0, 0.4), f(1));
-      const hooks = far ? [[0, 2]] : [[-0.55, 1], [-0.3, 2], [-0.05, 2], [0.25, 3], [0.5, 3]];
+      // (From far out the beam and its hooks are gone: no joints hanging from nothing.)
+      const hooks = far ? [] : [[-0.55, 1], [-0.3, 2], [-0.05, 2], [0.25, 3], [0.5, 3]];
       for (const [x, step] of hooks) {
         b.add('meat', at(joint(lod, s + x * 30, true), x, 1.72, -0.3), f(step));
         if (!far) b.add('iron', at(tintGeometry(boxUV(new CylinderGeometry(0.006, 0.006, 0.22, 4))), x, 1.98, -0.3), f(step));

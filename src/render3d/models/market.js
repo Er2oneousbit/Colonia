@@ -355,6 +355,8 @@ export function buildTholosFish(lod = 0, step = 0) {
   const group = new Group();
   group.name = 'tholos-fish';
   const meshes = [];
+  // (From far out the tholos has no fish counters: no fish either, or they would float.)
+  if (lod === 2) return { group, meshes };
   const rows = [[], [], []];
   const rnd = artRng(5);
   for (let k = 0; k < 4; k++) {

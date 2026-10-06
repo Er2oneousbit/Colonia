@@ -320,7 +320,8 @@ export class ModelPass {
       const v = def.variant(m.b, m, this);
       const shows = def.shows || partShows;
       modelMatrix(m.vx, m.vy, m.b.size, m.T, m.rise || 0, _m);
-      this.put(v.key, lod, _m, shows, v.state, v.ice);
+      // (The building itself is built now whatever this frame's budget: only its goods may wait a frame.)
+      this.put(v.key, lod, _m, shows, v.state, v.ice, true);
       // What stands in the building's frame on its own (a warehouse's loads, a market's wares): kits of their own.
       if (v.extras) for (const e of v.extras) this.put(e.key, lod, e.at ? _me.multiplyMatrices(_m, e.at) : _m, shows, e.state, v.ice);
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
@@ -376,8 +377,8 @@ export class ModelPass {
   }
 
   /** One copy of look `key` at `lod` with matrix `m`: an instance in each of its parts that state `state` shows. */
-  put(key, lod, m, shows, state, ice) {
-    const k = this.kitNear(key, lod);
+  put(key, lod, m, shows, state, ice, must = false) {
+    const k = this.kitNear(key, lod) || (must ? this.kitFor(key, lod) : null);
     if (!k) return;
     k.seen = this.frame;
     for (let i = 0; i < k.meshes.length; i++) {

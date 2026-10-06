@@ -103,10 +103,13 @@ export function loadsOf(amount) {
 }
 
 /**
- * What a warehouse shows of what it holds: for each good, in WARE_GOODS'
- * order, a bay of its own (and more as it needs), one load for every 100
- * units or part of it, the bays the camera sees best filled first; as the
- * 2D art's stacks do, a good that finds no bay free is not shown. Returns
+ * What a warehouse shows of what it holds: one load for every 100 units
+ * of a good or part of it, the goods in WARE_GOODS' order, their loads one
+ * after another in the slots the camera sees best first (slotOrder: a
+ * quarter full is the two far bays, packed). Rounding every good up can
+ * ask for more than the 32 slots (twenty goods of 160 units are 3,200
+ * units but 40 loads): then every good keeps at least one load and the
+ * biggest give up theirs, so nothing it holds goes unseen. Returns
  * [{ key, state, at }] (at: a Matrix4 in the model's metres), the same
  * array while nothing changed.
  */
@@ -117,15 +120,36 @@ export function warehouseLoads(stock, T = 0) {
   const was = CACHE.get(stock);
   if (was && was.sig === sig) return was.list;
   const list = [];
-  const bays = ORDERS[T & 3];
-  // One after another, bay by bay: a quarter full is the two bays the camera sees best, packed.
-  const slots = bays.flat();
+  const slots = ORDERS[T & 3].flat();
+  const counts = fitLoads(WARE_GOODS.map((g) => loadsOf(stock[g] || 0)), slots.length);
   let s = 0;
-  for (const good of WARE_GOODS) {
-    for (let n = loadsOf(stock[good] || 0); n > 0 && s < slots.length; n--) list.push({ key: `warehouse:load:${good}`, state: 1, at: SLOT_MATS[slots[s++]] });
-  }
+  WARE_GOODS.forEach((good, i) => {
+    for (let n = counts[i]; n > 0; n--) list.push({ key: `warehouse:load:${good}`, state: 1, at: SLOT_MATS[slots[s++]] });
+  });
   CACHE.set(stock, { sig, list });
   return list;
+}
+
+/**
+ * Loads a good (`want`) cut down to `room` in all when they are more: the
+ * biggest give one up at a time, none below one (more goods than room:
+ * the last goods go unseen, as few as can be).
+ */
+export function fitLoads(want, room) {
+  const n = want.slice();
+  let total = n.reduce((a, b) => a + b, 0);
+  while (total > room) {
+    let big = -1;
+    for (let i = 0; i < n.length; i++) if (n[i] > 1 && (big < 0 || n[i] > n[big])) big = i;
+    if (big < 0) {
+      // Every good down to one load and still too many: the last ones go.
+      for (let i = n.length - 1; i >= 0 && total > room; i--) if (n[i]) { n[i] = 0; total--; }
+      break;
+    }
+    n[big]--;
+    total--;
+  }
+  return n;
 }
 
 /** How full a warehouse is (0 to 1) by what it shows: loads standing over the 32 it has room for. */
