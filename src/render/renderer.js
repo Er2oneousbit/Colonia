@@ -934,12 +934,12 @@ export class Renderer {
           // A low bridge (timber on piles) or a ship bridge (stone arches),
           // drawn with the deck's heights at the tile's ends and middle
           // (ramps down to the banks), in the view's order along it.
-          const { axis, low, h: [h0, hm, h1], abut } = bridgeLook(map, x, y, vt);
+          const { axis, low, h: [h0, hm, h1], abut, open } = bridgeLook(map, x, y, vt);
           let spr;
           if (low) spr = this.sprites.get(`brl${axis}${h0}.${hm}.${h1}`, () => lowBridgeSpec(axis, h0, hm, h1));
           else {
-            const key = `br${axis}${h0}.${hm}.${h1}${abut ? 'a' : ''}`;
-            spr = this.sprites.get(`${key}${this.snowKey}`, () => bridgeSpec(axis, h0, hm, h1, abut, pal.snow), this.snowPrev === null ? null : `${key}${this.snowPrev}`);
+            const key = `br${axis}${h0}.${hm}.${h1}${abut ? 'a' : ''}${open ? `o${open}` : ''}`;
+            spr = this.sprites.get(`${key}${this.snowKey}`, () => bridgeSpec(axis, h0, hm, h1, abut, pal.snow, open), this.snowPrev === null ? null : `${key}${this.snowPrev}`);
           }
           items.push({ d: depth + BRIDGE_DEPTH, kind: K_STRIP, spr, wx, wy, full: true });
         } else if (map.road[i]) {

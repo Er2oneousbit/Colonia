@@ -23,10 +23,15 @@
  *
  * Where a run of bridge tiles ends at more water (a road that turned on the
  * water, as the Imperial road may on a river map), the deck runs on at full
- * height there: only a bank brings it down. A run whose road leaves its last
- * tile sideways onto a bank (the Imperial road turning on its last water
- * tile) comes down toward that end as at a bank, so the step off it sideways
- * is a third of the deck's height, not all of it.
+ * height there: only a bank brings it down.
+ *
+ * A junction on a deck is a level landing, and the ramps climb from it at
+ * their usual slope, so nobody steps up or down where two ways meet: a road
+ * on land beside a run's first or last tile (a shore road along a lake's
+ * corner, or the Imperial road leaving its last water tile sideways) holds
+ * that tile at road level, and where two ship bridges cross, the crossing
+ * tile is level at the lower of their two decks there (one crossing at the
+ * other's first water tile pulls the other down to its ramp's height).
  * ----------------------------------------------------------------------------
  */
 
@@ -90,29 +95,31 @@ function landRoad(map, x, y) {
 }
 
 /**
- * How a run ends at (x, y), the tile past its last tile (ex, ey) along
- * (dx, dy): 'foot', 'bank', or 'open' (more water: no ramp), unless the
- * road leaves the last tile sideways onto land ('bank').
+ * How a run ends at (x, y), the tile past its last tile along it: 'foot'
+ * (its ramp starts in the middle of that bank tile), 'bank' (at the
+ * water's edge), or 'open' (more water: no ramp).
  */
-function endKind(map, x, y, low, ex, ey, dx, dy) {
-  if (!map.inBounds(x, y) || map.terrain[map.idx(x, y)] === Terrain.WATER) {
-    return landRoad(map, ex + dy, ey + dx) || landRoad(map, ex - dy, ey - dx) ? 'bank' : 'open';
-  }
+function endKind(map, x, y, low) {
+  if (!map.inBounds(x, y) || map.terrain[map.idx(x, y)] === Terrain.WATER) return 'open';
   return !low && footOk(map, x, y) ? 'foot' : 'bank';
 }
 
+/** A road on land beside the bridge tile (x, y), across a run along (dx, dy): a way off the deck sideways. */
+function sideRoad(map, x, y, dx, dy) {
+  return landRoad(map, x + dy, y + dx) || landRoad(map, x - dy, y - dx);
+}
+
 /**
- * The deck heights of the bridge tile (x, y), in px at zoom 1, at its
- * near edge, middle and far edge along its axis (map order: lower x or y
- * first), rounded to whole px so the sprite's key stays short and the
- * walkers stand on exactly what is drawn. null when it is no bridge.
- * `ends`: whether the run ends just before / after this tile (its first or last tile).
- * @returns {{axis:'u'|'v', low:boolean, h:number[], ends:boolean[]}|null}
+ * The run of bridge tiles of one kind through (x, y) along `axis` (it may
+ * pass over a crossing tile drawn along the other axis), and the places
+ * along it where its deck is held down: `holds`, each a stretch [from, to]
+ * of the axis (map tile units, a point when from === to) at height h. The
+ * deck anywhere is the lowest it can be climbing from them at the ramp's
+ * slope (deckFrom). A bank holds the deck at road level where its ramp
+ * starts; a run's end tile with a road on land beside it is a landing at
+ * road level. Crossings are left to bridgeProfile (they need two runs).
  */
-export function bridgeProfile(map, x, y) {
-  if (!map.inBounds(x, y) || map.road[map.idx(x, y)] !== Road.BRIDGE) return null;
-  const low = !!map.bridgeLow[map.idx(x, y)];
-  const axis = bridgeAxis(map, x, y);
+function runOf(map, x, y, axis, low) {
   const [dx, dy] = axis === 'u' ? [1, 0] : [0, 1];
   let back = 0;
   while (back < SCAN && bridgeOf(map, x - dx * (back + 1), y - dy * (back + 1), low)) back++;
@@ -121,19 +128,86 @@ export function bridgeProfile(map, x, y) {
   const c = axis === 'u' ? x : y; // this tile's place along the axis
   const a0 = c - back; // the run's first and last tiles
   const a1 = c + ahead;
-  const k0 = endKind(map, x - dx * (back + 1), y - dy * (back + 1), low, x - dx * back, y - dy * back, dx, dy);
-  const k1 = endKind(map, x + dx * (ahead + 1), y + dy * (ahead + 1), low, x + dx * ahead, y + dy * ahead, dx, dy);
-  const Z = low ? LOW_BRIDGE_DECK_Z : BRIDGE_DECK_Z;
-  const L = low ? LOW_RAMP_TILES : RAMP_TILES;
-  // Where each ramp starts at road level: the middle of a foot tile, else the water's edge.
-  const s0 = k0 === 'foot' ? a0 - 0.5 : a0;
-  const s1 = k1 === 'foot' ? a1 + 1.5 : a1 + 1;
+  const holds = [];
+  // Each end: [its tile, the tile past it, where a foot's ramp starts, the water's edge].
+  for (const [k, s, foot, edge] of [[back, -1, a0 - 0.5, a0], [ahead, 1, a1 + 1.5, a1 + 1]]) {
+    const ex = x + dx * k * s;
+    const ey = y + dy * k * s;
+    if (sideRoad(map, ex, ey, dx, dy)) {
+      // A way off sideways at the end tile: the deck is level with it there.
+      const e = axis === 'u' ? ex : ey;
+      holds.push({ from: e, to: e + 1, h: 0 });
+      continue;
+    }
+    const kind = endKind(map, ex + dx * s, ey + dy * s, low);
+    if (kind !== 'open') holds.push({ from: kind === 'foot' ? foot : edge, to: kind === 'foot' ? foot : edge, h: 0 });
+  }
+  return { dx, dy, c, a0, a1, back, ahead, Z: low ? LOW_BRIDGE_DECK_Z : BRIDGE_DECK_Z, slope: low ? LOW_BRIDGE_DECK_Z / LOW_RAMP_TILES : BRIDGE_DECK_Z / RAMP_TILES, holds };
+}
+
+/** The deck's height at place p along a run (unrounded): its full height, or lower climbing from a hold. */
+function deckFrom(run, p) {
+  let h = run.Z;
+  for (const o of run.holds) {
+    const off = p < o.from ? o.from - p : p > o.to ? p - o.to : 0;
+    h = Math.min(h, o.h + run.slope * off);
+  }
+  return h;
+}
+
+/** The lowest the deck of `run` stands over the tile at place t (it is straight between half tiles). */
+function lowestOver(run, t) {
+  return Math.min(deckFrom(run, t), deckFrom(run, t + 0.5), deckFrom(run, t + 1));
+}
+
+/**
+ * Where a run crosses another ship bridge (or low bridge, each with its
+ * own kind): a tile of it with a neighbour across it that runs the other
+ * way (a bridge alongside, running the same way, is no crossing). Each is
+ * held level at the lower of the two decks over it, so both meet there.
+ */
+function crossings(map, run, x, y, axis, low) {
+  const other = axis === 'u' ? 'v' : 'u';
+  const out = [];
+  for (let t = run.a0; t <= run.a1; t++) {
+    const tx = axis === 'u' ? t : x;
+    const ty = axis === 'u' ? y : t;
+    const across = [[tx + run.dy, ty + run.dx], [tx - run.dy, ty - run.dx]];
+    if (!across.some(([nx, ny]) => bridgeOf(map, nx, ny, low) && bridgeAxis(map, nx, ny) === other)) continue;
+    const cross = runOf(map, tx, ty, other, low);
+    out.push({ from: t, to: t + 1, h: Math.min(lowestOver(run, t), lowestOver(cross, cross.c)) });
+  }
+  return out;
+}
+
+/**
+ * The deck heights of the bridge tile (x, y) along `axis` (its own unless
+ * a caller reads a crossing tile along the other run), in px at zoom 1, at
+ * its near edge, middle and far edge (map order: lower x or y first),
+ * rounded to whole px so the sprite's key stays short and the walkers
+ * stand on exactly what is drawn. `ends`: whether the run ends just before
+ * / after this tile (its first or last tile).
+ */
+function profileAlong(map, x, y, axis, low) {
+  const run = runOf(map, x, y, axis, low);
+  const held = crossings(map, run, x, y, axis, low);
   const at = (p) => {
-    const up = k0 === 'open' ? Infinity : (p - s0) / L;
-    const down = k1 === 'open' ? Infinity : (s1 - p) / L;
-    return Math.round(Z * Math.max(0, Math.min(1, up, down)));
+    let h = deckFrom(run, p);
+    for (const o of held) h = Math.min(h, o.h + run.slope * (p < o.from ? o.from - p : p > o.to ? p - o.to : 0));
+    return Math.round(Math.max(0, h));
   };
-  return { axis, low, h: [at(c), at(c + 0.5), at(c + 1)], ends: [back === 0, ahead === 0] };
+  const c = run.c;
+  return { axis, low, h: [at(c), at(c + 0.5), at(c + 1)], ends: [run.back === 0, run.ahead === 0] };
+}
+
+/**
+ * The deck heights of the bridge tile (x, y) along its axis (profileAlong).
+ * null when it is no bridge.
+ * @returns {{axis:'u'|'v', low:boolean, h:number[], ends:boolean[]}|null}
+ */
+export function bridgeProfile(map, x, y) {
+  if (!map.inBounds(x, y) || map.road[map.idx(x, y)] !== Road.BRIDGE) return null;
+  return profileAlong(map, x, y, bridgeAxis(map, x, y), !!map.bridgeLow[map.idx(x, y)]);
 }
 
 export { deckAt }; // (the art's own reading of the heights, so a walker stands on what is drawn)
@@ -143,15 +217,31 @@ export { deckAt }; // (the art's own reading of the heights, so a walker stands 
  * deck's heights in the view's order along it (the map's order reversed
  * when the turn runs that axis from the front of the view to the back),
  * and whether it is the run's first tile in the view (it draws its own
- * near support). null when it is no bridge.
- * @returns {{axis:'u'|'v', low:boolean, h:number[], abut:boolean}|null}
+ * near support). `open`: on a level ship bridge tile, the sides a way joins
+ * it from (1 the far side in the view, 2 the near side), where its parapet
+ * is left out (terrainArt.js bridgeSpec): a road on land beside a landing
+ * at road level, or a bridge crossing it. null when it is no bridge.
+ * @returns {{axis:'u'|'v', low:boolean, h:number[], abut:boolean, open:number}|null}
  */
 export function bridgeLook(map, x, y, turn = 0) {
   const p = bridgeProfile(map, x, y);
   if (!p) return null;
   const [sx, sy] = viewDir(p.axis === 'u' ? 1 : 0, p.axis === 'u' ? 0 : 1, turn);
   const flip = sx + sy < 0;
-  return { axis: sx ? 'u' : 'v', low: p.low, h: flip ? [p.h[2], p.h[1], p.h[0]] : p.h, abut: p.ends[flip ? 1 : 0] };
+  let open = 0;
+  if (!p.low && p.h[0] === p.h[1] && p.h[1] === p.h[2]) {
+    // The map's step across the tile, and which side of the view it lands on.
+    const [cx, cy] = p.axis === 'u' ? [0, 1] : [1, 0];
+    const [vx, vy] = viewDir(cx, cy, turn);
+    const ahead = (sx ? vy : vx) > 0 ? 2 : 1; // the side (x + cx, y + cy) is on
+    const other = p.axis === 'u' ? 'v' : 'u';
+    for (const [s, side] of [[1, ahead], [-1, 3 - ahead]]) {
+      const nx = x + cx * s;
+      const ny = y + cy * s;
+      if ((p.h[1] === 0 && landRoad(map, nx, ny)) || (bridgeOf(map, nx, ny, false) && bridgeAxis(map, nx, ny) === other)) open |= side;
+    }
+  }
+  return { axis: sx ? 'u' : 'v', low: p.low, h: flip ? [p.h[2], p.h[1], p.h[0]] : p.h, abut: p.ends[flip ? 1 : 0], open };
 }
 
 /**
@@ -181,9 +271,11 @@ export function bridgeFeet(map, x, y) {
     const bx = x + dx;
     const by = y + dy;
     if (!bridgeOf(map, bx, by, false)) continue;
-    const p = bridgeProfile(map, bx, by);
-    // Only a bridge that runs this way ends here (one alongside does not).
-    if ((p.axis === 'u') !== (dx !== 0)) continue;
+    // Only a bridge that runs this way ends here (one alongside does not),
+    // a crossing tile drawn along the other way included: its run goes on.
+    const axis = dx ? 'u' : 'v';
+    if (bridgeAxis(map, bx, by) !== axis && !bridgeOf(map, bx + dx, by + dy, false)) continue;
+    const p = profileAlong(map, bx, by, axis, false);
     const h = dx + dy > 0 ? p.h[0] : p.h[2];
     if (h > 0) out.push({ dx, dy, h });
   }
