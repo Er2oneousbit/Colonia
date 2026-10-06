@@ -13,6 +13,16 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.9)
+
+* **Fullscreen when a game starts**: Begin, Continue and Load open the game fullscreen (*Settings > Fullscreen when a game starts*, on by default); a ⛶ button in the top bar and the game menu goes back in after Esc
+* **The WebGL renderer runs lighter, above all on laptops**: its picture is drawn straight on the page instead of copied onto the 2D canvas, the night and lightning are drawn on the GPU, and *Settings > Render scale* (Auto by default) lowers the 3D ground's resolution, then the scene's, when frames run long, never the menus or text. On a GPU built into the processor Auto starts with the ground on Low. Measured at a pixel ratio of 2 on a desktop GPU: Low 9.8 to 12.6 ms a frame (was 14.6 to 19.8), 6.1 to 6.8 ms with the ground at half its pixels; without a GPU at all 55 to 171 ms (was 463 to 832)
+* **A performance readout** (F3, or *Settings*): frames per second, milliseconds by stage, the GPU's own time, draw calls, the render scale and the GPU Chrome is using, with a hint when it is the processor's built-in one (Windows can be told to give Chrome the graphics card)
+* **3D models never wait silently**: a model or texture that fails to compile or paint is retried, then left as its sprite, and the console says why
+* **The ship bridge's leftovers**: a crossing of two ship bridges, or a shore road beside a bridge's first water tile, is a level landing with no step (it was 11 to 22 px), its parapet open on the joining side; a ship's mast sinks behind the far parapet and rises again past the near one instead of vanishing and popping
+* Headless sim: identical to v0.20.8 on every difficulty
+* 1150 unit tests, 246 browser checks
+
 ## Done (v0.20.8)
 
 * **Nobody is left inside a huge placement**: a soldier, raider, wolf or villager deeper than 12 tiles inside what is built at once (a big drag of buildings) now steps out to the nearest open ground too; the search for room goes on to the map's edge when nothing is found close by
