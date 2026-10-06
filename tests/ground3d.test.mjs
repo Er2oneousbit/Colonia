@@ -153,6 +153,16 @@ test('3D ground: the corners of a block, the crossings at its ends and a short g
   // (15, 10): no home beside it, but between (14, 10) (the block's diagonal) and (16, 10) (a home south): paved.
   assert.equal(surface(14, 10), ROAD_SURFACE.BASALT);
   assert.equal(surface(15, 10), ROAD_SURFACE.BASALT);
+  // A crossing with no home of its own where three streets meet: paved (it was a gravel tile between basalt arms).
+  // Roads west, north and east of (20, 20), each arm with a home beside its far tile; nothing touches (20, 20) itself.
+  for (const [x, y] of [[18, 20], [19, 20], [20, 20], [21, 20], [22, 20], [20, 19], [20, 18]]) map.road[map.idx(x, y)] = Road.ROAD;
+  for (const [x, y] of [[18, 21], [22, 21], [21, 18]]) homes.add(map.idx(x, y));
+  assert.equal(surface(20, 20), ROAD_SURFACE.BASALT, 'a crossing between streets');
+  // A dead end off one street, with no home: a country road (it joins only one).
+  map.road[map.idx(20, 21)] = Road.ROAD;
+  map.road[map.idx(20, 22)] = Road.ROAD;
+  map.road[map.idx(20, 23)] = Road.ROAD;
+  assert.equal(surface(20, 23), ROAD_SURFACE.GRAVEL, 'a lane off it');
   // The road on from there, past every home, stays a country road.
   map.road[map.idx(17, 10)] = Road.ROAD;
   map.road[map.idx(18, 10)] = Road.ROAD;

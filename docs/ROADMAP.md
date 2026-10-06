@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.7)
+
+* **Crossings between streets are paved in 3D**: a road tile joining two or more paved streets (a crossing where streets meet with no building of its own, a gap between two blocks) is basalt too, not a gravel square in the middle of town
+* A browser check fixed: the fort hotkey check pressed Shift+1 for fort I, which on some random maps was a fort the garrison had not manned yet (a cavalry fort waiting for horses) and rightly had no standard to hand; it now uses the number of the fort that has soldiers
+* 1131 unit tests, 234 browser checks
+
 ## Done (v0.20.6)
 
 * **Streets wrap round their blocks in 3D**: a road is paved as a town street when a building stands on any of its eight sides, not only its four, so a block's corners and the crossings at its ends are basalt like the streets beside them instead of gravel islands; a short straight gap between two blocks is paved too

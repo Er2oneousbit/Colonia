@@ -274,8 +274,9 @@ export function kindOf(terrain, x, y, shoreD) {
  * The road byte (G) of a tile: links, surface, rubble, bridge. A street in
  * town is paved in basalt, as Roman towns paved theirs: a road with a
  * building on any of its eight sides (not a farm: a lane between fields
- * stays a country road), a straight stretch between two such roads (the
- * gap between two blocks), or the Imperial road's fixed ends
+ * stays a country road), a road joining two or more such roads (the gap
+ * between two blocks, a crossing where streets meet with no building of
+ * its own), or the Imperial road's fixed ends
  * (map.fixedRoad); any other road is gravel (a via glareata), so a town
  * paves itself as it grows along its roads. The diagonals count so a
  * block's corners and the crossings at its ends are paved with the
@@ -300,8 +301,16 @@ export function roadByte(map, x, y, town = () => false) {
     }
     return false;
   };
-  const between = (links === 5 && nearTown(x, y - 1) && nearTown(x, y + 1)) || (links === 10 && nearTown(x - 1, y) && nearTown(x + 1, y));
-  const street = map.fixedRoad[i] || nearTown(x, y) || between;
+  // A road it links to that is a street by its own buildings (not by this rule, so no chain runs on).
+  const paved = (tx, ty) => map.hasRoad(tx, ty) && map.road[ty * map.w + tx] !== Road.PLAZA && (map.fixedRoad[ty * map.w + tx] || nearTown(tx, ty));
+  let joined = 0;
+  if (links & 1 && paved(x, y - 1)) joined++;
+  if (links & 2 && paved(x + 1, y)) joined++;
+  if (links & 4 && paved(x, y + 1)) joined++;
+  if (links & 8 && paved(x - 1, y)) joined++;
+  // Two streets met or carried on through this tile: a straight gap between two blocks, a
+  // corner or a crossing where streets meet with no building of its own.
+  const street = map.fixedRoad[i] || nearTown(x, y) || joined >= 2;
   const surface = road === Road.PLAZA ? ROAD_SURFACE.FLAGS : street ? ROAD_SURFACE.BASALT : ROAD_SURFACE.GRAVEL;
   return g | links | (surface << 4);
 }
