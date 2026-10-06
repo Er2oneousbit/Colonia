@@ -144,7 +144,7 @@ ${CONTROLS}`,
 <p>In Colonia the forum is where the households are registered and the taxes taken in. Here, in 8 m, a town's office as they stood
 round a forum: a podium of travertine with two steps; the office (a <i>statio</i> of the collectors, a <i>tabularium</i> for the rolls)
 stuccoed as Pompeii's public buildings were, its three doorways framed in travertine; a portico of four Tuscan columns under an
-architrave with an inscription (its letters cut and painted red; no words); in the court the counting table (<i>mensa</i>) with piles of
+architrave with an inscription (TABVLARIVM PVBLICVM, the public record office: its letters cut and painted red); in the court the counting table (<i>mensa</i>) with piles of
 bronze and silver coin, a purse, a tablet and a balance, as the relief of the rent payment from Neumagen shows; the iron-bound
 strongbox (<i>arca</i>); a tribunal with its folding curule chair; an honorary statue on its base.</p>
 <p>Working: the doors open, a clerk at the table, a citizen paying, the strongbox open on its coin. Idle: the doors shut, the table

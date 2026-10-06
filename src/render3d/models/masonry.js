@@ -32,7 +32,7 @@ const D = (deg) => (deg * Math.PI) / 180;
  * (`wobble`), its top tipped a little (`tilt`, metres across), a tone of
  * its own (`tone`) and dirt toward its foot (`grime`).
  */
-export function slab(w, h, d, { bevel = 0.015, seed = 1, wobble = 0.004, tilt = 0, tone = 0.06, grime = 0.2 } = {}) {
+export function slab(w, h, d, { bevel = 0.015, seed = 1, wobble = 0.004, tilt = 0, tone = 0.06, grime = 0.2, bottom = false } = {}) {
   const rnd = artRng(seed);
   const b = Math.min(bevel, w * 0.3, d * 0.3, h * 0.45);
   const x = w / 2;
@@ -53,6 +53,8 @@ export function slab(w, h, d, { bevel = 0.015, seed = 1, wobble = 0.004, tilt = 
     quad(ring[i], ring[j], top[j], top[i]);
     quad(foot[i], foot[j], ring[j], ring[i]);
   }
+  // (Its underside only when asked: a stone on the ground never shows it, a strongbox's raised lid does.)
+  if (bottom) quad(foot[3], foot[2], foot[1], foot[0]);
   const g = new BufferGeometry();
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));
   g.computeVertexNormals();
@@ -146,8 +148,10 @@ export function tiledRoof(quad, { pitch = 0.42, lod = 0, seed = 1, antefix = tru
   const col = [];
   const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
   for (let c = 0; c < courses; c++) {
-    const a0 = lerp(e0, t0, c / courses);
-    const a1 = lerp(e1, t1, c / courses);
+    // Each course starts a little down over the one below it (lifted by a tile's thickness there): no gap between.
+    const lap = c ? 0.25 : 0;
+    const a0 = lerp(e0, t0, (c - lap) / courses);
+    const a1 = lerp(e1, t1, (c - lap) / courses);
     const b0 = lerp(e0, t0, (c + 1) / courses);
     const b1 = lerp(e1, t1, (c + 1) / courses);
     // Each course laps over the one below it: its lower edge a tile's thickness up.

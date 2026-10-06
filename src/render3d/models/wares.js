@@ -297,8 +297,8 @@ export function fishPiece(lod, seed, len = 0.32) {
 function joint(lod, seed, hang = false) {
   const rnd = artRng(seed);
   const P = [[0, 0], [0.02, 0.0], [0.02, 0.06], [0.07, 0.12], [0.11, 0.22], [0.12, 0.3], [0.09, 0.37], [0, 0.39]];
-  const meatC = hue(0x9e3a30);
-  const fatC = hue(0xe6d2b4);
+  const meatC = hue(0x86302a);
+  const fatC = hue(0xd8c2a0);
   const g = revolve(profileOf(P), {
     segments: seg(lod, 10, 6, 4), metres: 0.3,
     tint: (p) => (p.y < 0.07 ? fatC : p.y > 0.33 ? fatC.map((v) => v * 0.9) : meatC.map((v) => v * (0.85 + rnd() * 0.25))),
@@ -716,7 +716,8 @@ export function buildDisplay(good, lod = 0, step = 0) {
     // Big baskets heaped on the ground before the counter: the stock behind the display, for the court (and the camera) to see.
     [[-0.35, 2], [0.32, 3]].forEach(([x, step], i) => {
       b.add('wicker', at(basket(lod, 0.28, 0.34), x, 0, DISPLAY.front + 0.36), f(step));
-      b.add(mat, at(heap(lod, 0.27, 0.28, 0.16, colours, s + 7 + i, bump), x, 0, DISPLAY.front + 0.36), f(step));
+      if (single && !far) b.add(mat, balls(lod, 16, single * 1.1, x, 0.27, DISPLAY.front + 0.36, colours, s + 7 + i, 0.17), f(step));
+      else b.add(mat, at(heap(lod, 0.27, 0.28, 0.16, colours, s + 7 + i, bump), x, 0, DISPLAY.front + 0.36), f(step));
     });
   };
   switch (good) {

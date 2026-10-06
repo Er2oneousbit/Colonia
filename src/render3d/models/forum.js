@@ -17,7 +17,7 @@
  *     a tiled gable roof.
  *   - Before it a portico of four Tuscan columns of travertine carrying an
  *     architrave with an inscription (its letters cut and painted red, as
- *     Roman inscriptions were; abstract here, no words), a lean-to roof.
+ *     Roman inscriptions were: TABVLARIVM PVBLICVM), a lean-to roof.
  *   - In the court: the counting table (mensa) where the money is taken,
  *     as the relief of the rent payment from Neumagen shows it: a marble
  *     table, piles of bronze and silver coin, an open purse, a tablet and a
@@ -197,6 +197,56 @@ function office(lod, seed) {
   return out;
 }
 
+/**
+ * The architrave's inscription: "the public record office", in Roman
+ * capitals cut and painted red, as a town's building named itself (our own
+ * words; Latin's U written V, words parted by a stop).
+ */
+const INSCRIPTION = 'TABVLARIVM·PVBLICVM';
+
+/**
+ * Roman capitals as strokes, each [x0, y0, x1, y1] in a box one high and
+ * `w` wide: the few letters the inscription uses, the bowls as polygons.
+ */
+const GLYPHS = {
+  T: { w: 0.7, s: [[0, 1, 0.7, 1], [0.35, 1, 0.35, 0]] },
+  A: { w: 0.72, s: [[0, 0, 0.36, 1], [0.36, 1, 0.72, 0], [0.16, 0.36, 0.56, 0.36]] },
+  B: { w: 0.62, s: [[0, 0, 0, 1], [0, 1, 0.4, 1], [0.4, 1, 0.54, 0.88], [0.54, 0.88, 0.54, 0.64], [0.54, 0.64, 0.4, 0.53], [0, 0.53, 0.42, 0.53], [0.42, 0.53, 0.6, 0.4], [0.6, 0.4, 0.6, 0.14], [0.6, 0.14, 0.44, 0], [0.44, 0, 0, 0]] },
+  V: { w: 0.72, s: [[0, 1, 0.36, 0], [0.36, 0, 0.72, 1]] },
+  L: { w: 0.56, s: [[0, 1, 0, 0], [0, 0, 0.56, 0]] },
+  R: { w: 0.64, s: [[0, 0, 0, 1], [0, 1, 0.42, 1], [0.42, 1, 0.58, 0.86], [0.58, 0.86, 0.58, 0.64], [0.58, 0.64, 0.42, 0.5], [0.42, 0.5, 0, 0.5], [0.3, 0.5, 0.64, 0]] },
+  I: { w: 0.08, s: [[0.04, 0, 0.04, 1]] },
+  M: { w: 0.9, s: [[0, 0, 0.04, 1], [0.04, 1, 0.45, 0.06], [0.45, 0.06, 0.86, 1], [0.86, 1, 0.9, 0]] },
+  P: { w: 0.62, s: [[0, 0, 0, 1], [0, 1, 0.42, 1], [0.42, 1, 0.58, 0.86], [0.58, 0.86, 0.58, 0.64], [0.58, 0.64, 0.42, 0.5], [0.42, 0.5, 0, 0.5]] },
+  C: { w: 0.7, s: [[0.66, 0.84, 0.46, 1], [0.46, 1, 0.2, 0.94], [0.2, 0.94, 0.05, 0.74], [0.05, 0.74, 0.05, 0.26], [0.05, 0.26, 0.2, 0.06], [0.2, 0.06, 0.46, 0], [0.46, 0, 0.68, 0.14]] },
+  '·': { w: 0.2, s: [[0.06, 0.46, 0.14, 0.46]] },
+};
+
+/** `text` in cut strokes, centred on x = 0, its foot at y, its face at z, `h` tall. */
+function inscription(text, y, z, h) {
+  const sw = h * 0.13;
+  const gap = h * 0.28;
+  const width = [...text].reduce((a, ch) => a + GLYPHS[ch].w * h + gap, -gap);
+  let x = -width / 2;
+  const out = [];
+  for (const ch of text) {
+    const g = GLYPHS[ch];
+    for (const [x0, y0, x1, y1] of g.s) {
+      const ax = x + x0 * h;
+      const ay = y + y0 * h;
+      const bx = x + x1 * h;
+      const by = y + y1 * h;
+      const len = Math.hypot(bx - ax, by - ay) + sw * 0.8;
+      const s = new BoxGeometry(len, sw, 0.006);
+      s.rotateZ(Math.atan2(by - ay, bx - ax));
+      s.translate((ax + bx) / 2, (ay + by) / 2, z);
+      out.push(tintGeometry(boxUV(s)));
+    }
+    x += g.w * h + gap;
+  }
+  return out;
+}
+
 /** The portico: four columns, the architrave with its inscription, the lean-to roof. */
 function portico(lod, seed) {
   const out = { trav: [], marble: [], red: [], tiles: [] };
@@ -211,18 +261,7 @@ function portico(lod, seed) {
   // The inscription: a marble panel on the architrave's face, its letters in rows of little red-filled cuts.
   out.marble.push(slab(3.2, 0.26, 0.03, { bevel: 0.004, seed: seed + 3, wobble: 0, tone: 0, grime: 0 }).translate(0, aY + 0.04, z + 0.215));
   if (lod === 0) {
-    const rnd = artRng(seed + 4);
-    let x = -1.48;
-    while (x < 1.45) {
-      // A word of 3 to 8 letters, a gap (an interpunct) after it.
-      const n = 3 + Math.floor(rnd() * 6);
-      for (let k = 0; k < n && x < 1.45; k++) {
-        const w = 0.028 + rnd() * 0.02;
-        out.red.push(slab(w, 0.085, 0.006, { bevel: 0.001, seed: seed + x * 100, wobble: 0, tone: 0.1, grime: 0 }).translate(x + w / 2, aY + 0.125, z + 0.232));
-        x += w + 0.018;
-      }
-      x += 0.06;
-    }
+    out.red.push(...inscription(INSCRIPTION, aY + 0.105, z + 0.232, 0.12));
   } else if (lod === 1) {
     out.red.push(slab(2.9, 0.13, 0.008, { bevel: 0.001, seed: seed + 5, wobble: 0, tone: 0, grime: 0 }).translate(0, aY + 0.105, z + 0.232));
   }
@@ -291,7 +330,7 @@ function court(lod, seed) {
   for (const x of [-0.38, 0, 0.38]) out.ironShut.push(slab(0.05, 0.13, ad + 0.03, { bevel: 0.003, seed: seed + 14, wobble: 0, tone: 0, grime: 0 }).translate(ax + x, y0 + ah, az));
   out.ironShut.push(slab(0.09, 0.11, 0.03, { bevel: 0.004, seed: seed + 15, wobble: 0, tone: 0, grime: 0 }).translate(ax, y0 + ah - 0.12, az + ad / 2 + 0.01));
   // Open: the lid stood up behind on its hinges, coin heaped inside.
-  const lidOpen = slab(aw + 0.02, 0.12, ad + 0.02, { bevel: 0.012, seed: seed + 13, wobble: 0.001, tone: 0.04, grime: 0 });
+  const lidOpen = slab(aw + 0.02, 0.12, ad + 0.02, { bevel: 0.012, seed: seed + 13, wobble: 0.001, tone: 0.04, grime: 0, bottom: true });
   lidOpen.translate(0, 0, ad / 2 + 0.01);
   lidOpen.rotateX(-D(100));
   out.woodOpen.push(lidOpen.translate(ax, y0 + ah, az - ad / 2));
