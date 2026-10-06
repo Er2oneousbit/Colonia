@@ -26,8 +26,11 @@ import { inOwnFort } from './entities.js';
 import { landPassable, offRoadReroute } from './crime.js';
 import { nativeTraderReroute } from './natives.js';
 
-// How far (tiles, either axis) to look for room: past the middle of the
-// widest thing built at once, a hippodrome's three sections in a row.
+// How far (tiles, either axis) room is usually found: past the middle of
+// the widest building, a hippodrome's three sections in a row. A unit deeper
+// in than that (a big drag of buildings at once, Nova Roma's palace) is
+// looked for further, to the map's edge: the search stops one ring past the
+// first with room, so only he pays for the longer look.
 const REACH = 12;
 
 /**
@@ -78,7 +81,7 @@ export function makeRoom(game, tiles) {
 }
 
 /**
- * The point nearest (x, y) on a tile `ok` accepts, within REACH: the
+ * The point nearest (x, y) on a tile `ok` accepts, anywhere on the map: the
  * nearest such tile (the first in scan order on a tie), and on it the point
  * nearest (x, y), kept a little inside its edges. Null when there is none.
  */
@@ -88,7 +91,8 @@ function nearestRoom(game, x, y, ok) {
   const cy = Math.floor(y);
   let best = null;
   let bestD = Infinity;
-  for (let r = 1; r <= REACH; r++) {
+  const reach = Math.max(REACH, map.w, map.h);
+  for (let r = 1; r <= reach; r++) {
     // A ring further out can still hold a nearer tile than a corner of this
     // one, so look one ring past the first that has room.
     if (best && r - 1 > bestD) break;

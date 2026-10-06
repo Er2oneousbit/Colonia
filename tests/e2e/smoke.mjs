@@ -1062,7 +1062,32 @@ try {
           }
         }
       }
-      if (!best) return null;
+      if (!best) {
+        // No free meadow within 10 tiles of any road on this map (the cause of
+        // this check's occasional failure since v0.18.8: the map, not the rule).
+        // The check is of the menu and the placing, so lay one meadow tile under
+        // a free spot by a road, as a farm needs some meadow under it, and say so.
+        for (let r = 2; r < 60; r++) {
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+            const x = home.x + dx; const y = home.y + dy;
+            if (!m.inBounds(x, y) || !m.inBounds(x + size, y + size)) continue;
+            let open = true;
+            for (let ty = 0; ty < size && open; ty++) for (let tx = 0; tx < size; tx++) if (!m.isFree(x + tx, y + ty) || m.terrain[m.idx(x + tx, y + ty)] === 2) { open = false; break; }
+            let byRoad = false;
+            for (let k = 0; k < size; k++) if (m.hasRoad(x + k, y - 1) || m.hasRoad(x + k, y + size) || m.hasRoad(x - 1, y + k) || m.hasRoad(x + size, y + k)) byRoad = true;
+            if (!open || !byRoad) continue;
+            const off = Math.floor((size - 1) / 2);
+            m.terrain[m.idx(x + off, y + off)] = 1;
+            m.touch();
+            console.log(`smoke: no meadow near a road on seed ${app.game.seed}: laid one at ${x + off},${y + off}`);
+            app.renderer.camera.centerOnTile(x + off, y + off);
+            app.renderer.render(0, 0.016);
+            return { x, y, ax: x + off, ay: y + off, laid: true };
+          }
+        }
+        return null;
+      }
       const off = Math.floor((size - 1) / 2);
       app.renderer.camera.centerOnTile(Math.round((best.link.x + best.link.rx) / 2), Math.round((best.link.y + best.link.ry) / 2));
       app.renderer.render(0, 0.016);
