@@ -92,6 +92,7 @@ function withColourManagement(fn) {
 }
 
 const _m = new Matrix4();
+const _me = new Matrix4();
 
 /** A kit's ghost meshes (placeGhost), both tints. */
 function ghostMeshes(k) {
@@ -313,17 +314,11 @@ export class ModelPass {
     for (const m of placed) {
       const def = MODELS[m.b.type];
       const v = def.variant(m.b, m, this);
-      const k = this.kitFor(v.key, lod);
-      k.seen = this.frame;
+      const shows = def.shows || partShows;
       modelMatrix(m.vx, m.vy, m.b.size, m.T, m.rise || 0, _m);
-      for (let i = 0; i < k.meshes.length; i++) {
-        let im = k.meshes[i];
-        if (!partShows(im.userData.part.when, v.state, v.ice)) continue;
-        const n = im.userData.n;
-        if (n >= im.instanceMatrix.count) im = this.grow(k, i, n + 1);
-        _m.toArray(im.instanceMatrix.array, n * 16);
-        im.userData.n = n + 1;
-      }
+      this.put(v.key, lod, _m, shows, v.state, v.ice);
+      // What stands in the building's frame on its own (a warehouse's loads, a market's wares): kits of their own.
+      if (v.extras) for (const e of v.extras) this.put(e.key, lod, e.at ? _me.multiplyMatrices(_m, e.at) : _m, shows, e.state, v.ice);
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
     }
     for (const g of ghosts) this.placeGhost(g, lod);
@@ -351,6 +346,20 @@ export class ModelPass {
     return placed.length;
   }
 
+  /** One copy of look `key` at `lod` with matrix `m`: an instance in each of its parts that state `state` shows. */
+  put(key, lod, m, shows, state, ice) {
+    const k = this.kitFor(key, lod);
+    k.seen = this.frame;
+    for (let i = 0; i < k.meshes.length; i++) {
+      let im = k.meshes[i];
+      if (!shows(im.userData.part.when, state, ice)) continue;
+      const n = im.userData.n;
+      if (n >= im.instanceMatrix.count) im = this.grow(k, i, n + 1);
+      m.toArray(im.instanceMatrix.array, n * 16);
+      im.userData.n = n + 1;
+    }
+  }
+
   /**
    * A ghost (the renderer's placeGhostModels: { type, x, y, size, T, vx, vy,
    * ok, snow }): the model as it would stand there, see-through and tinted.
@@ -360,7 +369,9 @@ export class ModelPass {
     const i = map.idx(g.x, g.y);
     // As built there: a fountain runs where the reservoirs' pipes reach, and takes the look of its band.
     const b = { id: null, type: g.type, x: g.x, y: g.y, size: g.size, hasWater: (map.water[i] & WaterBits.PIPED) !== 0, efficiency: 1 };
-    const v = MODELS[g.type].variant(b, { snow: g.snow }, this);
+    const def = MODELS[g.type];
+    const v = def.variant(b, { snow: g.snow, T: g.T }, this);
+    const shows = def.shows || partShows;
     const k = this.kitFor(v.key, lod);
     k.seen = this.frame;
     const tint = g.ok ? 'ok' : 'warn';
@@ -368,7 +379,7 @@ export class ModelPass {
     const list = k.ghosts[tint];
     modelMatrix(g.vx, g.vy, g.size, g.T, 0, _m);
     k.kit.parts.forEach((part, p) => {
-      if (part.material.transparent || !partShows(part.when, v.state, v.ice)) return;
+      if (part.material.transparent || !shows(part.when, v.state, v.ice)) return;
       let im = list[p];
       if (!im) {
         im = this.instanced({ ...part, material: ghostMaterial(tint), cast: false }, 2, this.rig.ghostSlot);
@@ -434,9 +445,8 @@ export class ModelPass {
     this.slowSaid = false;
     let job;
     try {
-      // (Every material of every look: a frost's ice is the water's program, so the frozen looks need nothing more.)
-      const looks = ['well', 'fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'];
-      for (const look of looks) this.kitFor(look, 1);
+      // Every program and texture of every look (each model says which looks make them: models.js `warm`).
+      for (const def of Object.values(MODELS)) for (const look of def.warm || []) this.kitFor(look, 1);
       // The ghosts' tints (the see-through program the stains use, but their own materials).
       ghostMaterial('ok');
       ghostMaterial('warn');

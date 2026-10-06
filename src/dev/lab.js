@@ -27,10 +27,12 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'|'fountain'), setSeason(name), setSnow(0..3),
- * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
- * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
- * fountainTriangles(lod).
+ * setScene('well'|'ground'|'types'|'fountain'|'market'|'forum'|'warehouse'),
+ * setSeason(name), setSnow(0..3), setWet(on), aimAt(x, z), cards (the
+ * Ground types' cards), setCard(id or index), overview(), fountains (the
+ * Fountain scene's), setFountainLod(0..2), fountainTriangles(lod),
+ * setCommerceLod(0..2), commerceTriangles(id, lod). The Market, Forum and
+ * Warehouse scenes (labCommerce.js): K, U, H.
  * ----------------------------------------------------------------------------
  */
 
@@ -53,6 +55,7 @@ import { buildGroundScene } from './labGround.js';
 import { buildGallery } from './labGallery.js';
 import { buildFountainScene } from './labFountain.js';
 import { fountainLife } from '../render3d/models/fountain.js';
+import { buildCommerceScenes } from './labCommerce.js';
 import { mapStats } from './texReport.js';
 
 /** The game's closest zoom (config.js ZOOM_LEVELS' last). */
@@ -281,12 +284,19 @@ async function main() {
   const fs = buildFountainScene();
   fs.group.visible = false;
   scene.add(fs.group);
+  // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
+  const commerce = buildCommerceScenes();
+  for (const s of Object.values(commerce)) {
+    s.group.visible = false;
+    scene.add(s.group);
+  }
   /** What must not cast AO: the well's water and glass, and the fountains' water and stains (each rebuild). */
   const baseNoAO = [...look.noAO];
   const fountainNoAO = () => {
     look.noAO.length = 0;
     look.noAO.push(...baseNoAO);
     for (const o of fs.fountains) for (const m of o.f.meshes) if (m.material.transparent) look.noAO.push(m);
+    for (const s of Object.values(commerce)) s.group.traverse((m) => { if (m.isMesh && m.material.transparent) look.noAO.push(m); });
   };
 
   const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false, card: 0, overview: false };
@@ -301,6 +311,7 @@ async function main() {
     if (state.scene === 'well') LOOK.uniforms.uLookFade.value.set(0, 0, 7, 10.5);
     else if (state.scene === 'fountain') LOOK.uniforms.uLookFade.value.set(0, 0, 9.5, 12.5);
     else if (state.scene === 'ground') LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
+    else if (commerce[state.scene]) LOOK.uniforms.uLookFade.value.set(...commerce[state.scene].fade);
     else LOOK.uniforms.uLookFade.value.set(0, 0, 1e5, 2e5);
   }
   setFade();
@@ -312,7 +323,7 @@ async function main() {
   const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
   const fillInfo = () => {
-    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO }[state.scene];
+    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO }[state.scene] || commerce[state.scene].info;
     info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
   };
   fillInfo();
@@ -328,7 +339,9 @@ async function main() {
       return b;
     });
   };
-  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')]]);
+  const SCENES = ['well', 'fountain', 'ground', 'types', ...Object.keys(commerce)];
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')],
+    ...Object.values(commerce).map((s) => [s.title, s.key, () => setScene(s.id)])]);
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
@@ -367,13 +380,24 @@ async function main() {
     fLabels.appendChild(e);
     return e;
   });
+  // The commerce scenes' labels, one over each building.
+  const cLabels = el('div', { class: 'cardlabels' });
+  app.appendChild(cLabels);
+  const cLabelEls = Object.fromEntries(Object.values(commerce).map((s) => [s.id, s.labels.map((l) => {
+    const e = el('div', { class: 'cardlabel' }, `<b>${l.name}</b><span>${l.note}</span>`);
+    cLabels.appendChild(e);
+    return e;
+  })]));
   group([['About', 'I', () => info.classList.toggle('open')]]);
 
   function refreshButtons() {
-    ['well', 'fountain', 'ground', 'types'].forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
-    lodBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === fs.lod)));
-    lodBtns[0].parentElement.style.display = state.scene === 'fountain' ? '' : 'none';
+    SCENES.forEach((k, i) => sceneBtns[i].setAttribute('aria-pressed', String(k === state.scene)));
+    const lodNow = commerce[state.scene] ? commerce[state.scene].lod : fs.lod;
+    lodBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(i === lodNow)));
+    lodBtns[0].parentElement.style.display = state.scene === 'fountain' || commerce[state.scene] ? '' : 'none';
     fLabels.style.display = state.scene === 'fountain' ? '' : 'none';
+    cLabels.style.display = commerce[state.scene] ? '' : 'none';
+    for (const [id, els] of Object.entries(cLabelEls)) if (id !== state.scene) for (const e of els) e.style.display = 'none';
     Object.keys(MOODS).forEach((k, i) => moodBtns[i].setAttribute('aria-pressed', String(k === state.mood)));
     Object.keys(VIEWS).forEach((k, i) => viewBtns[i].setAttribute('aria-pressed', String(k === state.view)));
     Object.keys(SEASONS).forEach((k, i) => seasonBtns[i].setAttribute('aria-pressed', String(k === state.season)));
@@ -421,8 +445,10 @@ async function main() {
     fs.group.visible = name === 'fountain';
     groundGroup.visible = name === 'ground';
     galGroup.visible = name === 'types';
+    for (const s of Object.values(commerce)) s.group.visible = name === s.id;
+    if (commerce[name]) street.group.visible = false;
     if (name === 'types') aimCard();
-    else if (target.x > 100) target.set(0, 0.4, 0);
+    else if (target.x > 100 || commerce[name]) target.set(0, 0.4, 0);
     for (const l of look.lamps) l.set(MOODS[state.mood].lamps);
     setFade();
     fillInfo();
@@ -472,7 +498,8 @@ async function main() {
   }
   /** The fountains at another level of detail (rebuilt; their water kept out of the AO). */
   function setFountainLod(n) {
-    fs.setLod(n);
+    if (commerce[state.scene]) commerce[state.scene].setLod(n);
+    else fs.setLod(n);
     fountainNoAO();
     refreshButtons();
   }
@@ -493,8 +520,24 @@ async function main() {
       if (on) e.style.transform = `translate(${((lp.x + 1) / 2) * w}px, ${((1 - lp.y) / 2) * h}px) translate(-50%, -100%)`;
     });
   }
+  /** Each commerce building's label over its back corner, as seen at this turn. */
+  function placeCommerceLabels() {
+    const s = commerce[state.scene];
+    const cam = state.view === 'orbit' ? persp : ortho;
+    cLabels.classList.toggle('compact', state.view !== 'game2' && state.view !== 'orbit');
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    s.labels.forEach((l, i) => {
+      lp.set(l.x, l.y, l.z).project(cam);
+      const e = cLabelEls[s.id][i];
+      const on = lp.z < 1 && Math.abs(lp.x) < 1.05 && Math.abs(lp.y) < 1.05;
+      e.style.display = on ? '' : 'none';
+      if (on) e.style.transform = `translate(${((lp.x + 1) / 2) * w}px, ${((1 - lp.y) / 2) * h}px) translate(-50%, -100%)`;
+    });
+  }
   function placeLabels() {
     if (state.scene === 'fountain') placeFountainLabels();
+    if (commerce[state.scene]) placeCommerceLabels();
     if (state.scene !== 'types') return;
     // (In the overview the names only: the notes would cover each other.)
     labels.classList.toggle('compact', state.overview);
@@ -564,6 +607,8 @@ async function main() {
   function setTurn(t) {
     state.turn = ((t % 4) + 4) % 4;
     look.setTurn(state.turn);
+    // (The goods take the stalls and bays this turn's camera sees best, as the game's do.)
+    for (const s of Object.values(commerce)) s.setTurn(state.turn);
     aim();
   }
 
@@ -587,6 +632,10 @@ async function main() {
     else if (k === 'w') setScene('well');
     else if (k === 'f') setScene('fountain');
     else if (k === 'l' && state.scene === 'fountain') setFountainLod((fs.lod + 1) % 3);
+    else if (k === 'l' && commerce[state.scene]) setFountainLod((commerce[state.scene].lod + 1) % 3);
+    else if (k === 'k') setScene('market');
+    else if (k === 'u') setScene('forum');
+    else if (k === 'h') setScene('warehouse');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
@@ -732,7 +781,7 @@ async function main() {
   lampsCast(false);
   const warm = look.warm(ortho, {
     mood: 'day',
-    later: [groundGroup, galGroup, fs.group],
+    later: [groundGroup, galGroup, fs.group, ...Object.values(commerce).map((s) => s.group)],
     variants: [() => {
       lampsCast(true);
       return () => lampsCast(look.lamps[0].on > 0);
@@ -778,6 +827,9 @@ async function main() {
     get fountains() { return fs.fountains.map((o) => ({ tier: o.tier, name: o.name, state: o.state, x: o.x, z: o.z, triangles: o.f.triangles })); },
     setFountainLod,
     fountainTriangles: (l) => fs.triangles(l),
+    /** The Market, Forum and Warehouse scenes: a model's triangles at a level of detail (and its goods'). */
+    commerceTriangles: (id, l) => commerce[id].triangles(l),
+    setCommerceLod: (n) => setFountainLod(n),
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */

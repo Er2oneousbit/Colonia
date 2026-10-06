@@ -16,7 +16,19 @@
  *         turn, state and snow level), `ctx` the model pass (the fountain's
  *         tier, kept per building)
  *     build(key, lod) -> THREE.Group, in metres (models/well.js says how)
+ *     warm      the looks to build and compile before the first draw
+ *               (enough to make every program and ask for every texture
+ *               its looks will want: one asked for later would put the
+ *               models back to sprites until it is painted)
+ *     shows(when, state, ice)  optional: which parts a state shows, for a
+ *               model whose tags partShows does not know
+ *     lights(S) optional: its lamps at night, [u, v, z px] in its
+ *               footprint (render/lighting.js lightsFromTorches)
  *   }
+ * and variant() may add `extras`: [{ key, state, at }], more kits drawn in
+ * the building's frame (at: a Matrix4 in its metres, or null), each with
+ * its own state: a warehouse's loads, a market's wares
+ * (models/commerce.js).
  *
  * A model is made in metres, facing +z, the tile's middle at its origin
  * and the street at y = 0; a game tile is 4 m (TILE_M). modelMatrix() stands
@@ -33,6 +45,7 @@ import { buildWell } from './models/well.js';
 import { buildFountain } from './models/fountain.js';
 import { iceMaterial, stagnantMaterial } from './materials.js';
 import { ART_PX } from './projection.js';
+import { COMMERCE_MODELS } from './models/commerce.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -66,6 +79,8 @@ export const MODELS = Object.freeze({
   well: Object.freeze({
     // One look; in a hard frost the water in the shaft, the trough and the bucket is ice.
     variant: (b, place) => ({ key: frost(place) ? 'well:ice' : 'well', state: 'always', ice: false }),
+    // (A frost's ice is the water's program: the frozen looks need nothing more.)
+    warm: ['well'],
     build(key, lod) {
       const w = buildWell({ lod });
       if (key.endsWith(':ice')) for (const m of w.water) m.material = iceMaterial();
@@ -79,6 +94,7 @@ export const MODELS = Object.freeze({
       const ice = frost(place);
       return { key: `fountain:${ctx.fountainTier(b)}${ice ? ':ice' : ''}`, state: fountainState(b), ice };
     },
+    warm: ['fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'],
     build(key, lod) {
       const [, tier, ice] = key.split(':');
       const f = buildFountain({ tier: Number(tier), lod });
@@ -86,6 +102,8 @@ export const MODELS = Object.freeze({
       return f.group;
     },
   }),
+  // The market, the forum and the warehouse (models/commerce.js says how).
+  ...COMMERCE_MODELS,
 });
 
 /** Does a building type have a 3D model? */

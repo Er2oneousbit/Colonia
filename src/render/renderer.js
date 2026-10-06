@@ -90,7 +90,7 @@ import { isWagon } from './cargoArt.js';
 import { drawGulls } from './waterArt.js';
 import { Effects, drawFlames, drawSpray, drawGlint } from './effects.js';
 import { Ambient } from './ambient.js';
-import { NightLights, NOON, skyAt, dayTime, lightsOf, isLit } from './lighting.js';
+import { NightLights, NOON, skyAt, dayTime, lightsOf, lightsFromLamps, isLit } from './lighting.js';
 import { Weather, seasonPalette } from './weather.js';
 import { hash01 } from './draw.js';
 import { turnUV, turnDir } from './turn.js';
@@ -1460,11 +1460,16 @@ export class Renderer {
     const vt = this.viewTurn;
     if (lamps > 0.01) {
       for (const b of visibleBuildings) {
-        if (!isLit(b, lamps)) continue;
+        // A building drawn as a 3D model lights the lamps it hangs by its doors (render3d/models.js
+        // `lights`), while it is staffed, not its sprite's windows.
+        const lamps3d = this.be?.modelLights && this.be.hasModel(b.type) ? this.be.modelLights(b.type, b.size) : null;
+        if (lamps3d ? !(b.efficiency > 0 && lamps > 0.05 + hash01(b.id, 7) * 0.2) : !isLit(b, lamps)) continue;
         const variant = this.artVariant(b);
         const state = artState(b, farmDormant(game, b));
         const T = artTurn(b, vt);
-        const info = lightsOf(`${b.type}:${b.size}:${variant}:${state}${turnKey(T)}`, b.type, b.size, variant, state, T);
+        const info = lamps3d
+          ? lightsFromLamps(`3d:${b.type}:${b.size}${turnKey(T)}`, b.size, lamps3d, T)
+          : lightsOf(`${b.type}:${b.size}:${variant}:${state}${turnKey(T)}`, b.type, b.size, variant, state, T);
         const foot = this.footAt(b.x, b.y, b.size);
         const ox = (foot.wx - cam.x) * k;
         const oy = (foot.wy - cam.y) * k;
@@ -1699,7 +1704,8 @@ export class Renderer {
     }
     if (model) this.be.model(b, { T, state, snow, vx: foot.vx, vy: foot.vy, rise });
     const kind = b.def.kind;
-    if (kind === 'warehouse' || kind === 'granary') {
+    // (A store drawn as a model shows its stock itself.)
+    if ((kind === 'warehouse' || kind === 'granary') && !model) {
       items.push({ d: front + 0.0005, kind: K_EXTRA, b, wx, wy, stock: true });
     }
     if ((b.type === 'pottery_ws' || b.type === 'weapons_ws') && b.efficiency > 0 && b.progress > 0 && Math.random() < 0.03) {
@@ -1715,7 +1721,8 @@ export class Renderer {
       items.push({ d: front + 0.0006, kind: K_EXTRA, b, wx, wy, spray: true });
     }
     // Live details. Flag cloth always (the sprite only has the poles).
-    const flags = flagsFor(b.type, b.size, T);
+    // (A model has no flag poles for the cloth: its sprite's would fly in the air beside it.)
+    const flags = model ? [] : flagsFor(b.type, b.size, T);
     if (flags.length) items.push({ d: front + 0.0007, kind: K_EXTRA, b, wx, wy: wy + rise, flags });
     if (this.camera.zoom < 0.75 || rise) return; // the rest is too small to see when zoomed out
     if (kind === 'market' && b.efficiency > 0 && hasStock(b)) {
