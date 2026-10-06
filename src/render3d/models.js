@@ -33,6 +33,9 @@ import { buildWell } from './models/well.js';
 import { buildFountain } from './models/fountain.js';
 import { iceMaterial, stagnantMaterial } from './materials.js';
 import { ART_PX } from './projection.js';
+import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
+import { granaryModel, buildGranaryPart } from './models/granary.js';
+import { CONFIG } from '../config.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -64,6 +67,7 @@ const frost = (place) => (place.snow || 0) >= 2;
 
 export const MODELS = Object.freeze({
   well: Object.freeze({
+    warm: ['well'],
     // One look; in a hard frost the water in the shaft, the trough and the bucket is ice.
     variant: (b, place) => ({ key: frost(place) ? 'well:ice' : 'well', state: 'always', ice: false }),
     build(key, lod) {
@@ -72,9 +76,14 @@ export const MODELS = Object.freeze({
       return w.group;
     },
   }),
+  // The farms (models/farm.js: a farmhouse, the kind's yard, trees, vines and animals, each instanced on its own).
+  ...Object.fromEntries(Object.keys(FARM_KIND).map((type) => [type, farmModel(type)])),
+  // The granary (models/granary.js), its portico holding as much as the granary does.
+  granary: granaryModel(CONFIG.GRANARY_CAPACITY),
   fountain: Object.freeze({
     // Its look from its neighbourhood (fountainTier.js, kept per building by the pass); in a hard
     // frost a running one grows icicles and a dry one's puddle freezes.
+    warm: ['fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'],
     variant: (b, place, ctx) => {
       const ice = frost(place);
       return { key: `fountain:${ctx.fountainTier(b)}${ice ? ':ice' : ''}`, state: fountainState(b), ice };
@@ -88,9 +97,44 @@ export const MODELS = Object.freeze({
   }),
 });
 
+/**
+ * Kits that are parts of a building's look, not buildings (models.js
+ * MODELS' `more`: a farm's trees and animals, a granary's goods), by their
+ * key's first word: modelPass.js builds them as it builds a look.
+ */
+export const MODEL_PARTS = Object.freeze({
+  ...FARM_PARTS,
+  gstock: Object.freeze({ build: buildGranaryPart }),
+});
+
+/** The builder of a kit's key: a building type's (MODELS) or a part's (MODEL_PARTS). */
+export function modelFor(key) {
+  const w = key.split(':')[0];
+  return Object.prototype.hasOwnProperty.call(MODELS, w) ? MODELS[w] : MODEL_PARTS[w];
+}
+
 /** Does a building type have a 3D model? */
 export function hasModel(type) {
   return Object.prototype.hasOwnProperty.call(MODELS, type);
+}
+
+/**
+ * A model's own lamps at night, as points [u, v, z] of its footprint at
+ * art turn T (tiles, and art px up), for the night's light map
+ * (render/renderer.js collectLights): the granary's lantern. Empty for most.
+ */
+export function modelLamps(b, T) {
+  const def = MODELS[b.type];
+  if (!def || !def.lamps) return [];
+  const S = b.size;
+  return def.lamps(b).map(([x, y, z]) => {
+    // Metres from the middle to the art's (u, v) at turn 0, then turned as render/turn.js turns art.
+    const u = S / 2 + x / TILE_M;
+    const v = S / 2 + z / TILE_M;
+    const t = T & 3;
+    const uv = [[u, v], [S - v, u], [S - u, S - v], [v, S - u]][t];
+    return [uv[0], uv[1], y / ART_PX / TILE_M];
+  });
 }
 
 const _q = new Quaternion();
@@ -108,6 +152,7 @@ const UP = new Vector3(0, 1, 0);
 export function modelMatrix(vx, vy, S, T, rise = 0, out = new Matrix4()) {
   _p.set(vx + S / 2, -rise * ART_PX, vy + S / 2);
   _q.setFromAxisAngle(UP, (-(T & 3) * Math.PI) / 2);
-  _s.setScalar(S / TILE_M);
+  // (A model is in metres over its whole footprint: a 3 x 3 farm spans 12 m, a well 4.)
+  _s.setScalar(1 / TILE_M);
   return out.compose(_p, _q, _s);
 }
