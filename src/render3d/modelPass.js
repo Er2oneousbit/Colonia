@@ -46,7 +46,7 @@
  */
 
 import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement } from 'three';
-import { MODELS, partShows, modelMatrix } from './models.js';
+import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
@@ -71,6 +71,15 @@ const FIRST_ROOM = 8;
  */
 const SLOW_S = 20;
 const COMPILE_GIVE_UP_S = 30;
+/**
+ * Milliseconds of a frame spent building kits at a new level of detail
+ * before the rest wait for the next frames, drawn meanwhile at a level
+ * already built (a farm is a dozen kits: all at once, a zoom to a new level
+ * stalled a frame for 300 ms). A look with no level built yet (a new farm's,
+ * a new season's trees) is built at once whatever the budget: there is
+ * nothing to draw in its place.
+ */
+const BUILD_MS = 8;
 /** Tries at compiling that may throw before the models give way to the sprites for good. */
 const WARM_TRIES = 3;
 
@@ -92,6 +101,8 @@ function withColourManagement(fn) {
 }
 
 const _m = new Matrix4();
+const _l = new Matrix4();
+const _ml = new Matrix4();
 
 /** A kit's ghost meshes (placeGhost), both tints. */
 function ghostMeshes(k) {
@@ -238,16 +249,26 @@ export class ModelPass {
     const id = `${key}|${lod}`;
     let k = this.kits.get(id);
     if (k) return k;
-    const type = key.split(':')[0];
+    // Over this frame's budget: the same look at another level, if one is built, until a later frame.
+    if (this.buildUntil && performance.now() > this.buildUntil) {
+      for (const l of [lod + 1, lod - 1, lod + 2, lod - 2]) {
+        const o = this.kits.get(`${key}|${l}`);
+        if (o) {
+          this.deferred++;
+          return o;
+        }
+      }
+    }
+    const t0 = performance.now();
     const kit = withColourManagement(() => {
-      const group = MODELS[type].build(key, lod);
+      const group = modelFor(key).build(key, lod);
       const out = kitOf(group);
       // (The built model's own geometries: the kit has its own copies.)
       group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
       return out;
     });
     const meshes = kit.parts.map((p) => this.instanced(p, FIRST_ROOM));
-    k = { kit, meshes, seen: this.frame, id };
+    k = { kit, meshes, seen: this.frame, id, key, lod, ms: performance.now() - t0 };
     this.kits.set(id, k);
     return k;
   }
@@ -306,27 +327,38 @@ export class ModelPass {
     // A new game or a load: its buildings' ids start again, the tiers remembered are another city's.
     if (this.game && r.game && r.game.map !== this.game.map) this.tiers.clear();
     this.game = r.game;
+    // (What a model's look may follow besides its building: the month's season, with the seasons
+    // shown, and the clock its animals move by.)
+    this.month = r.seasonsOn === false || !r.game || !r.game.time ? null : r.game.time.month;
+    this.clock = r.motionOn ? r.time || 0 : 0;
     this.life(r);
+    this.buildUntil = performance.now() + BUILD_MS;
+    this.deferred = 0;
     for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
     const byType = {};
     // (The shadow map is cleared rather than drawn when no model wants it: sunRig.js fitShadow.)
     for (const m of placed) {
       const def = MODELS[m.b.type];
       const v = def.variant(m.b, m, this);
-      const k = this.kitFor(v.key, lod);
-      k.seen = this.frame;
       modelMatrix(m.vx, m.vy, m.b.size, m.T, m.rise || 0, _m);
-      for (let i = 0; i < k.meshes.length; i++) {
-        let im = k.meshes[i];
-        if (!partShows(im.userData.part.when, v.state, v.ice)) continue;
-        const n = im.userData.n;
-        if (n >= im.instanceMatrix.count) im = this.grow(k, i, n + 1);
-        _m.toArray(im.instanceMatrix.array, n * 16);
-        im.userData.n = n + 1;
+      this.place(this.kitFor(v.key, lod), _m, v.state, v.ice);
+      // A look made of several kits (models.js `more`): a farm's trees, its animals, a granary's
+      // stock, each instanced on its own (one draw a part for every farm in view), placed in the
+      // building's own metres.
+      if (v.more) {
+        for (const it of v.more) {
+          const k = this.kitFor(it.key, lod);
+          for (let j = 0; j < it.n; j++) {
+            _l.fromArray(it.mats, j * 16);
+            this.place(k, _ml.multiplyMatrices(_m, _l), it.state || 'always', false);
+          }
+        }
       }
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
     }
     for (const g of ghosts) this.placeGhost(g, lod);
+    this.prefetch(lod);
+    this.buildUntil = 0;
     let tris = 0;
     for (const [id, k] of this.kits) {
       for (const im of k.meshes.concat(ghostMeshes(k))) {
@@ -347,8 +379,49 @@ export class ModelPass {
     if (this.frame % KEEP_FRAMES === 0) {
       for (const [id, e] of this.tiers) if (this.frame - e.seen > KEEP_FRAMES) this.tiers.delete(id);
     }
-    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod };
+    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod, deferred: this.deferred };
     return placed.length;
+  }
+
+  /**
+   * With time left in this frame's budget, build the looks in view at the
+   * levels either side of this one (a zoom step in or out then finds them
+   * ready), one kit a frame at most; those already built are kept alive.
+   */
+  prefetch(lod) {
+    const used = [];
+    for (const k of this.kits.values()) if (k.seen === this.frame && k.lod === lod) used.push(k.key);
+    let built = false;
+    for (const key of used) {
+      for (const l of [lod - 1, lod + 1]) {
+        if (l < 0 || l > 2) continue;
+        const near = this.kits.get(`${key}|${l}`);
+        if (near) near.seen = this.frame;
+        else if (!built) {
+          // Only what fits the frame's time left, guessed from the level built (a finer level
+          // costs about four times a coarser one): a big kit waits for a zoom to ask for it.
+          const have = this.kits.get(`${key}|${lod}`);
+          const guess = have ? have.ms * (l < lod ? 4 : 0.5) : Infinity;
+          if (performance.now() + guess < this.buildUntil) {
+            this.kitFor(key, l).seen = this.frame;
+            built = true;
+          }
+        }
+      }
+    }
+  }
+
+  /** One more copy of kit `k` at matrix `m`: its parts that show in `state` (partShows). */
+  place(k, m, state, ice) {
+    k.seen = this.frame;
+    for (let i = 0; i < k.meshes.length; i++) {
+      let im = k.meshes[i];
+      if (!partShows(im.userData.part.when, state, ice)) continue;
+      const n = im.userData.n;
+      if (n >= im.instanceMatrix.count) im = this.grow(k, i, n + 1);
+      m.toArray(im.instanceMatrix.array, n * 16);
+      im.userData.n = n + 1;
+    }
   }
 
   /**
@@ -361,14 +434,27 @@ export class ModelPass {
     // As built there: a fountain runs where the reservoirs' pipes reach, and takes the look of its band.
     const b = { id: null, type: g.type, x: g.x, y: g.y, size: g.size, hasWater: (map.water[i] & WaterBits.PIPED) !== 0, efficiency: 1 };
     const v = MODELS[g.type].variant(b, { snow: g.snow }, this);
-    const k = this.kitFor(v.key, lod);
-    k.seen = this.frame;
     const tint = g.ok ? 'ok' : 'warn';
+    modelMatrix(g.vx, g.vy, g.size, g.T, 0, _m);
+    this.placeGhostKit(this.kitFor(v.key, lod), _m, tint, v.state, v.ice);
+    if (v.more) {
+      for (const it of v.more) {
+        const k = this.kitFor(it.key, lod);
+        for (let j = 0; j < it.n; j++) {
+          _l.fromArray(it.mats, j * 16);
+          this.placeGhostKit(k, _ml.multiplyMatrices(_m, _l), tint, it.state || 'always', false);
+        }
+      }
+    }
+  }
+
+  /** One ghost copy of kit `k` at matrix `m`, tinted, its opaque parts that show in `state`. */
+  placeGhostKit(k, m, tint, state, ice) {
+    k.seen = this.frame;
     k.ghosts ??= { ok: [], warn: [] };
     const list = k.ghosts[tint];
-    modelMatrix(g.vx, g.vy, g.size, g.T, 0, _m);
     k.kit.parts.forEach((part, p) => {
-      if (part.material.transparent || !partShows(part.when, v.state, v.ice)) return;
+      if (part.material.transparent || !partShows(part.when, state, ice)) return;
       let im = list[p];
       if (!im) {
         im = this.instanced({ ...part, material: ghostMaterial(tint), cast: false }, 2, this.rig.ghostSlot);
@@ -377,7 +463,7 @@ export class ModelPass {
       const n = im.userData.n;
       // (A drag of fountains along a street.)
       if (n >= im.instanceMatrix.count) list[p] = im = this.bigger(im, n + 1);
-      _m.toArray(im.instanceMatrix.array, n * 16);
+      m.toArray(im.instanceMatrix.array, n * 16);
       im.userData.n = n + 1;
     });
   }
@@ -435,7 +521,7 @@ export class ModelPass {
     let job;
     try {
       // (Every material of every look: a frost's ice is the water's program, so the frozen looks need nothing more.)
-      const looks = ['well', 'fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'];
+      const looks = Object.values(MODELS).flatMap((d) => d.warm || []);
       for (const look of looks) this.kitFor(look, 1);
       // The ghosts' tints (the see-through program the stains use, but their own materials).
       ghostMaterial('ok');

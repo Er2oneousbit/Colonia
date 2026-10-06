@@ -4267,9 +4267,42 @@ try {
       await gq.evaluate(() => window.colonia.setOverlay('none'));
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d-overlay.png') });
       check('3D ground: an overlay\'s tint shows over it (the water overlay turns the well\'s tiles blue)', tintAfter[2] - tintAfter[0] > tintBefore[2] - tintBefore[0] + 15, JSON.stringify({ tintBefore, tintAfter }));
+      // The farms and the granary as models (render3d/models/farm.js, granary.js): the console's
+      // "farms" builds one of every kind and a stocked granary; on the 3D ground they draw as
+      // models, a click on each picks it; with the ground's sprites the farms keep theirs.
+      const farmSite = await gq.evaluate(() => {
+        const app = window.colonia;
+        const said = app.ui.console.run('farms');
+        const g = app.game;
+        const olive = [...g.buildings.values()].find((b) => b.type === 'farm_olive');
+        const gran = [...g.buildings.values()].filter((b) => b.type === 'granary').pop();
+        if (olive) app.renderer.camera.centerOnTile(olive.x + 1.5, olive.y + 1.5);
+        return { said, olive: olive && { id: olive.id, x: olive.x, y: olive.y }, gran: gran && { id: gran.id, x: gran.x, y: gran.y } };
+      });
+      await gq.waitForFunction(() => (window.colonia.renderer.stats.modelPass?.byType?.farm_olive || 0) > 0, null, { timeout: 30000 }).catch(() => {});
+      await frames(3);
+      const farmDrawn = await gq.evaluate(() => ({ byType: window.colonia.renderer.stats.modelPass?.byType || {}, ground: window.colonia.renderer.stats.ground }));
+      if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-farms3d.png') });
+      const farmPick = farmSite.olive ? await pickAt(farmSite.olive.x + 1.5, farmSite.olive.y + 1.5) : null;
+      let granPick = null;
+      if (farmSite.gran) {
+        await gq.evaluate((v) => window.colonia.renderer.camera.centerOnTile(v.x + 1.5, v.y + 1.5), farmSite.gran);
+        await frames(3);
+        granPick = await pickAt(farmSite.gran.x + 1.5, farmSite.gran.y + 1.5);
+      }
+      const granDrawn = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType?.granary || 0);
+      check('3D farms: on the 3D ground a farm and the granary draw as models, and a click picks each',
+        !!farmSite.olive && !!farmSite.gran && farmDrawn.byType.farm_olive >= 1 && granDrawn >= 1
+          && farmPick?.kind === 'building' && farmPick.id === farmSite.olive.id && granPick?.kind === 'building' && granPick.id === farmSite.gran.id,
+        JSON.stringify({ farmSite, farmDrawn, farmPick, granDrawn, granPick }));
+      await gq.evaluate(() => window.colonia.ui.info.close());
       await gq.evaluate(() => window.colonia.ui.console.run('ground off'));
       await gq.waitForTimeout(400);
       const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
+      await frames(3);
+      const farmsOff = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType || {});
+      check("3D farms: with the ground's sprites the farms keep their sprites (which draw their fields), the granary stays a model",
+        !(farmsOff.farm_olive > 0) && !(farmsOff.farm_wheat > 0) && farmsOff.granary >= 1, JSON.stringify(farmsOff));
       check('3D ground: "ground off" goes back to the flat sprites', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50, JSON.stringify(off));
       check('3D ground: no page errors', qerrors.length === 0, qerrors.join(' | '));
       await gq.close();

@@ -20,6 +20,7 @@
 
 import { fbm, ridge, cells } from './paint/recipe.js';
 import { rgb, rgbs, glf } from './paint/glsl.js';
+import { RURAL_SURFACES } from './surfacesRural.js';
 
 /**
  * Limestone of the puteal (the well's curb): a fine pale stone with grain,
@@ -503,6 +504,8 @@ export const SURFACES = Object.freeze({
   terracotta: { metres: 0.6, size: 256, ...terracotta },
   lava: { metres: 1.0, size: 512, ...lava },
   marble: { metres: 1.6, size: 512, ...marble },
+  // The farms' and the granary's (surfacesRural.js).
+  ...RURAL_SURFACES,
 });
 
 /** The surfaces as one set of recipes (one program paints them all: paint/painter.js). */

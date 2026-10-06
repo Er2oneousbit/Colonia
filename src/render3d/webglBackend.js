@@ -68,7 +68,7 @@ import {
 import { HALF_W, HALF_H, CONFIG } from '../config.js';
 import { K_STRIP, spriteRect } from '../render/items.js';
 import { makeCanvas } from '../render/sprites.js';
-import { hasModel, TILE_M } from './models.js';
+import { hasModel, MODELS, TILE_M, modelLamps } from './models.js';
 import { liveBox } from './liveBox.js';
 import { aimCamera, groundDepth, standDepth } from './projection.js';
 import { GroundPass } from './ground/groundPass.js';
@@ -330,8 +330,15 @@ export class WebGLBackend {
     }
   }
 
-  /** Is a building type drawn as a 3D model now (it has one, and its textures and programs are ready)? */
-  hasModel(type) { return hasModel(type) && this.models.ready; }
+  /**
+   * Is a building type drawn as a 3D model now (it has one, and its textures
+   * and programs are ready)? A farm's only with the 3D ground on, which
+   * draws its field (with the ground's sprites, its sprite draws the field).
+   */
+  hasModel(type) { return hasModel(type) && this.models.ready && (!MODELS[type].needsGround || this.drawsGround); }
+
+  /** A model's lamps at night (models.js modelLamps), for the renderer's light map. */
+  modelLamps(b, T) { return modelLamps(b, T); }
 
   /** Room for `n` vertices (a new geometry: three.js keeps a buffer's size once uploaded). */
   grow(n) {

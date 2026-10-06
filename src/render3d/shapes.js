@@ -221,8 +221,16 @@ function roundedBox(w, h, d, seg, r) {
     g = new RoundedBoxGeometry(w, h, d, seg, r);
     g.deleteAttribute('normal');
     g.deleteAttribute('uv');
-    g = mergeVertices(g, 1e-5);
-    if (BOXES.size > 256) BOXES.clear();
+    const welded = mergeVertices(g, 1e-5);
+    // Kept as a plain geometry: mergeVertices hands back a RoundedBoxGeometry, and its clone()
+    // built the whole box again from its parameters before copying this one over it (three's
+    // geometries clone by their constructor): 0.2 ms a block, a granary's 200 stones 45 ms. The
+    // blocks are the same welded boxes as before.
+    g = new BufferGeometry();
+    g.setIndex(welded.index);
+    for (const [name, attr] of Object.entries(welded.attributes)) g.setAttribute(name, attr);
+    // (A farm or a granary has a few hundred sizes: kept whole while a city's models are built.)
+    if (BOXES.size > 1024) BOXES.clear();
     BOXES.set(key, g);
   }
   return g;

@@ -13,7 +13,7 @@ import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
 import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
-import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoNavy, buildDemoAcademy, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -68,6 +68,7 @@ export const CONSOLE_HELP = [
   ['hippodrome', 'Build a Circus (hippodrome) and a Factio (chariot stable) beside the city'],
   ['arena', 'Build an Arena (Great Arena), an amphitheater, a gladiator school and a menagerie beside the city'],
   ['cloth', 'Build the cloth industry beside the city: a Linarium, a Textrinum, a Taberna Vestiaria and a Horreum'],
+  ['farms', 'Build one farm of every kind (at different steps of their year), a horse ranch and a stocked granary beside the city'],
   ['navy', 'Build a naval station and a navalia on the shore, stocked for a squadron of liburnians (river/coast maps)'],
   ['academy', 'Build a Campus (military academy) near the city, and a Portus by the first Statio if there is one (they train only at full staff)'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
@@ -371,6 +372,15 @@ export class DebugConsole {
         const res = buildDemoHippodrome(g, center);
         if (res.hippodrome) app.renderer.camera.centerOnTile(res.hippodrome.x + 7, res.hippodrome.y + 2);
         return res.hippodrome ? `Circus built${res.maker ? ', with a Factio' : ' (no room for a Factio)'}.` : 'No room for a Circus (15 x 5 clear tiles) near the city, or there is one already.';
+      }
+      case 'farms': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const res = buildDemoFarms(g, center);
+        const at = res.granary || res.farms[0];
+        if (at) app.renderer.camera.centerOnTile(at.x + 1, at.y + 1);
+        return res.ok ? `Built ${res.farms.length} farms (${res.farms.map((b) => b.type).join(', ')})${res.granary ? ' and a stocked granary' : ''}.` : 'No meadow for farms near the city, or they are locked in this mission.';
       }
       case 'grounds': {
         need();
