@@ -443,6 +443,9 @@ export function buildPrefecture({ lod = 0, seed = 41 } = {}) {
       if (h.bail) out.bails.push(h.bail.clone().rotateY(r).translate(x, P.floorY, z));
     }
   }
+  // Far out (a tile a few dozen pixels across) the iron and bronze fittings are under a pixel, and each
+  // material is one more draw call for every prefecture in view: left out.
+  if (lod === 2) out.iron = out.bronze = [];
   const mats = {
     trav: material('travertine', { surface: 'travertine', vertexColors: true, snow: 1 }),
     brick: material('brick', { surface: 'brick', vertexColors: true, snow: 1 }),

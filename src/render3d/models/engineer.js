@@ -487,8 +487,15 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
     for (const g of saw.iron) out.benchIron.push(g.rotateY(0.15).translate(-1.2, bY, bz - 0.12));
     for (const g of TOOLS.mallet(lod).wood) out.benchTools.push(g.rotateY(-0.5).translate(-0.4, bY, bz - 0.02));
   }
+  // Far out (a tile a few dozen pixels across) the ropes, the iron, the groma's bobs, the sign, the lime
+  // and the floor's shade are a pixel or two, and each material and state is one more draw call for
+  // every yard in view: left out.
+  if (lod === 2) {
+    out.rope = out.iron = out.bronze = out.paint = out.lime = out.dark = [];
+    for (const b of [out.blockUp, out.blockDown]) b.rope = b.iron = [];
+  }
   const mats = {
-    earth: material('beaten-earth', { surface: 'earth', vertexColors: true, snow: 1 }),
+    earth:material('beaten-earth', { surface: 'earth', vertexColors: true, snow: 1 }),
     rubble: material('rubble-wall', { surface: 'rubble', vertexColors: true, snow: 1 }),
     plaster: material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }),
     wood: material('wood', { surface: 'wood', vertexColors: true, snow: 1 }),
