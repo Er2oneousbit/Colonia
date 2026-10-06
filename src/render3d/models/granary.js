@@ -57,8 +57,11 @@ export const GRANARY = Object.freeze({
   core: 3.2, // the store's half side (outer face): a 6.4 m store, leaving the platform room for the goods
   wall: 0.6,
   eaveY: 5.3,
-  /** The lanterns by the front and the back doors (x, y, z, and which way they face: z out). */
-  lamps: Object.freeze([Object.freeze([1.62, 3.0, 3.35, 1]), Object.freeze([-1.62, 3.0, -3.35, -1])]),
+  /**
+   * The lanterns by the front and the back doors (x, y, z, and which way they face: z out), each
+   * hung from its door's hood, clear of the buttresses either side.
+   */
+  lamps: Object.freeze([Object.freeze([0.95, 3.05, 3.95, 1]), Object.freeze([-0.95, 3.05, -3.95, -1])]),
 });
 
 /** The foods a granary keeps (data/goods.js FOOD_TYPES), in the order they fill the platform. */
@@ -311,8 +314,9 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     const iron = [];
     const bronze = [];
     const panes = [];
-    for (const [lx, ly, lz, s] of G.lamps) {
-      iron.push(beam([lx, ly + 0.25, s * (C + 0.02)], [lx, ly + 0.25, lz], 0.025, 990, 1));
+    for (const [lx, ly, lz] of G.lamps) {
+      // (Hung from the hood's underside on a rod.)
+      iron.push(beam([lx, ly + 0.24, lz], [lx, ly + 0.78, lz], 0.016, 990, 1));
       const base = revolve(profileOf([[0, 0], [0.08, 0], [0.085, 0.03], [0.07, 0.05], [0, 0.05]]), { segments: 12, metres: 0.3 });
       const cap = revolve(profileOf([[0, 0.2], [0.085, 0.2], [0.05, 0.28], [0.015, 0.31], [0, 0.32]]), { segments: 12, metres: 0.3 });
       for (const g of [base, cap]) {
