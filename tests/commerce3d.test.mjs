@@ -37,7 +37,7 @@ const SIZE = { market: 2, forum: 2, warehouse: 3 };
 
 /** Every look the game can ask the three for. */
 const LOOKS = [
-  ['market', 'market'], ['market', 'market:fish'], ...MARKET_GOODS.map((g) => ['market', `market:ware:${g}`]),
+  ['market', 'market'], ['market', 'market:fish:3'], ...MARKET_GOODS.map((g) => ['market', `market:ware:${g}:3`]),
   ['forum', 'forum'],
   ['warehouse', 'warehouse'], ...WARE_GOODS.map((g) => ['warehouse', `warehouse:load:${g}`]),
 ];
@@ -154,7 +154,8 @@ test('commerce3d: the market shows each good it holds in three steps, the most v
   const stock = { wheat: 700, vegetables: 0, fruit: 100, meat: 0, fish: 400, pottery: 250, furniture: 0, oil: 0, wine: 0, clothing: 0, marble: 0 };
   for (let T = 0; T < 4; T++) {
     const list = marketWares({ ...stock }, T);
-    assert.deepEqual(list.map((e) => `${e.key}:${e.state}`), ['market:ware:wheat:3', 'market:ware:fruit:1', 'market:ware:pottery:3', 'market:fish:2']);
+    // (A kit a good and step: its key names both.)
+    assert.deepEqual(list.map((e) => e.key), ['market:ware:wheat:3', 'market:ware:fruit:1', 'market:ware:pottery:3', 'market:fish:2']);
     // The goods take the stalls farthest from the camera (their counters face it over the court).
     const order = stallOrder(T);
     const depth = (at) => {

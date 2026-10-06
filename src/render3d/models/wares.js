@@ -85,6 +85,8 @@ export function wareMaterials() {
     meat: material('meat', { color: 0xffffff, roughness: 0.45, vertexColors: true, snow: 0.4 }),
     fish: material('fish', { color: 0xffffff, roughness: 0.35, metalness: 0.35, vertexColors: true, snow: 0.4 }),
     paint: material('paint', { color: 0xffffff, roughness: 0.6, vertexColors: true, snow: 0.8 }),
+    // The goods from the middle zooms out: plain, coloured by vertex (Bin.group).
+    far: material('ware-far', { color: 0xffffff, roughness: 0.75, vertexColors: true, snow: 0.8 }),
   };
 }
 
@@ -380,6 +382,17 @@ function chest(lod, seed, w = 0.7, h = 0.45, d = 0.42) {
 // A group of meshes by material and fill tag
 // ---------------------------------------------------------------------------
 
+/**
+ * Each material's own colour (linear RGB), as its textured surface averages
+ * out: the far goods (Bin.group at a level of detail past 0) bake it into
+ * their vertex colours on one plain material.
+ */
+const FAR_TONES = {
+  terracotta: srgb(0xa85e3e), sigillata: srgb(0xc0603f), wood: srgb(0x7a5a3e), burlap: srgb(0xa8916a), wicker: srgb(0xb48e58),
+  cloth: srgb(0xe2dccf), iron: srgb(0x50545a), marble: srgb(0xe6e2da), bronze: srgb(0x8a6a3c), clay: srgb(0xb47450),
+  straw: srgb(0xd6c088), produce: [1, 1, 1], grain: srgb(0xd8b258), meat: [1, 1, 1], fish: srgb(0xc8ccce), paint: [1, 1, 1],
+};
+
 /** Collects geometries by material key and tag, then makes one mesh of each. */
 class Bin {
   constructor(name) {
@@ -395,11 +408,41 @@ class Bin {
     return this;
   }
 
-  group(mats) {
+  /**
+   * The meshes, one a material and tag; with `step` (1 to 3) only what that
+   * step of fullness shows, one mesh a material (the game's kits: a draw
+   * call a material, not one for each step's share of it).
+   */
+  group(mats, step = 0, lod = 0) {
     const group = new Group();
     group.name = this.name;
     const meshes = [];
-    for (const { mat, when, geos } of this.lists.values()) {
+    let lists = [...this.lists.values()];
+    if (lod > 0) {
+      // From the middle zooms out a jar's grain or a sack's weave is under a pixel: the whole good is
+      // one mesh in one plain material, each part's colour baked into its vertices (one draw a good).
+      const all = [];
+      for (const l of lists) {
+        if (step && !displayShows(l.when, step)) continue;
+        const base = FAR_TONES[l.mat] || [1, 1, 1];
+        for (const g of l.geos) {
+          if (!g.attributes.color) tintGeometry(g);
+          const c = g.attributes.color;
+          for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * base[0], c.getY(i) * base[1], c.getZ(i) * base[2]);
+          all.push(g);
+        }
+      }
+      lists = all.length ? [{ mat: 'far', when: 'always', geos: all }] : [];
+    } else if (step) {
+      const byMat = new Map();
+      for (const l of lists) {
+        if (!displayShows(l.when, step)) continue;
+        if (!byMat.has(l.mat)) byMat.set(l.mat, { mat: l.mat, when: 'always', geos: [] });
+        byMat.get(l.mat).geos.push(...l.geos);
+      }
+      lists = [...byMat.values()];
+    }
+    for (const { mat, when, geos } of lists) {
       if (!geos.length) continue;
       const m = new Mesh(merge(geos), mats[mat]);
       m.name = `${this.name}-${mat}`;
@@ -646,15 +689,15 @@ export function buildLoad(good, lod = 0) {
     default:
       b.add('wood', crate(lod, 0.8, 0.5, 0.8, s));
   }
-  return b.group(mats);
+  return b.group(mats, 0, lod);
 }
 
 // ---------------------------------------------------------------------------
 // Market displays: a stall's spot, in three steps of fullness
 // ---------------------------------------------------------------------------
 
-/** Build the display of `good` at a market stall (see the header). Returns { group, meshes }. */
-export function buildDisplay(good, lod = 0) {
+/** Build the display of `good` at a market stall (see the header); with `step`, only what that step shows, merged by material. Returns { group, meshes }. */
+export function buildDisplay(good, lod = 0, step = 0) {
   const mats = wareMaterials();
   const b = new Bin(`display-${good}`);
   const s = 101 + WARE_GOODS.indexOf(good) * 11;
@@ -785,7 +828,7 @@ export function buildDisplay(good, lod = 0) {
     default:
       baskets([C.apple], 0.2);
   }
-  return b.group(mats);
+  return b.group(mats, step, lod);
 }
 
 /** The step of fullness (0 to 3) a market shows for `amount` of a good it can hold `cap` of. */

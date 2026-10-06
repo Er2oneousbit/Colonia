@@ -42,18 +42,30 @@ const M = 4;
  */
 const lampAt = (S, [x, y, z]) => [x / M + S / 2, z / M + S / 2, y / M / ART_PX];
 
+/**
+ * A good's kit as the game draws it: casting shadows only close up. A
+ * stack of jars throws a shadow a few pixels long from the middle zooms
+ * out, and each part casting is one more draw call in the sun's pass,
+ * about a hundred of them over a city's stores.
+ */
+function goods(group, lod) {
+  if (lod > 0) group.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  return group;
+}
+
 export const COMMERCE_MODELS = Object.freeze({
   market: Object.freeze({
     variant: (b, place) => ({ key: 'market', state: marketState(b), ice: false, extras: marketWares(b.stock, place.T || 0) }),
     shows: marketShows,
     // (One display stands for all the goods' materials: wareMaterials makes them all with the shell.)
-    warm: ['market', 'market:ware:wheat', 'market:fish'],
+    warm: ['market', 'market:ware:wheat:3', 'market:fish:3'],
     // The tholos's lamp under its roof.
     lights: (S) => [lampAt(S, [0, 2.05, 0])],
     build(key, lod) {
       const [, kind, good] = key.split(':');
-      if (kind === 'ware') return buildDisplay(good, lod).group;
-      if (kind === 'fish') return buildTholosFish(lod).group;
+      // ('market:ware:<good>:<step>', 'market:fish:<step>': a kit a step, merged by material.)
+      if (kind === 'ware') return goods(buildDisplay(good, lod, Number(key.split(':')[3]) || 0).group, lod);
+      if (kind === 'fish') return goods(buildTholosFish(lod, Number(good) || 0).group, lod);
       wareMaterials();
       return buildMarket({ lod }).group;
     },
@@ -72,7 +84,7 @@ export const COMMERCE_MODELS = Object.freeze({
     lights: (S) => [lampAt(S, WAREHOUSE.lamp)],
     build(key, lod) {
       const [, kind, good] = key.split(':');
-      if (kind === 'load') return buildLoad(good, lod).group;
+      if (kind === 'load') return goods(buildLoad(good, lod).group, lod);
       wareMaterials();
       return buildWarehouse({ lod }).group;
     },

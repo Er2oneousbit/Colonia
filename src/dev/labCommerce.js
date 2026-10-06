@@ -218,7 +218,8 @@ function makeScene(id, L) {
     const k = `${key}|${lod}`;
     if (!kits.has(k)) {
       const [, kind, good] = key.split(':');
-      kits.set(k, kind === 'ware' ? buildDisplay(good, lod) : kind === 'fish' ? buildTholosFish(lod) : buildLoad(good, lod));
+      const step = Number(key.split(':')[kind === 'fish' ? 2 : 3]) || 0;
+      kits.set(k, kind === 'ware' ? buildDisplay(good, lod, step) : kind === 'fish' ? buildTholosFish(lod, step) : buildLoad(good, lod));
     }
     return kits.get(k);
   };

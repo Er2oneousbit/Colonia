@@ -132,10 +132,11 @@ export function marketWares(stock, T = 0) {
     const good = MARKET_GOODS[i];
     const step = displayStep(stock[good], i < 4 ? CONFIG.MARKET_FOOD_CAP : CONFIG.MARKET_GOODS_CAP);
     if (!step) continue;
-    list.push({ key: `market:ware:${good}`, state: step, at: STALL_MATS[order[n++]] });
+    // (A kit a good and step: one draw a material, whichever step.)
+    list.push({ key: `market:ware:${good}:${step}`, state: step, at: STALL_MATS[order[n++]] });
   }
   const fish = displayStep(stock.fish, CONFIG.MARKET_FOOD_CAP);
-  if (fish) list.push({ key: 'market:fish', state: fish, at: null });
+  if (fish) list.push({ key: `market:fish:${fish}`, state: fish, at: null });
   CACHE.set(stock, { sig, list });
   return list;
 }
@@ -344,8 +345,12 @@ function tholos(lod, seed) {
   return out;
 }
 
-/** The fish on the tholos's counters, three rows a counter, one step of fullness a row. */
-export function buildTholosFish(lod = 0) {
+/**
+ * The fish on the tholos's counters, three rows a counter, one step of
+ * fullness a row (tagged fill1 to fill3); with `step`, that step's rows as
+ * one mesh (the game's kits).
+ */
+export function buildTholosFish(lod = 0, step = 0) {
   const mats = wareMaterials();
   const group = new Group();
   group.name = 'tholos-fish';
@@ -363,12 +368,13 @@ export function buildTholosFish(lod = 0) {
       }
     }
   }
-  rows.forEach((list, r) => {
+  const sets = step ? [rows.slice(0, step).flat()] : rows;
+  sets.forEach((list, r) => {
     const m = new Mesh(merge(list), mats.fish);
     m.name = `fish-${r + 1}`;
     m.castShadow = true;
     m.receiveShadow = true;
-    m.userData.when = `fill${r + 1}`;
+    m.userData.when = step ? 'always' : `fill${r + 1}`;
     group.add(m);
     meshes.push(m);
   });
