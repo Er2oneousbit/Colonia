@@ -18,9 +18,9 @@
  */
 
 import {
-  BufferGeometry, Float32BufferAttribute, CylinderGeometry, Shape, Path, ExtrudeGeometry, BoxGeometry,
+  BufferGeometry, Float32BufferAttribute, CylinderGeometry, Shape, Path, ExtrudeGeometry, BoxGeometry, Group, Mesh,
 } from 'three';
-import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
+import { revolve, profileOf, boxUV, tintGeometry, tube, merge } from '../shapes.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { material } from '../materials.js';
 
@@ -391,6 +391,56 @@ export function inscription(text, y, z, h) {
 /** The width of `text` set by inscription() at height `h` (metres). */
 export function inscriptionWidth(text, h) {
   return [...text].reduce((a, ch) => a + GLYPHS[ch].w * h + h * 0.28, -h * 0.28);
+}
+
+/**
+ * Geometries gathered by part while a model is built: each part a name, a
+ * material, the state that shows it (`when`, models.js partShows) and
+ * whether it casts a shadow; build() merges each into one mesh (one draw
+ * call, and one part of the game's kit). Two parts may share a name only
+ * in different states.
+ */
+export class TaggedParts {
+  constructor(name) {
+    this.name = name;
+    this.by = new Map();
+  }
+
+  /** Add geometries (arrays nest, nulls are skipped) to the part `name` in `when`. */
+  add(name, mat, geos, { when = 'always', cast = true } = {}) {
+    const key = `${name}|${when}`;
+    let e = this.by.get(key);
+    if (!e) {
+      e = { name, mat, when, cast, list: [] };
+      this.by.set(key, e);
+    } else if (e.mat !== mat) {
+      throw new Error(`${this.name}: part ${name} in ${when} given two materials`);
+    }
+    for (const g of [geos].flat(Infinity)) if (g) e.list.push(g);
+    return this;
+  }
+
+  /** The model: { group, meshes, triangles }, its meshes tagged in userData.when. */
+  build() {
+    const group = new Group();
+    group.name = this.name;
+    const meshes = [];
+    let tris = 0;
+    for (const e of this.by.values()) {
+      if (!e.list.length) continue;
+      const geo = e.list.length === 1 ? e.list[0] : merge(e.list);
+      if (e.list.length > 1) for (const g of e.list) g.dispose();
+      const m = new Mesh(geo, e.mat);
+      m.name = e.name;
+      m.castShadow = e.cast;
+      m.receiveShadow = true;
+      m.userData.when = e.when;
+      group.add(m);
+      meshes.push(m);
+      tris += geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
+    }
+    return { group, meshes, triangles: tris };
+  }
 }
 
 /** A bent tube along points (re-exported for the goods: rails, hooks, handles). */

@@ -29,12 +29,12 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'),
+ * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'),
  * setSeason(name), setSnow(0..3),
  * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
  * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
  * fountainTriangles(lod), setCommerceLod(0..2), commerceTriangles(id, lod)
- * (the Market, Forum and Warehouse scenes, labCommerce.js: K, J, X).
+ * (the Market, Forum, Warehouse and Services scenes, labCommerce.js: K, J, X, S).
  * ----------------------------------------------------------------------------
  */
 
@@ -439,6 +439,8 @@ async function main() {
     }
     // In a hard frost the fountains' running water grows icicles, a dry tank's puddle freezes.
     fs.setWinter(!!m.ice || state.snow >= 2);
+    // (And the prefecture's pump freezes.)
+    for (const s of Object.values(commerce)) s.setWinter(!!m.ice || state.snow >= 2);
     // The farms' trees and vines take the season's look.
     if (rural) rural.season(state.season);
     if (state.scene !== 'well') {
@@ -680,6 +682,7 @@ async function main() {
     else if (k === 'k') setScene('market');
     else if (k === 'j') setScene('forum');
     else if (k === 'x') setScene('warehouse');
+    else if (k === 's') setScene('services');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
