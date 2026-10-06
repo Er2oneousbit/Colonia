@@ -39,7 +39,7 @@
 import { Group, Mesh, CylinderGeometry, BufferGeometry, Float32BufferAttribute, BoxGeometry } from 'three';
 import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube } from '../shapes.js';
 import { material } from '../materials.js';
-import { slab, paving, tuscanColumn, tiledRoof, wallWithOpenings } from './masonry.js';
+import { slab, paving, tuscanColumn, tiledRoof, wallWithOpenings, lantern, lanternPane } from './masonry.js';
 import { buildFigure } from './figure.js';
 import { artRng } from '../texgen.js';
 
@@ -111,7 +111,7 @@ function coins(n, x, y, z, seed, lod) {
 
 /** The office: walls with three doorways, the roof, the inside's darkness, the doors open and shut. */
 function office(lod, seed) {
-  const out = { plaster: [], trav: [], tiles: [], dark: [], wood: [], woodOpen: [], woodShut: [], bronze: [], bronzeOpen: [], bronzeShut: [] };
+  const out = { plaster: [], trav: [], tiles: [], dark: [], wood: [], woodOpen: [], woodShut: [], bronze: [], bronzeOpen: [], bronzeShut: [], pane: [] };
   const [zb, zf] = FORUM.officeZ;
   const y0 = FORUM.podium;
   const top = FORUM.eave;
@@ -189,7 +189,9 @@ function office(lod, seed) {
   if (lod < 2) {
     for (const [x, y, z] of FORUM.lamps) {
       out.bronze.push(tube([[x, y + 0.42, zf + 0.01], [x, y + 0.42, z + 0.16], [x, y + 0.36, z]], 0.012, { radial: 4, segments: 4, around: 0.3 }));
-      out.bronze.push(revolve(profileOf([[0, 0], [0.07, 0], [0.08, 0.04], [0.06, 0.2], [0.08, 0.24], [0.03, 0.32], [0, 0.34]]), { segments: lod ? 6 : 10, metres: 0.3 }).translate(x, y, z));
+      const l = lantern(x, y, z, lod);
+      out.bronze.push(...l.bronze);
+      out.pane.push(l.pane);
     }
   }
   return out;
@@ -383,6 +385,7 @@ export function buildForum({ lod = 0, seed = 61 } = {}) {
   add(of.plaster, material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }), 'walls');
   add([...of.tiles, ...po.tiles], material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 1 }), 'roof');
   add(of.dark, material('room-dark', { color: 0x0e0b09, roughness: 1, snow: 0, wet: 0 }), 'inside', 'always', false);
+  add(of.pane, lanternPane(), 'lamps', 'always', false);
   add(of.wood, material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'wood');
   add([...of.woodOpen, ...co.woodOpen], material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'doors-open', 'open');
   add([...of.woodShut, ...co.woodShut], material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'doors-shut', 'shut');

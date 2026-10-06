@@ -41,7 +41,7 @@
 import { Group, Mesh, Matrix4, BufferGeometry, Float32BufferAttribute, BoxGeometry } from 'three';
 import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube } from '../shapes.js';
 import { material } from '../materials.js';
-import { slab, paving, tiledRoof, wallWithOpenings } from './masonry.js';
+import { slab, paving, tiledRoof, wallWithOpenings, lantern, lanternPane } from './masonry.js';
 import { WARE_GOODS } from './wares.js';
 import { artRng } from '../texgen.js';
 
@@ -197,7 +197,7 @@ function outerWall(sideIndex, lod, seed) {
 /** The gateway: engaged columns, entablature, pediment, plaque, threshold, the doors open and shut. */
 function gateway(lod, seed) {
   const W = WAREHOUSE;
-  const out = { brick: [], trav: [], marble: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [] };
+  const out = { brick: [], trav: [], marble: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], pane: [] };
   const z = W.face;
   const gw = W.gate.w;
   const gh = W.gate.h;
@@ -265,7 +265,9 @@ function gateway(lod, seed) {
   if (lod < 2) {
     const [lx, ly, lz] = W.lamp;
     out.iron.push(tube([[lx, ly + 0.45, z + 0.02], [lx, ly + 0.45, lz - 0.02], [lx, ly + 0.38, lz - 0.06]], 0.012, { radial: 4, segments: 4, around: 0.3 }));
-    out.bronze.push(revolve(profileOf([[0, 0], [0.07, 0], [0.08, 0.04], [0.06, 0.2], [0.08, 0.24], [0.03, 0.32], [0, 0.34]]), { segments: lod ? 6 : 10, metres: 0.3 }).translate(lx, ly, lz - 0.08));
+    const l = lantern(lx, ly, lz - 0.08, lod);
+    out.bronze.push(...l.bronze);
+    out.pane.push(l.pane);
   }
   return out;
 }
@@ -363,7 +365,7 @@ export function buildWarehouse({ lod = 0, seed = 81 } = {}) {
     meshes.push(m);
     return m;
   };
-  const parts = { brick: [], trav: [], marble: [], dark: [], wood: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], tiles: [] };
+  const parts = { brick: [], trav: [], marble: [], dark: [], wood: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], tiles: [], pane: [] };
   const put = (o, turn = 0) => {
     for (const k of Object.keys(o)) for (const g of o[k]) parts[k].push(turn ? g.rotateY(turn) : g);
   };
@@ -421,6 +423,7 @@ export function buildWarehouse({ lod = 0, seed = 81 } = {}) {
   add(parts.ironOpen, material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }), 'straps-open', 'open');
   add(parts.ironShut, material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }), 'straps-shut', 'shut');
   add(parts.bronze, material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.7 }), 'bronze');
+  add(parts.pane, lanternPane(), 'lamp', 'always', false);
   let tris = 0;
   for (const m of meshes) tris += triangles(m.geometry);
   return { group, meshes, triangles: tris };

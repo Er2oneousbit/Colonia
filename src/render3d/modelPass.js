@@ -62,6 +62,8 @@ export const LOD1_PX = 72;
 const KEEP_FRAMES = 600;
 /** First room in a part's instance buffer (it doubles as needed). */
 const FIRST_ROOM = 8;
+/** Milliseconds a frame may spend building kits (kitNear): past it, a look waits a frame or shows at another level. */
+const BUILD_MS = 12;
 /**
  * Seconds the models may take to get ready before the console hears why
  * not (a slow GPU compiles for seconds; one that never finishes is a bug
@@ -304,6 +306,8 @@ export class ModelPass {
    */
   update(r, placed, lod, ghosts = []) {
     this.frame++;
+    this.buildMs = 0;
+    this.builtThisFrame = false;
     // A new game or a load: its buildings' ids start again, the tiers remembered are another city's.
     if (this.game && r.game && r.game.map !== this.game.map) this.tiers.clear();
     this.game = r.game;
@@ -346,9 +350,35 @@ export class ModelPass {
     return placed.length;
   }
 
+  /**
+   * The kit of a look at a level of detail, or while this frame's building
+   * time is spent (BUILD_MS: a zoom into a city of markets and warehouses
+   * wants a kit of every shell and every good at once, tens of
+   * milliseconds each), the same look at a level already built (drawn
+   * coarser or finer for a frame or two), or null: drawn from a later
+   * frame. At least one kit is built every frame.
+   */
+  kitNear(key, lod) {
+    const have = this.kits.get(`${key}|${lod}`);
+    if (have) return have;
+    if (this.buildMs < BUILD_MS || !this.builtThisFrame) {
+      const t0 = performance.now();
+      const k = this.kitFor(key, lod);
+      this.buildMs += performance.now() - t0;
+      this.builtThisFrame = true;
+      return k;
+    }
+    for (const l of [lod + 1, lod - 1, lod + 2, lod - 2]) {
+      const k = this.kits.get(`${key}|${l}`);
+      if (k) return k;
+    }
+    return null;
+  }
+
   /** One copy of look `key` at `lod` with matrix `m`: an instance in each of its parts that state `state` shows. */
   put(key, lod, m, shows, state, ice) {
-    const k = this.kitFor(key, lod);
+    const k = this.kitNear(key, lod);
+    if (!k) return;
     k.seen = this.frame;
     for (let i = 0; i < k.meshes.length; i++) {
       let im = k.meshes[i];

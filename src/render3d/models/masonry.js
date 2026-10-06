@@ -22,6 +22,7 @@ import {
 } from 'three';
 import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { artRng, smoothstep } from '../texgen.js';
+import { material } from '../materials.js';
 
 const D = (deg) => (deg * Math.PI) / 180;
 
@@ -67,6 +68,12 @@ export function slab(w, h, d, { bevel = 0.015, seed = 1, wobble = 0.004, tilt = 
  */
 export function paving(x0, x1, z0, z1, h, seed, { rowW = 0.6, minL = 0.5, maxL = 1.0, skip = null, lod = 0, tone = 0.07, grime = 0.15, bevel = 0.012 } = {}) {
   if (lod === 2) return [slab(x1 - x0, h, z1 - z0, { bevel: 0.01, seed, wobble: 0, tone: 0, grime }).translate((x0 + x1) / 2, 0, (z0 + z1) / 2)];
+  // (From the middle distance a joint every metre and a half reads as well as every half metre.)
+  if (lod === 1) {
+    rowW *= 1.8;
+    minL *= 1.8;
+    maxL *= 1.8;
+  }
   const rnd = artRng(seed);
   const out = [];
   const gap = 0.008;
@@ -288,6 +295,25 @@ export function wallWithOpenings(w, h, t, openings = [], { lod = 0, y0 = 0 } = {
   g.computeVertexNormals();
   boxUV(g);
   return tintGeometry(g);
+}
+
+/**
+ * A bronze lantern standing on (x, y, z): a base and a domed cap with horn
+ * panes between them that glow when lit. Returns { bronze, pane }; the
+ * pane takes lanternPane(), the well's lantern glass, which the look lab
+ * lights at night (the game's night lights it in its light map).
+ */
+export function lantern(x, y, z, lod = 0) {
+  const seg = lod ? 6 : 12;
+  const base = revolve(profileOf([[0, 0], [0.07, 0], [0.075, 0.02], [0.075, 0.04], [0.06, 0.048], [0, 0.048]]), { segments: seg, metres: 0.3 });
+  const cap = revolve(profileOf([[0, 0.17], [0.065, 0.17], [0.08, 0.19], [0.05, 0.25], [0.02, 0.27], [0.015, 0.29], [0, 0.3]]), { segments: seg, metres: 0.3 });
+  const pane = new CylinderGeometry(0.062, 0.062, 0.122, seg, 1, true).translate(0, 0.109, 0);
+  return { bronze: [base.translate(x, y, z), cap.translate(x, y, z)], pane: tintGeometry(boxUV(pane.translate(x, y, z))) };
+}
+
+/** The lanterns' horn panes (the well's material: one key, so the lab's night lights them all). */
+export function lanternPane() {
+  return material('lantern-pane', { color: 0xc89a5a, roughness: 0.45, emissive: 0xffb25c, emissiveIntensity: 0, snow: 0 });
 }
 
 /** A bent tube along points (re-exported for the goods: rails, hooks, handles). */

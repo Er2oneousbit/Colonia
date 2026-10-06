@@ -218,7 +218,9 @@ test('commerce3d: the game draws the loads as instances, builds a kit once a goo
   const r = { game: { map }, weather: {}, time: 0 };
   const b = { id: 9, type: 'warehouse', size: 3, x: 0, y: 0, efficiency: 1, stock: { wine: 450, oil: 0 } };
   const placed = () => [{ b, T: 0, vx: 0, vy: 0, state: 0, snow: 0 }];
-  mp.update(r, placed(), 2);
+  // (A frame builds kits for 12 ms at most, at least one: a few frames and every look is built.)
+  const frames = (n = 4) => { for (let i = 0; i < n; i++) mp.update(r, placed(), 2); };
+  frames();
   const count = (key) => {
     const k = mp.kits.get(`${key}|2`);
     return k ? Math.max(...k.meshes.map((im) => im.count)) : 0;
@@ -229,7 +231,7 @@ test('commerce3d: the game draws the loads as instances, builds a kit once a goo
   // A tick's worth of change: more wine, some oil. One more kit (oil's), the rest as they were.
   b.stock.wine = 900;
   b.stock.oil = 150;
-  mp.update(r, placed(), 2);
+  frames();
   assert.equal(count('warehouse:load:wine'), 9);
   assert.equal(count('warehouse:load:oil'), 2);
   assert.equal(mp.kits.size, kits + 1);
@@ -240,12 +242,17 @@ test('commerce3d: the game draws the loads as instances, builds a kit once a goo
   b.stock.wine = 0;
   b.stock.oil = 0;
   b.efficiency = 0;
-  mp.update(r, placed(), 2);
+  frames(1);
   assert.equal(count('warehouse:load:wine'), 0);
   const shell = mp.kits.get('warehouse|2');
   const shown = (name) => shell.meshes.find((im) => im.userData.part.when === name)?.count || 0;
   assert.equal(shown('shut'), 1);
   assert.equal(shown('open'), 0);
+  // With this frame's building time spent, a look not built at this level shows at one that is, or waits.
+  mp.buildMs = 1e9;
+  mp.builtThisFrame = true;
+  assert.equal(mp.kitNear('warehouse', 0), shell, 'the far shell while the close one waits');
+  assert.equal(mp.kitNear('warehouse:load:iron', 0), null, 'nothing built yet: drawn from a later frame');
   mp.dispose();
   assert.equal(rig.modelSlot.children.length, 0, 'every instanced mesh freed');
 });

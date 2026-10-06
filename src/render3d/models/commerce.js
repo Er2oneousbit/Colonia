@@ -49,7 +49,7 @@ export const COMMERCE_MODELS = Object.freeze({
     // (One display stands for all the goods' materials: wareMaterials makes them all with the shell.)
     warm: ['market', 'market:ware:wheat', 'market:fish'],
     // The tholos's lamp under its roof.
-    lights: (S) => [lampAt(S, [0, MARKET.roofTop - 1.4, 0])],
+    lights: (S) => [lampAt(S, [0, 2.05, 0])],
     build(key, lod) {
       const [, kind, good] = key.split(':');
       if (kind === 'ware') return buildDisplay(good, lod).group;

@@ -3967,6 +3967,40 @@ try {
       check('WebGL renderer: a fountain is a 3D model, a click picks it, and its look follows its neighbourhood',
         !!fnt && fview.fountains >= 1 && fview.tier === 1 && fpick?.kind === 'building' && fpick.id === fnt.id && rich.tier === 4,
         JSON.stringify({ fnt, fview, fpick, rich }));
+      // The market, the forum and the warehouse drawn as models (render3d/models/commerce.js),
+      // the warehouse's stock as loads in its court, and a click on each picks it by its footprint.
+      const commerce = [];
+      for (const type of ['market', 'forum', 'warehouse']) {
+        const b = await gp.evaluate((t) => {
+          const app = window.colonia;
+          const w = [...app.game.buildings.values()].find((x) => x.type === t);
+          if (!w) return null;
+          if (t === 'warehouse') Object.assign(w.stock, { wine: 450, timber: 200 });
+          app.renderer.camera.zoomIndex = 3;
+          app.renderer.camera.centerOnTile(w.x + w.size / 2, w.y + w.size / 2);
+          return { id: w.id, x: w.x, y: w.y, size: w.size };
+        }, type);
+        if (!b) {
+          commerce.push({ type, missing: true });
+          continue;
+        }
+        await gp.waitForTimeout(400);
+        const drawn3d = await gp.evaluate(() => {
+          const mp = window.colonia.renderer.stats.modelPass || {};
+          const loads = window.colonia.renderer.backend.models.kits.get(`warehouse:load:wine|${mp.lod}`);
+          return { byType: mp.byType || {}, wine: loads ? Math.max(...loads.meshes.map((im) => im.count)) : 0 };
+        });
+        const p = await onPage(b.x + b.size / 2, b.y + b.size / 2);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        const target = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gp.screenshot({ path: path.join(shots, `smoke-webgl-${type}.png`) });
+        commerce.push({ type, drawn: drawn3d.byType[type] || 0, wine: drawn3d.wine, picked: target?.kind === 'building' && target.id === b.id });
+      }
+      check('WebGL renderer: the market, the forum and the warehouse are 3D models, the warehouse shows its loads, a click picks each',
+        commerce.every((c) => !c.missing && c.drawn >= 1 && c.picked) && commerce.find((c) => c.type === 'warehouse').wine === 5,
+        JSON.stringify(commerce));
       // A walker in view, clicked on its body (painted into the frame's live-art texture).
       await gp.evaluate(() => { const app = window.colonia; app.renderer.camera.zoomIndex = 2; app.game.runDays(1); });
       await gp.waitForTimeout(300);

@@ -665,10 +665,15 @@ export function buildDisplay(good, lod = 0) {
   /** Baskets on the counter, heaped with `colours`, one more each step (1, 2, 3 baskets). */
   const baskets = (colours, bump, mat = 'produce', single = 0) => {
     [[-0.45, 0.02, 1], [0.0, 0.04, 2], [0.45, 0.0, 3]].forEach(([x, z, step], i) => {
-      b.add('wicker', at(basket(lod, 0.2, 0.18), x, T, z), f(step));
-      if (far) b.add(mat, at(heap(lod, 0.19, 0.12, 0.1, colours, s + i, bump), x, T, z), f(step));
-      else if (single) b.add(mat, balls(lod, 9, single, x, T + 0.1, z, colours, s + i, 0.12), f(step));
-      else b.add(mat, at(heap(lod, 0.19, 0.12, 0.1, colours, s + i, bump), x, T, z), f(step));
+      b.add('wicker', at(basket(lod, 0.22, 0.18), x, T, z), f(step));
+      if (far) b.add(mat, at(heap(lod, 0.21, 0.12, 0.11, colours, s + i, bump), x, T, z), f(step));
+      else if (single) b.add(mat, balls(lod, 11, single, x, T + 0.1, z, colours, s + i, 0.14), f(step));
+      else b.add(mat, at(heap(lod, 0.21, 0.12, 0.11, colours, s + i, bump), x, T, z), f(step));
+    });
+    // Big baskets heaped on the ground before the counter: the stock behind the display, for the court (and the camera) to see.
+    [[-0.35, 2], [0.32, 3]].forEach(([x, step], i) => {
+      b.add('wicker', at(basket(lod, 0.28, 0.34), x, 0, DISPLAY.front + 0.36), f(step));
+      b.add(mat, at(heap(lod, 0.27, 0.28, 0.16, colours, s + 7 + i, bump), x, 0, DISPLAY.front + 0.36), f(step));
     });
   };
   switch (good) {

@@ -216,6 +216,7 @@ async function main() {
   // The torch's light hangs from the scene, not the street: the Ground scene hides the street, and
   // a light that comes and goes changes every material's program (the lights are compiled in).
   scene.attach(street.torch);
+  const torchHome = street.torch.position.clone();
   // Two figures for scale: a man at the well reaching for the rope, a woman by the door.
   const man = buildFigure({ cloth: 0xc4b596, reach: 0.9 });
   man.position.set(-0.95, WELL.stepH * 2, 0.95);
@@ -304,7 +305,8 @@ async function main() {
   let wantScene = 'well';
   let sceneWait = null;
   /** The torch lights the street only where the street is shown. */
-  function torchOn() { return state.scene === 'well' ? 1 : 0; }
+  // (In the Market, Forum and Warehouse scenes the torch's light moves to one building's lamp: labCommerce.js `lamp`.)
+  function torchOn() { return state.scene === 'well' || commerce[state.scene] ? 1 : 0; }
   const target = new Vector3(0, 0.4, 0);
   /** Where the world fades into the backdrop: past the well's 3 x 3 tile patch, or the ground's 24 x 24. */
   function setFade() {
@@ -447,6 +449,8 @@ async function main() {
     galGroup.visible = name === 'types';
     for (const s of Object.values(commerce)) s.group.visible = name === s.id;
     if (commerce[name]) street.group.visible = false;
+    if (commerce[name]) street.torch.position.set(...commerce[name].lamp);
+    else street.torch.position.copy(torchHome);
     if (name === 'types') aimCard();
     else if (target.x > 100 || commerce[name]) target.set(0, 0.4, 0);
     for (const l of look.lamps) l.set(MOODS[state.mood].lamps);

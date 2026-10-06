@@ -39,7 +39,7 @@
 import { Group, Mesh, Matrix4, CylinderGeometry, BufferGeometry, Float32BufferAttribute } from 'three';
 import { revolve, profileOf, block, merge, tintGeometry, boxUV, triangles } from '../shapes.js';
 import { material, waterMaterial } from '../materials.js';
-import { slab, paving, tuscanColumn, tiledRoof, tube } from './masonry.js';
+import { slab, paving, tuscanColumn, tiledRoof, tube, lantern, lanternPane } from './masonry.js';
 import { buildDisplay, displayStep, displayShows, wareMaterials, DISPLAY, fishPiece } from './wares.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { CONFIG } from '../../config.js';
@@ -282,7 +282,7 @@ function side(sideIndex, lod, seed) {
 
 /** The tholos: podium, columns, entablature, roof, the labrum and the fish counters. */
 function tholos(lod, seed) {
-  const out = { trav: [], stone: [], marble: [], tiles: [], bronze: [], water: [] };
+  const out = { trav: [], stone: [], marble: [], tiles: [], bronze: [], water: [], pane: [] };
   const oct = { segments: 8, metres: 1 };
   // (A revolved octagon has a corner at +z; turned 22.5 degrees its faces meet the court's sides square.)
   const turn = (g) => g.rotateY(D(22.5));
@@ -317,6 +317,12 @@ function tholos(lod, seed) {
   }
   const cone = revolve(profileOf([[0, apex - 0.02], [0.08, apex + 0.02], [0.07, apex + 0.16], [0.03, apex + 0.26], [0, apex + 0.3]]), { segments: lod ? 6 : 10, metres: 0.3 });
   out.bronze.push(cone);
+  // A lantern hung on a chain from the roof's middle over the basin (lit at night).
+  if (lod < 2) {
+    const l = lantern(0, 1.95, 0, lod);
+    out.bronze.push(...l.bronze, tube([[0, 2.25, 0], [0, eY + 0.3, 0]], 0.008, { radial: 4, segments: 2, around: 0.3 }));
+    out.pane.push(l.pane);
+  }
   // The labrum: a marble basin on a fluted foot, water in it.
   const labrum = revolve(profileOf([
     [0, top], [0.2, top], [0.2, top + 0.05], [0.1, top + 0.12], [0.08, top + 0.62], [0.14, top + 0.66], [0.4, top + 0.78], [0.44, top + 0.86], [0.42, top + 0.88], [0.36, top + 0.82], [0, top + 0.76],
@@ -424,7 +430,7 @@ export function buildMarket({ lod = 0, seed = 41 } = {}) {
   const pave = paving(-H + 0.02, H - 0.02, -H + 0.02, H - 0.02, 0.05, seed, {
     rowW: 0.62, minL: 0.55, maxL: 1.05, lod, skip: (x, z) => Math.hypot(x, z) < 1.2,
   });
-  const parts = { plaster: [], marble: [], wood: [], cloth: [], clothShut: [], stone: [], trav: [...pave], tiles: [], bronze: [], water: [], lime: [], terracotta: [] };
+  const parts = { plaster: [], marble: [], wood: [], cloth: [], clothShut: [], stone: [], trav: [...pave], tiles: [], bronze: [], water: [], lime: [], terracotta: [], pane: [] };
   for (let s = 0; s < 4; s++) {
     const o = side(s, lod, seed + 100 * (s + 1));
     const turn = (g) => g.rotateY((s * Math.PI) / 2);
@@ -447,6 +453,7 @@ export function buildMarket({ lod = 0, seed = 41 } = {}) {
   add(parts.cloth, material('cloth-dyed', { surface: 'wool', vertexColors: true, snow: 0.7 }), 'awnings', 'open');
   add(parts.clothShut, material('cloth-dyed', { surface: 'wool', vertexColors: true, snow: 0.7 }), 'awnings-rolled', 'shut');
   add(parts.water, waterMaterial(), 'water', 'always', false);
+  add(parts.pane, lanternPane(), 'lamp', 'always', false);
   let tris = 0;
   for (const m of meshes) tris += triangles(m.geometry);
   return { group, meshes, triangles: tris };

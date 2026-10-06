@@ -35,6 +35,14 @@ function stockOf(goods, f, cap) {
   for (const g of goods) s[g] = Math.round(f * cap(g));
   return s;
 }
+/**
+ * The lab's one lamp light in each scene (the street's torch, moved): the
+ * full market's tholos lantern, the working forum's lantern by its door,
+ * the full warehouse's at its gate (metres; the buildings as LAYOUT places
+ * them, their lamps as the models hang them).
+ */
+const LAMPS = { market: [-10, 2.05, 5], forum: [-5 + 0.95, 2.62, -0.86], warehouse: [28 + 1.45, 1.55, -7.5 + 5.84] };
+
 const marketCap = (g) => (MARKET_GOODS.indexOf(g) < 4 || g === 'fish' ? CONFIG.MARKET_FOOD_CAP : CONFIG.MARKET_GOODS_CAP);
 const ALL_MARKET = [...MARKET_GOODS, 'fish'];
 const FOODS = ['wheat', 'vegetables', 'fruit', 'meat', 'fish'];
@@ -273,6 +281,8 @@ function makeScene(id, L) {
     labels,
     /** Where the world fades into the backdrop: past the scene's patch. */
     fade: [0, 0, Math.max(w, d) / 2 + 4, Math.max(w, d) / 2 + 9],
+    /** Where the lab's one lamp light hangs at night: a lantern of one of the buildings (its light, its shadows). */
+    lamp: LAMPS[id],
     get lod() { return lod; },
     setLod(n) {
       if (n === lod) return;
