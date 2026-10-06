@@ -855,9 +855,10 @@ try {
       // and the click rightly finds nothing: a failure once in about ten
       // runs). Such a try does not count; another walker is pressed instead.
       let press = null;
+      const tries = []; // (each attempt, for the detail on failure: it failed once in CI with nothing to go on, v0.20.10)
       for (let attempt = 0; attempt < 3 && !press; attempt++) {
         const fresh = await findWalker();
-        if (!fresh) break;
+        if (!fresh) { tries.push('no walker on screen'); break; }
         await page.mouse.move(fresh.x, fresh.y);
         // What the click logic sees at the press (in the detail on failure).
         const seen = await page.evaluate(({ x, y }) => {
@@ -878,8 +879,9 @@ try {
         const stayed = await page.evaluate((id) => window.colonia.game.walkers.has(id), fresh.id);
         await page.mouse.click(fresh.x, fresh.y, { button: 'right' });
         if (stayed) press = { got, want: fresh.id, seen, attempt };
+        else tries.push(`walker ${fresh.id} left the map during the press`);
       }
-      check('a walker pressed on is the one clicked, even if it walked on before the release', !!press && press.got?.kind === 'walker' && press.got.id === press.want, JSON.stringify(press));
+      check('a walker pressed on is the one clicked, even if it walked on before the release', !!press && press.got?.kind === 'walker' && press.got.id === press.want, JSON.stringify(press || { tries }));
       if (!wasPaused) await page.evaluate(() => window.colonia.togglePause());
     }
   }
@@ -4002,7 +4004,17 @@ try {
           commerce.push({ type, missing: true });
           continue;
         }
-        await gp.waitForTimeout(400);
+        // Wait for the model (and the warehouse's loads) to be built, not a fixed time: kits
+        // are built a few a frame within a time budget, and under CI's software GL a fixed
+        // 400 ms found the wine loads not yet built (0 of 5) and once the forum not drawn.
+        await gp.waitForFunction((t) => {
+          const r = window.colonia.renderer;
+          const mp = r.stats.modelPass || {};
+          if (!((mp.byType || {})[t] >= 1)) return false;
+          if (t !== 'warehouse') return true;
+          const loads = r.backend.models.kits.get(`warehouse:load:wine|${mp.lod}`);
+          return !!loads && Math.max(...loads.meshes.map((im) => im.count)) === 5;
+        }, type, { timeout: 20000, polling: 100 }).catch(() => {});
         const drawn3d = await gp.evaluate(() => {
           const mp = window.colonia.renderer.stats.modelPass || {};
           const loads = window.colonia.renderer.backend.models.kits.get(`warehouse:load:wine|${mp.lod}`);
@@ -4022,7 +4034,7 @@ try {
       // A walker in view, clicked on its body (painted into the frame's live-art texture).
       await gp.evaluate(() => { const app = window.colonia; app.renderer.camera.zoomIndex = 2; app.game.runDays(1); });
       await gp.waitForTimeout(300);
-      const walker = await gp.evaluate(() => {
+      let walker = await gp.evaluate(() => {
         const app = window.colonia;
         const r = app.renderer;
         const cam = r.camera;
@@ -4053,6 +4065,34 @@ try {
         r.render(0, 0);
         return pick();
       });
+      // The pick must still hold in the game's own frames: under CI's software GL the 3D models
+      // nearby can finish loading after the test's frame, and a model ready changes what hides a
+      // walker, so the walker picked there was covered by the click (v0.20.11 to v0.20.13).
+      for (let k = 0; walker && k < 10; k++) {
+        await gp.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(done)))));
+        const still = await gp.evaluate((wk) => {
+          const app = window.colonia;
+          const rect = app.canvas.getBoundingClientRect();
+          return app.renderer.pickWalker(wk.x - rect.left, wk.y - rect.top, false) === wk.id && app.renderer.stats.pending === 0;
+        }, walker);
+        if (still) break;
+        walker = await gp.evaluate(() => {
+          const app = window.colonia;
+          const r = app.renderer;
+          const cam = r.camera;
+          const rect = app.canvas.getBoundingClientRect();
+          for (const s of r.walkerSpots) {
+            const q = cam.toScreen(s.wx, s.wy - 9);
+            const x = Math.round(rect.left + q.x / cam.dpr);
+            const y = Math.round(rect.top + q.y / cam.dpr);
+            if (x < rect.left + 360 || x > rect.right - 40 || y < rect.top + 80 || y > rect.bottom - 120) continue;
+            let same = true;
+            for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) if (r.pickWalker(x + dx - rect.left, y + dy - rect.top, false) !== s.id) same = false;
+            if (same) return { id: s.id, x, y };
+          }
+          return null;
+        });
+      }
       let wpick = null;
       if (walker) {
         await gp.mouse.click(walker.x, walker.y);
