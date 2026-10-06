@@ -492,7 +492,8 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
   // every yard in view: left out.
   if (lod === 2) {
     out.rope = out.iron = out.bronze = out.paint = out.lime = out.dark = [];
-    for (const b of [out.blockUp, out.blockDown]) b.rope = b.iron = [];
+    // (The hoisting rope stays: without it the raised block would hang in the air.)
+    for (const b of [out.blockUp, out.blockDown]) b.iron = [];
   }
   const mats = {
     earth:material('beaten-earth', { surface: 'earth', vertexColors: true, snow: 1 }),

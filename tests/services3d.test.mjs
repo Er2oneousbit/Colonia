@@ -26,6 +26,7 @@ import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { prefectureState, engineerState, crewOut } from '../src/render3d/models/services.js';
 import { PUMP_WATER } from '../src/render3d/models/prefecture.js';
+import { ENGINEER } from '../src/render3d/models/engineer.js';
 import { iceMaterial } from '../src/render3d/materials.js';
 
 const TYPES = ['prefecture', 'engineer_post'];
@@ -78,8 +79,10 @@ test('services3d: states from the sim: staffed or not, and a prefecture\'s crew 
   assert.equal(crewOut(game, b), 2);
   assert.equal(prefectureState(b, game), 'out');
   assert.equal(prefectureState({ ...b, walkers: [ids[0], ids[3]] }, game), 'open');
-  // No staff: shut, whatever its walkers do; no game (a ghost, a test): its walkers cannot be read, so home.
-  assert.equal(prefectureState({ ...b, efficiency: 0 }, game), 'shut');
+  // No staff: shut, unless men are still at a fire (they fight on; the kit is with them); no game (a
+  // ghost, a test): its walkers cannot be read, so home.
+  assert.equal(prefectureState({ ...b, efficiency: 0, walkers: [ids[0]] }, game), 'shut');
+  assert.equal(prefectureState({ ...b, efficiency: 0 }, game), 'out');
   assert.equal(prefectureState(b, null), 'open');
   assert.equal(crewOut(game, { walkers: [999] }), 0, 'a walker gone is not out');
   assert.equal(engineerState({ efficiency: 0.4 }), 'open');
@@ -120,8 +123,18 @@ test('services3d: every part shows in some state, and each state shows what it s
   assert.ok(e.some((v) => v.name === 'rollers' && v.states.join() === 'shut'));
   const builders = (s) => new Set(e.filter((v) => /^(winder|surveyor)-/.test(v.name) && v.states.includes(s)).map((v) => v.name.split('-')[0])).size;
   assert.deepEqual([builders('open'), builders('shut')], [2, 0]);
-  // The groma stands whatever the state: it is the yard's sign.
-  assert.ok(e.some((v) => v.name === 'bronze' && v.states.length === 2));
+  // The groma stands whatever the state, it is the yard's sign: its cross (the bracket's end, at the
+  // staff's top) is in parts shown in both states.
+  const [gx, gz, gh] = ENGINEER.groma;
+  const near = (m) => {
+    m.updateMatrixWorld(true);
+    const pos = m.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.hypot(pos.getX(i) - (gx + 0.24), pos.getY(i) - (ENGINEER.floorY + gh + 0.04), pos.getZ(i) - gz) < 0.05) return true;
+    }
+    return false;
+  };
+  assert.ok(e.some((v) => v.states.length === 2 && near(v.mesh)), "the groma's cross");
 });
 
 test('services3d: in a hard frost the prefecture\'s pump water is ice', () => {
@@ -168,8 +181,11 @@ test('services3d: the game\'s pass draws a prefecture\'s parts by its state, fro
   frame();
   assert.equal(shown('home'), 0);
   assert.ok(shown('staffed') >= 1);
-  // Unstaffed: shut.
+  // Unstaffed with the man still at the fire: still out (the kit is with him). Back home: shut.
   b.efficiency = 0;
+  frame();
+  assert.equal(shown('home'), 0);
+  game.walkers.get(ids[1]).state = 'roam';
   frame();
   assert.ok(shown('shut') >= 1 && shown('staffed') === 0);
   assert.equal(mp.kits.get('prefecture|2'), kit, 'the same kit through every state');

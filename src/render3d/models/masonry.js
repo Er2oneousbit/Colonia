@@ -388,11 +388,6 @@ export function inscription(text, y, z, h) {
   return out;
 }
 
-/** The width of `text` set by inscription() at height `h` (metres). */
-export function inscriptionWidth(text, h) {
-  return [...text].reduce((a, ch) => a + GLYPHS[ch].w * h + h * 0.28, -h * 0.28);
-}
-
 /**
  * Geometries gathered by part while a model is built: each part a name, a
  * material, the state that shows it (`when`, models.js partShows) and

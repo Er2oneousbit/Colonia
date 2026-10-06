@@ -31,7 +31,8 @@
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed, the crew at home: doors open, the kit racked, a man at
  *           the door and one at the pump, two buckets filled by it
- *   'out'   staffed, some of the crew at a fire (sim/risk.js): the doors
+ *   'out'   some of the crew at a fire (sim/risk.js; staffed, or men still
+ *           fighting one after the post lost its staff): the doors
  *           open, the bucket rack, the ladder, the hook, the axes and the
  *           blankets gone with them, one man left at the door
  *   'shut'  no staff: the doors shut, the kit racked, nobody, the lantern out

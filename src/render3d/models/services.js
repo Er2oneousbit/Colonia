@@ -5,11 +5,11 @@
  * (render3d/models.js MODELS takes these entries as they are): which look
  * a building shows and its state, from the sim's own fields, read only.
  *
- *   prefecture     the watch house (models/prefecture.js): 'shut' with no
- *                  staff; staffed, 'out' while any of its men are on fire
- *                  duty (running to a fire or fighting one: sim/risk.js
- *                  fireCrewOut), else 'open'. In a hard frost the pump's
- *                  water freezes ('prefecture:ice').
+ *   prefecture     the watch house (models/prefecture.js): 'out' while any
+ *                  of its men are on fire duty (running to a fire or
+ *                  fighting one: sim/risk.js fireCrewOut), else 'open'
+ *                  staffed or 'shut' not. In a hard frost the pump's water
+ *                  freezes ('prefecture:ice').
  *   engineer_post  the builders' yard (models/engineer.js): 'open'
  *                  staffed, 'shut' not.
  *
@@ -37,10 +37,15 @@ export function crewOut(game, b) {
   return n;
 }
 
-/** The prefecture's state: 'shut' (no staff), 'out' (staffed, men at a fire), 'open' (staffed, all home). */
+/**
+ * The prefecture's state: 'out' (men at a fire), else 'open' (staffed, all
+ * home) or 'shut' (no staff). Out comes first: men already at a fire keep
+ * fighting it when the post loses its staff (the sim counts them whatever
+ * its efficiency), and the kit they took is not back on the racks.
+ */
 export function prefectureState(b, game) {
-  if (!(b.efficiency > 0)) return 'shut';
-  return crewOut(game, b) > 0 ? 'out' : 'open';
+  if (crewOut(game, b) > 0) return 'out';
+  return b.efficiency > 0 ? 'open' : 'shut';
 }
 
 /** The engineer's post's state: 'open' staffed, 'shut' not. */

@@ -441,6 +441,8 @@ async function main() {
     fs.setWinter(!!m.ice || state.snow >= 2);
     // (And the prefecture's pump freezes.)
     for (const s of Object.values(commerce)) s.setWinter(!!m.ice || state.snow >= 2);
+    // (A rebuild makes new water meshes: keep them out of the AO, as the fountains' are.)
+    fountainNoAO();
     // The farms' trees and vines take the season's look.
     if (rural) rural.season(state.season);
     if (state.scene !== 'well') {
