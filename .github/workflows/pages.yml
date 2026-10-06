@@ -8,7 +8,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [claude/caesar-3-game-clone-a3ey5m]
+    branches: [main]
   workflow_dispatch:
 
 # One deployment at a time; a newer one waits rather than cancelling a live one.

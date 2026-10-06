@@ -13,6 +13,14 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.14)
+
+* **The prefecture in 3D** (under WebGL): a watch house of Rome's vigiles after the VII cohort's in Trastevere, brick under a tiled gable with VIGILES COH·VII over the studded door, a household shrine, pitched rope buckets on a rack, a force pump in its water tank, a ladder, a roof hook and axes; while its crew is out at a fire its kit is gone and one man keeps the door; idle, it is shut; its lantern burns at night
+* **The engineer's post in 3D**: a builders' yard of the fabri, a half-timbered workshop under a lean-to roof with COLLEGIVM·FABRVM on its sign, shear legs hoisting a block in iron tongs, a groma by the street, timber, bricks, ashlar, lime and pozzolana; working, the surveyor sights along the groma and the block is raised; idle, it rests on rollers and the tools are racked
+* The project's main branch is now `main`
+* Headless sim: identical to v0.20.13 on every difficulty
+* 1194 unit tests, 251 browser checks
+
 ## Done (v0.20.13)
 
 * **Trees and rocks in 3D** (under WebGL with the 3D ground): fourteen species of Italy and the western provinces as the Roman writers describe them, each known by its outline: the Italian cypress's flame, the stone pine's parasol, holm and downy oaks, the sweet chestnut, the oriental plane, white poplars and pollarded willows by the water, wild olive, laurel and myrtle, wild cherry and almond in blossom in spring, date palms at desert oases. Where each grows comes from the map (banks, dry ground, the province), in stands of one kind. Deciduous trees turn in autumn and stand bare in winter, snow lies on the branches, the crowns sway in the wind and rain darkens the bark. Rocks are bedded limestone outcrops with lichen and moss, boulders and scree, dark lava on volcanic maps. Far out, trees are drawn as pictures baked on the GPU, so a whole Uber map of forest costs a fraction of a millisecond; up close, about 3 ms a frame
