@@ -167,7 +167,11 @@ export class App {
     this.fullscreenAsks = 0; // (times it was asked for: the smoke test reads it)
     for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
       document.addEventListener(ev, () => {
-        if (!fullscreenElement()) this.fullscreenLeftAt = performance.now();
+        if (!fullscreenElement()) {
+          this.fullscreenLeftAt = performance.now();
+          // (Left during a game: a quick load or a restart keeps it so, until the main menu.)
+          if (this.game) this.fullscreenDeclined = true;
+        }
         this.resize();
         this.ui.hud.showFullscreen(!!fullscreenElement());
       });
@@ -209,7 +213,7 @@ export class App {
    * starts by itself.
    */
   fullscreenOnStart() {
-    if (this.flags.fullscreen === false || this.settings.fullscreen === false) return;
+    if (this.flags.fullscreen === false || this.settings.fullscreen === false || this.fullscreenDeclined) return;
     const act = typeof navigator !== 'undefined' ? navigator.userActivation : null;
     if (act && !act.isActive) return;
     if (requestFullscreen()) this.fullscreenAsks++;
@@ -220,6 +224,9 @@ export class App {
     if (fullscreenElement()) exitFullscreen();
     else if (requestFullscreen()) this.fullscreenAsks++;
   }
+
+  /** Is the page fullscreen now (any browser's spelling)? */
+  get isFullscreen() { return !!fullscreenElement(); }
 
   /** May the page go fullscreen here (the button shows only then)? */
   get canFullscreen() { return fullscreenAvailable(); }
@@ -651,6 +658,7 @@ export class App {
 
   /** Leave the current game and show the main menu over a living demo city. */
   toMainMenu() {
+    this.fullscreenDeclined = false; // (the next game from the menu may go fullscreen again)
     for (const u of this.gameUnsub) u();
     this.gameUnsub = [];
     this.game = null;
@@ -1181,6 +1189,7 @@ export class App {
       models: webgl && be.models ? `${be.models.status()}, ${be.models.kits.size} looks built, ${st.models || 0} drawn` : '',
       gpuName: gpu.name,
       integrated: gpu.integrated,
+      hint: gpu.hint,
     };
     return perfLines(this.perfMeter.last, info);
   }

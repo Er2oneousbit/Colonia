@@ -616,6 +616,15 @@ export class Renderer {
       if (this.backend.canvas && this.backend.canvas.parentNode) this.backend.canvas.remove();
       this.backend.dispose();
     }
+    if (!next.composes && this.over) {
+      // (Back to Classic: the overlay's full-size bitmap goes too; mountLayers makes it again.)
+      if (this.over.parentNode) this.over.remove();
+      this.over.width = 1;
+      this.over.height = 1;
+      this.over = null;
+      this.overCtx = null;
+      this.layered = null;
+    }
     this.backend = next;
     this.be = next.ready ? next : this.canvasBackend;
     if (next.composes) this.mountLayers(next);

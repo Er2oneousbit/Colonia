@@ -86,9 +86,12 @@ class Quads {
     let cap = this.cap || 64;
     while (cap < quads) cap *= 2;
     const g = new BufferGeometry();
+    const old = this.geometry;
     const attr = (name, size) => {
       const a = new BufferAttribute(new Float32Array(cap * 6 * size), size);
       a.setUsage(DynamicDrawUsage);
+      // (The quads added so far this draw are kept: the 65th pool of a night must not lose the first 64.)
+      if (old) a.array.set(old.getAttribute(name).array);
       g.setAttribute(name, a);
       return a.array;
     };

@@ -39,6 +39,7 @@ test('perf: the graphics chips in the processor are told apart from cards and so
     '',
   ];
   for (const n of integrated) assert.equal(isIntegratedGpu(n), true, n);
+  assert.equal(isIntegratedGpu('Apple GPU'), true, 'Safari masks every Mac\'s GPU as Apple GPU');
   for (const n of cards) assert.equal(isIntegratedGpu(n), false, n);
   assert.equal(isSoftwareGpu('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)'), true);
   assert.equal(isSoftwareGpu(cards[0]), false);
@@ -54,7 +55,7 @@ test('perf: the readout names the GPU, and with a chip in the processor says how
   assert.ok(card.some((l) => l === 'GPU: NVIDIA GeForce RTX'));
   assert.ok(!card.includes(INTEGRATED_HINT));
   assert.ok(!card.some((l) => /copy/.test(l)), 'no copy stage when there was none');
-  const uhd = perfLines(m, { ...base, gpuName: 'Intel(R) UHD Graphics', integrated: true });
+  const uhd = perfLines(m, { ...base, gpuName: 'Intel(R) UHD Graphics', integrated: true, hint: true });
   assert.ok(uhd.includes(INTEGRATED_HINT));
   assert.match(INTEGRATED_HINT, /High performance/);
   const classic = perfLines({ ...m, gpu: null }, { backend: '2d', size: '1600x900', dpr: 1, gpuName: '' });

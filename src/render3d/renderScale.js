@@ -18,15 +18,20 @@
  * The rules, so it never flickers between two steps (AutoScale):
  *   - It decides once a window of WINDOW_MS, from the frames in it: their
  *     mean interval (frames slower than SPIKE_MS are hiccups, a sprite being
- *     made or the tab coming back, and left out), the page's own time for
+ *     made or the tab coming back, and left out, unless nearly every frame
+ *     is one: a GPU that slow is judged on them), the page's own time for
  *     them, and the GPU's (a timer query; null where the browser has none).
- *   - Down one step when a window is slow (under about 50 frames a second)
- *     and the page itself is not what takes the time (the GPU or the
- *     compositor is): fewer pixels would not help a page busy with the sim.
- *   - Up one step only after UP_WINDOWS fast windows in a row (at the
- *     screen's own rate, and the GPU's time, where known, small enough for
- *     the next step's pixels), and not before `wait` has passed since the
- *     last step down. A step up that is followed by a step down within
+ *   - Down one step when a window is slow (under about 50 frames a second),
+ *     the page itself is not what takes the time (fewer pixels would not
+ *     help a page busy with the sim), and, where the GPU's time is known,
+ *     the GPU is: a browser holding the page to 30 frames a second (a
+ *     battery saver, a 30 Hz screen) with the GPU idle is not slow.
+ *   - Up one step only after UP_WINDOWS fast windows in a row, and not
+ *     before `wait` has passed since the last step down. Fast: at the
+ *     screen's own rate (60 Hz or better), or, where the GPU's time is
+ *     known, with the GPU mostly idle (the rate is held down by something
+ *     else); either way the GPU's time, where known, small enough for the
+ *     next step's pixels. A step up that is followed by a step down within
  *     BOUNCE_MS doubles `wait` (up to WAIT_MAX_MS): a scale it cannot keep
  *     is tried less and less often.
  *   - After a step it waits SETTLE_MS (the new size's first frames redraw
@@ -51,6 +56,12 @@ export const SCALE_CHOICES = Object.freeze(['auto', '1', '0.75', '0.5']);
 
 export const WINDOW_MS = 1000;
 export const SPIKE_MS = 120;
+/** A window with fewer frames than this under SPIKE_MS, but at least SPIKE_WINDOW frames, is judged on its slow frames. */
+export const SPIKE_WINDOW = 3;
+/** The GPU's share of a frame's interval above which it is what holds the frames back. */
+export const GPU_BOUND = 0.5;
+/** ... and below which it has room to spare (a held-down rate). */
+export const GPU_IDLE = 0.35;
 /** A window slower than this (ms a frame) is slow. */
 export const SLOW_MS = 21;
 /** A window at most this is fast (a 60 Hz screen's frames, with a little room). */
@@ -110,6 +121,9 @@ export class AutoScale {
     this.page = 0;
     this.gpuSum = 0;
     this.gpuN = 0;
+    this.spikeN = 0;
+    this.spikeSum = 0;
+    this.spikePage = 0;
     this.settleUntil = now + SETTLE_MS;
   }
 
@@ -123,28 +137,39 @@ export class AutoScale {
       this.start = now;
       return false;
     }
+    const gpuOk = gpuMs !== null && gpuMs !== undefined && Number.isFinite(gpuMs);
     if (interval > 0 && interval < SPIKE_MS) {
       this.n++;
       this.sum += interval;
       this.page += pageMs || 0;
-      if (gpuMs !== null && gpuMs !== undefined && Number.isFinite(gpuMs)) {
+      if (gpuOk) {
+        this.gpuSum += gpuMs;
+        this.gpuN++;
+      }
+    } else if (interval >= SPIKE_MS && interval < 1000) {
+      this.spikeN++;
+      this.spikeSum += interval;
+      this.spikePage += pageMs || 0;
+      if (gpuOk) {
         this.gpuSum += gpuMs;
         this.gpuN++;
       }
     }
     if (now - this.start < WINDOW_MS) return false;
     const n = this.n;
-    const mean = n ? this.sum / n : 0;
-    const page = n ? this.page / n : 0;
     const gpu = this.gpuN ? this.gpuSum / this.gpuN : null;
+    // Nearly every frame slower than a hiccup: a GPU that slow is judged on those frames.
+    const allSlow = n < 10 && this.spikeN >= SPIKE_WINDOW && this.spikeN > n;
+    const mean = allSlow ? this.spikeSum / this.spikeN : n ? this.sum / n : 0;
+    const page = allSlow ? this.spikePage / this.spikeN : n ? this.page / n : 0;
     this.reset(now);
     this.settleUntil = now; // (no settling between windows)
-    if (n < 10) return false; // (too few frames to judge: a hidden tab, a long stall)
+    if (n < 10 && !allSlow) return false; // (too few frames to judge: a hidden tab, a long stall)
     return this.judge(mean, page, gpu, now);
   }
 
   judge(mean, page, gpu, now) {
-    const slow = mean > SLOW_MS && page < mean * 0.75;
+    const slow = mean > SLOW_MS && page < mean * 0.75 && (gpu === null || gpu > mean * GPU_BOUND);
     if (slow) {
       this.fastRun = 0;
       if (this.rung >= LADDER.length - 1) {
@@ -158,7 +183,7 @@ export class AutoScale {
       return true;
     }
     this.slowAtBottom = 0;
-    const fast = mean <= FAST_MS;
+    const fast = mean <= FAST_MS || (gpu !== null && gpu < mean * GPU_IDLE);
     this.fastRun = fast ? this.fastRun + 1 : 0;
     if (!fast || this.rung === 0 || this.fastRun < UP_WINDOWS || now - this.lastDown < this.wait) return false;
     if (gpu !== null) {

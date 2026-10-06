@@ -562,7 +562,7 @@ export function pauseMenu(app) {
     btn('Load game', () => app.ui.showModal(loadMenu(app))),
     btn('Mission briefing', () => app.ui.showModal(briefing(app, g.scenario))),
     btn('Settings', () => app.ui.showModal(settingsMenu(app))),
-    app.canFullscreen ? btn(document.fullscreenElement ? 'Leave fullscreen' : 'Fullscreen', () => { app.toggleFullscreen(); app.ui.closeModal(); }) : null,
+    app.canFullscreen ? btn(app.isFullscreen ? 'Leave fullscreen' : 'Fullscreen', () => { app.toggleFullscreen(); app.ui.closeModal(); }) : null,
     btn('How to play', () => app.ui.openHelp()),
     btn('Restart this map', () => app.ui.confirm('Restart this map from scratch? Progress since your last save is lost.', () => app.restart(), { yes: 'Restart', danger: true })),
     btn('Quit to main menu', () => app.ui.confirm('Quit to the main menu? Progress since your last save is lost (the autosave remains).', () => app.toMainMenu(), { yes: 'Quit', danger: true }), 'danger'),

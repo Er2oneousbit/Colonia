@@ -48,7 +48,7 @@
 import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement } from 'three';
 import { MODELS, partShows, modelMatrix } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
-import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesCount, surfacesAsked, material } from './materials.js';
+import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
 import { fountainTier, tierOf } from './fountainTier.js';
 import { WaterBits } from '../world/map.js';
@@ -134,7 +134,8 @@ export class ModelPass {
 
   /** Can models draw now (painted and compiled, the context there)? */
   get ready() {
-    return !this.failed && this.compiled && !this.lost && surfacesReady() && painterFor(this.gl).idle;
+    // (A texture that could not be painted counts as done for surfacesReady: never draw on it.)
+    return !this.failed && this.compiled && !this.lost && surfacesReady() && !surfacesFailedCount() && painterFor(this.gl).idle;
   }
 
   /** Models cannot draw on this GPU: say why once, and leave the buildings to their sprites. */
@@ -167,12 +168,12 @@ export class ModelPass {
    * after COMPILE_GIVE_UP_S.
    */
   watch() {
-    if (this.failed || this.lost || this.ready) return;
-    const bad = surfacesFailed();
-    if (bad.length) {
-      this.fail(`the textures ${bad.join(', ')} could not be painted on this GPU`);
+    if (this.failed || this.lost) return;
+    if (surfacesFailedCount()) {
+      this.fail(`the textures ${surfacesFailed().join(', ')} could not be painted on this GPU`);
       return;
     }
+    if (this.ready) return;
     const now = performance.now();
     if (!this.slowSaid && now - this.since > SLOW_S * 1000) {
       this.slowSaid = true;
@@ -428,6 +429,9 @@ export class ModelPass {
     this.compiled = false;
     this.warming = null;
     this.warmStart = performance.now();
+    // (A new light, the ground's quality changed: the wait for this compile starts now.)
+    this.since = this.warmStart;
+    this.slowSaid = false;
     let job;
     try {
       // (Every material of every look: a frost's ice is the water's program, so the frozen looks need nothing more.)

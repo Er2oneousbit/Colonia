@@ -82,6 +82,26 @@ test('render scale: fast frames step back up only after a wait, and a bounce mak
   assert.equal(r4.steps.length, 0, 'no step up within the longer wait');
 });
 
+test('render scale: a browser holding the page to 30 frames a second with the GPU idle is not slow, and is let back up', () => {
+  const a = new AutoScale(0);
+  a.reset(0);
+  assert.equal(run(a, 0, 60000, 33.3, 3, 4).steps.length, 0, 'not lowered for a capped rate');
+  // Lowered once (by a real slow spell), it comes back up at the capped rate, the GPU mostly idle.
+  const b = new AutoScale(0);
+  b.reset(0);
+  const { t } = run(b, 0, 2600, 40, 4, 30);
+  assert.equal(b.rung, 1);
+  run(b, t, 30000, 33.3, 3, 4);
+  assert.equal(b.rung, 0);
+});
+
+test('render scale: a GPU so slow that every frame is a "hiccup" still steps down', () => {
+  const a = new AutoScale(0);
+  a.reset(0);
+  const { steps } = run(a, 0, 10000, 200, 5, null);
+  assert.ok(steps.length >= 1, JSON.stringify(steps));
+});
+
 test('render scale: a frame rate between fast and slow holds the step (no flicker), and so do too few frames', () => {
   const a = new AutoScale(2);
   a.reset(0);

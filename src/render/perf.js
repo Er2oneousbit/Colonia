@@ -101,6 +101,8 @@ export class PerfMeter {
  */
 export function isIntegratedGpu(name) {
   const s = String(name || '');
+  // (Safari says "Apple GPU" on every Mac, an Intel one's built-in graphics too: start light, Auto climbs.)
+  if (/apple/i.test(s)) return true;
   if (/intel/i.test(s)) return !/Arc\S*\s*(\(TM\)\s*)?A\d/i.test(s);
   if (/radeon/i.test(s)) return /graphics/i.test(s) && !/\bRX\b|\bPro\b|FirePro|Instinct/i.test(s);
   return /adreno|mali|powervr/i.test(s);
@@ -124,7 +126,7 @@ export function gpuOf(gl) {
   } catch {
     // (A lost context: no name.)
   }
-  return { name, integrated: isIntegratedGpu(name), software: isSoftwareGpu(name) };
+  return { name, integrated: isIntegratedGpu(name), software: isSoftwareGpu(name), hint: isIntegratedGpu(name) && /intel|amd|radeon/i.test(name) };
 }
 
 /** The hint shown under an integrated GPU's name. */
@@ -141,6 +143,6 @@ export function perfLines(m, info) {
   lines.push(`${info.backend === 'webgl' ? 'WebGL' : 'Classic'}  ${info.size}  pixel ratio ${info.dpr}${info.scene ? `  3D scene ${info.scene}` : ''}`);
   if (info.ground) lines.push(`ground ${info.ground}  models ${info.models || '-'}`);
   if (info.gpuName) lines.push(`GPU: ${info.gpuName}`);
-  if (info.integrated) lines.push(INTEGRATED_HINT);
+  if (info.hint) lines.push(INTEGRATED_HINT);
   return lines;
 }

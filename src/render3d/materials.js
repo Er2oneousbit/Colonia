@@ -348,9 +348,16 @@ export function paintSurfaces() {
       t.ready = true;
       // (The models read it: a surface left unpainted would draw as garbage, so they give way to the sprites.)
       t.failed = true;
+      failedCount++;
       t.resolveReady(null);
     });
   }
+}
+
+/** How many surfaces could not be painted (cheap: the models ask every frame). */
+let failedCount = 0;
+export function surfacesFailedCount() {
+  return failedCount;
 }
 
 /** The surfaces that could not be painted on this GPU (their names). */
@@ -610,6 +617,7 @@ export function resetLook() {
   TEXTURES.clear();
   CACHE.clear();
   asked = [];
+  failedCount = 0;
 }
 
 /** Every material made so far (the lab lists them, look.js frees them). */
