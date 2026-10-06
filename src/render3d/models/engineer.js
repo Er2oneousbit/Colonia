@@ -280,12 +280,12 @@ function groma(lod, out) {
   // The cross turned a little from the yard's square, as when setting out a line.
   const r = 0.35;
   const ends = [0, 1, 2, 3].map((k) => [cx + Math.cos(r + (k * Math.PI) / 2) * arm, ay, gz + Math.sin(r + (k * Math.PI) / 2) * arm]);
-  out.wood.push(beam(ends[0], ends[2], 0.025, 3, lod));
-  out.wood.push(beam(ends[1], ends[3], 0.025, 4, lod));
+  out.wood.push(beam(ends[0], ends[2], 0.034, 3, lod));
+  out.wood.push(beam(ends[1], ends[3], 0.034, 4, lod));
   for (const e of ends) {
     const drop = 0.48;
-    if (lod < 2) out.rope.push(tube([[e[0], e[1], e[2]], [e[0], e[1] - drop, e[2]]], lod ? 0.004 : 0.003, { radial: 3, segments: 1, around: 0.05 }));
-    out.bronze.push(revolve(profileOf([[0, 0], [0.018, 0.02], [0.024, 0.045], [0.01, 0.065], [0, 0.07]]), { segments: lod ? 5 : 9, metres: 0.1 }).translate(e[0], e[1] - drop - 0.07, e[2]));
+    if (lod < 2) out.rope.push(tube([[e[0], e[1], e[2]], [e[0], e[1] - drop, e[2]]], 0.0055, { radial: lod ? 3 : 4, segments: 1, around: 0.05 }));
+    out.bronze.push(revolve(profileOf([[0, 0], [0.024, 0.028], [0.034, 0.062], [0.014, 0.09], [0, 0.096]]), { segments: lod ? 5 : 9, metres: 0.1 }).translate(e[0], e[1] - drop - 0.096, e[2]));
   }
 }
 
