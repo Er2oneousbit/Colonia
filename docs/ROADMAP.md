@@ -13,6 +13,14 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.10)
+
+* **The farms in 3D** (under WebGL): one farmhouse after Cato, Varro, Columella and the farmsteads round Pompeii (rubble walls, a tiled roof, a grain loft, a lararium by the door), and each kind's working things: wheat's threshing floor, straw stack and stooks; the vegetable garden's wattle fence and well sweep; orchards of apple, pear and fig, bare in winter, in blossom in spring, in fruit as it ripens; gnarled olives and an oil mill; vines on stakes with grapes in late summer and a treading vat; flax on drying racks by a retting pond; a pig sty with pigs rooting, more as the farm prospers; a stable with a horse in the paddock for each breeding mare. A farm at rest for the winter has its tools put away, one with no workers its shutters closed and its stacks slumped
+* **The granary in 3D, showing how full it is**: a horreum after Ostia's, on a platform raised to cart height with vents, buttresses and louvred slits; its platform fills with the foods it holds, a cart's load a place (sacks of wheat, baskets of vegetables and fruit, hams, fish), so how full it is and with what reads at a glance from any side
+* Measured with 40 farms and granaries on a Large map at a pixel ratio of 2: 19.7 to 20.5 ms a frame (18 with their sprites)
+* Headless sim: identical to v0.20.9 on every difficulty
+* 1160 unit tests, 248 browser checks
+
 ## Done (v0.20.9)
 
 * **Fullscreen when a game starts**: Begin, Continue and Load open the game fullscreen (*Settings > Fullscreen when a game starts*, on by default); a ⛶ button in the top bar and the game menu goes back in after Esc
