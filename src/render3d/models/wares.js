@@ -83,7 +83,7 @@ export function wareMaterials() {
     produce: material('produce', { color: 0xffffff, roughness: 0.55, vertexColors: true, snow: 0.6 }),
     grain: material('grain', { color: 0xd8b258, roughness: 0.95, vertexColors: true, snow: 0.8 }),
     meat: material('meat', { color: 0xffffff, roughness: 0.45, vertexColors: true, snow: 0.4 }),
-    fish: material('fish', { color: 0xffffff, roughness: 0.35, metalness: 0.35, vertexColors: true, snow: 0.4 }),
+    fish: material('fish', { color: 0xffffff, roughness: 0.42, metalness: 0.2, vertexColors: true, snow: 0.4 }),
     paint: material('paint', { color: 0xffffff, roughness: 0.6, vertexColors: true, snow: 0.8 }),
     // The goods from the middle zooms out: plain, coloured by vertex (Bin.group).
     far: material('ware-far', { color: 0xffffff, roughness: 0.75, vertexColors: true, snow: 0.8 }),
@@ -187,14 +187,21 @@ function heap(lod, r, y0, h, colours, seed, bump = 0.18) {
 function balls(lod, n, r, x, y, z, colours, seed, spread = 0.12) {
   const rnd = artRng(seed);
   const out = [];
-  for (let k = 0; k < n; k++) {
-    const g = new IcosahedronGeometry(r * (0.85 + rnd() * 0.3), lod ? 0 : 1);
-    const ring = k < 6 ? 0 : 1;
-    const a = rnd() * Math.PI * 2;
-    const d = ring ? rnd() * spread * 0.4 : spread * (0.4 + rnd() * 0.6);
-    g.translate(x + Math.cos(a) * d, y + r + ring * r * 1.4, z + Math.sin(a) * d);
-    const c = colours[Math.floor(rnd() * colours.length)];
-    out.push(tintGeometry(boxUV(g), () => c));
+  // Heaped as a greengrocer heaps them: a ring round the rim, a smaller ring on it, one on top.
+  let k = 0;
+  for (let layer = 0; k < n; layer++) {
+    const rr = Math.max(0, spread - r * layer * 1.15);
+    const count = rr < r * 0.6 ? 1 : Math.max(3, Math.floor((Math.PI * 2 * rr) / (r * 2.05)));
+    const turn = rnd() * Math.PI * 2;
+    for (let j = 0; j < count && k < n; j++, k++) {
+      // (Twenty faces: a fruit is a few pixels across at the game's closest zoom.)
+      const g = new IcosahedronGeometry(r * (0.85 + rnd() * 0.3), 0);
+      const a = turn + (j / count) * Math.PI * 2;
+      g.translate(x + Math.cos(a) * rr, y + r + layer * r * 1.25, z + Math.sin(a) * rr);
+      const c = colours[Math.floor(rnd() * colours.length)];
+      out.push(tintGeometry(boxUV(g), () => c));
+    }
+    if (count === 1) break;
   }
   return out;
 }
@@ -278,7 +285,8 @@ function modius(lod) {
 /** A barrel 0.7 m tall: bellied staves, darker hoops. */
 function barrel(lod) {
   const P = [[0, 0], [0.2, 0], [0.24, 0.12], [0.26, 0.35], [0.24, 0.58], [0.2, 0.7], [0, 0.7]];
-  return revolve(profileOf(P), { segments: seg(lod, 12, 8, 5), metres: 1, tint: (p) => ([0.07, 0.2, 0.5, 0.63].some((y) => Math.abs(p.y - y) < 0.022) ? 0.32 : 0.85) });
+  // (The staves a shade apart one from the next, the hoops dark.)
+  return revolve(profileOf(P), { segments: seg(lod, 16, 8, 5), metres: 1, tint: (p, th) => ([0.07, 0.2, 0.5, 0.63].some((y) => Math.abs(p.y - y) < 0.022) ? 0.32 : 0.72 + 0.16 * (Math.floor((th / (Math.PI * 2)) * 16) % 2)) });
 }
 
 /** A fish, 0.32 m, lying along x on y 0: a flattened spindle and a tail. */
@@ -466,7 +474,7 @@ const at = (g, x, y, z, ry = 0) => {
 const C = {
   apple: hue(0xb83a26), apple2: hue(0xd8902e), pome: hue(0x9a2a28), fig: hue(0x5a3a52),
   cabbage: hue(0x6f9a3e), cabbage2: hue(0x8db35a), leek: hue(0xb8c98a), onion: hue(0xc79a5a), turnip: hue(0xd8c8b8),
-  olive: hue(0x3f4426), olive2: hue(0x55582e), grape: hue(0x4a2850), grape2: hue(0x6a3a6a), fish: hue(0xb6bec2),
+  olive: hue(0x3f4426), olive2: hue(0x55582e), grape: hue(0x4a2850), grape2: hue(0x6a3a6a), fish: hue(0x7f8b91),
   red: hue(0xa8382c), blue: hue(0x3f5f8f), ochre: hue(0xc7952f), green: hue(0x55753a), white: hue(0xe8e2d2), linen: hue(0xe4dccb), purple: hue(0x6a2f5a),
   shieldRed: hue(0x8e2a20), shaft: hue(0xa8865a), fletch: hue(0xd8d0c0),
 };
@@ -548,9 +556,19 @@ export function buildLoad(good, lod = 0) {
       const bump = { vegetables: 0.25, fruit: 0.16, olives: 0.08, grapes: 0.1, fish: 0.12 }[good];
       // Four baskets, heaped, and one more on top (or crates for fish packed in salt).
       const spots = far ? [[0, 0, 0]] : [[-0.24, -0.24, 0], [0.24, -0.24, 0], [-0.24, 0.24, 0], [0.24, 0.24, 0], [0, 0, 0.3]];
+      // Close up, the things themselves (cabbages, apples, fish); olives and grapes, too small to count, a heap.
+      const each = { vegetables: 0.07, fruit: 0.048, fish: 0 }[good];
       spots.forEach(([x, z, y], i) => {
         b.add('wicker', at(basket(lod, far ? 0.45 : 0.23, 0.26), x, y, z));
-        b.add(good === 'fish' ? 'fish' : 'produce', at(heap(lod, far ? 0.42 : 0.21, 0.2, far ? 0.18 : 0.12, colours, s + i, bump), x, y, z));
+        if (lod === 0 && good === 'fish') {
+          // A heap of fish packed in the basket, more laid across the top.
+          b.add('fish', at(heap(1, 0.21, 0.2, 0.07, [C.fish], s + i, 0.12), x, y, z));
+          for (let f = 0; f < 3; f++) b.add('fish', at(fishPiece(lod, s + i * 7 + f, 0.3), 0, y + 0.25 + (f % 2) * 0.025, z, (f / 3) * Math.PI + i).translate(x, 0, 0));
+        } else if (lod === 0 && each) {
+          b.add('produce', balls(lod, 14, each, x, y + 0.17, z, colours, s + i, 0.17));
+        } else {
+          b.add(good === 'fish' ? 'fish' : 'produce', at(heap(lod, far ? 0.42 : 0.21, 0.2, far ? 0.18 : 0.12, colours, s + i, bump), x, y, z));
+        }
       });
       break;
     }
