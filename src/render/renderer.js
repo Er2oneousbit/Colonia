@@ -953,7 +953,11 @@ export class Renderer {
     const pal = env.pal;
     // Sprites are drawn for the zoom LEVEL; while the zoom eases they are scaled a little.
     const changing = this.palPrev !== null || this.snowPrev !== null;
-    this.sprites.beginFrame(cam.spriteScale, changing ? Math.min(this.spriteBudgetMs, this.lookBudgetMs) : this.spriteBudgetMs);
+    const budget = changing ? Math.min(this.spriteBudgetMs, this.lookBudgetMs) : this.spriteBudgetMs;
+    this.sprites.beginFrame(cam.spriteScale, budget);
+    // (The models' cover sprites share the budget: a snow change redraws every one in view, at one
+    // world px a pixel, four times the pixels of the main cache's at 0.5x on a plain screen.)
+    this.coverSprites.beginFrame(1, budget);
     this.be = be;
     this.stats.backend = be.kind;
     be.begin();
@@ -1338,10 +1342,10 @@ export class Renderer {
     this.stats.tiles = tiles;
     this.stats.objects = items.length;
     this.stats.borrowed = this.sprites.borrowed;
-    this.stats.pending = this.sprites.pending;
+    this.stats.pending = this.sprites.pending + this.coverSprites.pending;
     // Every sprite of the new look is ready: drop the old look, so the next
     // frame shows the new one whole.
-    if (this.sprites.pending === 0) this.finishLookChange();
+    if (this.sprites.pending + this.coverSprites.pending === 0) this.finishLookChange();
     const tEnd = performance.now();
     this.stats.overlayMs = tEnd - tScene;
     this.stats.ms = tEnd - t0;
@@ -1705,10 +1709,10 @@ export class Renderer {
     // (`be` is missing on a renderer made without its constructor, as some tests do: no model then.)
     const model = !!this.be?.hasModel(b.type);
     const spec = () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T);
-    // (A model's sprite from the small cover cache, at once: it is cheap at its scale and the old
-    // look need not stay on screen while the new one is made, as nothing of it shows.)
-    const spr = model ? this.coverSprites.get(key + this.snowKey, spec)
-      : this.sprites.get(key + this.snowKey, spec, this.snowPrev === null ? null : key + this.snowPrev);
+    // (A model's sprite from the small cover cache, its look changed as the drawn ones are: the old
+    // one kept while the new one waits for the frame's budget.)
+    const was = this.snowPrev === null ? null : key + this.snowPrev;
+    const spr = (model ? this.coverSprites : this.sprites).get(key + this.snowKey, spec, was);
     if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
     if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     const n = depths.length;

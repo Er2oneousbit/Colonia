@@ -27,7 +27,7 @@ export const CONFIG = {
   // The Classic renderer's zoom levels. The WebGL renderer has the same
   // ones and closer (ZOOM_LEVELS_3D), so a level's index means the same
   // zoom under both: a save at a WebGL-only level opens in Classic at its
-  // closest (Camera.setLevels clamps).
+  // closest (Camera.restore), as does switching to Classic (Camera.setLevels).
   ZOOM_LEVELS: [0.5, 0.75, 1, 1.5, 2],
   // Closer levels to see the 3D models up close: their full level of
   // detail and textures hold to 6x; sprites stop sharpening at

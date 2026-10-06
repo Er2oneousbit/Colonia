@@ -219,6 +219,12 @@ test('camera: a save made at 4x under WebGL opens in Classic at 2x on the same s
   const again = makeCamera(false);
   again.setLevels(CONFIG.ZOOM_LEVELS_3D);
   again.restore(state);
+  // A save with no usable corner (null, as a NaN is written to JSON) keeps the camera's own.
+  const blank = makeCamera(false);
+  const keep = { x: blank.x, y: blank.y };
+  blank.restore({ ...state, x: null, y: null });
+  assert.equal(blank.zoom, 2);
+  assert.deepEqual({ x: blank.x, y: blank.y }, keep, 'no centre worked out from a missing corner');
   assert.equal(again.zoom, 4, 'WebGL opens it at 4x');
   assert.equal(again.x, state.x);
   assert.equal(again.y, state.y);

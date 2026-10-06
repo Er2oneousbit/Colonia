@@ -16,7 +16,8 @@
  *   - zoom: `zoomIndex` is the zoom LEVEL the player picked; `zoomF` is the
  *     zoom actually shown, which eases toward the level in about a fifth of
  *     a second while the point under the cursor stays put. Sprites are drawn
- *     for the level (see `spriteScale`) and scaled a little while it eases.
+ *     for the level (see `spriteScale`) and scaled a little while it eases
+ *     (and past SPRITE_SCALE_MAX, at WebGL's closest levels, stretched).
  *     The levels are the renderer's (`setLevels`): Classic's five, or the
  *     WebGL renderer's, the same five and closer (config.js ZOOM_LEVELS_3D).
  *   - fling: after a drag the map keeps sliding and slows down (`fling`).
@@ -433,7 +434,7 @@ export class Camera {
     // Saved at a level this renderer lacks (WebGL's 4x, loaded in Classic): x and y are the
     // corner of that closer view, so keep the middle it showed (on a screen of this size).
     const saved = zoomOfIndex(want);
-    if (saved !== this.zoomF && s.x !== undefined && s.y !== undefined) {
+    if (saved !== this.zoomF && Number.isFinite(s.x) && Number.isFinite(s.y)) {
       this.setCenter(s.x + this.viewW / (saved * this.dpr) / 2, s.y + this.viewH / (saved * this.dpr) / 2);
     }
     this.clamp();
