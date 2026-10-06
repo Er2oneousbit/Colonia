@@ -18,9 +18,9 @@
  */
 
 import {
-  BufferGeometry, Float32BufferAttribute, CylinderGeometry, Shape, Path, ExtrudeGeometry,
+  BufferGeometry, Float32BufferAttribute, CylinderGeometry, Shape, Path, ExtrudeGeometry, BoxGeometry, Group, Mesh,
 } from 'three';
-import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
+import { revolve, profileOf, boxUV, tintGeometry, tube, merge } from '../shapes.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { material } from '../materials.js';
 
@@ -318,6 +318,124 @@ export function lantern(x, y, z, lod = 0) {
 /** The lanterns' horn panes (the well's material: one key, so the lab's night lights them all). */
 export function lanternPane() {
   return material('lantern-pane', { color: 0xc89a5a, roughness: 0.45, emissive: 0xffb25c, emissiveIntensity: 0, snow: 0 });
+}
+
+/** An ellipse's outline as strokes in a glyph's box (the bowl of an O), `n` of them. */
+function bowl(cx, cy, rx, ry, n = 10) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
+    const b = ((k + 1) / n) * Math.PI * 2;
+    out.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, cx + Math.cos(b) * rx, cy + Math.sin(b) * ry]);
+  }
+  return out;
+}
+
+/** The C's strokes (the G is a C with its spur). */
+const C_STROKES = [[0.66, 0.84, 0.46, 1], [0.46, 1, 0.2, 0.94], [0.2, 0.94, 0.05, 0.74], [0.05, 0.74, 0.05, 0.26], [0.05, 0.26, 0.2, 0.06], [0.2, 0.06, 0.46, 0], [0.46, 0, 0.68, 0.14]];
+/**
+ * Roman capitals as strokes, each [x0, y0, x1, y1] in a box one high and
+ * `w` wide: the letters the buildings' inscriptions use (the forum's,
+ * the watch house's, the builders' sign), the bowls as polygons.
+ */
+export const GLYPHS = Object.freeze({
+  T: { w: 0.7, s: [[0, 1, 0.7, 1], [0.35, 1, 0.35, 0]] },
+  A: { w: 0.72, s: [[0, 0, 0.36, 1], [0.36, 1, 0.72, 0], [0.16, 0.36, 0.56, 0.36]] },
+  B: { w: 0.62, s: [[0, 0, 0, 1], [0, 1, 0.4, 1], [0.4, 1, 0.54, 0.88], [0.54, 0.88, 0.54, 0.64], [0.54, 0.64, 0.4, 0.53], [0, 0.53, 0.42, 0.53], [0.42, 0.53, 0.6, 0.4], [0.6, 0.4, 0.6, 0.14], [0.6, 0.14, 0.44, 0], [0.44, 0, 0, 0]] },
+  V: { w: 0.72, s: [[0, 1, 0.36, 0], [0.36, 0, 0.72, 1]] },
+  L: { w: 0.56, s: [[0, 1, 0, 0], [0, 0, 0.56, 0]] },
+  R: { w: 0.64, s: [[0, 0, 0, 1], [0, 1, 0.42, 1], [0.42, 1, 0.58, 0.86], [0.58, 0.86, 0.58, 0.64], [0.58, 0.64, 0.42, 0.5], [0.42, 0.5, 0, 0.5], [0.3, 0.5, 0.64, 0]] },
+  I: { w: 0.08, s: [[0.04, 0, 0.04, 1]] },
+  M: { w: 0.9, s: [[0, 0, 0.04, 1], [0.04, 1, 0.45, 0.06], [0.45, 0.06, 0.86, 1], [0.86, 1, 0.9, 0]] },
+  P: { w: 0.62, s: [[0, 0, 0, 1], [0, 1, 0.42, 1], [0.42, 1, 0.58, 0.86], [0.58, 0.86, 0.58, 0.64], [0.58, 0.64, 0.42, 0.5], [0.42, 0.5, 0, 0.5]] },
+  C: { w: 0.7, s: C_STROKES },
+  G: { w: 0.72, s: [...C_STROKES.slice(0, -1), [0.46, 0, 0.68, 0.12], [0.68, 0.12, 0.68, 0.42], [0.68, 0.42, 0.42, 0.42]] },
+  O: { w: 0.8, s: bowl(0.4, 0.5, 0.38, 0.5) },
+  E: { w: 0.54, s: [[0, 0, 0, 1], [0, 1, 0.52, 1], [0, 0.52, 0.42, 0.52], [0, 0, 0.54, 0]] },
+  F: { w: 0.54, s: [[0, 0, 0, 1], [0, 1, 0.52, 1], [0, 0.54, 0.42, 0.54]] },
+  H: { w: 0.66, s: [[0, 0, 0, 1], [0.66, 0, 0.66, 1], [0, 0.52, 0.66, 0.52]] },
+  S: { w: 0.6, s: [[0.56, 0.86, 0.42, 1], [0.42, 1, 0.16, 1], [0.16, 1, 0.03, 0.86], [0.03, 0.86, 0.03, 0.68], [0.03, 0.68, 0.16, 0.56], [0.16, 0.56, 0.44, 0.46], [0.44, 0.46, 0.57, 0.33], [0.57, 0.33, 0.57, 0.14], [0.57, 0.14, 0.44, 0], [0.44, 0, 0.16, 0], [0.16, 0, 0.02, 0.14]] },
+  X: { w: 0.66, s: [[0, 0, 0.66, 1], [0, 1, 0.66, 0]] },
+  '·': { w: 0.2, s: [[0.06, 0.46, 0.14, 0.46]] },
+});
+
+/**
+ * `text` in cut strokes (letters from GLYPHS), centred on x = 0, its foot at
+ * y, its face at z, `h` tall: geometries for a paint-red material, as Roman
+ * inscriptions had their letters cut and filled with red.
+ */
+export function inscription(text, y, z, h) {
+  const sw = h * 0.13;
+  const gap = h * 0.28;
+  const width = [...text].reduce((a, ch) => a + GLYPHS[ch].w * h + gap, -gap);
+  let x = -width / 2;
+  const out = [];
+  for (const ch of text) {
+    const g = GLYPHS[ch];
+    for (const [x0, y0, x1, y1] of g.s) {
+      const ax = x + x0 * h;
+      const ay = y + y0 * h;
+      const bx = x + x1 * h;
+      const by = y + y1 * h;
+      const len = Math.hypot(bx - ax, by - ay) + sw * 0.8;
+      const s = new BoxGeometry(len, sw, 0.006);
+      s.rotateZ(Math.atan2(by - ay, bx - ax));
+      s.translate((ax + bx) / 2, (ay + by) / 2, z);
+      out.push(tintGeometry(boxUV(s)));
+    }
+    x += g.w * h + gap;
+  }
+  return out;
+}
+
+/**
+ * Geometries gathered by part while a model is built: each part a name, a
+ * material, the state that shows it (`when`, models.js partShows) and
+ * whether it casts a shadow; build() merges each into one mesh (one draw
+ * call, and one part of the game's kit). Two parts may share a name only
+ * in different states.
+ */
+export class TaggedParts {
+  constructor(name) {
+    this.name = name;
+    this.by = new Map();
+  }
+
+  /** Add geometries (arrays nest, nulls are skipped) to the part `name` in `when`. */
+  add(name, mat, geos, { when = 'always', cast = true } = {}) {
+    const key = `${name}|${when}`;
+    let e = this.by.get(key);
+    if (!e) {
+      e = { name, mat, when, cast, list: [] };
+      this.by.set(key, e);
+    } else if (e.mat !== mat) {
+      throw new Error(`${this.name}: part ${name} in ${when} given two materials`);
+    }
+    for (const g of [geos].flat(Infinity)) if (g) e.list.push(g);
+    return this;
+  }
+
+  /** The model: { group, meshes, triangles }, its meshes tagged in userData.when. */
+  build() {
+    const group = new Group();
+    group.name = this.name;
+    const meshes = [];
+    let tris = 0;
+    for (const e of this.by.values()) {
+      if (!e.list.length) continue;
+      const geo = e.list.length === 1 ? e.list[0] : merge(e.list);
+      if (e.list.length > 1) for (const g of e.list) g.dispose();
+      const m = new Mesh(geo, e.mat);
+      m.name = e.name;
+      m.castShadow = e.cast;
+      m.receiveShadow = true;
+      m.userData.when = e.when;
+      group.add(m);
+      meshes.push(m);
+      tris += geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
+    }
+    return { group, meshes, triangles: tris };
+  }
 }
 
 /** A bent tube along points (re-exported for the goods: rails, hooks, handles). */

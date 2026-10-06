@@ -3988,9 +3988,10 @@ try {
         !!fnt && fview.fountains >= 1 && fview.tier === 1 && fpick?.kind === 'building' && fpick.id === fnt.id && rich.tier === 4,
         JSON.stringify({ fnt, fview, fpick, rich }));
       // The market, the forum and the warehouse drawn as models (render3d/models/commerce.js),
-      // the warehouse's stock as loads in its court, and a click on each picks it by its footprint.
+      // the warehouse's stock as loads in its court, and a click on each picks it by its footprint;
+      // the prefecture and the engineer's post likewise (render3d/models/services.js).
       const commerce = [];
-      for (const type of ['market', 'forum', 'warehouse']) {
+      for (const type of ['market', 'forum', 'warehouse', 'prefecture', 'engineer_post']) {
         const b = await gp.evaluate((t) => {
           const app = window.colonia;
           const w = [...app.game.buildings.values()].find((x) => x.type === t);
@@ -4028,7 +4029,7 @@ try {
         if (shots) await gp.screenshot({ path: path.join(shots, `smoke-webgl-${type}.png`) });
         commerce.push({ type, drawn: drawn3d.byType[type] || 0, wine: drawn3d.wine, picked: target?.kind === 'building' && target.id === b.id });
       }
-      check('WebGL renderer: the market, the forum and the warehouse are 3D models, the warehouse shows its loads, a click picks each',
+      check("WebGL renderer: the market, the forum, the warehouse, the prefecture and the engineer's post are 3D models, the warehouse shows its loads, a click picks each",
         commerce.every((c) => !c.missing && c.drawn >= 1 && c.picked) && commerce.find((c) => c.type === 'warehouse').wine === 5,
         JSON.stringify(commerce));
       // A walker in view, clicked on its body (painted into the frame's live-art texture).

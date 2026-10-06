@@ -27,6 +27,10 @@ import { buildForum, setForumState } from '../render3d/models/forum.js';
 import { buildWarehouse, warehouseLoads, setWarehouseState } from '../render3d/models/warehouse.js';
 import { buildLoad, buildDisplay, displayShows, WARE_GOODS } from '../render3d/models/wares.js';
 import { buildFigure } from '../render3d/models/figure.js';
+import { buildPrefecture, PREFECTURE, PUMP_WATER } from '../render3d/models/prefecture.js';
+import { buildEngineerPost } from '../render3d/models/engineer.js';
+import { partShows } from '../render3d/models.js';
+import { iceMaterial, waterMaterial } from '../render3d/materials.js';
 import { CONFIG } from '../config.js';
 
 /** A stock record: every good at `f` of its cap (`caps(good)`), or as `amounts` say. */
@@ -41,7 +45,22 @@ function stockOf(goods, f, cap) {
  * the full warehouse's at its gate (metres; the buildings as LAYOUT places
  * them, their lamps as the models hang them).
  */
-const LAMPS = { market: [-10, 2.05, 5], forum: [-5 + 0.95, 2.62, -0.86], warehouse: [28 + 1.45, 1.55, -7.5 + 5.84] };
+const LAMPS = {
+  market: [-10, 2.05, 5], forum: [-5 + 0.95, 2.62, -0.86], warehouse: [28 + 1.45, 1.55, -7.5 + 5.84],
+  // The working prefecture's lantern by its door.
+  services: [-5 + PREFECTURE.lamp[0], PREFECTURE.lamp[1] + 0.11, -2.6 + PREFECTURE.lamp[2] + 0.02],
+};
+
+/** Each kind of building in the scenes: how to build it and show a state (the game's own tags for the services). */
+const BUILD = {
+  market: (lod) => buildMarket({ lod }),
+  forum: (lod) => buildForum({ lod }),
+  warehouse: (lod) => buildWarehouse({ lod }),
+  prefecture: (lod) => buildPrefecture({ lod }),
+  engineer: (lod) => buildEngineerPost({ lod }),
+};
+const tagged = (m, state) => { for (const mesh of m.meshes) mesh.visible = partShows(mesh.userData.when, state, false); };
+const SET_STATE = { market: setMarketState, forum: setForumState, warehouse: setWarehouseState, prefecture: tagged, engineer: tagged };
 
 const marketCap = (g) => (MARKET_GOODS.indexOf(g) < 4 || g === 'fish' ? CONFIG.MARKET_FOOD_CAP : CONFIG.MARKET_GOODS_CAP);
 const ALL_MARKET = [...MARKET_GOODS, 'fish'];
@@ -87,6 +106,20 @@ const LAYOUT = {
       { x: 21, z: 7.5, name: 'Cloth and arms', stock: { flax: 700, linen: 700, clothing: 600, weapons: 600, arrows: 600 } },
     ],
   },
+  // The prefecture (its crew home, out at a fire, no staff) and the engineer's post (working, idle).
+  services: {
+    title: 'Services',
+    key: 'S',
+    spacing: 5,
+    size: 4,
+    items: [
+      { x: -5, z: -2.6, kind: 'prefecture', note: 'Prefecture', name: 'Working', state: 'open' },
+      { x: 0, z: -2.6, kind: 'prefecture', note: 'Prefecture', name: 'Crew out at a fire', state: 'out' },
+      { x: 5, z: -2.6, kind: 'prefecture', note: 'Prefecture', name: 'Idle', state: 'shut' },
+      { x: -2.5, z: 3.4, kind: 'engineer', note: "Engineer's post", name: 'Working', state: 'open' },
+      { x: 2.5, z: 3.4, kind: 'engineer', note: "Engineer's post", name: 'Idle', state: 'shut' },
+    ],
+  },
 };
 
 /** `f` of a warehouse's 3200 split evenly among `goods`, in whole loads where it can be. */
@@ -119,7 +152,7 @@ function ground(w, d, streets) {
 
 const CONTROLS = `<h3>Controls</h3>
 <ul>
-<li>K: the market; J: the forum; X: the warehouse; W: the well; F: the fountains. 1 to 4: day, golden hour, night, winter.</li>
+<li>K: the market; J: the forum; X: the warehouse; S: the prefecture and the engineer's post; W: the well; F: the fountains. 1 to 4: day, golden hour, night, winter.</li>
 <li>L: the level of detail (0 close, 1 middle, 2 far: what the game draws as it zooms out).</li>
 <li>N: snow lying; T: rain. M, G, Z: the game's zooms; O: orbit. Q / E: turn the view (the goods move to the stalls and bays the camera sees best, as in the game).</li>
 </ul>`;
@@ -161,9 +194,26 @@ marble plaque. Here, in 12 m: brick walls on a travertine plinth, pilasters and 
 marble block, clay, bundles of flax, bolts of linen, folded clothes, red-gloss ware in straw, furniture, shields and pila, arrows. The
 bays the camera sees best fill first, so how full a warehouse is shows at a glance.</p>
 ${CONTROLS}`,
+  services: `<button class="close" type="button" aria-label="Close">Close</button>
+<h2>The prefecture (excubitorium) and the engineer's post</h2>
+<p>Augustus raised the <i>vigiles</i> in AD 6, Rome's night watch and fire brigade: seven cohorts of freedmen, each keeping two of the
+city's regions from a barracks and smaller watch posts (<i>excubitoria</i>). The seventh cohort's post in Trastevere was a house taken
+over by the watch: brick walls, a shrine to the post's spirit, and the men's graffiti about keeping the lamps lit on the night watch.
+Their kit: buckets of rope sealed with pitch (<i>hamae</i>), force pumps (<i>siphones</i>), blankets to smother flames
+(<i>centones</i>), axes, ladders, and hooks on long poles to pull down a burning roof. Here, in 4 m: a brick watch house on a
+travertine socle, VIGILES and the cohort's number cut over the studded door, the bucket rack, the lararium in its red niche, the
+lantern, a bench with folded blankets; the ladder, the hook and the axes along the side wall; the two-cylinder pump in its tank.
+Staffed, its doors stand open and a watchman keeps the door; with its crew out at a fire the racks are empty and one man is left.</p>
+<p>The <i>fabri</i> were a town's builders, and in the provinces its firemen too. Here their yard: a workshop in <i>opus craticium</i>
+(the timber frame filled and plastered, as Herculaneum's Casa a Graticcio) under a lean-to of tiles, the guild's sign over it, tools on
+its side wall (the set square, the A-frame level, a plumb bob, the compass, the adze, the saw and the mallet); the shear legs of
+Vitruvius's simplest hoist with their windlass, an ashlar block held in iron tongs; squared timbers, a mortar trough, a heap of
+pozzolana, square bricks in crossed courses, tufa and travertine; and by the street the surveyor's <i>groma</i>, its four plumb lines
+hanging from the cross. Working, the block is hoisted and the surveyor sights along the groma; idle, the block rests on rollers.</p>
+${CONTROLS}`,
 };
 
-/** Build the three scenes. */
+/** Build the scenes. */
 export function buildCommerceScenes() {
   const scenes = {};
   for (const [id, L] of Object.entries(LAYOUT)) scenes[id] = makeScene(id, L);
@@ -181,7 +231,7 @@ function makeScene(id, L) {
   const minZ = Math.min(...zs) - half;
   const maxZ = Math.max(...zs) + half;
   // Streets: a ring round the patch and one between the rows (the buildings' fronts face it).
-  const size = id === 'warehouse' ? 12 : 8;
+  const size = L.size || (id === 'warehouse' ? 12 : 8);
   const streets = [[minX - 2.5, maxZ, maxX + 2.5, maxZ + 2.5], [minX - 2.5, minZ - 2.5, maxX + 2.5, minZ], [minX - 2.5, minZ, minX, maxZ], [maxX, minZ, maxX + 2.5, maxZ]];
   const rowZ = [...new Set(zs)].sort((a, b) => a - b);
   for (let i = 0; i < rowZ.length - 1; i++) streets.push([minX, rowZ[i] + size / 2, maxX, rowZ[i + 1] - size / 2]);
@@ -213,6 +263,7 @@ function makeScene(id, L) {
 
   let lod = 0;
   let turn = 0;
+  let ice = false;
   const kits = new Map(); // `${key}|${lod}` -> { group, meshes } built once, shared by the copies
   const kitOf = (key) => {
     const k = `${key}|${lod}`;
@@ -234,9 +285,12 @@ function makeScene(id, L) {
     for (const [, k] of kits) for (const m of k.meshes) m.geometry.dispose();
     kits.clear();
     for (const it of holders) {
-      const model = id === 'market' ? buildMarket({ lod }) : id === 'forum' ? buildForum({ lod }) : buildWarehouse({ lod });
+      const kind = it.kind || id;
+      const model = BUILD[kind](lod);
       const state = it.state || 'open';
-      (id === 'market' ? setMarketState : id === 'forum' ? setForumState : setWarehouseState)(model, state);
+      SET_STATE[kind](model, state);
+      // In a hard frost the prefecture's pump water is ice, as the game's 'prefecture:ice'.
+      if (kind === 'prefecture') for (const m of model.meshes) if (m.name === PUMP_WATER) m.material = ice ? iceMaterial() : waterMaterial();
       it.h.add(model.group);
       const extras = new Group();
       it.h.add(extras);
@@ -270,7 +324,7 @@ function makeScene(id, L) {
   }
   build();
 
-  const labels = L.items.map((it) => ({ name: it.name, note: L.title, x: it.x, z: it.z, y: id === 'warehouse' ? 5.4 : 4.8, back: L.spacing * 0.42 }));
+  const labels = L.items.map((it) => ({ name: it.name, note: it.note || L.title, x: it.x, z: it.z, y: id === 'warehouse' ? 5.4 : id === 'services' ? 4.1 : 4.8, back: L.spacing * 0.42 }));
   const w = maxX - minX;
   const d = maxZ - minZ;
   return {
@@ -295,6 +349,12 @@ function makeScene(id, L) {
       turn = t;
       placeWares();
     },
+    /** A hard frost: the prefecture's pump water freezes (rebuilt). */
+    setWinter(on) {
+      if (!!on === ice) return;
+      ice = !!on;
+      if (id === 'services') build();
+    },
     /** Triangles of one model at a level of detail (built fresh) and of a full set of its goods. */
     triangles(l = lod) {
       const count = (g) => {
@@ -302,7 +362,8 @@ function makeScene(id, L) {
         g.traverse((o) => { if (o.isMesh) n += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; });
         return n;
       };
-      const model = id === 'market' ? buildMarket({ lod: l }) : id === 'forum' ? buildForum({ lod: l }) : buildWarehouse({ lod: l });
+      if (id === 'services') return { prefecture: buildPrefecture({ lod: l }).triangles, engineer: buildEngineerPost({ lod: l }).triangles };
+      const model = BUILD[id](l);
       const out = { model: model.triangles };
       if (id === 'market') {
         out.wares = ALL_MARKET.map((g) => (g === 'fish' ? count(buildTholosFish(l).group) : count(buildDisplay(g, l).group))).reduce((a, b) => a + b, 0);

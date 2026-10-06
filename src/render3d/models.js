@@ -43,6 +43,7 @@ import { buildFountain } from './models/fountain.js';
 import { iceMaterial, stagnantMaterial } from './materials.js';
 import { ART_PX } from './projection.js';
 import { COMMERCE_MODELS } from './models/commerce.js';
+import { SERVICE_MODELS } from './models/services.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -52,8 +53,9 @@ export const TILE_M = 4;
 
 /**
  * Does a part tagged `when` (models/fountain.js: always, full, flow, dry,
- * ice) show in `state` ('flowing', 'still', 'dry'; 'always' for a model
- * with one look), `ice` in a hard frost?
+ * ice; the staffed buildings' open and shut; the prefecture's staffed, home
+ * and out) show in `state` ('flowing', 'still', 'dry'; 'open', 'shut',
+ * 'out'; 'always' for a model with one look), `ice` in a hard frost?
  */
 export function partShows(when, state, ice) {
   switch (when) {
@@ -65,6 +67,11 @@ export function partShows(when, state, ice) {
     // The market's, the forum's and the warehouse's (models/commerce.js): staffed, or not.
     case 'open': return state === 'open';
     case 'shut': return state === 'shut';
+    // The prefecture's (models/services.js): its crew out at a fire ('out') is staffed too, and only
+    // then is its kit gone from the racks ('home': at home, staffed or not).
+    case 'staffed': return state === 'open' || state === 'out';
+    case 'home': return state === 'open' || state === 'shut';
+    case 'out': return state === 'out';
     default: return false;
   }
 }
@@ -110,6 +117,8 @@ export const MODELS = Object.freeze({
   }),
   // The market, the forum and the warehouse (models/commerce.js says how).
   ...COMMERCE_MODELS,
+  // The prefecture and the engineer's post (models/services.js says how).
+  ...SERVICE_MODELS,
 });
 
 /**
