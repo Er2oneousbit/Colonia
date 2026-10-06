@@ -61,7 +61,7 @@ export function foliageMaterial(sp, tex = null, lite = false) {
     map: t.map,
     // The middle level (lite) reads the colour alone: a leaf's relief is under a pixel there, and
     // the three other reads were a third of a wood's cost at 2x (measured: 24.6 ms a frame against 20).
-    ...(lite ? { roughness: Math.min(1, s.leaf.rough + 0.45) * 0.72 } : {
+    ...(lite ? { roughness: Math.min(1, s.leaf.rough + 0.45) * 0.9 } : {
       normalMap: t.normalMap, normalScale: new Vector2(1, 1), roughnessMap: t.orm, metalnessMap: t.orm, aoMap: t.orm, roughness: Math.min(1, s.leaf.rough + 0.45),
     }),
     metalness: 0,

@@ -228,7 +228,7 @@ export const SPECIES = Object.freeze({
     leaf: { tex: 'leaf-ovate', card: 0.62, dens: 8, core: 0.35, rough: 0.6 },
     bark: { tex: 'bark-smooth', tint: 0x8a5848 },
     colours: {
-      leaf: [0x4a6e2e, 0x557a34, 0x426428], spring: [0x8eb04e], blossom: [0xf6f2ea, 0xf2ece2, 0xeee4dc],
+      leaf: [0x4a6e2e, 0x557a34, 0x426428], spring: [0x8eb04e], blossom: [0xfff2e6, 0xfcecdf, 0xf8e8dc],
       autumn: [0xc0482a, 0xd0682e, 0xa83a26, 0xd89a3a],
     },
     looks: 'cherry',
@@ -242,7 +242,7 @@ export const SPECIES = Object.freeze({
     leaf: { tex: 'leaf-lance', card: 0.52, dens: 13, core: 0.3, rough: 0.6 },
     bark: { tex: 'bark', tint: 0x4e4640 },
     colours: {
-      leaf: [0x5a7a3a, 0x648442, 0x527034], spring: [0x86a84c], blossom: [0xf6e8ea, 0xf2dce2, 0xead0d8],
+      leaf: [0x5a7a3a, 0x648442, 0x527034], spring: [0x86a84c], blossom: [0xffe2e6, 0xfcd8de, 0xf6ccd4],
       autumn: [0xb8a040, 0xa88a36, 0xc4ac50],
     },
     looks: 'almond',
