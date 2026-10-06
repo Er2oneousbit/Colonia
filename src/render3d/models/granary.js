@@ -57,22 +57,24 @@ export const GRANARY = Object.freeze({
   core: 3.2, // the store's half side (outer face): a 6.4 m store, leaving the platform room for the goods
   wall: 0.6,
   eaveY: 5.3,
-  /** The lantern by the front door (x, y, z). */
-  lamp: Object.freeze([1.62, 3.0, 3.35]),
+  /** The lanterns by the front and the back doors (x, y, z, and which way they face: z out). */
+  lamps: Object.freeze([Object.freeze([1.62, 3.0, 3.35, 1]), Object.freeze([-1.62, 3.0, -3.35, -1])]),
 });
 
-/** The foods a granary keeps (data/goods.js FOOD_TYPES), in the order they fill the portico. */
+/** The foods a granary keeps (data/goods.js FOOD_TYPES), in the order they fill the platform. */
 export const GRANARY_FOODS = Object.freeze(['wheat', 'vegetables', 'fruit', 'meat', 'fish']);
 
 /**
- * The portico's places for goods: 20, each a cart's load of the granary's
+ * The platform's places for goods: 20, each a cart's load of the granary's
  * 2400 (config.js GRANARY_CAPACITY), as [x, z, yaw]: four along each side,
  * one in each corner. In the order they fill: round the four sides in turn,
  * nearest the doors first, the corners last.
  */
 export const STOCK_SLOTS = (() => {
-  const C = 4.15; // the platform's middle, out from the store's wall
-  const along = [1.6, -1.6, 3.05, -3.05];
+  // (Measured so no place's goods reach into another's or past the platform's edge, and the doors
+  // stay clear: tests/farms3d.test.mjs.)
+  const C = 4.2; // the platform's middle, out from the store's wall
+  const along = [1.72, -1.72, 2.98, -2.98];
   const sides = [[0, 1], [1, 0], [0, -1], [-1, 0]]; // +z, +x, -z, -x: the yaw turns the slot's front (+z) outward
   const out = [];
   for (const a of along) {
@@ -81,12 +83,17 @@ export const STOCK_SLOTS = (() => {
       out.push(Object.freeze([sz ? a : sx * C, sx ? -a * sx : sz * C, yaw]));
     });
   }
-  for (const [sx, sz] of [[1, 1], [-1, -1], [1, -1], [-1, 1]]) out.push(Object.freeze([sx * C, sz * C, Math.atan2(sx, sz)]));
+  // The corners last, each facing out along z (square to the platform: turned 45 degrees a pile's
+  // front corner reached past its edge).
+  for (const [sx, sz] of [[1, 1], [-1, -1], [1, -1], [-1, 1]]) out.push(Object.freeze([sx * 4.4, sz * 4.4, Math.atan2(0, sz)]));
   return Object.freeze(out);
 })();
 
+/** The goods' scale in their places. */
+export const STOCK_SCALE = 0.9;
+
 /**
- * How many of the portico's places each food fills: in proportion to what
+ * How many of the platform's places each food fills: in proportion to what
  * the granary holds of it against its capacity (a place is a twentieth),
  * whole places by the largest remainders, so the places filled are the
  * whole store's share rounded, and a food with any stock shows at least one
@@ -234,7 +241,8 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     for (const [cx, cz] of [[C, C], [-C, C], [C, -C], [-C, -C]]) {
       for (let y = F, i = 0; y < E - 0.2; y += 0.42, i++) {
         const long = i % 2 === 0;
-        const g = blk(lod, long ? 0.7 : 0.42, 0.4, long ? 0.42 : 0.7, { bevel: 0.02, seed: seed + 600 + i + cx * 5 + cz, wobble: 0.004, grime: 0.15, seg: 1, tone: 0.06 });
+        // (The last stops at the eaves: a whole one stood up through the roof's corner.)
+        const g = blk(lod, long ? 0.7 : 0.42, Math.min(0.4, E - y - 0.03), long ? 0.42 : 0.7, { bevel: 0.02, seed: seed + 600 + i + cx * 5 + cz, wobble: 0.004, grime: 0.15, seg: 1, tone: 0.06 });
         g.translate(cx - Math.sign(cx) * ((long ? 0.7 : 0.42) / 2 - 0.02), y, cz - Math.sign(cz) * ((long ? 0.42 : 0.7) / 2 - 0.02));
         stone.push(g);
       }
@@ -297,22 +305,26 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     }
     p.add('tile', hood.tile).add('wood', wood);
   }
-  // At the front door: the lantern on its bracket.
+  // At the front and the back doors: a lantern on its bracket (whichever side the view shows has one).
   let paneGeo = null;
   if (lod < 2) {
-    const [lx, ly, lz] = G.lamp;
-    const iron = [beam([lx, ly + 0.25, C + 0.02], [lx, ly + 0.25, lz], 0.025, 990, 1)];
+    const iron = [];
     const bronze = [];
-    const base = revolve(profileOf([[0, 0], [0.08, 0], [0.085, 0.03], [0.07, 0.05], [0, 0.05]]), { segments: 12, metres: 0.3 });
-    const cap = revolve(profileOf([[0, 0.2], [0.085, 0.2], [0.05, 0.28], [0.015, 0.31], [0, 0.32]]), { segments: 12, metres: 0.3 });
-    for (const g of [base, cap]) {
-      g.translate(lx, ly - 0.08, lz);
-      bronze.push(g);
+    const panes = [];
+    for (const [lx, ly, lz, s] of G.lamps) {
+      iron.push(beam([lx, ly + 0.25, s * (C + 0.02)], [lx, ly + 0.25, lz], 0.025, 990, 1));
+      const base = revolve(profileOf([[0, 0], [0.08, 0], [0.085, 0.03], [0.07, 0.05], [0, 0.05]]), { segments: 12, metres: 0.3 });
+      const cap = revolve(profileOf([[0, 0.2], [0.085, 0.2], [0.05, 0.28], [0.015, 0.31], [0, 0.32]]), { segments: 12, metres: 0.3 });
+      for (const g of [base, cap]) {
+        g.translate(lx, ly - 0.08, lz);
+        bronze.push(g);
+      }
+      const pg = new CylinderGeometry(0.072, 0.072, 0.15, 12, 1, true);
+      pg.translate(lx, ly - 0.08 + 0.125, lz);
+      boxUV(pg);
+      panes.push(tintGeometry(pg));
     }
-    paneGeo = new CylinderGeometry(0.072, 0.072, 0.15, 12, 1, true);
-    paneGeo.translate(lx, ly - 0.08 + 0.125, lz);
-    boxUV(paneGeo);
-    paneGeo = tintGeometry(paneGeo);
+    paneGeo = merge(panes);
     p.add('iron', iron).add('bronze', bronze);
   }
   // (A shut granary's lantern is out: its own glass, never lit.)
@@ -323,7 +335,7 @@ export function buildGranary({ lod = 0, idle = false, seed = 5 } = {}) {
     noShadow: ['pane'],
   });
   out.pane = pane;
-  out.lampAt = new Vector3(...G.lamp);
+  out.lampAt = new Vector3(...G.lamps[0]);
   return out;
 }
 
@@ -443,7 +455,7 @@ export function buildStockSlot(food, { lod = 0, seed = 7 } = {}) {
 /** The lantern's light (the lab's night): a warm point light at the front door. */
 export function granaryLamp() {
   const l = new PointLight(0xffa04a, 0, 10, 2);
-  l.position.set(...GRANARY.lamp);
+  l.position.set(...GRANARY.lamps[0].slice(0, 3));
   l.castShadow = false;
   return l;
 }
@@ -452,8 +464,8 @@ export function granaryLamp() {
 const SLOT_MATS = (() => {
   const m = new Matrix4();
   const q = new Quaternion();
-  // (A little larger than life: a cart's load reads as a pile from the game's camera.)
-  const s = new Vector3(1.3, 1.3, 1.3);
+  // (A cart's load at nine tenths: five places fit along a side without touching.)
+  const s = new Vector3(STOCK_SCALE, STOCK_SCALE, STOCK_SCALE);
   const p = new Vector3();
   const up = new Vector3(0, 1, 0);
   const out = new Float32Array(16 * STOCK_SLOTS.length);
@@ -466,7 +478,7 @@ const SLOT_MATS = (() => {
 })();
 
 /**
- * The goods in a granary's portico as modelPass.js reads them: one entry a
+ * The goods on a granary's platform as modelPass.js reads them: one entry a
  * food it holds, [{ key: 'gstock:food', mats, n }], the places taken in
  * STOCK_SLOTS order (round the four sides), each food after the one before.
  */
@@ -492,8 +504,9 @@ export function buildGranaryPart(key, lod) {
 export function granaryModel(capacity) {
   return Object.freeze({
     warm: ['granary:n', 'gstock:wheat', 'gstock:meat', 'gstock:fish'],
-    // The lantern at the front door, lit while it is staffed (the night's light map draws its glow: models.js modelLamps).
-    lamps: (b) => (b.efficiency > 0 ? [GRANARY.lamp] : []),
+    // The lanterns at the doors, lit while it is staffed (the night's light map draws their glow,
+    // the one on the side the view shows: models.js modelLamps).
+    lamps: (b) => (b.efficiency > 0 ? GRANARY.lamps : []),
     variant(b, place, ctx) {
       // (A ghost shows the granary as it will stand, open and empty.)
       const ghost = b.id === null || b.id === undefined;

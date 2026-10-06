@@ -89,6 +89,9 @@ export function ruralMaterials() {
   };
 }
 
+/** Finished blocks at the full detail, by size and options (blk). */
+const BLOCKS = new Map();
+
 /**
  * A block at the full detail (shapes.js: bevelled, pushed out of square),
  * or past it a plain box of 12 triangles: from a middle zoom out a bevel
@@ -102,7 +105,17 @@ export function blk(lod, w, h, d, opts = {}) {
     // for each size, and making one is most of a block's cost; a farm's hundred stones of a few
     // sizes then share a few. The wobble hides the rounding.)
     const q = (v) => (v < 0.1 ? Math.max(0.01, Math.round(v * 200) / 200) : Math.round(v * 25) / 25);
-    return block(q(w), q(h), q(d), { ...opts, bevel: Math.max(0.005, Math.round((opts.bevel ?? 0.02) * 100) / 100) });
+    const o = { ...opts, bevel: Math.max(0.005, Math.round((opts.bevel ?? 0.02) * 100) / 100), seed: Math.round(opts.seed || 1) % 7 };
+    // A finished block is kept by its size and options, one of seven wobbles: a granary's two
+    // hundred stones were 45 ms of making blocks, most of them the same few.
+    const key = `${q(w)},${q(h)},${q(d)},${o.bevel},${o.seed},${o.wobble},${o.grime},${o.seg},${o.tone},${o.topSag}`;
+    let g = BLOCKS.get(key);
+    if (!g) {
+      g = block(q(w), q(h), q(d), o);
+      if (BLOCKS.size > 3000) BLOCKS.clear();
+      BLOCKS.set(key, g);
+    }
+    return g.clone();
   }
   const g = new BoxGeometry(w, h, d);
   if (lod === 0) {

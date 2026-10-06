@@ -4,7 +4,7 @@
  * The look lab's Granary scene: a row of granaries (render3d/models/
  * granary.js) on the game's 3D ground, from empty to full, as the game
  * draws them (the building's kit, and a kit of goods for each place its
- * portico fills: granaryStock, granaryParts), and one with no workers,
+ * platform fills: granaryStock, granaryParts), and one with no workers,
  * its doors shut. A paved street in front, yards under them.
  *
  * The world is in metres (4 a tile), the map's middle at the origin.

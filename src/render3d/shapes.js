@@ -222,6 +222,13 @@ function roundedBox(w, h, d, seg, r) {
     g.deleteAttribute('normal');
     g.deleteAttribute('uv');
     g = mergeVertices(g, 1e-5);
+    // Kept as a plain geometry: a RoundedBoxGeometry's clone() builds the whole box again from its
+    // parameters (three's geometries clone by their constructor), which made every block() cost a
+    // new rounded box after all (0.2 ms each: a granary's 200 stones, 45 ms).
+    const plain = new BufferGeometry();
+    plain.setIndex(g.index);
+    for (const [name, attr] of Object.entries(g.attributes)) plain.setAttribute(name, attr);
+    g = plain;
     // (A farm or a granary has a few hundred sizes: kept whole while a city's models are built.)
     if (BOXES.size > 1024) BOXES.clear();
     BOXES.set(key, g);

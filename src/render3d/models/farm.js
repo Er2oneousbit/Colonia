@@ -238,9 +238,16 @@ export function farmModel(type) {
       const look = farmLook(b, { resting, month: ctx ? ctx.month : null });
       const key = farmKey(look);
       if (!ctx || b.id === null || b.id === undefined) {
-        // A ghost, or a look asked for outside the game: made fresh, the animals standing.
-        const fp = farmParts(look, 0);
-        if (fp.animals) moveAnimals(fp.animals, 0);
+        // A ghost, or a look asked for outside the game: the animals standing; a ghost's kept by
+        // its look (a drag of farms asks every frame).
+        const sig = `${b.type}|${look.step}|${look.cond}|${look.tree}|${look.fruit}|${look.pigs}|${look.horses}`;
+        const ghosts = ctx ? (ctx.farmGhosts ??= new Map()) : null;
+        let fp = ghosts && ghosts.get(sig);
+        if (!fp) {
+          fp = farmParts(look, 0);
+          if (fp.animals) moveAnimals(fp.animals, 0);
+          if (ghosts) ghosts.set(sig, fp);
+        }
         return { key, state: 'always', ice: false, more: fp.more };
       }
       const memo = (ctx.farmMemo ??= new Map());

@@ -21,7 +21,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Matrix4, Vector3 } from 'three';
+import { Matrix4, Vector3, Box3 } from 'three';
 import { MODELS, modelFor, modelMatrix, hasModel, modelLamps, TILE_M } from '../src/render3d/models.js';
 import { kitOf } from '../src/render3d/kit.js';
 import { farmStep, farmLook, farmParts, fruitOf, pigCount, horsesOut, dressStep, FARM_KIND, moveAnimals } from '../src/render3d/models/farm.js';
@@ -162,13 +162,19 @@ test('farms3d: the granary\'s look follows its staff; its lantern lights only wh
   assert.equal(MODELS.granary.variant(b, {}, ctx).more, a1);
   b.stock.wheat = 900;
   assert.notEqual(MODELS.granary.variant(b, {}, ctx).more, a1);
-  // The lantern at the front door, turned with the building; none shut.
-  const lit = modelLamps({ type: 'granary', size: 3, efficiency: 1 }, 0);
-  assert.equal(lit.length, 1);
-  const [u, v, z] = lit[0];
-  assert.ok(Math.abs(u - (1.5 + GRANARY.lamp[0] / TILE_M)) < 1e-9 && Math.abs(v - (1.5 + GRANARY.lamp[2] / TILE_M)) < 1e-9 && z > 0);
-  const [u1, v1] = modelLamps({ type: 'granary', size: 3, efficiency: 1 }, 1)[0];
-  assert.ok(Math.abs(u1 - (3 - v)) < 1e-9 && Math.abs(v1 - u) < 1e-9, 'turned as art turns');
+  // A lantern at the front door and one at the back: the view shows the one on its side (the
+  // light map has no depth, so the other's glow would show through the store); none shut.
+  const [front, back] = GRANARY.lamps;
+  const at = (T) => modelLamps({ type: 'granary', size: 3, efficiency: 1 }, T);
+  for (let T = 0; T < 4; T++) assert.equal(at(T).length, 1, `turn ${T}`);
+  const [u, v, z] = at(0)[0];
+  assert.ok(Math.abs(u - (1.5 + front[0] / TILE_M)) < 1e-9 && Math.abs(v - (1.5 + front[2] / TILE_M)) < 1e-9 && z > 0, 'turn 0: the front lantern');
+  const [u3, v3] = at(3)[0];
+  assert.ok(Math.abs(u3 - v) < 1e-9 && Math.abs(v3 - (3 - u)) < 1e-9, 'turn 3: the front lantern, turned as art turns');
+  const [u1, v1] = at(1)[0];
+  const bu = 1.5 + back[0] / TILE_M;
+  const bv = 1.5 + back[2] / TILE_M;
+  assert.ok(Math.abs(u1 - (3 - bv)) < 1e-9 && Math.abs(v1 - bu) < 1e-9, 'turn 1: the back lantern');
   assert.equal(modelLamps({ type: 'granary', size: 3, efficiency: 0 }, 0).length, 0);
   assert.equal(modelLamps({ type: 'farm_wheat', size: 3, efficiency: 1 }, 0).length, 0);
 });
@@ -228,5 +234,46 @@ test('farms3d: trees stand where the 3D ground hoes round them; each level of de
   for (const key of ['farmstead:n', 'dress:wheat:4:n', 'dress:olive:4:n', 'dress:stable:0:n', 'tree:apple:0:leaf:2', 'tree:olive:1:leaf:2', 'vine:leaf:2', 'pig:0:stand', 'horse:2:graze', 'granary:n', 'gstock:fish']) {
     const t = [0, 1, 2].map((l) => kitOf(modelFor(key).build(key, l)).triangles);
     assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
+  }
+});
+
+test('farms3d: the granary\'s piles never reach into each other, past the platform\'s edge, into the store or a doorway', () => {
+  const foods = GRANARY_FOODS;
+  const kits = Object.fromEntries(foods.map((f) => [f, kitOf(modelFor(`gstock:${f}`).build(`gstock:${f}`, 0))]));
+  const boxes = {};
+  for (const f of foods) {
+    const b = new Box3();
+    for (const p of kits[f].parts) {
+      p.geometry.computeBoundingBox();
+      b.union(p.geometry.boundingBox);
+    }
+    boxes[f] = b;
+  }
+  // Every place's matrix, as the pass places it (granaryParts of a full granary of one food).
+  const all = granaryParts([{ food: 'wheat', n: STOCK_SLOTS.length }])[0];
+  const at = (j) => new Matrix4().fromArray(all.mats, j * 16);
+  const C = GRANARY.core;
+  for (const fa of foods) {
+    for (const fb of foods) {
+      for (let i = 0; i < STOCK_SLOTS.length; i++) {
+        const inv = at(i).invert();
+        const box = boxes[fa].clone().expandByScalar(-0.02);
+        for (let j = 0; j < STOCK_SLOTS.length; j++) {
+          if (i === j) continue;
+          let inside = 0;
+          eachVertex(kits[fb], new Matrix4().multiplyMatrices(inv, at(j)), (p) => { if (box.containsPoint(p)) inside++; });
+          assert.equal(inside, 0, `${fb} at place ${j} reaches into ${fa} at place ${i}`);
+        }
+      }
+    }
+    for (let j = 0; j < STOCK_SLOTS.length; j++) {
+      eachVertex(kits[fa], at(j), (p) => {
+        const out = Math.max(Math.abs(p.x), Math.abs(p.z));
+        assert.ok(out <= GRANARY.half + 1e-6, `${fa} at place ${j} past the edge: ${out}`);
+        assert.ok(out >= C - 1e-6, `${fa} at place ${j} inside the store`);
+        // (The doorways: 1.6 m wide with their jambs, in the middle of each side.)
+        assert.ok(Math.min(Math.abs(p.x), Math.abs(p.z)) > 1.02, `${fa} at place ${j} in a doorway: ${p.x.toFixed(2)}, ${p.z.toFixed(2)}`);
+      });
+    }
   }
 });

@@ -72,10 +72,12 @@ const FIRST_ROOM = 8;
 const SLOW_S = 20;
 const COMPILE_GIVE_UP_S = 30;
 /**
- * Milliseconds of a frame spent building kits for a new look or level of
- * detail before the rest wait for the next frames, drawn meanwhile at a
- * level already built (a farm is a dozen kits: all at once, a zoom to a new
- * level stalled a frame for 300 ms).
+ * Milliseconds of a frame spent building kits at a new level of detail
+ * before the rest wait for the next frames, drawn meanwhile at a level
+ * already built (a farm is a dozen kits: all at once, a zoom to a new level
+ * stalled a frame for 300 ms). A look with no level built yet (a new farm's,
+ * a new season's trees) is built at once whatever the budget: there is
+ * nothing to draw in its place.
  */
 const BUILD_MS = 8;
 /** Tries at compiling that may throw before the models give way to the sprites for good. */
@@ -257,6 +259,7 @@ export class ModelPass {
         }
       }
     }
+    const t0 = performance.now();
     const kit = withColourManagement(() => {
       const group = modelFor(key).build(key, lod);
       const out = kitOf(group);
@@ -265,7 +268,7 @@ export class ModelPass {
       return out;
     });
     const meshes = kit.parts.map((p) => this.instanced(p, FIRST_ROOM));
-    k = { kit, meshes, seen: this.frame, id, key, lod };
+    k = { kit, meshes, seen: this.frame, id, key, lod, ms: performance.now() - t0 };
     this.kits.set(id, k);
     return k;
   }
@@ -394,9 +397,15 @@ export class ModelPass {
         if (l < 0 || l > 2) continue;
         const near = this.kits.get(`${key}|${l}`);
         if (near) near.seen = this.frame;
-        else if (!built && performance.now() < this.buildUntil) {
-          this.kitFor(key, l).seen = this.frame;
-          built = true;
+        else if (!built) {
+          // Only what fits the frame's time left, guessed from the level built (a finer level
+          // costs about four times a coarser one): a big kit waits for a zoom to ask for it.
+          const have = this.kits.get(`${key}|${lod}`);
+          const guess = have ? have.ms * (l < lod ? 4 : 0.5) : Infinity;
+          if (performance.now() + guess < this.buildUntil) {
+            this.kitFor(key, l).seen = this.frame;
+            built = true;
+          }
         }
       }
     }

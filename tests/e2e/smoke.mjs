@@ -4283,7 +4283,7 @@ try {
       const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
       await frames(3);
       const farmsOff = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType || {});
-      check('3D farms: with the ground's sprites the farms keep their sprites (which draw their fields), the granary stays a model',
+      check("3D farms: with the ground's sprites the farms keep their sprites (which draw their fields), the granary stays a model",
         !(farmsOff.farm_olive > 0) && !(farmsOff.farm_wheat > 0) && farmsOff.granary >= 1, JSON.stringify(farmsOff));
       check('3D ground: "ground off" goes back to the flat sprites', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50, JSON.stringify(off));
       check('3D ground: no page errors', qerrors.length === 0, qerrors.join(' | '));

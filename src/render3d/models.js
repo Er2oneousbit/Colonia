@@ -121,20 +121,29 @@ export function hasModel(type) {
 /**
  * A model's own lamps at night, as points [u, v, z] of its footprint at
  * art turn T (tiles, and art px up), for the night's light map
- * (render/renderer.js collectLights): the granary's lantern. Empty for most.
+ * (render/renderer.js collectLights): the granary's lanterns. Empty for
+ * most. A lamp is [x, y, z, s] in the model's metres, s the way it faces
+ * along z (+1 or -1); one on a side facing away from the view is left out,
+ * since the light map has no depth and its glow would show through the
+ * building.
  */
 export function modelLamps(b, T) {
   const def = MODELS[b.type];
   if (!def || !def.lamps) return [];
   const S = b.size;
-  return def.lamps(b).map(([x, y, z]) => {
+  const t = T & 3;
+  const out = [];
+  for (const [x, y, z, s = 1] of def.lamps(b)) {
+    // Its facing (0, s) in (u, v) turned as the art turns: the view sees the sides facing +u or +v.
+    const face = [[0, s], [-s, 0], [0, -s], [s, 0]][t];
+    if (face[0] + face[1] <= 0) continue;
     // Metres from the middle to the art's (u, v) at turn 0, then turned as render/turn.js turns art.
     const u = S / 2 + x / TILE_M;
     const v = S / 2 + z / TILE_M;
-    const t = T & 3;
     const uv = [[u, v], [S - v, u], [S - u, S - v], [v, S - u]][t];
-    return [uv[0], uv[1], y / ART_PX / TILE_M];
-  });
+    out.push([uv[0], uv[1], y / ART_PX / TILE_M]);
+  }
+  return out;
 }
 
 const _q = new Quaternion();

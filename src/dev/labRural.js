@@ -53,10 +53,10 @@ export const GRANARY_INFO = `
 <p>A public granary (<i>horreum</i>) in 12 metres, after Ostia's horrea (the Grandi Horrea, the Horrea Epagathiana), Rome's
 Horrea Galbana and the frontier forts' granaries: a raised floor at a cart's height with vents under it to keep the grain dry,
 a store of rubble with brick bonding courses, buttresses against the grain's push, narrow louvred slits high up for air, a
-tiled roof, and round it a portico on timber posts where the goods wait to go in or out.</p>
-<p>How full it is shows in the portico: twenty places, each a cart's load, filled in turn round all four sides, so every
+tiled roof with hoods over the doors, and round it the open loading platform where the goods wait to go in or out.</p>
+<p>How full it is shows on the platform: twenty places, each a cart's load, filled in turn round all four sides, so every
 side shows its share whichever way the view is turned. Sacks of wheat, baskets of vegetables and of fruit, hams on a rack
-beside salting tubs, baskets of fish beside amphorae. A lantern hangs at the front door; with no workers the doors are shut.</p>
+beside salting tubs, baskets of fish beside amphorae. Lanterns hang at the front and back doors; with no workers the doors are shut.</p>
 <h3>Controls</h3>
 <ul>
 <li>Detail 0, 1, 2 (L). N: snow lying; T: rain. 1 to 4: day, golden hour, night, winter. M, G, Z: zooms; O: orbit.</li>
