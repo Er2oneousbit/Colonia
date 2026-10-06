@@ -1187,6 +1187,8 @@ export class App {
       gpuTimer: webgl && be.timer && be.timer.available,
       ground: webgl ? st.ground : '',
       models: webgl && be.models ? `${be.models.status()}, ${be.models.kits.size} looks built, ${st.models || 0} drawn` : '',
+      zoom: `${cam.targetZoom}x`,
+      sprites: `${((r.sprites.bytes + r.coverSprites.bytes) / 1048576).toFixed(1)} MB drawn at ${Math.round(cam.spriteScale * 100) / 100} px a world px`,
       gpuName: gpu.name,
       integrated: gpu.integrated,
       hint: gpu.hint,

@@ -33,7 +33,8 @@ const RECT = { sx: 0, sw: 0, dx: 0, dy: 0, dw: 0, dh: 0, exact: true };
  * lands on the screen: source columns `sx`..`sx + sw` of its canvas (all
  * rows) drawn to device px (dx, dy), `dw` x `dh`. `exact`: drawn 1:1 at whole
  * pixels (a sprite made for this scale); otherwise stretched by scale / s
- * (a zoom still easing, or a sprite borrowed from the other zoom level).
+ * (a zoom still easing, a sprite borrowed from the other zoom level, or one
+ * capped at SPRITE_SCALE_MAX at the WebGL renderer's closest zooms).
  * `n` > 0 asks for strip `j` of `n` (a vertical slice, see Renderer
  * stripsFor): stretched strips snap their edges to whole pixels so
  * neighbouring strips meet exactly (no hairline seams through buildings).

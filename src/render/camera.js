@@ -16,7 +16,10 @@
  *   - zoom: `zoomIndex` is the zoom LEVEL the player picked; `zoomF` is the
  *     zoom actually shown, which eases toward the level in about a fifth of
  *     a second while the point under the cursor stays put. Sprites are drawn
- *     for the level (see `spriteScale`) and scaled a little while it eases.
+ *     for the level (see `spriteScale`) and scaled a little while it eases
+ *     (and past SPRITE_SCALE_MAX, at WebGL's closest levels, stretched).
+ *     The levels are the renderer's (`setLevels`): Classic's five, or the
+ *     WebGL renderer's, the same five and closer (config.js ZOOM_LEVELS_3D).
  *   - fling: after a drag the map keeps sliding and slows down (`fling`).
  *   - glide: `glideToTile` travels to a spot instead of jumping there.
  * `update(dt)` advances all three once per frame (the renderer calls it).
@@ -93,14 +96,23 @@ export function fitTour(mapW, mapH, want, halfW, halfH, ax, ay) {
   return null;
 }
 
-const clampIndex = (i) => Math.max(0, Math.min(CONFIG.ZOOM_LEVELS.length - 1, Math.round(i) || 0));
+/** A zoom level index within `levels`. */
+const clampIndex = (i, levels) => Math.max(0, Math.min(levels.length - 1, Math.round(i) || 0));
+
+/**
+ * The zoom a level index stands for whatever the renderer: the longest
+ * list holds every level, and the lists agree where both have one. (A save
+ * keeps only the index: Camera.restore reads what it was through this.)
+ */
+const zoomOfIndex = (i) => CONFIG.ZOOM_LEVELS_3D[clampIndex(i, CONFIG.ZOOM_LEVELS_3D)];
 
 export class Camera {
   constructor() {
     this.x = 0; // world px at the screen's left edge
     this.y = 0; // world px at the screen's top edge
+    this.levels = CONFIG.ZOOM_LEVELS; // the zoom levels of the renderer drawing (setLevels)
     this._zoomIndex = CONFIG.DEFAULT_ZOOM_INDEX;
-    this.zoomF = CONFIG.ZOOM_LEVELS[this._zoomIndex]; // zoom shown right now
+    this.zoomF = this.levels[this._zoomIndex]; // zoom shown right now
     this.dpr = 1;
     this.viewW = 800; // device pixels
     this.viewH = 600;
@@ -121,20 +133,41 @@ export class Camera {
    */
   get zoomIndex() { return this._zoomIndex; }
   set zoomIndex(i) {
-    this._zoomIndex = clampIndex(i);
-    this.zoomF = CONFIG.ZOOM_LEVELS[this._zoomIndex];
+    this._zoomIndex = clampIndex(i, this.levels);
+    this.zoomF = this.levels[this._zoomIndex];
     this.zoomAnchor = null;
     this.zoomAnim = null;
+  }
+
+  /**
+   * The zoom levels the renderer offers (config.js: Classic's ZOOM_LEVELS,
+   * WebGL's ZOOM_LEVELS_3D). A level the new list lacks (WebGL's 4x when
+   * Classic takes over) becomes its closest, at once, the middle of the
+   * screen kept where it was.
+   */
+  setLevels(levels) {
+    if (levels === this.levels) return;
+    this.levels = levels;
+    const i = clampIndex(this._zoomIndex, levels);
+    if (i === this._zoomIndex) return; // (the lists agree where both have a level: an ease in progress goes on)
+    const c = this.center();
+    this.zoomIndex = i;
+    this.setCenter(c.x, c.y);
   }
 
   /** Zoom shown on screen right now (between levels while zooming). */
   get zoom() { return this.zoomF; }
   /** The zoom level being shown or eased toward. */
-  get targetZoom() { return CONFIG.ZOOM_LEVELS[this._zoomIndex]; }
+  get targetZoom() { return this.levels[this._zoomIndex]; }
   /** Device px per world px right now. */
   get scale() { return this.zoomF * this.dpr; }
-  /** Scale sprites are drawn at: the zoom level's, so a zoom animation reuses them. */
-  get spriteScale() { return this.targetZoom * this.dpr; }
+  /**
+   * Scale sprites are drawn at: the zoom level's, so a zoom animation
+   * reuses them, but never past SPRITE_SCALE_MAX (WebGL's closest levels:
+   * a sprite's memory grows with the square of its scale, so closer than
+   * that it is stretched, smoothly, as while a zoom eases).
+   */
+  get spriteScale() { return Math.min(this.targetZoom * this.dpr, CONFIG.SPRITE_SCALE_MAX); }
   /** True while anything is still moving by itself. */
   get moving() { return this.zoomF !== this.targetZoom || !!this.vel || !!this.glide; }
 
@@ -292,7 +325,7 @@ export class Camera {
    * @param {number} [sy] cursor y in CSS px
    */
   zoomStep(dir, sx, sy) {
-    const next = clampIndex(this._zoomIndex + dir);
+    const next = clampIndex(this._zoomIndex + dir, this.levels);
     if (next === this._zoomIndex) return false;
     const px = (sx ?? this.viewW / this.dpr / 2) * this.dpr;
     const py = (sy ?? this.viewH / this.dpr / 2) * this.dpr;
@@ -390,13 +423,20 @@ export class Camera {
 
   restore(s) {
     if (!s) return;
-    this.zoomIndex = s.zoomIndex ?? this._zoomIndex;
+    const want = s.zoomIndex ?? this._zoomIndex;
+    this.zoomIndex = want;
     this.stopMotion();
     // x and y are world px of the view they were saved in: take its turn first.
     this.turn = (Number(s.turn) || 0) & 3;
     if (this.mapW) this.setMapBounds(this.mapW, this.mapH);
     this.x = s.x ?? this.x;
     this.y = s.y ?? this.y;
+    // Saved at a level this renderer lacks (WebGL's 4x, loaded in Classic): x and y are the
+    // corner of that closer view, so keep the middle it showed (on a screen of this size).
+    const saved = zoomOfIndex(want);
+    if (saved !== this.zoomF && Number.isFinite(s.x) && Number.isFinite(s.y)) {
+      this.setCenter(s.x + this.viewW / (saved * this.dpr) / 2, s.y + this.viewH / (saved * this.dpr) / 2);
+    }
     this.clamp();
   }
 }

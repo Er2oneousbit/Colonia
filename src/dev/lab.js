@@ -16,8 +16,8 @@
  *
  * Built into one self-contained page: node scripts/build.mjs --lab --out <file>
  *
- * Views: the game's own camera (orthographic at the 2D art's angle) at the
- * game's closest zoom and twice that, turned by quarter turns (Q / E), or a
+ * Views: the game's own camera (orthographic at the 2D art's angle) at 2x
+ * (Classic's closest zoom) and twice that (WebGL's 4x), turned by quarter turns (Q / E), or a
  * free orbit (drag, pinch, wheel). Moods: day, golden hour, night, winter.
  * A stats line: frames per second, the frame's draw calls and triangles
  * (every pass: shadows, AO, scene, post), the well's own budget, and how
@@ -61,7 +61,7 @@ import { buildCommerceScenes } from './labCommerce.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
-/** The game's closest zoom (config.js ZOOM_LEVELS' last). */
+/** Classic's closest zoom (config.js ZOOM_LEVELS' last); WebGL's go on to 6x (ZOOM_LEVELS_3D). */
 const GAME_ZOOM = 2;
 
 const VIEWS = {

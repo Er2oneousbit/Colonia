@@ -540,6 +540,10 @@ export class Renderer {
     this.lastAlpha = 0;
     this.camera = new Camera();
     this.sprites = new SpriteCache();
+    // The sprites of buildings drawn as 3D models: never drawn, only read for what hides a figure
+    // (coverStrips) and where a sign stands, both in world px. Made at one world px a pixel
+    // whatever the zoom: at WebGL's closest zooms a farm's sprite at the zoom's scale was 3.5 MB.
+    this.coverSprites = new SpriteCache();
     this.effects = new Effects();
     this.game = null;
     this.overlay = overlayByKey('none');
@@ -629,6 +633,9 @@ export class Renderer {
     }
     this.backend = next;
     this.be = next.ready ? next : this.canvasBackend;
+    // Its zoom levels (WebGL has closer ones: config.js ZOOM_LEVELS_3D); a level the new one
+    // lacks becomes its closest.
+    this.camera.setLevels(next.zoomLevels || CONFIG.ZOOM_LEVELS);
     if (next.composes) this.mountLayers(next);
     this.useLayers(false);
   }
@@ -863,6 +870,7 @@ export class Renderer {
     this.canvas.style.height = `${cssH}px`;
     this.sizeLayers();
     if (oldDpr !== this.camera.dpr) this.sprites.clear();
+    // (The cover sprites are at one world px a pixel whatever the screen: kept.)
   }
 
   setOverlay(key) { this.overlay = overlayByKey(key); }
@@ -945,7 +953,11 @@ export class Renderer {
     const pal = env.pal;
     // Sprites are drawn for the zoom LEVEL; while the zoom eases they are scaled a little.
     const changing = this.palPrev !== null || this.snowPrev !== null;
-    this.sprites.beginFrame(cam.spriteScale, changing ? Math.min(this.spriteBudgetMs, this.lookBudgetMs) : this.spriteBudgetMs);
+    const budget = changing ? Math.min(this.spriteBudgetMs, this.lookBudgetMs) : this.spriteBudgetMs;
+    this.sprites.beginFrame(cam.spriteScale, budget);
+    // (The models' cover sprites share the budget: a snow change redraws every one in view, at one
+    // world px a pixel, four times the pixels of the main cache's at 0.5x on a plain screen.)
+    this.coverSprites.beginFrame(1, budget);
     this.be = be;
     this.stats.backend = be.kind;
     be.begin();
@@ -1330,10 +1342,10 @@ export class Renderer {
     this.stats.tiles = tiles;
     this.stats.objects = items.length;
     this.stats.borrowed = this.sprites.borrowed;
-    this.stats.pending = this.sprites.pending;
+    this.stats.pending = this.sprites.pending + this.coverSprites.pending;
     // Every sprite of the new look is ready: drop the old look, so the next
     // frame shows the new one whole.
-    if (this.sprites.pending === 0) this.finishLookChange();
+    if (this.sprites.pending + this.coverSprites.pending === 0) this.finishLookChange();
     const tEnd = performance.now();
     this.stats.overlayMs = tEnd - tScene;
     this.stats.ms = tEnd - t0;
@@ -1404,6 +1416,7 @@ export class Renderer {
   /** Forget sprites whose key ends with a suffix (an old season look or snow level). */
   dropSuffix(suffix) {
     this.sprites.invalidateWhere((key) => key.endsWith(suffix));
+    this.coverSprites.invalidateWhere((key) => key.endsWith(suffix));
   }
 
   /** The new look is fully drawn: drop the sprites of the old one. */
@@ -1690,14 +1703,18 @@ export class Renderer {
     const sick = key.endsWith(':sick');
     // `true`: live flags (the sprite has bare poles; drawExtra adds fluttering cloth).
     const snow = this.pal.snow;
-    const spr = this.sprites.get(key + this.snowKey, () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T), this.snowPrev === null ? null : key + this.snowPrev);
-    if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
-    if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     // A building the back end draws as a 3D model (render3d/models.js): its
     // strips are not drawn, but they are still kept for clicks, so a figure
     // behind it is hidden where its sprite would be (coverDepthAt).
     // (`be` is missing on a renderer made without its constructor, as some tests do: no model then.)
     const model = !!this.be?.hasModel(b.type);
+    const spec = () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T);
+    // (A model's sprite from the small cover cache, its look changed as the drawn ones are: the old
+    // one kept while the new one waits for the frame's budget.)
+    const was = this.snowPrev === null ? null : key + this.snowPrev;
+    const spr = (model ? this.coverSprites : this.sprites).get(key + this.snowKey, spec, was);
+    if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
+    if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     const n = depths.length;
     // Just built: rise out of the ground and fade in (half a second).
     let alpha;

@@ -160,6 +160,8 @@ export class WebGLBackend {
   constructor(r) {
     this.r = r;
     this.kind = 'webgl';
+    // Closer zoom levels than Classic's, to see the models up close (the renderer gives them to its camera).
+    this.zoomLevels = CONFIG.ZOOM_LEVELS_3D;
     // Its canvas is on the page, under the renderer's 2D overlay (Renderer.mountLayers): its
     // picture is never copied. `sceneScale` is the share of the view's device px it is drawn at.
     this.composes = true;

@@ -55,6 +55,9 @@ test('perf: the readout names the GPU, and with a chip in the processor says how
   assert.ok(card.some((l) => l === 'GPU: NVIDIA GeForce RTX'));
   assert.ok(!card.includes(INTEGRATED_HINT));
   assert.ok(!card.some((l) => /copy/.test(l)), 'no copy stage when there was none');
+  assert.ok(!card.some((l) => /^zoom/.test(l)), 'no zoom line unless told the zoom');
+  const zoomed = perfLines(m, { ...base, zoom: '4x', sprites: '61.2 MB drawn at 6 px a world px' });
+  assert.ok(zoomed.includes('zoom 4x  sprites 61.2 MB drawn at 6 px a world px'), zoomed.join(' | '));
   const uhd = perfLines(m, { ...base, gpuName: 'Intel(R) UHD Graphics', integrated: true, hint: true });
   assert.ok(uhd.includes(INTEGRATED_HINT));
   assert.match(INTEGRATED_HINT, /High performance/);
