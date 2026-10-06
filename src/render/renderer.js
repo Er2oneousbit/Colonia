@@ -629,6 +629,9 @@ export class Renderer {
     }
     this.backend = next;
     this.be = next.ready ? next : this.canvasBackend;
+    // Its zoom levels (WebGL has closer ones: config.js ZOOM_LEVELS_3D); a level the new one
+    // lacks becomes its closest.
+    this.camera.setLevels(next.zoomLevels || CONFIG.ZOOM_LEVELS);
     if (next.composes) this.mountLayers(next);
     this.useLayers(false);
   }

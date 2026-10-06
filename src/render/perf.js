@@ -142,6 +142,8 @@ export function perfLines(m, info) {
   if (info.backend === 'webgl') lines.push(`gpu ${m.gpu === null ? (info.gpuTimer ? '...' : 'n/a') : `${f(m.gpu)} ms`}  draw calls ${info.drawCalls ?? '-'}`);
   lines.push(`${info.backend === 'webgl' ? 'WebGL' : 'Classic'}  ${info.size}  pixel ratio ${info.dpr}${info.scene ? `  3D scene ${info.scene}` : ''}`);
   if (info.ground) lines.push(`ground ${info.ground}  models ${info.models || '-'}`);
+  // (The zoom, and the sprite cache's memory: it grows with the square of the scale sprites are drawn at.)
+  if (info.zoom) lines.push(`zoom ${info.zoom}  sprites ${info.sprites || '-'}`);
   if (info.gpuName) lines.push(`GPU: ${info.gpuName}`);
   if (info.hint) lines.push(INTEGRATED_HINT);
   return lines;

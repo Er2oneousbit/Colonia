@@ -162,6 +162,85 @@ test('camera: setting zoomIndex directly jumps (saves, test views)', () => {
   assert.equal(cam.zoom, CONFIG.ZOOM_LEVELS[4]);
 });
 
+test('camera: Classic keeps its five zoom levels, WebGL has closer ones', () => {
+  const cam = makeCamera(false);
+  assert.deepEqual(CONFIG.ZOOM_LEVELS, [0.5, 0.75, 1, 1.5, 2], 'Classic exactly as it was');
+  assert.deepEqual(CONFIG.ZOOM_LEVELS_3D.slice(0, CONFIG.ZOOM_LEVELS.length), CONFIG.ZOOM_LEVELS, 'an index means the same zoom under both');
+  assert.ok(CONFIG.ZOOM_LEVELS_3D.at(-1) >= 4, 'WebGL zooms in to 4x at least');
+  assert.equal(cam.levels, CONFIG.ZOOM_LEVELS, "a camera starts with Classic's");
+  while (cam.zoomStep(1)) { /* in as far as it goes */ }
+  assert.equal(cam.zoom, 2, 'Classic stops at 2x');
+  cam.setLevels(CONFIG.ZOOM_LEVELS_3D);
+  assert.equal(cam.zoom, 2, 'taking the closer levels changes nothing on screen');
+  const seen = [];
+  while (cam.zoomStep(1)) seen.push(cam.zoom);
+  assert.deepEqual(seen, CONFIG.ZOOM_LEVELS_3D.slice(CONFIG.ZOOM_LEVELS.length), 'the wheel or + reaches every closer level');
+  assert.equal(cam.zoomStep(1), false, 'and stops at the closest');
+  cam.zoomIndex = 99;
+  assert.equal(cam.zoom, CONFIG.ZOOM_LEVELS_3D.at(-1), 'an index past the end is the closest');
+});
+
+test("camera: back to Classic from a closer WebGL zoom takes Classic's closest, the middle kept", () => {
+  const cam = makeCamera();
+  cam.setLevels(CONFIG.ZOOM_LEVELS_3D);
+  cam.zoomIndex = 6; // 4x
+  cam.centerOnTile(20, 30);
+  const c = cam.center();
+  cam.setLevels(CONFIG.ZOOM_LEVELS);
+  assert.equal(cam.zoomIndex, CONFIG.ZOOM_LEVELS.length - 1);
+  assert.equal(cam.zoom, 2);
+  assert.equal(cam.moving, false, 'at once, no ease from a level Classic does not have');
+  const c2 = cam.center();
+  near(c2.x, c.x, 1e-6, 'center x');
+  near(c2.y, c.y, 1e-6, 'center y');
+  // A level both have is kept as it is, an ease in progress too.
+  cam.setLevels(CONFIG.ZOOM_LEVELS_3D);
+  cam.zoomStep(-1);
+  cam.update(1 / 60);
+  const z = cam.zoom;
+  cam.setLevels(CONFIG.ZOOM_LEVELS);
+  assert.equal(cam.zoom, z);
+  assert.equal(cam.targetZoom, 1.5);
+});
+
+test('camera: a save made at 4x under WebGL opens in Classic at 2x on the same spot', () => {
+  const webgl = makeCamera(false);
+  webgl.setLevels(CONFIG.ZOOM_LEVELS_3D);
+  webgl.zoomIndex = 6;
+  webgl.centerOnTile(40, 12);
+  const at = webgl.center();
+  const state = JSON.parse(JSON.stringify(webgl.serialize()));
+  assert.equal(state.zoomIndex, 6, 'the save keeps the closer level');
+  const classic = makeCamera(false);
+  classic.restore(state);
+  assert.equal(classic.zoom, 2, "Classic's closest");
+  near(classic.center().x, at.x, 1e-6, 'center x');
+  near(classic.center().y, at.y, 1e-6, 'center y');
+  const again = makeCamera(false);
+  again.setLevels(CONFIG.ZOOM_LEVELS_3D);
+  again.restore(state);
+  assert.equal(again.zoom, 4, 'WebGL opens it at 4x');
+  assert.equal(again.x, state.x);
+  assert.equal(again.y, state.y);
+});
+
+test('camera: sprites are drawn at most at SPRITE_SCALE_MAX, never capped under Classic', () => {
+  for (const dpr of [1, 1.5, 2]) {
+    const cam = makeCamera(false);
+    cam.resize(800, 600, dpr);
+    for (let i = 0; i < CONFIG.ZOOM_LEVELS.length; i++) {
+      cam.zoomIndex = i;
+      assert.equal(cam.spriteScale, cam.targetZoom * cam.dpr, `Classic zoom ${cam.targetZoom} at ${dpr}`);
+    }
+    cam.setLevels(CONFIG.ZOOM_LEVELS_3D);
+    for (let i = 0; i < CONFIG.ZOOM_LEVELS_3D.length; i++) {
+      cam.zoomIndex = i;
+      assert.equal(cam.spriteScale, Math.min(cam.targetZoom * cam.dpr, CONFIG.SPRITE_SCALE_MAX), `WebGL zoom ${cam.targetZoom} at ${dpr}`);
+    }
+    assert.ok(cam.spriteScale <= CONFIG.SPRITE_SCALE_MAX);
+  }
+});
+
 // --- sprite cache ---------------------------------------------------------
 
 /** Minimal stand-in canvas for node: every context method is a no-op. */
@@ -194,6 +273,13 @@ test('sprite cache: over budget it borrows the other zoom level, then catches up
     cache.beginFrame(4);
     cache.get('a1', spec);
     assert.equal(cache.byScale.size, 2);
+    // Its memory is counted as sprites come and go: 40 x 40 px at scale 4, plus what scale 2 kept.
+    const kept = [...cache.byScale.values()].flatMap((m) => [...m.values()]);
+    assert.equal(cache.bytes, kept.reduce((n, spr) => n + spr.w * spr.h * 4, 0));
+    assert.ok(kept.some((spr) => spr.w === 40 && spr.h === 40));
+    cache.invalidate('a');
+    cache.clear();
+    assert.equal(cache.bytes, 0, 'nothing kept, nothing counted');
   } finally {
     globalThis.OffscreenCanvas = had;
   }

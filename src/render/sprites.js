@@ -26,6 +26,10 @@
  * renderer drops the old look and the next frame shows the new one whole
  * (no patchwork of old and new tiles, no one-frame hitch).
  *
+ * Memory: `bytes` counts the canvases kept (4 bytes a pixel). It grows with
+ * the square of the scale, which is why the camera caps the scale sprites
+ * are drawn at (camera.js spriteScale, config.js SPRITE_SCALE_MAX).
+ *
  * `onDrop(spr)`, when set, hears of every sprite the cache lets go of (a
  * zoom level dropped, an old look, a cleared cache): the WebGL back end
  * keeps a texture per sprite and frees it then.
@@ -46,11 +50,15 @@ export class SpriteCache {
     this.borrowed = 0; // sprites borrowed from another zoom level this frame
     this.pending = 0; // new-look sprites still missing this frame (their old look was drawn)
     this.onDrop = null; // (spr) => void: a sprite the cache let go of (see the header)
+    this.bytes = 0; // the kept sprites' canvases, 4 bytes a pixel
   }
 
   /** Tell onDrop about every sprite of a map about to go. */
   dropAll(m) {
-    if (this.onDrop) for (const spr of m.values()) this.onDrop(spr);
+    for (const spr of m.values()) {
+      this.bytes -= spr.w * spr.h * 4;
+      if (this.onDrop) this.onDrop(spr);
+    }
   }
 
   /** Start a frame: pick the scale and reset the new-sprite time budget. */
@@ -104,7 +112,9 @@ export class SpriteCache {
 
   /** Let go of one sprite. */
   drop(m, key) {
-    if (this.onDrop) this.onDrop(m.get(key));
+    const spr = m.get(key);
+    if (spr) this.bytes -= spr.w * spr.h * 4;
+    if (this.onDrop) this.onDrop(spr);
     m.delete(key);
   }
 
@@ -170,7 +180,10 @@ export class SpriteCache {
       ctx.fillRect(0, 0, cw, ch);
     }
     const spr = { canvas, ax: Math.round(spec.ax * s), ay: Math.round(spec.ay * s), w: cw, h: ch, s };
+    const had = this.current.get(key);
+    if (had) this.drop(this.current, key);
     this.current.set(key, spr);
+    this.bytes += cw * ch * 4;
     this.created++;
     this.spentMs += now() - t0;
     return spr;

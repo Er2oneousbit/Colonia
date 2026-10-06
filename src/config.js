@@ -24,8 +24,21 @@ export const CONFIG = {
   // --- Rendering (isometric) ---------------------------------------------
   TILE_W: 64, // diamond width in world pixels at zoom 1
   TILE_H: 32, // diamond height in world pixels at zoom 1
+  // The Classic renderer's zoom levels. The WebGL renderer has the same
+  // ones and closer (ZOOM_LEVELS_3D), so a level's index means the same
+  // zoom under both: a save at a WebGL-only level opens in Classic at its
+  // closest (Camera.setLevels clamps).
   ZOOM_LEVELS: [0.5, 0.75, 1, 1.5, 2],
+  // Closer levels to see the 3D models up close: their full level of
+  // detail and textures hold to 6x; sprites stop sharpening at
+  // SPRITE_SCALE_MAX and are stretched smoothly past it.
+  ZOOM_LEVELS_3D: [0.5, 0.75, 1, 1.5, 2, 3, 4, 6],
   DEFAULT_ZOOM_INDEX: 2,
+  // Device px per world px a cached sprite is drawn at, at most. A sprite's
+  // memory grows with the square of its scale, and past this the stretch is
+  // hard to tell from a sharper copy at the distance the models are seen
+  // from (Classic's closest, 2x at a pixel ratio of 2, is 4: never capped).
+  SPRITE_SCALE_MAX: 6,
   MAX_DPR: 2, // cap device pixel ratio to keep sprite caches small
   EDGE_SCROLL_PX: 12, // mouse this close to the screen edge scrolls the map
   PAN_SPEED: 900, // keyboard pan speed, screen px per second
