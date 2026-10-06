@@ -189,7 +189,8 @@ export class Painter {
   /**
    * Paint a texture. job: { set: { key, recipes }, index (the recipe in the
    * set), seed, size, out: surfaceTargets() or arrayTargets(), layer (an
-   * array's), ground (alpha = the height, normalised), readHeight (resolve
+   * array's), ground (alpha = the height, normalised), alpha (alpha = the
+   * fields' w: a cut-out, a spray of leaves), readHeight (resolve
    * with B's y channel as a Float32Array, size x size) }. Resolves when
    * painted (and read back).
    */
@@ -396,7 +397,7 @@ export class Painter {
     u.uF.value = this.dummy;
     u.uB.value = this.dummy;
     u.uRange.value = this.dummy;
-    u.uGround.value = job.ground ? 1 : 0;
+    u.uGround.value = job.ground ? 1 : job.alpha ? 2 : 0;
     this.draw(p.material, s.F);
     // The blur (separable, wrapping), or B is F.
     let B = s.F;

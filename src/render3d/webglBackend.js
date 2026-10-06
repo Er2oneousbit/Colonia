@@ -74,6 +74,8 @@ import { aimCamera, groundDepth, standDepth } from './projection.js';
 import { GroundPass } from './ground/groundPass.js';
 import { SunRig } from './sunRig.js';
 import { ModelPass, lodFor } from './modelPass.js';
+import { FloraPass } from './flora/floraPass.js';
+import { resetFloraMaterials } from './flora/floraMaterials.js';
 import { LOOK, paintSurfaces, resetLook } from './materials.js';
 import { tileOfWorld } from '../render/camera.js';
 import { GpuTimer } from './gpuTimer.js';
@@ -198,6 +200,7 @@ export class WebGLBackend {
       this.lost = true;
       this.timer.reset();
       this.models.lose();
+      this.flora.lose();
     }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
@@ -206,6 +209,7 @@ export class WebGLBackend {
       this.rig.restored();
       this.postPass.restored();
       this.models.restored();
+      this.flora.restored();
       if (this.groundPass) this.groundPass.restored();
     }, false);
     // The look's materials (render3d/materials.js) paint their textures on this GPU; smaller on a
@@ -219,6 +223,10 @@ export class WebGLBackend {
     // The 3D world's scene and light (the ground and the models share them), and the models.
     this.rig = new SunRig(gl);
     this.models = new ModelPass(gl, this.rig);
+    // The trees and rocks as models (flora/floraPass.js), with the 3D ground: `drawsFlora` tells the
+    // renderer to leave their sprites out this frame.
+    this.flora = new FloraPass(gl, this.rig);
+    this.drawsFlora = false;
     // The night and the flash over the scene (postPass.js), and the cloud shade's soft disc.
     this.postPass = new PostPass(gl);
     this.puffTex = null;
@@ -416,6 +424,8 @@ export class WebGLBackend {
     // The renderer leaves the ground's sprites out while this draws the ground.
     this.drawsGround = !!this.groundPass && this.groundPass.sync(r, this.camera);
     this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
+    // The trees and rocks: their map's changes, and whether they draw as models this frame.
+    this.drawsFlora = this.flora.sync(r, this.drawsGround, !!this.groundPass);
     // The models' programs, compiled in the background for the light they are drawn in.
     this.models.warm(this.camera, this.rig.sun.castShadow);
     // (Never waiting silently: a GPU that will not ready them is told to the console and the readout.)
@@ -743,7 +753,9 @@ export class WebGLBackend {
     // This frame's models, instanced, at the level of detail of this zoom (modelPass.js).
     // (Low takes the simpler model a zoom step sooner: it is the quality picked for speed.)
     const built = this.models.update(r, this.placed, lodFor(this.groundMode === 'low' ? cam.scale / 2 : cam.scale), this.ghosts);
-    const models = built;
+    // The trees and rocks in view (or, while they cannot draw yet, their kits and programs prepared).
+    const flora = this.flora.update(r, this.camera, this.drawsFlora, this.groundMode);
+    const models = built + flora;
     if (this.drawsGround || models || this.ghosts.length) {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
@@ -753,6 +765,7 @@ export class WebGLBackend {
       // one never drawn is no texture at all.)
       const shadows = this.rig.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
       this.models.setCasting(shadows);
+      this.flora.setCasting(shadows);
     }
     if (this.drawsGround) {
       const gp = this.groundPass;
@@ -785,6 +798,8 @@ export class WebGLBackend {
     st.models = built;
     // (By type, their triangles, the level of detail: the smoke test and the console read them.)
     st.modelPass = this.models.stats;
+    st.flora = this.drawsFlora ? flora : 0;
+    st.floraPass = this.flora.stats;
     st.drawCalls = gl.info.render.calls;
     st.textures = this.textures.size;
     st.live = this.lives.length;
@@ -811,6 +826,8 @@ export class WebGLBackend {
     for (const m of this.materials) m.dispose();
     this.geometry.dispose();
     this.models.dispose();
+    this.flora.dispose();
+    resetFloraMaterials();
     if (this.groundPass) this.groundPass.dispose();
     this.groundPass = null;
     this.rig.dispose();

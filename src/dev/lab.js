@@ -57,6 +57,7 @@ import { buildGroundScene } from './labGround.js';
 import { buildGallery } from './labGallery.js';
 import { buildFountainScene } from './labFountain.js';
 import { ruralScenes } from './labRural.js';
+import { buildWoodsScene } from './labWoods.js';
 import { buildCommerceScenes } from './labCommerce.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
@@ -290,6 +291,8 @@ async function main() {
   scene.add(fs.group);
   // The Farms and Granary scenes (labRural.js), made with the lab's buttons below.
   let rural = null;
+  /** The Woods scene (labWoods.js), made with the lab's buttons below. */
+  let woods = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
   const commerce = buildCommerceScenes();
   for (const s of Object.values(commerce)) {
@@ -319,6 +322,7 @@ async function main() {
     else if (state.scene === 'fountain') LOOK.uniforms.uLookFade.value.set(0, 0, 9.5, 12.5);
     else if (state.scene === 'ground') LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
     else if (rural && rural.fade(state.scene)) LOOK.uniforms.uLookFade.value.set(...rural.fade(state.scene));
+    else if (woods && state.scene === 'woods') LOOK.uniforms.uLookFade.value.set(...woods.fade);
     else if (commerce[state.scene]) LOOK.uniforms.uLookFade.value.set(...commerce[state.scene].fade);
     else LOOK.uniforms.uLookFade.value.set(0, 0, 1e5, 2e5);
   }
@@ -331,7 +335,7 @@ async function main() {
   const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
   const fillInfo = () => {
-    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO, ...(rural ? rural.info : {}) }[state.scene] || commerce[state.scene].info;
+    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO, ...(rural ? rural.info : {}), ...(woods ? { woods: woods.info } : {}) }[state.scene] || commerce[state.scene].info;
     info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
   };
   fillInfo();
@@ -347,9 +351,9 @@ async function main() {
       return b;
     });
   };
-  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')], ['Farms', 'H', () => setScene('farms')], ['Granary', 'U', () => setScene('granary')],
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')], ['Farms', 'H', () => setScene('farms')], ['Granary', 'U', () => setScene('granary')], ['Woods', 'P', () => setScene('woods')],
     ...Object.values(commerce).map((s) => [s.title, s.key, () => setScene(s.id)])]);
-  const SCENES = ['well', 'fountain', 'ground', 'types', 'farms', 'granary', ...Object.keys(commerce)];
+  const SCENES = ['well', 'fountain', 'ground', 'types', 'farms', 'granary', 'woods', ...Object.keys(commerce)];
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
@@ -391,6 +395,10 @@ async function main() {
   // The Farms and Granary scenes (labRural.js), on the game's ground as the Ground scene is, with their own buttons.
   rural = ruralScenes({ scene, look, groundTex, group, el, app, shadowBox: 9.5 });
   grounds.push(...rural.grounds);
+  // The Woods scene (labWoods.js): the countryside's trees and rocks, the game's engine on the game's ground.
+  woods = buildWoodsScene(look.renderer, groundTex, { el, app, group });
+  scene.add(woods.group, woods.ground.group);
+  grounds.push(woods.ground);
   // The commerce scenes' labels, one over each building.
   const cLabels = el('div', { class: 'cardlabels' });
   app.appendChild(cLabels);
@@ -457,6 +465,17 @@ async function main() {
     well.group.visible = name === 'well' || name === 'ground';
     fs.group.visible = name === 'fountain';
     rural.show(name);
+    woods.show(name === 'woods');
+    if (name === 'woods') {
+      // (A wider square of the sun's shadow: the whole map of woods.)
+      const sc = look.sun.shadow.camera;
+      sc.left = -66;
+      sc.right = 66;
+      sc.top = 66;
+      sc.bottom = -66;
+      sc.far = 200;
+      sc.updateProjectionMatrix();
+    }
     groundGroup.visible = name === 'ground';
     galGroup.visible = name === 'types';
     for (const s of Object.values(commerce)) s.group.visible = name === s.id;
@@ -473,6 +492,7 @@ async function main() {
   }
   function setSeason(k) {
     state.season = k;
+    woods.season(k);
     applyGround();
     refreshButtons();
   }
@@ -555,6 +575,7 @@ async function main() {
     if (state.scene === 'fountain') placeFountainLabels();
     if (commerce[state.scene]) placeCommerceLabels();
     rural.placeLabels(state.view === 'orbit' ? persp : ortho, canvas.clientWidth, canvas.clientHeight, state.view !== 'game2' && state.view !== 'orbit');
+    woods.placeLabels(state.view === 'orbit' ? persp : ortho, canvas.clientWidth, canvas.clientHeight, state.view !== 'game2' && state.view !== 'orbit');
     if (state.scene !== 'types') return;
     // (In the overview the names only: the notes would cover each other.)
     labels.classList.toggle('compact', state.overview);
@@ -626,6 +647,7 @@ async function main() {
     look.setTurn(state.turn);
     // (The goods take the stalls and bays this turn's camera sees best, as the game's do.)
     for (const s of Object.values(commerce)) s.setTurn(state.turn);
+    woods.setTurn(state.turn);
     aim();
   }
 
@@ -651,6 +673,8 @@ async function main() {
     else if (k === 'u') setScene('granary');
     else if (k === 'f') setScene('fountain');
     else if (rural.key(k)) refreshButtons();
+    else if (woods.key(k)) refreshButtons();
+    else if (k === 'p') setScene('woods');
     else if (k === 'l' && state.scene === 'fountain') setFountainLod((fs.lod + 1) % 3);
     else if (k === 'l' && commerce[state.scene]) setFountainLod((commerce[state.scene].lod + 1) % 3);
     else if (k === 'k') setScene('market');
@@ -750,6 +774,7 @@ async function main() {
     wellLife(well, t);
     fountainLife(t);
     rural.life(t);
+    woods.life(t);
     for (const g of grounds) g.material.userData.ground.uGTime.value = t;
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
@@ -802,7 +827,7 @@ async function main() {
   lampsCast(false);
   const warm = look.warm(ortho, {
     mood: 'day',
-    later: [groundGroup, galGroup, fs.group, ...rural.later, ...Object.values(commerce).map((s) => s.group)],
+    later: [groundGroup, galGroup, fs.group, ...rural.later, ...woods.later, ...Object.values(commerce).map((s) => s.group)],
     variants: [() => {
       lampsCast(true);
       return () => lampsCast(look.lamps[0].on > 0);
@@ -859,6 +884,15 @@ async function main() {
       granaryTriangles: (l) => rural.gran.triangles(l),
       get farms() { return rural.farms.farms.map((f) => ({ type: f.type, look: f.look, triangles: f.tris })); },
     },
+    /** The Woods scene (labWoods.js): its month and level of detail, a species' triangles, the engine's stats and memory. */
+    woods: {
+      setMonth: (m) => { woods.setMonth(m); refreshButtons(); },
+      setLod: (n) => { woods.setLod(n); refreshButtons(); },
+      specimenAt: (sp, row = 1) => woods.specimenAt(sp, row).toArray(),
+      triangles: (sp, lod, lookName) => woods.triangles(sp, lod, lookName),
+      stats: () => ({ ...woods.flora.stats }),
+      bytes: () => woods.flora.bytes(),
+    },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
     /** Every texture's checks (texReport.js), on its bytes read back from the GPU. */
@@ -877,6 +911,29 @@ async function main() {
         img.data[k * 4 + 3] = 255;
       }
       for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) ctx.putImageData(img, x * n, y * n);
+      return c.toDataURL('image/png');
+    },
+    /**
+     * A surface's map (albedo, normal or orm) as a PNG data URL, once, over a checker where it is
+     * cut away (a spray of leaves: surfacesFlora.js), to judge it by eye.
+     */
+    async surfaceImage(name, which = 'albedo') {
+      const t = surfaceTextures(name);
+      await t.whenReady;
+      const bytes = painterFor(look.renderer).readPixels(t.out[which]);
+      const n = t.size;
+      const c = document.createElement('canvas');
+      c.width = n;
+      c.height = n;
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(n, n);
+      for (let k = 0; k < n * n; k++) {
+        const a = which === 'albedo' ? bytes[k * 4 + 3] / 255 : 1;
+        const bg = ((k % n) >> 4) % 2 === ((k / n) >> 4) % 2 ? 60 : 90;
+        for (let ch = 0; ch < 3; ch++) img.data[k * 4 + ch] = Math.round(bytes[k * 4 + ch] * a + bg * (1 - a));
+        img.data[k * 4 + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
       return c.toDataURL('image/png');
     },
     textureReport() {

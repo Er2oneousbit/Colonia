@@ -965,6 +965,8 @@ export class Renderer {
     // then the ground's sprites (terrain, shores, roads, plazas, rubble,
     // glints) are left out, and only what lies over the ground is told.
     const ownGround = !!be.drawsGround;
+    // It may draw the trees and rocks too, as 3D models (render3d/flora/): their sprites are left out.
+    const ownFlora = !!be.drawsFlora;
     const { map } = game;
     const ov = this.overlay;
     const overlayOn = ov.key !== 'none';
@@ -1067,12 +1069,12 @@ export class Renderer {
               visibleBuildings.push(b);
             }
           }
-        } else if (terr === Terrain.TREES && !map.road[i]) {
+        } else if (terr === Terrain.TREES && !map.road[i] && !ownFlora) {
           // Wind: 5 cached sway frames; the phase rolls across the map in gusts.
           const tv = map.variant[i] & 7;
           const sway = motion ? Math.round(Math.sin(this.time * 1.7 - (x * 0.45 + y * 0.25)) * 2) : 0;
           items.push({ d: depth - 0.01, kind: K_STRIP, spr: this.sprites.get(`t${tv}.${sway}~${pal.key}`, () => treesSpec(tv, sway, pal), pp === null ? null : `t${tv}.${sway}~${pp}`), wx, wy, full: true });
-        } else if (terr === Terrain.ROCK) {
+        } else if (terr === Terrain.ROCK && !ownFlora) {
           items.push({ d: depth - 0.01, kind: K_STRIP, spr: this.sprites.get(`k${variant}${this.snowKey}`, () => rocksSpec(variant, pal.snow), this.snowPrev === null ? null : `k${variant}${this.snowPrev}`), wx, wy, full: true });
         }
         if (map.wall[i]) {

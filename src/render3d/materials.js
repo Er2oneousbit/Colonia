@@ -116,6 +116,7 @@ uniform vec4 uLookGrass;
 uniform float uLookSnowMul;
 uniform float uLookWetMul;
 uniform vec2 uLookSway;
+uniform float uLookKind;
 uniform float uLookClipY;
 uniform float uLookMetres;
 varying vec3 vLookWPos;
@@ -152,10 +153,15 @@ const VERT_WORLD = /* glsl */ `
 `;
 
 /**
- * Grass: bends with the wind, more the higher up the blade (uLookSway: x
- * metres at the tip, y a blade's full height in its own space; 0 for
- * everything else, which a branch on a uniform skips at no cost, and one
- * program serves both).
+ * Sway in the wind, more the higher up (uLookSway: x metres at the top, y
+ * the full height in the mesh's own space; 0 for everything that stands
+ * still, which a branch on a uniform skips at no cost, and one program
+ * serves all). By the material's kind (uLookKind, LOOK_KIND):
+ *   grass    each blade bends, quickly; under snow only the tips show
+ *   wood     a tree's trunk and limbs: slower, the whole tree as one, the
+ *            wind's way in the world whatever the tree's own turn (its
+ *            instance matrix turns it: the offset is turned back into it)
+ *   foliage  the same, and each spray flutters on its own, faster
  */
 const VERT_SWAY = /* glsl */ `
 #include <begin_vertex>
@@ -167,22 +173,48 @@ if ( uLookSway.x > 0.0 ) {
   root = modelMatrix * root;
   float k = clamp( position.y / uLookSway.y, 0.0, 1.0 );
   k *= k;
-  float ph = uLookTime * 1.7 + root.x * 0.9 + root.z * 0.7;
-  float gust = 0.6 + 0.4 * sin( uLookTime * 0.45 + root.x * 0.15 );
-  vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * uLookSway.x;
-  transformed.x += w.x;
-  transformed.z += w.y;
-  // Under snow only the tips show.
-  transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * uLookSway.y;
+  if ( uLookKind < 1.5 ) {
+    float ph = uLookTime * 1.7 + root.x * 0.9 + root.z * 0.7;
+    float gust = 0.6 + 0.4 * sin( uLookTime * 0.45 + root.x * 0.15 );
+    vec2 w = uLookWind * ( sin( ph ) * 0.6 + sin( ph * 2.3 + 1.3 ) * 0.25 ) * gust * k * uLookSway.x;
+    transformed.x += w.x;
+    transformed.z += w.y;
+    // Under snow only the tips show.
+    transformed.y = transformed.y * ( 1.0 - 0.4 * uLookSnow ) - 0.12 * uLookSnow * uLookSway.y;
+  } else {
+    // (root is in the world's units: a tile in the game, a metre in the lab; uLookMetres makes it metres.)
+    vec2 rm = root.xz * uLookMetres;
+    float ph = uLookTime * 0.9 + rm.x * 0.11 + rm.y * 0.08;
+    float gust = 0.55 + 0.45 * sin( uLookTime * 0.31 + rm.x * 0.035 + rm.y * 0.02 );
+    vec2 w = uLookWind * ( sin( ph ) * 0.7 + sin( ph * 2.7 + 0.8 ) * 0.2 ) * gust * k * uLookSway.x;
+    vec3 wd = vec3( w.x, 0.0, w.y );
+    #ifdef USE_INSTANCING
+      mat3 im = mat3( instanceMatrix );
+      wd = ( wd * im ) / length( im[0] );
+    #endif
+    transformed += wd;
+    if ( uLookKind > 2.5 && uLookKind < 3.5 ) {
+      float fl = sin( uLookTime * 5.3 + dot( position, vec3( 7.1, 3.7, 5.3 ) ) ) * 0.5 + sin( uLookTime * 8.9 + dot( position, vec3( 2.3, 6.1, 3.1 ) ) ) * 0.3;
+      transformed += objectNormal * fl * 0.035 * gust * sqrt( k );
+    }
+  }
 }
 `;
+
+/** The kinds of material uLookKind tells apart (see VERT_SWAY and FRAG_SURFACE). */
+export const LOOK_KIND = Object.freeze({ PLAIN: 0, GRASS: 1, WOOD: 2, FOLIAGE: 3, IMPOSTOR: 4 });
 
 const FRAG_SURFACE = /* glsl */ `
 if ( vLookWPos.y < uLookClipY ) discard;
 float lookAO = 1.0;
 if ( uLookAOOn > 0.5 ) lookAO = texture2D( uLookAO, gl_FragCoord.xy / uLookRes ).r;
 float lookSnowAmt = 0.0;
-if ( uLookSway.x > 0.0 ) {
+#ifdef DOUBLE_SIDED
+  // Foliage: a spray seen from behind keeps the crown's outward normal (the card's own is only
+  // its plane: a crown is lit as one mass, as foliage is).
+  if ( uLookKind > 2.5 && uLookKind < 3.5 ) normal *= faceDirection;
+#endif
+if ( uLookSway.x > 0.0 && uLookKind < 1.5 ) {
   // Grass in another season (winter's straw): the blade keeps its light and shade, takes the colour.
   float lum = dot( diffuseColor.rgb, vec3( 0.3, 0.59, 0.11 ) );
   diffuseColor.rgb = mix( diffuseColor.rgb, uLookGrass.rgb * lum * 2.6, uLookGrass.a );
@@ -190,6 +222,8 @@ if ( uLookSway.x > 0.0 ) {
 {
   vec3 gn = normalize( vLookWNormal );
   vec3 sn = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz );
+  // An impostor's card faces the camera (flora/impostors.js): its facing is its baked normal's.
+  if ( uLookKind > 3.5 ) gn = sn;
   float cover = uLookSnow * uLookSnowMul;
   if ( cover > 0.0 ) {
     float n1 = lookNoise( vLookWPos * 1.7 );
@@ -219,6 +253,15 @@ if ( uLookSway.x > 0.0 ) {
   roughnessFactor = mix( roughnessFactor, roughnessFactor * 0.55, wet );
 }
 #include <emissivemap_fragment>
+#if NUM_DIR_LIGHTS > 0
+if ( uLookKind > 2.5 && uLookKind < 3.5 ) {
+  // Light through the leaves: a crown with the sun behind it glows at its rim, and the sprays
+  // turned from the sun are lit through (a thin leaf passes on a little of what falls on it).
+  vec3 lookL = directionalLights[ 0 ].direction;
+  float lookBack = pow( max( 0.0, -dot( normalize( vViewPosition ), lookL ) ), 3.0 ) * 0.55 + max( 0.0, -dot( normal, lookL ) ) * 0.45;
+  totalEmissiveRadiance += diffuseColor.rgb * directionalLights[ 0 ].color * lookBack * 0.16 * ( 1.0 - lookSnowAmt );
+}
+#endif
 `;
 
 const FRAG_AO = /* glsl */ `
@@ -257,10 +300,13 @@ const FRAG_FADE = /* glsl */ `
  * Give a MeshStandardMaterial (or Physical) the look's shader patch.
  * `snow` is how much snow sticks (0..1), `wet` how much it darkens when wet,
  * `sway` (metres at the tip) bends the vertices with the wind, by their
- * height over `swayH` (a grass blade's own height).
+ * height over `swayH` (a grass blade's own height, a tree's), as `kind`
+ * (LOOK_KIND: grass by default when it sways) bends.
  */
-export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1 } = {}) {
-  const own = { uLookSnowMul: { value: snow }, uLookWetMul: { value: wet }, uLookSway: { value: new Vector2(sway, swayH) } };
+export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1, kind = sway > 0 ? LOOK_KIND.GRASS : LOOK_KIND.PLAIN } = {}) {
+  const own = {
+    uLookSnowMul: { value: snow }, uLookWetMul: { value: wet }, uLookSway: { value: new Vector2(sway, swayH) }, uLookKind: { value: kind },
+  };
   mat.userData.look = own;
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, LOOK.uniforms, own);
@@ -338,7 +384,7 @@ export function paintSurfaces() {
   for (const t of ts) {
     painter.paint({
       set: SURFACE_SET, index: SURFACE_SET.names.indexOf(t.name), seed: nameSeed(t.name), size: t.size, out: t.out,
-      readHeight: !!SURFACES[t.name].height,
+      readHeight: !!SURFACES[t.name].height, alpha: !!SURFACES[t.name].alpha,
     }).then((job) => {
       t.maps = { size: t.size, metres: t.metres, height: job.height ? Field.wrap(t.size, job.height) : null };
       t.ready = true;
@@ -407,7 +453,7 @@ export function material(key, opts = {}) {
   if (m) return m;
   const {
     surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = true,
-    physical = false, side, sway = 0, swayH = 1, emissive, emissiveIntensity, roughness, metalness, opacity,
+    physical = false, side, sway = 0, swayH = 1, kind, emissive, emissiveIntensity, roughness, metalness, opacity,
   } = opts;
   const p = { color: new Color(color), vertexColors };
   if (surface) {
@@ -438,7 +484,7 @@ export function material(key, opts = {}) {
   }
   m = physical ? new MeshPhysicalMaterial(p) : new MeshStandardMaterial(p);
   m.name = key;
-  patchLook(m, { snow, wet, sway, swayH });
+  patchLook(m, { snow, wet, sway, swayH, ...(kind === undefined ? {} : { kind }) });
   CACHE.set(key, m);
   return m;
 }

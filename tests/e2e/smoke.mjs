@@ -4411,14 +4411,50 @@ try {
           && farmPick?.kind === 'building' && farmPick.id === farmSite.olive.id && granPick?.kind === 'building' && granPick.id === farmSite.gran.id,
         JSON.stringify({ farmSite, farmDrawn, farmPick, granDrawn, granPick }));
       await gq.evaluate(() => window.colonia.ui.info.close());
+      // The trees and rocks as 3D models (render3d/flora/): on the 3D ground they draw in place of
+      // their sprites, and a click on a forest tile still picks that tile.
+      const wood = await gq.evaluate(() => {
+        const app = window.colonia;
+        const m = app.game.map;
+        // A forest tile with forest all round it (no road, no building).
+        for (let y = 2; y < m.h - 2; y++) {
+          for (let x = 2; x < m.w - 2; x++) {
+            let all = true;
+            for (let dy = -1; dy <= 1 && all; dy++) for (let dx = -1; dx <= 1 && all; dx++) {
+              const i = m.idx(x + dx, y + dy);
+              if (m.terrain[i] !== 2 || m.road[i] || m.building[i]) all = false;
+            }
+            if (all) {
+              app.renderer.camera.centerOnTile(x + 0.5, y + 0.5);
+              return { x, y };
+            }
+          }
+        }
+        return null;
+      });
+      await gq.waitForFunction(() => (window.colonia.renderer.stats.flora || 0) > 0, null, { timeout: 60000 }).catch(() => {});
+      await frames(3);
+      const floraDrawn = await gq.evaluate(() => {
+        const s = window.colonia.renderer.stats;
+        return { flora: s.flora, ready: s.floraPass && s.floraPass.ready, trees: s.floraPass && s.floraPass.trees, rocks: s.floraPass && s.floraPass.rocks, said: window.colonia.ui.console.run('flora') };
+      });
+      if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-flora3d.png') });
+      const woodPick = wood ? await pickAt(wood.x + 0.5, wood.y + 0.5) : null;
+      check('3D trees and rocks: on the 3D ground they draw as models in place of their sprites, and a click on a forest tile picks it',
+        !!wood && floraDrawn.flora > 0 && floraDrawn.ready === true && floraDrawn.trees > 0 && /Flora: drawn/.test(floraDrawn.said)
+          && woodPick?.kind === 'tile' && woodPick.x === wood.x && woodPick.y === wood.y,
+        JSON.stringify({ wood, floraDrawn, woodPick }));
+      await gq.evaluate(() => window.colonia.ui.info.close());
+      // (Back over the granary, which the next check reads.)
+      if (farmSite.gran) await gq.evaluate((v) => window.colonia.renderer.camera.centerOnTile(v.x + 1.5, v.y + 1.5), farmSite.gran);
       await gq.evaluate(() => window.colonia.ui.console.run('ground off'));
       await gq.waitForTimeout(400);
-      const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
+      const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects, flora: window.colonia.renderer.stats.flora }));
       await frames(3);
       const farmsOff = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType || {});
       check("3D farms: with the ground's sprites the farms keep their sprites (which draw their fields), the granary stays a model",
         !(farmsOff.farm_olive > 0) && !(farmsOff.farm_wheat > 0) && farmsOff.granary >= 1, JSON.stringify(farmsOff));
-      check('3D ground: "ground off" goes back to the flat sprites', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50, JSON.stringify(off));
+      check('3D ground: "ground off" goes back to the flat sprites (the trees and rocks too)', off.ground === 'off' && off.backend === 'webgl' && off.objects > 50 && !off.flora, JSON.stringify(off));
       check('3D ground: no page errors', qerrors.length === 0, qerrors.join(' | '));
       await gq.close();
 
@@ -4441,9 +4477,11 @@ try {
           if (/ripples/.test(k)) return v.flat < 200; // (only a normal map)
           const real = v.lum > 0.02 && v.lum < 0.8 && v.rough > 0.2 && v.rough <= 1;
           if (k.startsWith('ground.')) return !real || v.alpha[0] !== 0 || v.alpha[1] !== 255 || !v.seamless;
+          // (A spray of leaves is cut out by its alpha: none between the leaves, all on them.)
+          if (SURFACES[k.slice('surface.'.length)]?.alpha) return !real || v.alpha[0] !== 0 || v.alpha[1] !== 255;
           return !real || v.alpha[0] !== 255;
         });
-        check('look lab: every texture painted on the GPU is a real material\'s, the ground\'s tile with their height in the alpha', Object.keys(rep1).length === N_TEXTURES + 1 && bad.length === 0, JSON.stringify(bad.length ? bad : Object.keys(rep1).length));
+        check('look lab: every texture painted on the GPU is a real material\'s, the ground\'s tile with their height in the alpha, the sprays cut out by theirs', Object.keys(rep1).length === N_TEXTURES + 1 && bad.length === 0, JSON.stringify(bad.length ? bad : Object.keys(rep1).length));
         const repainted = await lp.evaluate(() => window.__lab.loseContext());
         const rep2 = await lp.evaluate(() => window.__lab.textureReport());
         const changed = Object.keys(rep1).filter((k) => JSON.stringify(rep1[k]) !== JSON.stringify(rep2[k]));
