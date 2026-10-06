@@ -16,9 +16,13 @@
  *   model(b, place)          a building with a 3D model (never called here:
  *                            hasModel() says no)
  *   items(list)              the objects, sorted back to front
- *   present()                the scene is complete; what follows (particles,
- *                            the night, weather, signs, previews) is drawn on
- *                            the 2D canvas by the renderer itself
+ *   post(layers)             only a back end that `composes` (WebGL): what
+ *                            lies over the scene and under the night
+ *                            (particles, gulls, clouds, birds, the night,
+ *                            the flash), which it draws itself
+ *   present()                the scene is complete; what follows is drawn
+ *                            by the renderer on its 2D context: here
+ *                            everything from the particles on, on #view
  * The WebGL back end (render3d/webglBackend.js) takes the same calls.
  * ----------------------------------------------------------------------------
  */

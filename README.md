@@ -102,6 +102,8 @@ Press **F1** in the game for the full manual. The rules and numbers are in [docs
 | An old save will not load | Until version 1.0 a new release may not load older saves, and says so. Start a new city. |
 | "Could not save: storage is full" | Delete old slots in *Load game* (each shows its size), or export them to files first. |
 | Slow when zoomed far out | Switch off *Ambient effects* and *Weather* in *Settings*. |
+| WebGL slow on a laptop | Press **F3**: the readout shows frames a second and the graphics chip the browser uses. If it names the chip in the processor (Intel UHD or Iris, AMD Radeon Graphics) and the laptop has a graphics card, give the browser the card: Windows Settings > System > Display > Graphics, pick the browser, *High performance*, restart the browser. *Settings > Render scale* (Auto, or 75% / 50%) and *Ground* (3D, low quality) make it lighter. |
+| Fullscreen | Starting a game goes fullscreen (*Settings > Fullscreen when a game starts*); **Esc** leaves it, the ⛶ button in the top bar goes back in. |
 | The game paused by itself | An auto-pause switch in *Settings* (raiders arriving is on at first). The note in the corner says why: click it to look, Space resumes. |
 | Night too dark, or rain distracting | Switch off *Day and night* or *Weather* in *Settings* (both are purely visual). |
 | In debt and cannot build | Ask Rome for a loan in the Finance advisor (F2): the money comes at once and is repaid monthly with interest. |

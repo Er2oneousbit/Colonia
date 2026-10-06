@@ -9,9 +9,9 @@
  * So a well stands on the ground in the same light, and its real shadow
  * falls on the ground from the sun's shadow map (High).
  *
- * The darkness of night and of an overcast sky stays 2D: the renderer
- * multiplies the whole picture by its light map after the scene
- * (render/lighting.js). Done twice the 3D world would sink into black under
+ * The darkness of night and of an overcast sky is the 2D art's: the whole
+ * picture is multiplied by the renderer's light map after the scene
+ * (render/lighting.js; on the GPU by postPass.js). Done twice the 3D world would sink into black under
  * sprites tinted once; so it keeps its daylight key at every hour and in
  * every weather: as the sun sinks or clouds come, a sky light (a hemisphere
  * light) makes up the light the sun no longer gives, and only the light's
@@ -22,8 +22,10 @@
  * depth), `modelSlot` (the models, which do; their see-through water after
  * everything opaque), and `ghostSlot` (the build ghost: hidden but in its
  * own draw, renderGhosts(), after the sprites, as the 2D ghost was drawn
- * over everything). renderModels() draws the models alone (the ground
- * drawn from Low's kept picture, or the ground's sprites).
+ * over everything). renderModels() draws the models alone, all their
+ * parts or the opaque or see-through ones: with the 3D ground on, the
+ * opaque ones first (with the sun's shadow map), the ground's own picture
+ * copied in behind them (ground/groundPass.js), then the water.
  * ----------------------------------------------------------------------------
  */
 

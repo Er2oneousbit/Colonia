@@ -38,11 +38,16 @@
  *      `drawsGround` and leaves them out). Settings > Ground: High, Low
  *      (phones; Auto picks it there) or Off (the sprites; Auto's choice
  *      without a GPU).
- *   4. The picture is copied onto the 2D canvas (present), and the renderer
- *      goes on there: particles, clouds, the night (which so darkens models
- *      too), the weather, signs, previews, outlines. So input, picking and
- *      the overlays work as they always did: the 2D canvas is still the one
- *      on the page.
+ *   4. Over the scene (post): particles, gulls and birds as live art, the
+ *      cloud shade's puffs, then the night's light map and glows and the
+ *      lightning's flash (postPass.js), in the 2D canvas's order, so the
+ *      night darkens models and sprites alike.
+ *   5. Nothing is copied: this canvas is on the page, under the renderer's
+ *      transparent 2D overlay (weather, signs, previews, outlines) and
+ *      #view, which takes the input as it always did (Renderer.mountLayers).
+ *      It is drawn at `sceneScale` of the view's pixels, the 3D ground at
+ *      its own share (the render scale: renderScale.js), and the page
+ *      stretches it to the view.
  *
  * Draw calls: quads are batched in the painter's order, up to SLOTS textures
  * a batch (the fragment shader picks the texture by a per-vertex slot), so a

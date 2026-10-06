@@ -57,11 +57,14 @@
  * sprites, the depth-sorted items with their sprites and strips, render/
  * items.js) and hands it to a back end that draws it: the Classic one on the
  * 2D canvas (canvasBackend.js, the default), or the WebGL one (render3d/
- * webglBackend.js), which can draw a building as a 3D model. Everything after
- * the sorted objects (particles, gulls, clouds, the night, the weather, the
- * signs, tool previews and selection outlines) is drawn here on the 2D
- * canvas whichever back end drew the scene; the WebGL one copies its picture
- * onto the 2D canvas first (`present`).
+ * webglBackend.js), which can draw a building as a 3D model. With Classic,
+ * everything after the sorted objects (particles, gulls, clouds, the night,
+ * the weather, the signs, tool previews and selection outlines) is drawn
+ * here on #view. The WebGL one draws on its own canvas on the page and is
+ * handed the layers under the night (`post`: particles to the flash) to
+ * draw itself; the rest is drawn here on a transparent 2D canvas over it
+ * (`mountLayers`, `useLayers`), and #view stays on top, see-through,
+ * taking the input.
  * ----------------------------------------------------------------------------
  */
 

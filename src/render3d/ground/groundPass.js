@@ -17,7 +17,8 @@
  *   - Building shadows stay the 2D art's shapes (drawn over the ground as
  *     before), except for buildings with a 3D model (the well, the
  *     fountain), which cast their real shadow from the sun's shadow map onto
- *     the ground (their 2D shape is then left out).
+ *     the ground (their 2D shape is then left out): the map is drawn with
+ *     the models' opaque parts, just before the ground.
  *
  * Depth: the ground writes none, as the ground's sprites wrote none. The
  * sprite quads stand up like cutouts on the ground line of their depth
