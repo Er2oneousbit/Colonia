@@ -611,14 +611,12 @@ test('bridges: a ship under the deck is cut off at the far parapet, so no mast s
       const at = (k, j) => {
         const [fx, fy] = pt(k, j);
         const [vx, vy] = toView(fx, fy, turn, 40, 40);
-        const line = mastClip(map, fx, fy, turn);
-        if (!line) return { ground: (vx + vy) * 16, clip: null };
-        // The line's height at the ship's own screen column (the mast's).
+        const pieces = mastClip(map, fx, fy, turn);
+        if (!pieces) return { ground: (vx + vy) * 16, clip: null };
+        // The top of the piece that holds the mast, at the ship's own screen column.
         const x = (vx - vy) * 32;
-        const n = line.findIndex((p) => p.x >= x);
-        assert.ok(n > 0 && line.every((p, i) => !i || p.x > line[i - 1].x), 'the line runs left to right across the ship');
-        const [a, b] = [line[n - 1], line[n]];
-        return { ground: (vx + vy) * 16, clip: a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x) };
+        const piece = pieces.find((p) => p.front) || pieces[0];
+        return { ground: (vx + vy) * 16, clip: topAt(piece.region, x), pieces };
       };
       const label = `axis ${axis}, turn ${turn}`;
       // Under the first (ramp) tile, crossing the bridge: the top is cut under the parapet.
@@ -636,4 +634,57 @@ test('bridges: a ship under the deck is cut off at the far parapet, so no mast s
   }
   const { map, pt } = bridgeMap('u', 4, true);
   assert.equal(mastClip(map, ...pt(11.5, 20.5), 0), null, 'no boat passes a low bridge');
+});
+
+/** The top (least world y) of polygon `region` at column x. */
+function topAt(region, x) {
+  let top = Infinity;
+  region.forEach((a, i) => {
+    const b = region[(i + 1) % region.length];
+    if ((a.x - x) * (b.x - x) > 0 || a.x === b.x) return;
+    top = Math.min(top, a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x));
+  });
+  return top;
+}
+
+test('bridges: a ship\'s mast sinks behind the far parapet as it goes under a deck and is raised again coming out in front, at every view turn (roadmap: the masthead vanished at the far edge)', async () => {
+  const { mastClip } = await import('../src/render/bridgeProfile.js');
+  const { BRIDGE_CROWN } = await import('../src/render/terrainArt.js');
+  const { toView } = await import('../src/render/view.js');
+  const MAST = 46;
+  for (const axis of ['u', 'v']) {
+    const { map, pt } = bridgeMap(axis, 6);
+    for (let turn = 0; turn < 4; turn++) {
+      // A ship sailing across the middle of the deck (tile 12), a hundredth of a tile at a time.
+      const frames = [];
+      for (let n = 0; n < 100; n++) {
+        const [fx, fy] = pt(12.5, 20.005 + n / 100);
+        const [vx, vy] = toView(fx, fy, turn, 40, 40);
+        const pieces = mastClip(map, fx, fy, turn);
+        const x = (vx - vy) * 32;
+        const ground = (vx + vy) * 16;
+        // How high over its waterline the mast may show (Infinity: not cut at all).
+        const mast = pieces ? ground - topAt((pieces.find((p) => p.front) || pieces[0]).region, x) : Infinity;
+        frames.push({ pieces, mast, front: !!pieces?.some((p) => p.front) });
+      }
+      const label = `axis ${axis}, turn ${turn}`;
+      const under = frames.filter((f) => f.pieces && !f.front);
+      const out = frames.filter((f) => f.front);
+      assert.ok(under.length > 50 && out.length > 10 && out.length < 25, `${label}: under the deck, then coming out in front (${under.length}, ${out.length})`);
+      for (let n = 1; n < 100; n++) {
+        const [a, b] = [frames[n - 1], frames[n]];
+        // Where the cut starts or stops, it cuts nothing: the masthead never vanishes at once.
+        if (!a.pieces !== !b.pieces) assert.ok(Math.min(a.mast, b.mast) >= MAST, `${label}: at ${n}% the cut starts over the masthead (${a.mast}, ${b.mast})`);
+        // Coming out at the near face, the mast shows as far as it showed through the arch, then rises.
+        else if (a.front !== b.front) assert.ok(Math.abs((a.front ? a : b).mast - BRIDGE_CROWN) < 2, `${label}: out at the arch's crown (${a.front ? a.mast : b.mast})`);
+        // In between it moves a little at a time.
+        else if (a.pieces) assert.ok(Math.abs(Math.min(a.mast, 60) - Math.min(b.mast, 60)) < 5, `${label}: at ${n}% the cut jumps from ${a.mast} to ${b.mast}`);
+      }
+      // Leaving the tile in front, the whole mast already shows (it no longer pops up at the tile's edge).
+      const last = frames[0].front ? frames[0] : frames[99];
+      assert.ok(last.front && last.mast >= MAST, `${label}: raised before it leaves the tile (${last.mast})`);
+      // Out in front, the hull still under the deck is drawn before it, the rest after it.
+      for (const f of out) assert.deepEqual(f.pieces.map((p) => p.front), [false, true]);
+    }
+  }
 });

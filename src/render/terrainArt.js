@@ -542,8 +542,10 @@ export const BRIDGE_FAR_SIDE = BR_S0; // (bridgeProfile.js mastClip: the far par
 const BR_S1 = 0.8;
 const BR_PIER = 0.14; // a pier's thickness along the bridge
 const BR_SPRING = 7; // where the arches spring, over the water
-const BR_DECK = 5; // the deck's thickness over an arch
+export const BR_DECK = 5; // the deck's thickness over an arch
 export const BR_PARAPET = 4;
+/** How high the crown of a full deck's arch stands (px): under the deck, 3 px of stone over it. */
+export const BRIDGE_CROWN = BRIDGE_DECK_Z - BR_DECK - 3;
 const BR_STONE = '#b9ad94';
 const BR_PAVING = '#a89a80';
 
@@ -627,7 +629,7 @@ export function bridgeSpec(axis, h0 = BRIDGE_DECK_Z, hm = h0, h1 = hm, abut = fa
   const at = axis === 'u' ? (t, s, z) => P(t, s, z) : (t, s, z) => P(s, t, z);
   const tA = abut ? BR_PIER : 0; // the opening, between the supports
   const tB = 1 - BR_PIER;
-  const crown = BRIDGE_DECK_Z - BR_DECK - 3;
+  const crown = BRIDGE_CROWN;
   // A round arch from pier to pier, pressed flat where a ramp comes down over it.
   const arch = (t) => {
     const u = (t - tA) / (tB - tA);

@@ -36,7 +36,7 @@
  */
 
 import { Road, Terrain } from '../world/map.js';
-import { BRIDGE_DECK_Z, LOW_BRIDGE_DECK_Z, BRIDGE_FAR_SIDE, BR_PARAPET, deckAt } from './terrainArt.js';
+import { BRIDGE_DECK_Z, LOW_BRIDGE_DECK_Z, BRIDGE_FAR_SIDE, BR_PARAPET, BR_DECK, BRIDGE_CROWN, deckAt } from './terrainArt.js';
 import { viewDir, toView, fromView } from './view.js';
 
 /** Length of a ship bridge's ramp (tiles): from the middle of the bank's road tile to the far edge of the first water tile. */
@@ -301,18 +301,38 @@ export function deckLift(map, fx, fy, feet = null) {
   return lift;
 }
 
+/** Above any ship's rigging (px over its waterline at zoom 1: a merchantman's pennant reaches 46, a liburnian's mast 41): a cut this high cuts nothing. */
+const MAST_ROOM = 48;
+/** How far a ship goes under a deck (tiles) while its mast is struck, and comes out while it is raised again. */
+const STRIKE = 0.2;
+/** How high a ship's hull stands over its waterline (px at zoom 1): above it are its sail and mast. */
+const HULL_TOP = 18;
+
 /**
- * The line (world px at zoom 1, view turn `turn`) a ship at map point
- * (fx, fy) under a ship bridge's deck may not be drawn above. A
- * merchantman's mast clears the deck under the middle of a tile only by
+ * How a ship at map point (fx, fy) under a ship bridge's deck is drawn at
+ * view turn `turn`: null when it is not under a deck (its middle not yet
+ * past the far side), else one or two pieces, each a region (world px at
+ * zoom 1, a polygon) it is drawn inside, and `front`: drawn after the deck
+ * (renderer.js) rather than before it.
+ *
+ * A merchantman's mast clears the deck under the middle of a tile only by
  * the deck's width (terrainArt.js BRIDGE_DECK_Z); over a ramp it would
- * stick up through the bridge. So the ship is cut where the deck over it
- * is (its height at the ship, across the bridge's width), as if its mast
- * were struck to pass, and never shows above the bridge's far parapet
- * along its length (the decks and ramp feet either side included, road
- * level past them): the deck is drawn over the rest of it. null when the
- * ship is not under a deck (its middle not yet past the far side).
- * @returns {{x:number, y:number}[]|null} left to right
+ * stick up through the bridge. So under the deck the ship is cut where the
+ * deck over it is (its height at the ship, across the bridge's width), as
+ * if its mast were struck to pass, and never above the bridge's far
+ * parapet along its length (the decks and ramp feet either side included,
+ * road level past them). The strike takes the first fifth of a tile under
+ * the deck (the cut comes down from over the masthead), so the mast sinks
+ * behind the far parapet as the ship goes under instead of vanishing at
+ * once (review: the masthead vanished the moment it passed the far edge).
+ *
+ * Once its middle is past the near face the ship comes out in front of the
+ * bridge: its sail, mast and the part of its hull in front of the face's
+ * plane are drawn after the deck, the mast raised again over the next fifth
+ * of a tile (the cut going back up), and the rest of its hull, still under
+ * the deck, before it as before. (Drawn whole under the deck until it left
+ * the tile, it came out all at once at the tile's edge.)
+ * @returns {{front:boolean, region:{x:number, y:number}[]}[]|null}
  */
 export function mastClip(map, fx, fy, turn = 0) {
   const look = bridgeLook(map, Math.floor(fx), Math.floor(fy), turn);
@@ -321,8 +341,17 @@ export function mastClip(map, fx, fy, turn = 0) {
   const vx = Math.floor(ux);
   const vy = Math.floor(uy);
   const side = BRIDGE_FAR_SIDE;
-  if ((look.axis === 'u' ? uy - vy : ux - vx) < side) return null;
-  const over = deckLift(map, fx, fy) + BR_PARAPET; // the deck over the ship
+  const near = 1 - side;
+  const across = look.axis === 'u' ? uy - vy : ux - vx; // 0 at the bridge's back edge, 1 at its front
+  if (across < side) return null;
+  // How much of the cut is lifted clear of the mast: all of it at either face, none a fifth of a tile in.
+  const raise = across >= near ? Math.min(1, (across - near) / STRIKE) : Math.max(0, 1 - (across - side) / STRIKE);
+  const deck = deckLift(map, fx, fy);
+  const over = deck + BR_PARAPET; // the deck over the ship
+  // Under the deck the cut is lifted clear as the mast is struck; out in
+  // front it starts at the crown of the arch (as much as showed through
+  // it) and goes up as the mast is raised.
+  const shift = across < near ? -MAST_ROOM * raise : (over - Math.max(0, Math.min(BRIDGE_CROWN, deck - BR_DECK))) * (1 - raise) - MAST_ROOM * raise;
   const x0 = (ux - uy) * 32; // the ship's screen column (world x)
   const pts = [];
   for (let x = x0 - 96; x <= x0 + 96; x += 8) {
@@ -333,7 +362,23 @@ export function mastClip(map, fx, fy, turn = 0) {
     const parapet = (pu + pv) * 16 - deckLift(map, mx, my) - BR_PARAPET;
     // ... and the deck over the ship, across the bridge from it at this column.
     const plane = (look.axis === 'u' ? 2 * ux - q : 2 * uy + q) * 16 - over;
-    pts.push({ x, y: Math.max(parapet, plane) });
+    pts.push({ x, y: Math.max(parapet, plane) + shift });
   }
-  return pts;
+  const ground = (ux + uy) * 16;
+  const bottom = ground + 32; // (under the hull and its wake)
+  const left = pts[0].x;
+  const right = pts[pts.length - 1].x;
+  if (across < near) return [{ front: false, region: [...pts, { x: right, y: bottom }, { x: left, y: bottom }] }];
+  // Past the near face. The face's plane cuts the hull at screen column xf;
+  // the hull beyond it (to the right when the bridge runs along u in the
+  // view, else to the left) is still under the deck.
+  const back = look.axis === 'u' ? 1 : -1;
+  const xf = x0 + back * (across - near) * 32;
+  const hull = ground - HULL_TOP;
+  const end = back > 0 ? right : left;
+  const behind = [{ x: xf, y: hull }, { x: end, y: hull }, { x: end, y: bottom }, { x: xf, y: bottom }];
+  const front = back > 0
+    ? [...pts, { x: right, y: hull }, { x: xf, y: hull }, { x: xf, y: bottom }, { x: left, y: bottom }]
+    : [...pts, { x: right, y: bottom }, { x: xf, y: bottom }, { x: xf, y: hull }, { x: left, y: hull }];
+  return [{ front: false, region: behind }, { front: true, region: front }];
 }
