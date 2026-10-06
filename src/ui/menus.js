@@ -468,7 +468,7 @@ export function settingsMenu(app) {
 function rendererField(app) {
   const s = app.settings;
   const now = (app.flags.renderer || s.renderer) === 'webgl' ? 'webgl' : 'classic';
-  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), and shows the well as a 3D model, the first of more to come. The Classic renderer stays the default while WebGL is in beta.');
+  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), with some buildings and the trees and rocks of the countryside as 3D models, more to come. The Classic renderer stays the default while WebGL is in beta.');
   return h('div', { class: 'field' }, h('label', {}, 'Renderer'),
     h('select', {
       'aria-label': 'Renderer',
@@ -502,7 +502,7 @@ function groundField(app) {
         app.applySettings();
       },
     }, [['auto', 'Auto'], ['high', '3D, high quality'], ['low', '3D, low quality'], ['off', 'Flat (as Classic)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
-    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections. Low quality is much lighter: Auto picks it on phones, tablets and graphics built into the processor (most laptops), and if frames stay slow even at the lowest render scale; without a graphics chip at all Auto keeps the ground flat, which is faster there.'));
+    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections, the trees and rocks standing on it in 3D. Low quality is much lighter: Auto picks it on phones, tablets and graphics built into the processor (most laptops), and if frames stay slow even at the lowest render scale; without a graphics chip at all Auto keeps the ground flat, which is faster there.'));
 }
 
 /**

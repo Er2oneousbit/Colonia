@@ -451,6 +451,9 @@ function card(a, cr, center, size, rnd, c, s) {
   side.applyAxisAngle(dir, (rnd() - 0.5) * (flat ? 0.5 : 1.6));
   // The foot pulled back a little into the crown: the spray grows from a twig behind it.
   const p = a.p.clone().addScaledVector(dir, -size * 0.3).add(V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(size * 0.4));
+  // (Never into the ground: a shrub's low sprays rest on it.)
+  const low = p.y + Math.min(0, dir.y * size) - Math.abs(side.y) * size * 0.5;
+  if (low < 0.02) p.y += 0.02 - low;
   return { p, dir, side, size, cell: Math.floor(rnd() * 4), out, c };
 }
 
