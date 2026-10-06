@@ -34,6 +34,9 @@
  *   ground=high    the WebGL renderer's 3D ground at high or low quality, or off
  *                  (the ground's sprites), or auto (render3d/ground/), whatever
  *                  Settings say
+ *   scale=0.5      the WebGL renderer's render scale: auto, 1, 0.75 or 0.5
+ *                  (render3d/renderScale.js), whatever Settings say
+ *   fullscreen=0   never go fullscreen on starting a game (tests, embeds)
  *
  * The logger keeps the last 300 lines in memory so the crash screen can offer
  * a "copy error report" button with recent context.
@@ -66,6 +69,8 @@ export function parseFlags(source) {
     mute: false,
     renderer: null,
     ground: null,
+    scale: null,
+    fullscreen: null,
   };
   let params;
   try {
@@ -111,6 +116,12 @@ export function parseFlags(source) {
   // The WebGL renderer's ground (null: as Settings say).
   const gd = String(get('ground') ?? '').toLowerCase();
   if (['auto', 'high', 'low', 'off'].includes(gd)) flags.ground = gd;
+  // The WebGL renderer's render scale (null: as Settings say).
+  const sc = String(get('scale') ?? '').toLowerCase();
+  if (['auto', '1', '0.75', '0.5'].includes(sc)) flags.scale = sc;
+  // Fullscreen on starting a game: fullscreen=0 never (null: as Settings say).
+  const fs = get('fullscreen');
+  if (fs !== null && fs !== undefined) flags.fullscreen = truthy(fs);
   return flags;
 }
 

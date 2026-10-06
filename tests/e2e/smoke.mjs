@@ -3787,8 +3787,9 @@ try {
       await gp.waitForFunction(() => window.colonia.renderer.stats.models > 0 && !window.colonia.renderer.stats.pending, null, { timeout: 15000 }).catch(() => {});
       const drawn = await gp.evaluate(() => {
         const r = window.colonia.renderer;
-        // Is there a picture? Many colours in a sample of the canvas, not one flat fill.
-        const d = r.ctx.getImageData(0, 0, r.canvas.width, r.canvas.height).data;
+        // Is there a picture? Many colours in a sample of the composed picture (the WebGL
+        // canvas and the 2D overlay over it: Renderer.composedImage), not one flat fill.
+        const d = r.composedImage().data;
         const seen = new Set();
         for (let i = 0; i < d.length; i += 4 * 997) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
         return { backend: r.stats.backend, objects: r.stats.objects, models: r.stats.models, drawCalls: r.stats.drawCalls, textures: r.stats.textures, colours: seen.size };
@@ -3991,7 +3992,7 @@ try {
       await gq.waitForTimeout(500);
       const lowDrawn = await gq.evaluate(() => {
         const r = window.colonia.renderer;
-        const d = r.ctx.getImageData(0, 0, r.canvas.width, r.canvas.height).data;
+        const d = r.composedImage().data;
         const seen = new Set();
         for (let i = 0; i < d.length; i += 4 * 997) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
         return { ground: r.stats.ground, backend: r.stats.backend, colours: seen.size, redraws: r.stats.groundRedraws, objects: r.stats.objects };
@@ -4038,7 +4039,7 @@ try {
           const r = app.canvas.getBoundingClientRect();
           const px = Math.round((x - r.left) * app.renderer.camera.dpr);
           const py = Math.round((y - r.top) * app.renderer.camera.dpr);
-          const d = app.renderer.ctx.getImageData(px - 2, py - 2, 5, 5).data;
+          const d = app.renderer.composedImage(px - 2, py - 2, 5, 5).data;
           let rr = 0, gg = 0, bb = 0;
           for (let i = 0; i < d.length; i += 4) { rr += d[i]; gg += d[i + 1]; bb += d[i + 2]; }
           return [rr / 25, gg / 25, bb / 25].map(Math.round);

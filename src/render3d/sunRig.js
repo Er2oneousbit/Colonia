@@ -186,15 +186,36 @@ export class SunRig {
     this.withOutput(() => this.gl.render(this.scene, camera));
   }
 
-  /** Draw the models alone (the ground hidden: drawn otherwise, or not at all). */
-  renderModels(camera) {
+  /**
+   * Draw the models alone (the ground hidden: drawn otherwise, or not at
+   * all): all their parts, or 'opaque' or 'see-through' ones only (the
+   * ground is copied in behind the opaque ones before the water goes over,
+   * groundPass.js). The first draw of a frame draws the sun's shadow map.
+   */
+  renderModels(camera, parts = 'all') {
     const g = this.groundSlot.visible;
     this.groundSlot.visible = false;
+    const hidden = [];
+    if (parts !== 'all') {
+      for (const o of this.modelSlot.children) {
+        if (!o.visible || !o.material) continue;
+        if (o.material.transparent === (parts === 'opaque')) {
+          o.visible = false;
+          hidden.push(o);
+        }
+      }
+    }
     try {
       this.render(camera);
     } finally {
       this.groundSlot.visible = g;
+      for (const o of hidden) o.visible = true;
     }
+  }
+
+  /** Are any of the models' see-through parts drawn this frame? */
+  hasSeeThrough() {
+    return this.modelSlot.children.some((o) => o.visible && o.material && o.material.transparent);
   }
 
   /** Draw the build ghost alone, over everything drawn so far (the shadow map is not drawn again). */

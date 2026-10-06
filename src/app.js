@@ -54,7 +54,7 @@ import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
 const FORT_KEY_DOUBLE_MS = 450;
 const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
 
-const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ground: 'auto', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
+const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ground: 'auto', renderScale: 'auto', fullscreen: true, ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
 
 /** Does the player's system ask for less motion (accessibility setting)? */
 function prefersReducedMotion() {
@@ -234,7 +234,7 @@ export class App {
    */
   applyRenderer() {
     const want = (this.flags.renderer || this.settings.renderer) === 'webgl' ? 'webgl' : 'classic';
-    if (want === this.rendererWant) { this.applyGround(); return; }
+    if (want === this.rendererWant) { this.applyGround(); this.applyRenderScale(); return; }
     this.rendererWant = want;
     const r = this.renderer;
     this.rendererNote = '';
@@ -242,7 +242,9 @@ export class App {
     try {
       r.setBackend(new WebGLBackend(r));
       this.groundWant = null; // (a new back end starts with its ground off)
+      this.scaleWant = null;
       this.applyGround();
+      this.applyRenderScale();
     } catch (err) {
       r.setBackend(null);
       this.rendererNote = 'WebGL is not available in this browser, so the Classic renderer draws the city.';
@@ -264,6 +266,20 @@ export class App {
     if (want === this.groundWant) return;
     this.groundWant = want;
     be.setGround(want);
+  }
+
+  /**
+   * The WebGL renderer's render scale (render3d/renderScale.js): Auto, or a
+   * share of the device pixels for the 3D scene (never the HUD or text).
+   * The URL's scale= flag wins until the player picks in Settings.
+   */
+  applyRenderScale() {
+    const be = this.renderer.backend;
+    if (!be || be.kind !== 'webgl') return;
+    const want = String(this.flags.scale || this.settings.renderScale || 'auto');
+    if (want === this.scaleWant) return;
+    this.scaleWant = want;
+    be.setRenderScale(want);
   }
 
   // ------------------------------------------------------------ game setup
@@ -1096,7 +1112,7 @@ export class App {
       backend: be.kind,
       size: `${cam.viewW}x${cam.viewH}`,
       dpr: Math.round(cam.dpr * 100) / 100,
-      scene: webgl && be.sceneSize ? `${be.sceneSize} (${Math.round(be.sceneScale * 100)}%)` : '',
+      scene: webgl && be.sceneSize ? `${be.sceneSize} (${Math.round(be.sceneScale * 100)}%, ground ${Math.round(be.groundShare * 100)}%${be.auto ? ', Auto' : ''})` : '',
       drawCalls: st.drawCalls,
       gpuTimer: webgl && be.timer && be.timer.available,
       ground: webgl ? st.ground : '',
@@ -1117,6 +1133,7 @@ export class App {
 
   frame(now) {
     requestAnimationFrame((t) => this.frame(t));
+    const prevFrame = this.lastFrame;
     const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     const frameStart = performance.now();
@@ -1156,9 +1173,12 @@ export class App {
       const tUi = performance.now();
       this.ui.update(dt, now);
       const st = this.renderer.stats;
-      this.perfMeter.frame(dt, performance.now() - frameStart, {
+      const pageMs = performance.now() - frameStart;
+      this.perfMeter.frame(dt, pageMs, {
         sim: simMs, collect: st.collectMs, draw: st.drawMs, copy: st.copyMs, overlay: st.overlayMs, ui: performance.now() - tUi, gpu: st.gpuMs,
       });
+      // The render scale's Auto learns from the frames as shown (WebGL only; render3d/renderScale.js).
+      if (this.renderer.be.tune) this.renderer.be.tune((now - prevFrame), pageMs, now);
       // performance counters
       const p = this.perf;
       p.frames++;

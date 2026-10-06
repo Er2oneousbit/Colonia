@@ -28,12 +28,18 @@
  * does instead: nothing under the ground is drawn (materials.js uLookClipY).
  *
  * Quality: 'high' (two samples a kind against tiling, puddles, glitter,
- * model shadows, water moving: the ground and the models drawn in one go)
- * or 'low' (one sample a kind, no shadow map, still water: for phones). Low
- * keeps its picture: the ground alone is drawn into a texture only when what
- * it shows changed (the camera, the map, the light, the weather), and each
- * frame copies that texture (the back end then draws the models over it),
- * so a still view costs a copy. (The ground's shader is most of a frame without a GPU: on
+ * model shadows, water moving) or 'low' (one sample a kind, no shadow map,
+ * still water). Either way the ground alone is drawn into a texture (the
+ * shader tone maps and encodes sRGB itself: GROUND_OWN_OUTPUT), at `scale`
+ * of the WebGL canvas's pixels, and copied onto the canvas behind the
+ * models (the copy goes only where no model wrote its depth): the ground's
+ * shader is most of the GPU's work, so the render scale's Auto draws it at
+ * a lower resolution first, where it shows least (a soft surface under
+ * sharp sprites and models). High draws it every frame (its water moves),
+ * after the models' opaque parts, whose shadows it takes from the sun's
+ * shadow map drawn with them. Low keeps its picture: it is drawn again
+ * only when what it shows changed (the camera, the map, the light, the
+ * weather), so a still view costs a copy. (The ground's shader is most of a frame without a GPU: on
  * SwiftShader about 450 ms a frame on a 1600 x 900 view, against 75 ms for
  * a plain material, so Auto shows the flat sprites there.)
  *
@@ -53,7 +59,7 @@
 
 import {
   Scene, Group, Vector3, WebGLRenderTarget, UnsignedByteType, NoColorSpace, Mesh, PlaneGeometry,
-  RawShaderMaterial, GLSL3, OrthographicCamera, NearestFilter,
+  RawShaderMaterial, GLSL3, OrthographicCamera, NearestFilter, LinearFilter, LessEqualDepth,
 } from 'three';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
@@ -76,6 +82,13 @@ export function seasonPos(month, dayFrac = 0) {
   if (b < a - 2) b += 4; // autumn (3.5) on into winter (0 = 4)
   return (a + (b - a) * dayFrac) % 4;
 }
+
+/**
+ * Low's ground is drawn at most at this share of the WebGL canvas's pixels
+ * (each axis): panning redraws it every frame, and at a pixel ratio of 2
+ * its full size cost a desktop GPU 17 ms a frame against about 10 here.
+ */
+export const LOW_SCALE = 0.75;
 
 export class GroundPass {
   /**
@@ -105,6 +118,7 @@ export class GroundPass {
     this.stateKey = '';
     this.blit = null;
     this.redraws = 0; // pictures drawn into the cache (stats, tests)
+    this.scale = 1; // the share of the WebGL canvas's pixels the ground is drawn at (setScale)
     this.liveAt = -Infinity; // when the live tiles were last read (sync)
     this.compiled = false;
     this.compileMs = 0;
@@ -207,7 +221,7 @@ export class GroundPass {
       this.dropGround();
       const map = game.map;
       // (What the buildings and fires make of the ground: groundSites.js.)
-      this.ground = new Ground(map, this.tex, { quality: this.quality, hooks: gameSiteHooks(game), ownOutput: this.quality === 'low' });
+      this.ground = new Ground(map, this.tex, { quality: this.quality, hooks: gameSiteHooks(game), ownOutput: true });
       // (No depth: see the header.)
       this.ground.material.depthWrite = false;
       this.ground.material.depthTest = false;
@@ -275,7 +289,7 @@ export class GroundPass {
    */
   warmUp(camera) {
     const t0 = performance.now();
-    const stand = new Ground(new GameMap(16, 16), this.tex, { quality: this.quality, ownOutput: this.quality === 'low' });
+    const stand = new Ground(new GameMap(16, 16), this.tex, { quality: this.quality, ownOutput: true });
     stand.material.depthWrite = false;
     stand.material.depthTest = false;
     this.root.add(stand.group);
@@ -307,29 +321,35 @@ export class GroundPass {
   }
 
   /**
-   * Draw the ground with `camera` (the back end's): tone mapped and in
-   * sRGB. High: with the models, in one go (they share its light and its
-   * shadow map). Low: from its kept picture, drawn again only when `view`
-   * (the 2D camera's place, scale and turn) or what the ground shows
-   * changed; the back end draws the models over it.
+   * Draw the ground with `camera` (the back end's), tone mapped and in sRGB,
+   * behind what is drawn already (the models' opaque parts: the copy fills
+   * only what no model covers). High draws its picture every frame, Low only
+   * when `view` (the 2D camera's place, scale and turn) or what the ground
+   * shows changed (see the header).
    */
   render(camera, view = '') {
-    if (this.quality === 'low') {
-      this.renderCached(camera, view);
-      return;
-    }
-    this.withOutput(() => this.gl.render(this.scene, camera));
+    this.renderCached(camera, view, this.quality !== 'low');
   }
 
   /**
-   * Run `fn` with the renderer set up as the ground is drawn: ACES and sRGB
-   * on the screen (High). Low draws into its own texture, where three
-   * applies neither (the shader does: GROUND_OWN_OUTPUT), so it changes
-   * nothing.
+   * The share of the WebGL canvas's pixels the ground is drawn at (0.25 to
+   * 1; the render scale's Auto, webglBackend.js). A new size draws again.
+   */
+  setScale(s) {
+    const v = Math.max(0.25, Math.min(1, s || 1));
+    if (v === this.scale) return;
+    this.scale = v;
+    this.cacheDirty = true;
+  }
+
+  /**
+   * Run `fn` with the renderer set up as the ground is drawn. It is always
+   * drawn into its own texture now, where three applies neither tone
+   * mapping nor sRGB (the shader does both: GROUND_OWN_OUTPUT), so this
+   * changes nothing: the compile runs under the very state the draw does.
    */
   withOutput(fn) {
-    if (this.quality === 'low') return fn();
-    return this.rig.withOutput(fn);
+    return fn();
   }
 
   /** What the ground shows, rounded so that a change too small to see redraws nothing. */
@@ -343,19 +363,23 @@ export class GroundPass {
     ].join(',');
   }
 
-  renderCached(camera, view) {
+  renderCached(camera, view, always = false) {
     const gl = this.gl;
     const size = gl.getDrawingBufferSize(new Vector3());
-    const w = Math.max(1, size.x);
-    const h = Math.max(1, size.y);
+    // (Low is the quality picked for speed: its ground at most LOW_SCALE of the canvas's pixels.)
+    const k = this.quality === 'low' ? Math.min(this.scale, LOW_SCALE) : this.scale;
+    const w = Math.max(1, Math.round(size.x * k));
+    const h = Math.max(1, Math.round(size.y * k));
     if (!this.cache || this.cache.width !== w || this.cache.height !== h) {
       if (this.cache) this.cache.dispose();
-      // Linear 8-bit: the shader writes its sRGB bytes itself (GROUND_OWN_OUTPUT).
-      this.cache = new WebGLRenderTarget(w, h, { type: UnsignedByteType, colorSpace: NoColorSpace, depthBuffer: false, minFilter: NearestFilter, magFilter: NearestFilter });
+      // Linear 8-bit: the shader writes its sRGB bytes itself (GROUND_OWN_OUTPUT). Copied pixel
+      // for pixel, or stretched smoothly when drawn smaller.
+      const filter = w === size.x && h === size.y ? NearestFilter : LinearFilter;
+      this.cache = new WebGLRenderTarget(w, h, { type: UnsignedByteType, colorSpace: NoColorSpace, depthBuffer: false, minFilter: filter, magFilter: filter });
       this.cacheDirty = true;
     }
     const key = `${view}|${this.groundState()}`;
-    if (this.cacheDirty || key !== this.cacheKey) {
+    if (always || this.cacheDirty || key !== this.cacheKey) {
       const prev = gl.getRenderTarget();
       const ac = gl.autoClear;
       gl.setRenderTarget(this.cache);
@@ -389,7 +413,11 @@ export class GroundPass {
   }
 }
 
-/** A quad over the whole picture that copies a texture's bytes as they are (Low's kept picture). */
+/**
+ * A quad over the whole picture that copies the ground's texture as it is,
+ * at the far plane with the depth test on: where a model wrote its depth
+ * the copy does not go, so the ground lands behind the models drawn first.
+ */
 function makeBlit() {
   const material = new RawShaderMaterial({
     glslVersion: GLSL3,
@@ -399,7 +427,7 @@ in vec3 position;
 out vec2 vUv;
 void main() {
   vUv = position.xy * 0.5 + 0.5;
-  gl_Position = vec4(position.xy, 0.0, 1.0);
+  gl_Position = vec4(position.xy, 1.0, 1.0);
 }`,
     fragmentShader: `
 precision highp float;
@@ -407,7 +435,8 @@ uniform sampler2D map;
 in vec2 vUv;
 out vec4 outColor;
 void main() { outColor = texture(map, vUv); }`,
-    depthTest: false,
+    depthTest: true,
+    depthFunc: LessEqualDepth,
     depthWrite: false,
   });
   const mesh = new Mesh(new PlaneGeometry(2, 2), material);

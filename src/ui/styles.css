@@ -105,6 +105,16 @@ button, input, select { font: inherit; color: inherit; }
   touch-action: none;
 }
 
+/* The WebGL renderer's canvas and the transparent 2D canvas over it, under #view
+   (render/renderer.js mountLayers): never in the way of input. */
+.view-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  pointer-events: none;
+}
+
 .hidden { display: none !important; }
 
 /* ---------- top HUD --------------------------------------------------------- */
