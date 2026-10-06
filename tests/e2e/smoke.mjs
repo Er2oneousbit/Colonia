@@ -1724,10 +1724,19 @@ try {
     const seen = () => [...g.walkers.values()].find((w) => w.type === 'prefect' && w.state === 'extinguish' && g.fires.has(w.fireTile));
     for (let t = 0; t < 8 * 20 && !seen(); t++) g.runTicks(1); // up to 8 days (20 ticks a day)
     const p = seen();
-    return p ? { id: p.id, tile: p.fireTile } : null;
+    if (p) return { id: p.id, tile: p.fireTile };
+    // (None came: say what the prefects were doing. This check failed once on a
+    // random map with no cause found, v0.20.9: a lead is crews still running to
+    // fires the steps before cleared, which count as out.)
+    const t0 = window.__torch;
+    const posts = [...g.buildings.values()].filter((b) => b.type === 'prefecture').map((b) => ({
+      at: [b.x, b.y], eff: b.efficiency, road: b.accessRoad >= 0, crew: (b.walkers || []).map((id) => g.walkers.get(id)).filter(Boolean)
+        .map((w) => `${w.state}${w.fireTile !== undefined ? (g.fires.has(w.fireTile) ? ':live' : ':gone') : ''}`),
+    }));
+    return { none: true, burning: g.fires.size, at: t0 && [t0.x, t0.y], posts, seed: g.seed };
   }) : null;
   let douse = null;
-  if (fought) {
+  if (fought && !fought.none) {
     await page.waitForTimeout(200); // a few frames drawn with him at work
     douse = await page.evaluate((f) => {
       const app = window.colonia;
@@ -1739,7 +1748,7 @@ try {
     }, fought);
   }
   check('a prefect fights a burning building and its panel says "Being put out by a prefect"',
-    !!fought && /Being put out by a prefect/.test(douse?.text || '') && errors.length === douseErrors, JSON.stringify({ torch3, lit3, fought, douse, errors: errors.slice(douseErrors, douseErrors + 3) }));
+    !!fought && !fought.none && /Being put out by a prefect/.test(douse?.text || '') && errors.length === douseErrors, JSON.stringify({ torch3, lit3, fought, douse, errors: errors.slice(douseErrors, douseErrors + 3) }));
   await page.evaluate((was) => {
     const app = window.colonia;
     app.game.fires.clear();
@@ -1830,14 +1839,23 @@ try {
     const bk = [...g.buildings.values()].find((b) => b.type === 'barracks');
     const why = bk ? { eff: bk.efficiency, labor: bk.laborAccess, road: bk.accessRoad, stock: bk.stock, workforce: g.city.workforce, jobs: g.city.jobs, prio: g.city.laborPriority, fortsStaffed: forts.filter((f) => f.efficiency > 0).length } : { barracks: false };
     // Undeployed forts hold their ground: every soldier stands by his fort (its formation reaches 5 tiles from its post).
-    const strays = [...g.units.values()].filter((u) => u.side === 'rome' && u.fort).filter((u) => {
+    const away = [...g.units.values()].filter((u) => u.side === 'rome' && u.fort).filter((u) => {
       const f = g.buildings.get(u.fort);
       return !f || f.rally || Math.hypot(u.x - (f.x + f.size / 2), u.y - (f.y + f.size / 2)) > f.size / 2 + 7;
-    }).length;
-    return { out, forts: forts.length, soldiers, strays, fortId: fort ? fort.id : 0, fx: fort ? fort.x : 0, fy: fort ? fort.y : 0, why, seed: g.seed };
+    });
+    // (When one is away, say who and why: his state, target, trip and the nearest foe.
+    // This check failed once on a random map with no cause found, v0.20.9.)
+    const strayWhy = away.map((u) => {
+      const f = g.buildings.get(u.fort);
+      const t = u.target ? g.units.get(u.target) : null;
+      const foes = [...g.units.values()].filter((o) => o.side !== 'rome' && o.hp > 0);
+      const near = foes.sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
+      return { type: u.type, state: u.state, at: [Math.round(u.x), Math.round(u.y)], fort: f ? [f.type, f.x, f.y, !!f.rally] : null, target: t ? `${t.side}/${t.type}` : null, drill: u.drill || 0, foe: near ? `${near.side}/${near.type} ${Math.round(Math.hypot(near.x - u.x, near.y - u.y))} tiles` : null };
+    });
+    return { out, forts: forts.length, soldiers, strays: away.length, strayWhy, fortId: fort ? fort.id : 0, fx: fort ? fort.x : 0, fy: fort ? fort.y : 0, why, seed: g.seed };
   });
   check('garrison: forts built and soldiers recruited', gar.forts >= 1 && gar.soldiers >= 1, `${gar.forts} forts, ${gar.soldiers} soldiers; ${gar.out}; ${JSON.stringify(gar.why)}; seed ${gar.seed}`);
-  check('garrison: undeployed soldiers stand by their forts', gar.strays === 0, `${gar.strays} of ${gar.soldiers} away from their fort`);
+  check('garrison: undeployed soldiers stand by their forts', gar.strays === 0, `${gar.strays} of ${gar.soldiers} away from their fort; seed ${gar.seed}; ${JSON.stringify(gar.strayWhy)}`);
   if (gar.fortId) {
     await page.evaluate((id) => { window.colonia.renderer.camera.centerOnTile(window.colonia.game.buildings.get(id).x, window.colonia.game.buildings.get(id).y); window.colonia.ui.info.showBuilding(id); }, gar.fortId);
     await page.click('#info-panel button:has-text("Deploy")');
