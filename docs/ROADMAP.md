@@ -13,6 +13,16 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.11)
+
+* **The market in 3D** (under WebGL): a macellum after Pompeii's, Puteoli's and Leptis Magna's, a tholos of eight columns over a water basin with fish on its marble counters, and stalls round the court under striped awnings selling what the market holds (sacks of grain, baskets of produce, oil and wine jars, red pottery, furniture, cloth), more as its stock grows; with no workers the awnings are rolled up
+* **The forum in 3D**: the tax office on a travertine podium behind four columns, TABVLARIVM PVBLICVM over them, a counting table with coin, a tablet and a balance, a strongbox, a tribunal and a statue; working, its doors are open and a clerk takes a citizen's payment; idle, all is shut
+* **The warehouse in 3D, showing how full it is and with what**: a horreum after Ostia's, brick behind a gateway of columns and a pediment, its court filling load by load with the goods it holds as they look (wine and oil in their amphorae, sacks, baskets, barrels, logs, iron bars, marble blocks, bolts of linen, crates of pottery and arrows, furniture, shields)
+* Measured on a stocked Large city at a pixel ratio of 2: 19.2 to 20.9 ms a frame (18.3 to 20.4 with their sprites)
+* A browser check fixed: the 3D ground's overlay check read its colours a fixed three frames after a change, while a software GL could still be settling the picture; it now reads once two reads agree
+* Headless sim: identical to v0.20.10 on every difficulty
+* 1172 unit tests, 249 browser checks
+
 ## Done (v0.20.10)
 
 * **The farms in 3D** (under WebGL): one farmhouse after Cato, Varro, Columella and the farmsteads round Pompeii (rubble walls, a tiled roof, a grain loft, a lararium by the door), and each kind's working things: wheat's threshing floor, straw stack and stooks; the vegetable garden's wattle fence and well sweep; orchards of apple, pear and fig, bare in winter, in blossom in spring, in fruit as it ripens; gnarled olives and an oil mill; vines on stakes with grapes in late summer and a treading vat; flax on drying racks by a retting pond; a pig sty with pigs rooting, more as the farm prospers; a stable with a horse in the paddock for each breeding mare. A farm at rest for the winter has its tools put away, one with no workers its shutters closed and its stacks slumped
