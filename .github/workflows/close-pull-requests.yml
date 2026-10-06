@@ -17,7 +17,7 @@ permissions:
 jobs:
   close:
     if: github.event.pull_request.user.login != github.repository_owner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Close with a note
         env:

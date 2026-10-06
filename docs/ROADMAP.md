@@ -13,6 +13,25 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.8)
+
+* **Nobody is left inside a huge placement**: a soldier, raider, wolf or villager deeper than 12 tiles inside what is built at once (a big drag of buildings) now steps out to the nearest open ground too; the search for room goes on to the map's edge when nothing is found close by
+* CI: the workflows' actions are on their current versions (the old ones ran on a retired Node), and the runner is pinned to Ubuntu 24.04 so the move of `ubuntu-latest` to Ubuntu 26 cannot break the browser test unannounced
+* A browser check that failed now and then since v0.18.8 found its cause: on some random maps no free meadow lies within 10 tiles of a road, so the flax farm had nowhere to go; the check now lays one meadow tile by a road there (it tests the menu and placing, not the map) and logs the seed
+* Headless sim: identical to v0.20.7 on every difficulty
+* 1132 unit tests, 234 browser checks
+
+## Done (v0.20.7)
+
+* **Crossings between streets are paved in 3D**: a road tile joining two or more paved streets (a crossing where streets meet with no building of its own, a gap between two blocks) is basalt too, not a gravel square in the middle of town
+* A browser check fixed: the fort hotkey check pressed Shift+1 for fort I, which on some random maps was a fort the garrison had not manned yet (a cavalry fort waiting for horses) and rightly had no standard to hand; it now uses the number of the fort that has soldiers
+* 1131 unit tests, 234 browser checks
+
+## Done (v0.20.6)
+
+* **Streets wrap round their blocks in 3D**: a road is paved as a town street when a building stands on any of its eight sides, not only its four, so a block's corners and the crossings at its ends are basalt like the streets beside them instead of gravel islands; a short straight gap between two blocks is paved too
+* 1131 unit tests, 234 browser checks
+
 ## Done (v0.20.5)
 
 * **The fountain in 3D, in four looks that follow its neighbourhood** (under WebGL): a plain lava lacus like most of Pompeii's street fountains, a limestone lacus with a carved water-god head, a marble basin with a bronze lion's-head spout, and a small nymphaeum with a mosaic niche, columns and a nymph pouring water. The look comes from the desirability of the fountain's tile, as fountains looked finer in finer quarters in the original (render only: the rules do not change). Water runs from the spout with rings and an overflow; a fountain with water but no workers stands still, one without water is dry and stained; in hard frost the water keeps running under icicles
@@ -824,9 +843,8 @@ Ideas that would change the original's economy or rules; each would come as an o
 * Smaller saves for very big cities: buildings are about 0.8 KB each in a save (mostly the house record), so a 1,500-building capital needs about 1.5 MB per slot. Dropping default-valued fields, or compressing the whole save, would stretch the ~5 MB browser allowance further.
 * **The ship bridge's leftovers** (v0.18.8): a small step where two ship bridges cross at a bridge's first water tile, and where a shore road runs right beside that tile; a ship's mast top vanishes the moment it passes under the deck's far edge.
 * **The capacity model and the Arena's longer walk** (v0.19.11): the model still plans the Great Arena's performers at 26 tiles, not 52; planning them at 52 lowers the job ceilings of missions 5 to 10 by 400 to 1,100 people, so it waits for the next look at the late missions' goals.
-* **Units inside a huge placement** (v0.18.8): a unit more than 12 tiles inside one huge placement is not moved off it.
-* **A smoke check fails now and then** on the main page's random map (v0.18.8, root cause not yet found): "the cloth chain can be placed" (no free meadow within 10 tiles of a road on that map: the search, not the rule). Log the seed on failure and find the cause. (Its partner, "a second fire pauses again", was found in v0.18.9: the home it torched could merge into a neighbour's and vanish, and the check waited on its old id.)
-* **The WebGL renderer, phase 2**: more 3D models, one building type at a time, then walkers and units; terrain relief; real lighting and shadows in place of the 2D shadow shapes and the night light map; model ghosts when placing a building, and models fading in as they are built (they now pop in opaque while rising); overlays, coverage and signs merged into the scene's depth; a sprite atlas or instancing to cut draw calls; free rotation and tilt; loading three.js only for players who pick WebGL, so Classic players do not download its 543 KB.
+* **A street-level camera (WebGL)**: tilt and turn the camera down to street height to see the 3D art up close, at first as a photo mode for looking round the city. It needs the trees, the common buildings and the walkers as 3D models first: today's flat sprites are drawn for the overhead view and would read as cards lying on the ground from low down. Closer zoom levels for the overhead view come before it.
+* **The WebGL renderer, phase 2**: more 3D models, one building type at a time, then walkers and units; terrain relief; real lighting and shadows in place of the 2D shadow shapes and the night light map for what is still a sprite (the models cast real shadows already); the night lit in 3D, so water and stone catch the lamps; models fading in as they are built (they now pop in opaque while rising); overlays, coverage and signs merged into the scene's depth; a sprite atlas to cut the sprites' draw calls (the models are instanced already); loading three.js only for players who pick WebGL, so Classic players do not download its 543 KB.
 
 ## Decisions
 

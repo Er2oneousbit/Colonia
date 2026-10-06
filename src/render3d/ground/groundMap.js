@@ -273,11 +273,15 @@ export function kindOf(terrain, x, y, shoreD) {
 /**
  * The road byte (G) of a tile: links, surface, rubble, bridge. A street in
  * town is paved in basalt, as Roman towns paved theirs: a road with a
- * building on one of its four sides (not a farm: a lane between fields
- * stays a country road), or the Imperial road's fixed ends (map.fixedRoad);
- * any other road is gravel (a via glareata), so a town paves itself as it
- * grows along its roads. `town(i)`: does tile i hold a building that makes
- * a street of a road beside it.
+ * building on any of its eight sides (not a farm: a lane between fields
+ * stays a country road), a road joining two or more such roads (the gap
+ * between two blocks, a crossing where streets meet with no building of
+ * its own), or the Imperial road's fixed ends
+ * (map.fixedRoad); any other road is gravel (a via glareata), so a town
+ * paves itself as it grows along its roads. The diagonals count so a
+ * block's corners and the crossings at its ends are paved with the
+ * streets beside them, not left as gravel islands. `town(i)`: does tile i
+ * hold a building that makes a street of a road beside it.
  */
 export function roadByte(map, x, y, town = () => false) {
   const i = y * map.w + x;
@@ -287,8 +291,26 @@ export function roadByte(map, x, y, town = () => false) {
   if (road === Road.BRIDGE) return g | G_BRIDGE;
   const has = (tx, ty) => map.hasRoad(tx, ty);
   const links = (has(x, y - 1) ? 1 : 0) | (has(x + 1, y) ? 2 : 0) | (has(x, y + 1) ? 4 : 0) | (has(x - 1, y) ? 8 : 0);
-  const w = map.w;
-  const street = map.fixedRoad[i] || (y > 0 && town(i - w)) || (x < w - 1 && town(i + 1)) || (y < map.h - 1 && town(i + w)) || (x > 0 && town(i - 1));
+  const nearTown = (tx, ty) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const ux = tx + dx;
+        const uy = ty + dy;
+        if ((dx || dy) && ux >= 0 && uy >= 0 && ux < map.w && uy < map.h && town(uy * map.w + ux)) return true;
+      }
+    }
+    return false;
+  };
+  // A road it links to that is a street by its own buildings (not by this rule, so no chain runs on).
+  const paved = (tx, ty) => map.hasRoad(tx, ty) && map.road[ty * map.w + tx] !== Road.PLAZA && (map.fixedRoad[ty * map.w + tx] || nearTown(tx, ty));
+  let joined = 0;
+  if (links & 1 && paved(x, y - 1)) joined++;
+  if (links & 2 && paved(x + 1, y)) joined++;
+  if (links & 4 && paved(x, y + 1)) joined++;
+  if (links & 8 && paved(x - 1, y)) joined++;
+  // Two streets met or carried on through this tile: a straight gap between two blocks, a
+  // corner or a crossing where streets meet with no building of its own.
+  const street = map.fixedRoad[i] || nearTown(x, y) || joined >= 2;
   const surface = road === Road.PLAZA ? ROAD_SURFACE.FLAGS : street ? ROAD_SURFACE.BASALT : ROAD_SURFACE.GRAVEL;
   return g | links | (surface << 4);
 }
@@ -444,15 +466,18 @@ export class GroundMap {
       if (waterChanged) {
         for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) repack(x, y);
       } else {
-        // A changed tile, and its four neighbours (their road links and site links point at it).
+        // A changed tile and every tile within two of it: road links and site
+        // links point at their four neighbours, a street is paved by a building
+        // on any of its eight sides, and a stretch between two streets by
+        // buildings two tiles off (roadByte).
         const done = new Uint8Array(n);
         for (let i = 0; i < n; i++) {
           if (!changed[i]) continue;
           const x = i % w;
           const y = (i / w) | 0;
-          for (const [dx, dy] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]]) {
-            const tx = x + dx;
-            const ty = y + dy;
+          for (let k = 0; k < 25; k++) {
+            const tx = x + (k % 5) - 2;
+            const ty = y + ((k / 5) | 0) - 2;
             if (tx < 0 || ty < 0 || tx >= w || ty >= h || done[ty * w + tx]) continue;
             done[ty * w + tx] = 1;
             repack(tx, ty);

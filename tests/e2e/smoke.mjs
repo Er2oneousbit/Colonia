@@ -1071,7 +1071,32 @@ try {
           }
         }
       }
-      if (!best) return null;
+      if (!best) {
+        // No free meadow within 10 tiles of any road on this map (the cause of
+        // this check's occasional failure since v0.18.8: the map, not the rule).
+        // The check is of the menu and the placing, so lay one meadow tile under
+        // a free spot by a road, as a farm needs some meadow under it, and say so.
+        for (let r = 2; r < 60; r++) {
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+            const x = home.x + dx; const y = home.y + dy;
+            if (!m.inBounds(x, y) || !m.inBounds(x + size, y + size)) continue;
+            let open = true;
+            for (let ty = 0; ty < size && open; ty++) for (let tx = 0; tx < size; tx++) if (!m.isFree(x + tx, y + ty) || m.terrain[m.idx(x + tx, y + ty)] === 2) { open = false; break; }
+            let byRoad = false;
+            for (let k = 0; k < size; k++) if (m.hasRoad(x + k, y - 1) || m.hasRoad(x + k, y + size) || m.hasRoad(x - 1, y + k) || m.hasRoad(x + size, y + k)) byRoad = true;
+            if (!open || !byRoad) continue;
+            const off = Math.floor((size - 1) / 2);
+            m.terrain[m.idx(x + off, y + off)] = 1;
+            m.touch();
+            console.log(`smoke: no meadow near a road on seed ${app.game.seed}: laid one at ${x + off},${y + off}`);
+            app.renderer.camera.centerOnTile(x + off, y + off);
+            app.renderer.render(0, 0.016);
+            return { x, y, ax: x + off, ay: y + off, laid: true };
+          }
+        }
+        return null;
+      }
       const off = Math.floor((size - 1) / 2);
       app.renderer.camera.centerOnTile(Math.round((best.link.x + best.link.rx) / 2), Math.round((best.link.y + best.link.ry) / 2));
       app.renderer.render(0, 0.016);
@@ -1846,33 +1871,37 @@ try {
     // Never leave deploy mode on for the steps that follow.
     await page.evaluate(() => { if (window.colonia.deploying) window.colonia.cancelDeploy(); });
 
-    // 5b1. Numbered forts: Shift+1 picks up fort I's standard, twice glides to it; the
+    // 5b1. Numbered forts: Shift+N picks up fort N's standard, twice glides to it; the
     //      deployed fort's standard is a click target and can be dragged
     //      (sim/fortNumbers.js, input.js), at any view turn.
-    const far = await page.evaluate(() => {
+    // The fort with soldiers (gar.fortId), by its own number: fort I could be one the
+    // garrison has not manned yet (a cavalry fort waiting for horses), which rightly
+    // has no standard to hand (the check failed so on one random map).
+    const far = await page.evaluate((fid) => {
       const app = window.colonia;
       app.ui.info.close();
-      const f = [...app.game.buildings.values()].find((b) => b.def.kind === 'fort' && b.number === 1);
-      if (!f) return null;
+      const f = app.game.buildings.get(fid);
+      if (!f || !f.number || f.number > 9) return null;
       const m = app.game.map;
       // Look away first: the far side of the map from the fort.
       app.renderer.camera.centerOnTile(f.x < m.w / 2 ? m.w - 12 : 12, f.y < m.h / 2 ? m.h - 12 : 12);
-      return { id: f.id, x: f.x + 1, y: f.y + 1 };
-    });
+      return { id: f.id, x: f.x + 1, y: f.y + 1, n: f.number, roman: ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'][f.number] };
+    }, gar.fortId);
+    const key = `Shift+Digit${far ? far.n : 1}`;
     await page.mouse.move(400, 300); // (the pointer over the map, not a button the press could land on)
-    // One press: fort I's standard in hand where the view is, its panel open, the view still.
+    // One press: fort N's standard in hand where the view is, its panel open, the view still.
     const camBefore = await page.evaluate(() => ({ x: window.colonia.renderer.camera.x, y: window.colonia.renderer.camera.y }));
-    await page.keyboard.press('Shift+Digit1');
+    await page.keyboard.press(key);
     await page.waitForTimeout(600);
     const picked = await page.evaluate((c) => {
       const app = window.colonia;
       const cam = app.renderer.camera;
       return { deploying: app.deploying, target: app.ui.info.target, still: Math.abs(cam.x - c.x) < 1 && Math.abs(cam.y - c.y) < 1 };
     }, camBefore);
-    check('Shift+1 picks up the standard of fort I where the view is (its panel open, the view still)', !!far && picked.deploying === far.id && picked.target?.id === far.id && picked.still, JSON.stringify({ far, picked }));
+    check('Shift+N picks up the standard of fort N where the view is (its panel open, the view still)', !!far && picked.deploying === far.id && picked.target?.id === far.id && picked.still, JSON.stringify({ far, picked }));
     // Twice quickly: the view glides to the fort (and the standard is put down).
-    await page.keyboard.press('Shift+Digit1');
-    await page.keyboard.press('Shift+Digit1');
+    await page.keyboard.press(key);
+    await page.keyboard.press(key);
     await page.waitForTimeout(1500); // the glide
     const one = await page.evaluate((f) => {
       const app = window.colonia;
@@ -1886,7 +1915,7 @@ try {
       const sy = ((w.y - cam.y) * cam.scale) / cam.dpr / r.height;
       return { at, mid: sx > 0.2 && sx < 0.8 && sy > 0.2 && sy < 0.8, target: app.ui.info.target, head: document.querySelector('#info-panel h3')?.textContent || '', text: document.getElementById('info-panel').textContent };
     }, far);
-    check('Shift+1 twice quickly glides to fort I, its panel titled with its number and key', !!far && one.target?.id === far.id && one.mid && / I \(/.test(one.head) && /Shift\+1/.test(one.text), JSON.stringify({ far, at: one.at, mid: one.mid, target: one.target, head: one.head }));
+    check('Shift+N twice quickly glides to fort N, its panel titled with its number and key', !!far && one.target?.id === far.id && one.mid && one.head.includes(` ${far.roman} (`) && one.text.includes(`Shift+${far.n}`), JSON.stringify({ far, at: one.at, mid: one.mid, target: one.target, head: one.head }));
 
     /** CSS px of the middle of a rally flag's cloth, from where the renderer drew it, or null. */
     const flagPoint = (id) => page.evaluate((fid) => {

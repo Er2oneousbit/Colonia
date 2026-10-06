@@ -24,6 +24,7 @@ import { updateWorkshop, updateProducer } from '../src/sim/production.js';
 import { planAction, applyPlan, undoLast } from '../src/sim/construction.js';
 import { launchInvasion, spawnUnit, updateMilitary, deployFort, recallFort, militaryMonthly, garrisonCounts, fortPost, fillField, fortGate, yardSpot } from '../src/sim/military.js';
 import { MinHeap } from '../src/world/pathfinding.js';
+import { makeRoom } from '../src/sim/makeRoom.js';
 import { HERD_START, HERD_MAX, HERD_GROWTH_DAYS, FORT_CAPACITY, UNIT_TYPES } from '../src/data/units.js';
 import { buildDemoCity, buildDemoGarrison, commandGarrison } from '../src/dev/demoCity.js';
 import { newGame, build, findFree, unitCounts } from './helpers.mjs';
@@ -631,6 +632,36 @@ test('review: raiders, a wolf, a villager and a rioter standing where a building
   assert.ok(build(game, 'wall', s.x + 3, s.y + 7, s.x + 3, s.y + 9).ok);
   assert.equal(map.wall[map.idx(s.x + 3, s.y + 8)], Wall.GATE);
   assert.deepEqual([legionary.x, legionary.y], [s.x + 3.5, s.y + 8.5], 'a gate does not move him');
+});
+
+test('a unit deep inside a huge placement (past the usual 12-tile reach) still steps out of it', () => {
+  // A 27 x 27 lot built over at once (a big drag of buildings; Nova Roma will be larger):
+  // a raider in its middle stands 14 tiles from open ground. He was left inside.
+  const game = newGame({ type: 'plains' });
+  const map = game.map;
+  // A 31 x 31 square with no building or fixed road, cleared to grass (no map has that much open land as it comes).
+  let s = null;
+  for (let y = 2; y < map.h - 33 && !s; y++) {
+    for (let x = 2; x < map.w - 33 && !s; x++) {
+      let ok = true;
+      for (let dy = 0; dy < 31 && ok; dy++) for (let dx = 0; dx < 31 && ok; dx++) { const i = map.idx(x + dx, y + dy); if (map.building[i] || map.fixedRoad[i]) ok = false; }
+      if (ok) s = { x, y };
+    }
+  }
+  assert.ok(s, 'room for the lot');
+  for (let dy = 0; dy < 31; dy++) for (let dx = 0; dx < 31; dx++) { const i = map.idx(s.x + dx, s.y + dy); map.terrain[i] = Terrain.GRASS; map.road[i] = 0; }
+  const tiles = [];
+  for (let dy = 2; dy < 29; dy++) for (let dx = 2; dx < 29; dx++) {
+    const i = map.idx(s.x + dx, s.y + dy);
+    map.building[i] = 999;
+    tiles.push(i);
+  }
+  map.touch();
+  const r = spawnUnit(game, 'raider', s.x + 15.5, s.y + 15.5, { state: 'advance' });
+  makeRoom(game, tiles);
+  const at = map.idx(Math.floor(r.x), Math.floor(r.y));
+  assert.ok(!map.building[at], `out of it: at ${Math.floor(r.x) - s.x},${Math.floor(r.y) - s.y}`);
+  assert.ok(Math.max(Math.abs(Math.floor(r.x) - (s.x + 15)), Math.abs(Math.floor(r.y) - (s.y + 15))) === 14, 'at its nearest edge, not thrown further');
 });
 
 test('a gateway opening into a walled pocket is no gate: the men go out by the post, and get to their rally point', () => {
