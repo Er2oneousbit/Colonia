@@ -483,6 +483,57 @@ const marble = {
 };
 
 /**
+ * Brick facing (opus testaceum) as on Ostia's horrea and the commercial
+ * buildings of Rome: thin fired bricks, 4 to 4.5 cm thick, laid in courses
+ * with mortar beds nearly as thick (about 2 cm), the bricks of every
+ * length (they were cut from big square tiles), red to ochre to a few
+ * overfired browns, their faces a little proud of the weathered grey lime
+ * mortar. 16 courses and four bricks a course to a repeat, so it tiles.
+ */
+const brick = {
+  fields: {
+    noise: { face: fbm(30, 3, 0), chip: fbm(12, 3, 2), wear: fbm(4, 3, 4) },
+    glsl: `
+      const float COURSES = 16.0;
+      const float BED = 0.32; // the mortar bed's share of a course
+      int course = int( floor( uv.y * COURSES ) );
+      float fv = fract( uv.y * COURSES );
+      // Each course's bricks start at its own offset; a brick's length wanders by its hash.
+      float off = hash2( course, 7, uSeed );
+      float x = uv.x * 4.0 + off;
+      int i = int( floor( x ) );
+      float fu = fract( x );
+      int id = ( ( i % 4 ) + 4 ) % 4;
+      // The joint between two bricks of a course: about 1 cm, wandering.
+      float cut = 0.05 + hash2( course, id, uSeed + 3 ) * 0.04;
+      float bed = sstep( BED - 0.03, BED + 0.03, fv ) * sstep( 1.0, 0.96, fv );
+      float head = sstep( 0.0, cut, fu ) * sstep( 1.0, 1.0 - cut * 0.4, fu );
+      float b = bed * head;
+      // A brick's face: its own slight tilt and chips at its arrises.
+      float tilt = ( hash2( course, id, uSeed + 5 ) - 0.5 ) * 0.25 * ( fu - 0.5 );
+      float h = b * ( 0.75 + face * 0.12 + tilt - sstep( 0.55, 0.8, chip ) * 0.18 * ( 1.0 - head * bed ) ) + ( 1.0 - b ) * ( 0.25 + wear * 0.15 );
+      return vec4( h, 1.0 - b, hash2( course, id, uSeed + 9 ), 0.0 );`,
+  },
+  blur: [3],
+  colour: {
+    noise: { tone: fbm(3, 4, 6), grit: fbm(70, 2, 8), soot: fbm(5, 3, 10) },
+    glsl: `
+      float cav = cavity( F.x, B.x, 6.0 );
+      float t = F.z;
+      // Mostly red to orange, some ochre-yellow, a few dark overfired ones.
+      vec3 bc = mix( ${rgb('#a8573a')}, ${rgb('#c2794c')}, sstep( 0.2, 0.7, t ) );
+      if ( t > 0.8 ) bc = mix( bc, ${rgb('#c99a62')}, sstep( 0.8, 0.9, t ) );
+      if ( t < 0.08 ) bc = ${rgb('#6e3f2c')};
+      bc *= 0.9 + grit * 0.18;
+      vec3 mc = mix( ${rgb('#b5ad9c')}, ${rgb('#9a9283')}, sstep( 0.4, 0.7, tone ) ) * ( 0.92 + grit * 0.14 );
+      col = mix( bc, mc, sstep( 0.3, 0.7, F.y ) );
+      col = mix( col, ${rgb('#5a4a3e')}, cav * 0.45 + sstep( 0.6, 0.85, soot ) * 0.12 );
+      orm = vec3( 1.0 - cav * 0.5 - F.y * 0.15, 0.82 + F.y * 0.1, 0.0 );`,
+  },
+  normal: { depth: 0.007 / 0.96 },
+};
+
+/**
  * Every surface: how much of the world one repeat covers (metres), the
  * texture size, and its recipe; `height`: the paving's mesh is displaced by
  * its low-passed height, read back from the GPU.
@@ -504,6 +555,8 @@ export const SURFACES = Object.freeze({
   terracotta: { metres: 0.6, size: 256, ...terracotta },
   lava: { metres: 1.0, size: 512, ...lava },
   marble: { metres: 1.6, size: 512, ...marble },
+  // The warehouse's brick facing.
+  brick: { metres: 0.96, size: 512, ...brick },
   // The farms' and the granary's (surfacesRural.js).
   ...RURAL_SURFACES,
 });

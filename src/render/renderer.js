@@ -1479,9 +1479,14 @@ export class Renderer {
     const vt = this.viewTurn;
     if (lamps > 0.01) {
       for (const b of visibleBuildings) {
-        // A 3D model's own lamps (render3d/models.js modelLamps: the granary's lantern), whatever
-        // its kind's windows do; with a model only, so Classic's night is as it was.
-        if (this.be?.hasModel(b.type)) this.modelLampLights(b, lamps, tile, flick);
+        // A 3D model's own lamps (render3d/models.js modelLamps: the granary's lanterns, the forum's by
+        // its door, a warehouse's at its gate), whatever its kind's windows do; with a model only, so
+        // Classic's night is as it was. Its sprite's windows and torches are not where the model's
+        // walls are: a model's lamps are its only lights.
+        if (this.be?.hasModel(b.type)) {
+          this.modelLampLights(b, lamps, tile, flick);
+          continue;
+        }
         if (!isLit(b, lamps)) continue;
         const variant = this.artVariant(b);
         const state = artState(b, farmDormant(game, b));
@@ -1721,8 +1726,8 @@ export class Renderer {
     }
     if (model) this.be.model(b, { T, state, snow, vx: foot.vx, vy: foot.vy, rise });
     const kind = b.def.kind;
-    // (A granary drawn as a 3D model shows its stock in its portico: render3d/models/granary.js.)
-    if (kind === 'warehouse' || (kind === 'granary' && !model)) {
+    // (A store drawn as a 3D model shows its stock itself: a granary in its portico, a warehouse in its court.)
+    if ((kind === 'warehouse' || kind === 'granary') && !model) {
       items.push({ d: front + 0.0005, kind: K_EXTRA, b, wx, wy, stock: true });
     }
     if ((b.type === 'pottery_ws' || b.type === 'weapons_ws') && b.efficiency > 0 && b.progress > 0 && Math.random() < 0.03) {
@@ -1738,7 +1743,8 @@ export class Renderer {
       items.push({ d: front + 0.0006, kind: K_EXTRA, b, wx, wy, spray: true });
     }
     // Live details. Flag cloth always (the sprite only has the poles).
-    const flags = flagsFor(b.type, b.size, T);
+    // (A model has no flag poles for the cloth: its sprite's would fly in the air beside it.)
+    const flags = model ? [] : flagsFor(b.type, b.size, T);
     if (flags.length) items.push({ d: front + 0.0007, kind: K_EXTRA, b, wx, wy: wy + rise, flags });
     if (this.camera.zoom < 0.75 || rise) return; // the rest is too small to see when zoomed out
     if (kind === 'market' && b.efficiency > 0 && hasStock(b)) {

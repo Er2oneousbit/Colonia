@@ -16,7 +16,16 @@
  *         turn, state and snow level), `ctx` the model pass (the fountain's
  *         tier, kept per building)
  *     build(key, lod) -> THREE.Group, in metres (models/well.js says how)
+ *     warm      the looks to build and compile before the first draw
+ *               (enough to make every program and ask for every texture
+ *               its looks will want: one asked for later would put the
+ *               models back to sprites until it is painted)
+ *     lamps(b)  optional: its lamps at night (modelLamps)
  *   }
+ * and variant() may add `more`: [{ key, n, mats, state }], more kits
+ * drawn in the building's frame (n matrices in its metres), each with its
+ * own state: a farm's trees, a granary's sacks, a warehouse's loads, a
+ * market's wares (modelPass.js).
  *
  * A model is made in metres, facing +z, the tile's middle at its origin
  * and the street at y = 0; a game tile is 4 m (TILE_M). modelMatrix() stands
@@ -33,6 +42,7 @@ import { buildWell } from './models/well.js';
 import { buildFountain } from './models/fountain.js';
 import { iceMaterial, stagnantMaterial } from './materials.js';
 import { ART_PX } from './projection.js';
+import { COMMERCE_MODELS } from './models/commerce.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -52,6 +62,9 @@ export function partShows(when, state, ice) {
     case 'flow': return state === 'flowing';
     case 'dry': return state === 'dry';
     case 'ice': return ice && state === 'flowing';
+    // The market's, the forum's and the warehouse's (models/commerce.js): staffed, or not.
+    case 'open': return state === 'open';
+    case 'shut': return state === 'shut';
     default: return false;
   }
 }
@@ -95,6 +108,8 @@ export const MODELS = Object.freeze({
       return f.group;
     },
   }),
+  // The market, the forum and the warehouse (models/commerce.js says how).
+  ...COMMERCE_MODELS,
 });
 
 /**
@@ -161,7 +176,7 @@ const UP = new Vector3(0, 1, 0);
 export function modelMatrix(vx, vy, S, T, rise = 0, out = new Matrix4()) {
   _p.set(vx + S / 2, -rise * ART_PX, vy + S / 2);
   _q.setFromAxisAngle(UP, (-(T & 3) * Math.PI) / 2);
-  // (A model is in metres over its whole footprint: a 3 x 3 farm spans 12 m, a well 4.)
+  // (A model is in metres over its whole footprint: a 3 x 3 farm or warehouse spans 12 m, a market 8, a well 4.)
   _s.setScalar(1 / TILE_M);
   return out.compose(_p, _q, _s);
 }
