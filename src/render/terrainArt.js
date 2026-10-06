@@ -542,8 +542,10 @@ export const BRIDGE_FAR_SIDE = BR_S0; // (bridgeProfile.js mastClip: the far par
 const BR_S1 = 0.8;
 const BR_PIER = 0.14; // a pier's thickness along the bridge
 const BR_SPRING = 7; // where the arches spring, over the water
-const BR_DECK = 5; // the deck's thickness over an arch
+export const BR_DECK = 5; // the deck's thickness over an arch
 export const BR_PARAPET = 4;
+/** How high the crown of a full deck's arch stands (px): under the deck, 3 px of stone over it. */
+export const BRIDGE_CROWN = BRIDGE_DECK_Z - BR_DECK - 3;
 const BR_STONE = '#b9ad94';
 const BR_PAVING = '#a89a80';
 
@@ -611,9 +613,12 @@ function strokeLine(ctx, pts, color, lw) {
  * the near pier and behind the far one, as it would. `abut`: the run's
  * first tile in the view, which draws its own support at the near end.
  * `snow` (0..1) caps the parapets and cutwaters; the deck stays clear, as
- * the roads do.
+ * the roads do. `open`: the sides a way joins this level tile from (1 the
+ * far side, 2 the near side: a road on the bank, or a crossing bridge;
+ * bridgeProfile.js bridgeLook), where the parapet is left out and the deck
+ * runs on to the tile's edge as wide as a deck, so the way meets it.
  */
-export function bridgeSpec(axis, h0 = BRIDGE_DECK_Z, hm = h0, h1 = hm, abut = false, snow = 0) {
+export function bridgeSpec(axis, h0 = BRIDGE_DECK_Z, hm = h0, h1 = hm, abut = false, snow = 0, open = 0) {
   const h = [h0, hm, h1];
   const deck = (t) => deckAt(h, t);
   const top = Math.max(h0, hm, h1);
@@ -624,7 +629,7 @@ export function bridgeSpec(axis, h0 = BRIDGE_DECK_Z, hm = h0, h1 = hm, abut = fa
   const at = axis === 'u' ? (t, s, z) => P(t, s, z) : (t, s, z) => P(s, t, z);
   const tA = abut ? BR_PIER : 0; // the opening, between the supports
   const tB = 1 - BR_PIER;
-  const crown = BRIDGE_DECK_Z - BR_DECK - 3;
+  const crown = BRIDGE_CROWN;
   // A round arch from pier to pier, pressed flat where a ramp comes down over it.
   const arch = (t) => {
     const u = (t - tA) / (tB - tA);
@@ -679,6 +684,13 @@ export function bridgeSpec(axis, h0 = BRIDGE_DECK_Z, hm = h0, h1 = hm, abut = fa
       poly(ctx, [at(tB, BR_S1, -2), at(tm, nose, -2), at(tm, nose, cwH), at(tB, BR_S1, cwH)], shade(stone, -0.02), dark, 0.5);
       poly(ctx, [at(tm, nose, -2), at(1, BR_S1, -2), at(1, BR_S1, cwH), at(tm, nose, cwH)], shade(stone, -0.18), dark, 0.5);
       poly(ctx, [at(tB, BR_S1, cwH), at(tm, nose, cwH), at(1, BR_S1, cwH), at(tm, (BR_S1 + nose) / 2, cwH + 3)], cap, dark, 0.4);
+      // Where a way joins from the side, the deck runs on to the tile's
+      // edge, as wide as the way's own deck (a lip shows on the near side).
+      if (open & 1) poly(ctx, [at(BR_S0, 0, deck(BR_S0)), at(BR_S1, 0, deck(BR_S1)), at(BR_S1, BR_S0, deck(BR_S1)), at(BR_S0, BR_S0, deck(BR_S0))], BR_PAVING, shade(BR_PAVING, -0.35), 0.6);
+      if (open & 2) {
+        poly(ctx, [at(BR_S0, 1, deck(BR_S0)), at(BR_S1, 1, deck(BR_S1)), at(BR_S1, 1, deck(BR_S1) - BR_DECK), at(BR_S0, 1, deck(BR_S0) - BR_DECK)], shade(stone, -0.04), dark, 0.6);
+        poly(ctx, [at(BR_S0, BR_S1, deck(BR_S0)), at(BR_S1, BR_S1, deck(BR_S1)), at(BR_S1, 1, deck(BR_S1)), at(BR_S0, 1, deck(BR_S0))], BR_PAVING, shade(BR_PAVING, -0.35), 0.6);
+      }
       // The deck and its paving joints.
       poly(ctx, [at(-0.02, BR_S0, h0), at(0.5, BR_S0, hm), at(1.02, BR_S0, h1), at(1.02, BR_S1, h1), at(0.5, BR_S1, hm), at(-0.02, BR_S1, h0)], BR_PAVING, shade(BR_PAVING, -0.35), 0.6);
       if (hm !== h0) poly(ctx, [at(0, BR_S0, h0), at(0.5, BR_S0, hm), at(0.5, BR_S1, hm), at(0, BR_S1, h0)], rampLight(hm - h0));
@@ -693,10 +705,19 @@ export function bridgeSpec(axis, h0 = BRIDGE_DECK_Z, hm = h0, h1 = hm, abut = fa
         ctx.lineTo(q[0], q[1]);
       }
       ctx.stroke();
-      // Parapets, the far one first, each with its coping (snow on it in winter).
-      for (const s of [BR_S0, BR_S1]) {
-        poly(ctx, deckBand(at, s, h, 0, BR_PARAPET), shade(stone, s > 0.5 ? -0.08 : 0.05), dark, 0.6);
-        strokeLine(ctx, [at(0, s, h0 + BR_PARAPET), at(0.5, s, hm + BR_PARAPET), at(1, s, h1 + BR_PARAPET)], cap, snow ? 1.5 : 1);
+      // Parapets, the far one first, each with its coping (snow on it in
+      // winter); on an open side only its two ends stand, either side of the way.
+      for (const [s, side] of [[BR_S0, 1], [BR_S1, 2]]) {
+        const color = shade(stone, s > 0.5 ? -0.08 : 0.05);
+        if (!(open & side)) {
+          poly(ctx, deckBand(at, s, h, 0, BR_PARAPET), color, dark, 0.6);
+          strokeLine(ctx, [at(0, s, h0 + BR_PARAPET), at(0.5, s, hm + BR_PARAPET), at(1, s, h1 + BR_PARAPET)], cap, snow ? 1.5 : 1);
+          continue;
+        }
+        for (const [ta, tb] of [[0, BR_S0], [BR_S1, 1]]) {
+          poly(ctx, [at(ta, s, deck(ta)), at(tb, s, deck(tb)), at(tb, s, deck(tb) + BR_PARAPET), at(ta, s, deck(ta) + BR_PARAPET)], color, dark, 0.6);
+          strokeLine(ctx, [at(ta, s, deck(ta) + BR_PARAPET), at(tb, s, deck(tb) + BR_PARAPET)], cap, snow ? 1.5 : 1);
+        }
       }
     },
   };

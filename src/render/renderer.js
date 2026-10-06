@@ -489,6 +489,8 @@ function coveredAt(strips, p) {
 
 /** How far past its tile's depth a bridge deck is drawn: after a ship under it (+0.003, +0.004), before a walker on it. */
 const BRIDGE_DEPTH = 0.006;
+/** From a ship's depth under a deck to the piece of it come out in front (mastClip): after the deck and the people on it. */
+const SHIP_IN_FRONT = 0.009;
 
 /**
  * A figure on a bridge tile: a ship (or boat) passes under the deck, drawn
@@ -1083,12 +1085,12 @@ export class Renderer {
           // A low bridge (timber on piles) or a ship bridge (stone arches),
           // drawn with the deck's heights at the tile's ends and middle
           // (ramps down to the banks), in the view's order along it.
-          const { axis, low, h: [h0, hm, h1], abut } = bridgeLook(map, x, y, vt);
+          const { axis, low, h: [h0, hm, h1], abut, open } = bridgeLook(map, x, y, vt);
           let spr;
           if (low) spr = this.sprites.get(`brl${axis}${h0}.${hm}.${h1}`, () => lowBridgeSpec(axis, h0, hm, h1));
           else {
-            const key = `br${axis}${h0}.${hm}.${h1}${abut ? 'a' : ''}`;
-            spr = this.sprites.get(`${key}${this.snowKey}`, () => bridgeSpec(axis, h0, hm, h1, abut, pal.snow), this.snowPrev === null ? null : `${key}${this.snowPrev}`);
+            const key = `br${axis}${h0}.${hm}.${h1}${abut ? 'a' : ''}${open ? `o${open}` : ''}`;
+            spr = this.sprites.get(`${key}${this.snowKey}`, () => bridgeSpec(axis, h0, hm, h1, abut, pal.snow, open), this.snowPrev === null ? null : `${key}${this.snowPrev}`);
           }
           items.push({ d: depth + BRIDGE_DEPTH, kind: K_STRIP, spr, wx, wy, full: true });
         } else if (map.road[i]) {
@@ -1153,9 +1155,12 @@ export class Renderer {
       // (Its depth goes with the spot: a click asks what was drawn over it, coverDepthAt.)
       const d = span.d ?? fd + 0.003;
       this.walkerSpots.push({ id: w.id, wx, wy, d, ship: w.kind === 'ship', ahead: w.type === 'cart' ? dirX * cartReach(origin) : 0 });
-      // A ship under a bridge's deck is cut off at its far parapet (mastClip).
-      const clipY = w.kind === 'ship' && span.d !== undefined ? mastClip(map, fx, fy, vt) : null;
-      items.push({ d, kind: K_WALKER, w, wx, wy, stride, origin, dirX, dirY: Math.sign(ddy), aim, clipY });
+      // A ship under a bridge's deck is cut off at its far parapet, and
+      // coming out in front is drawn in two pieces (mastClip).
+      const cut = w.kind === 'ship' && span.d !== undefined ? mastClip(map, fx, fy, vt) : null;
+      const it = { d, kind: K_WALKER, w, wx, wy, stride, origin, dirX, dirY: Math.sign(ddy), aim, clipY: null };
+      if (!cut) items.push(it);
+      else for (const c of cut) items.push({ ...it, d: c.front ? d + SHIP_IN_FRONT : d, clipY: c.region, front: c.front });
     }
 
     // --- soldiers, raiders, missiles, rally flags ---------------------------
@@ -1177,8 +1182,9 @@ export class Renderer {
       const face = this.unitFace(u, vt); // (before the view test: it keeps the heading of units out of view too)
       if (!inView(wx, wy) && !(naval && inView(wx, wy - 60))) continue;
       const d = this.yardDepth(u, fx, fy) ?? span.d ?? ux + uy + 0.004;
-      const clipY = naval && span.d !== undefined ? mastClip(map, fx, fy, vt) : null; // (a ship under a deck, as a walker's)
-      items.push({ d, kind: K_UNIT, u, wx, wy, stride, face, clipY });
+      const cut = naval && span.d !== undefined ? mastClip(map, fx, fy, vt) : null; // (a ship under a deck, as a walker's)
+      if (!cut) items.push({ d, kind: K_UNIT, u, wx, wy, stride, face, clipY: null });
+      else for (const c of cut) items.push({ d: c.front ? d + SHIP_IN_FRONT : d, kind: K_UNIT, u, wx, wy, stride, face, clipY: c.region, front: c.front });
       if (naval) this.shipSpots.push({ id: u.id, wx, wy });
       else this.unitSpots.push({ id: u.id, wx, wy, d });
     }
@@ -1578,8 +1584,8 @@ export class Renderer {
     const { tick, selFort, motion, pal } = this.frameInfo;
     switch (it.kind) {
       case K_WALKER:
-        if (it.w.id === this.selectedWalker) this.drawWalkerRing(it, ctx);
-        if (it.clipY != null) this.clipBelow(it.clipY, ctx);
+        if (it.w.id === this.selectedWalker && !it.front) this.drawWalkerRing(it, ctx); // (once for a ship in two pieces)
+        if (it.clipY != null) this.clipTo(it.clipY, ctx);
         drawWalker(ctx, it.w, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, it.dirX, it.dirY, it.stride, it.origin, it.aim);
         if (it.clipY != null) ctx.restore();
         break;
@@ -1593,7 +1599,7 @@ export class Renderer {
         this.drawExtra(it, ctx);
         break;
       case K_UNIT:
-        if (it.clipY != null) this.clipBelow(it.clipY, ctx);
+        if (it.clipY != null) this.clipTo(it.clipY, ctx);
         drawUnit(ctx, it.u, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, tick, (selFort !== 0 && (it.u.fort === selFort || it.u.station === selFort)) || it.u.id === this.selectedUnit, it.stride, it.face);
         if (it.clipY != null) ctx.restore();
         break;
@@ -1850,25 +1856,23 @@ export class Renderer {
     return best;
   }
 
-  /** Dashed line from a deployed fort to its standard. */
   /**
-   * Draw only below the world polyline `pts` (left to right) until the
-   * caller's ctx.restore(): a ship under a bridge's deck, cut off at its
-   * far parapet (bridgeProfile.js mastClip).
+   * Draw only inside the world polygon `pts` until the caller's
+   * ctx.restore(): a piece of a ship under a bridge's deck
+   * (bridgeProfile.js mastClip). On whole device px, so two pieces that
+   * share an edge leave no seam between them.
    */
-  clipBelow(pts, ctx = this.ctx) {
+  clipTo(pts, ctx = this.ctx) {
     const cam = this.camera;
     const k = cam.scale;
-    const bottom = cam.viewH + 1; // (the screen's bottom edge: the 2D canvas is as tall)
     ctx.save();
     ctx.beginPath();
-    for (const p of pts) ctx.lineTo((p.x - cam.x) * k, (p.y - cam.y) * k);
-    ctx.lineTo((pts[pts.length - 1].x - cam.x) * k, bottom);
-    ctx.lineTo((pts[0].x - cam.x) * k, bottom);
+    for (const p of pts) ctx.lineTo(Math.round((p.x - cam.x) * k), Math.round((p.y - cam.y) * k));
     ctx.closePath();
     ctx.clip();
   }
 
+  /** Dashed line from a deployed fort to its standard. */
   drawRallyLine(b) {
     const { ctx, camera: cam } = this;
     const k = cam.scale;

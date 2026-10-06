@@ -489,10 +489,11 @@ test('bridges: a ramp beside a roadblock starts at the water, a run that turns o
     assert.equal(bridgeSpan(map, ...pt(15.9, 20.5), false, 0).lift, Z);
     // When the road leaves that last tile sideways onto a bank (the Imperial
     // road turning on its last water tile; review: a 33 px drop off the
-    // side), the deck comes down toward that end as at a bank.
+    // side), that tile is a landing level with the road, the ramp climbing
+    // from it as from a bank.
     map.road[map.idx(...pt(15, 21))] = Road.ROAD;
     map.terrain[map.idx(...pt(15, 21))] = Terrain.GRASS;
-    assert.equal(bridgeSpan(map, ...pt(15.5, 20.5), false, 0).lift, Z / 3);
+    assert.deepEqual([15.9, 15.5, 15, 14.5, 14, 13.5].map((k) => bridgeSpan(map, ...pt(k, 20.5), false, 0).lift), [0, 0, 0, Z / 3, (2 * Z) / 3, Z]);
     assert.equal(bridgeSpan(map, ...pt(15.5, 21.2), false, 0).lift, 0, 'off it onto the side road');
   }
   // Two bridges side by side: each keeps its own way, and a road on the
@@ -512,6 +513,75 @@ test('bridges: a ramp beside a roadblock starts at the water, a run that turns o
   }
 });
 
+/**
+ * A lake (x 10..15, y 10..25) with ship bridge A along row 18 from the
+ * west bank (9, 18) to (16, 18), and either bridge B down column 10 (A's
+ * first water tile) from bank to bank ('cross'), or the lake's corner
+ * cut back so that column 10 is land above row 18, with a shore road
+ * along row 17 that ends right beside A's first water tile ('shore').
+ */
+function junctionMap(kind) {
+  const map = new GameMap(40, 40);
+  map.terrain.fill(Terrain.GRASS);
+  for (let x = 10; x <= 15; x++) for (let y = 10; y <= 25; y++) map.terrain[map.idx(x, y)] = Terrain.WATER;
+  const road = (x, y, r = Road.ROAD) => { map.road[map.idx(x, y)] = r; };
+  for (let x = 6; x <= 9; x++) road(x, 18);
+  for (let x = 16; x <= 19; x++) road(x, 18);
+  for (let x = 10; x <= 15; x++) road(x, 18, Road.BRIDGE);
+  if (kind === 'cross') {
+    for (let y = 6; y <= 9; y++) road(10, y);
+    for (let y = 26; y <= 29; y++) road(10, y);
+    for (let y = 10; y <= 25; y++) road(10, y, Road.BRIDGE);
+  } else {
+    for (let y = 10; y <= 17; y++) map.terrain[map.idx(10, y)] = Terrain.GRASS;
+    for (let x = 5; x <= 10; x++) road(x, 17);
+  }
+  return map;
+}
+
+test('bridges: no step where two ship bridges cross at a bridge\'s first water tile, nor off a shore road beside that tile, at every view turn (roadmap: the ship bridge\'s leftovers)', async () => {
+  const { bridgeSpan } = await import('../src/render/renderer.js');
+  const { bridgeProfile, bridgeLook, bridgeFeet } = await import('../src/render/bridgeProfile.js');
+  const { BRIDGE_DECK_Z: Z } = await import('../src/render/terrainArt.js');
+  for (const kind of ['cross', 'shore']) {
+    const map = junctionMap(kind);
+    // Walk every step between two road tiles that touches a bridge, from
+    // the middle of one to the middle of the other: the lift on either
+    // side of their shared edge is the same (it was 11 px apart where B
+    // crossed A's ramp, 22 px up off the shore road).
+    for (let turn = 0; turn < 4; turn++) {
+      for (let y = 0; y < 40; y++) {
+        for (let x = 0; x < 40; x++) {
+          for (const [dx, dy] of [[1, 0], [0, 1]]) {
+            const [nx, ny] = [x + dx, y + dy];
+            if (!map.hasRoad(x, y) || !map.hasRoad(nx, ny)) continue;
+            if (map.road[map.idx(x, y)] !== Road.BRIDGE && map.road[map.idx(nx, ny)] !== Road.BRIDGE) continue;
+            const lift = (e) => bridgeSpan(map, x + 0.5 + dx * (0.5 + e), y + 0.5 + dy * (0.5 + e), false, turn).lift;
+            assert.ok(Math.abs(lift(-1e-6) - lift(1e-6)) < 1e-3, `${kind}, turn ${turn}: a step of ${lift(1e-6) - lift(-1e-6)} px from (${x}, ${y}) to (${nx}, ${ny})`);
+          }
+        }
+      }
+    }
+    if (kind === 'cross') {
+      // The crossing is a landing level with A's ramp foot (a third up); B comes down to it and A climbs on from it.
+      assert.deepEqual(bridgeProfile(map, 10, 18).h, [Z / 3, Z / 3, Z / 3]);
+      assert.deepEqual(bridgeProfile(map, 11, 18).h, [Z / 3, (2 * Z) / 3, Z]);
+      assert.deepEqual(bridgeProfile(map, 10, 17).h, [Z, (2 * Z) / 3, Z / 3]);
+      assert.deepEqual(bridgeProfile(map, 10, 19).h, [Z / 3, (2 * Z) / 3, Z]);
+      assert.deepEqual(bridgeFeet(map, 9, 18), [{ dx: 1, dy: 0, h: Z / 3 }], 'A still climbs from the bank\'s road tile');
+      for (let turn = 0; turn < 4; turn++) assert.equal(bridgeLook(map, 10, 18, turn).open, 3, 'the crossing\'s parapets open both ways for B');
+      assert.equal(bridgeLook(map, 12, 18, 0).open, 0);
+    } else {
+      // A's first water tile is a landing at road level, open toward the shore road; its ramp starts there.
+      assert.deepEqual(bridgeProfile(map, 10, 18).h, [0, 0, 0]);
+      assert.deepEqual(bridgeProfile(map, 11, 18).h, [0, Z / 3, (2 * Z) / 3]);
+      assert.deepEqual(bridgeFeet(map, 9, 18), [], 'no foot on the bank: the deck is level with it');
+      const sides = [0, 1, 2, 3].map((turn) => bridgeLook(map, 10, 18, turn).open);
+      assert.ok(sides.every((s) => s === 1 || s === 2) && sides.includes(1) && sides.includes(2), `one side open, far or near as the view turns: ${sides}`);
+    }
+  }
+});
+
 test('bridges: every piece of the bridges\' art draws at the heights the ramps give it, in sprites tall enough to hold it', async () => {
   const { bridgeSpec, bridgeFootSpec, lowBridgeSpec, BRIDGE_DECK_Z: Z, LOW_BRIDGE_DECK_Z: LZ } = await import('../src/render/terrainArt.js');
   const { recordingContext } = await import('../src/render/draw.js');
@@ -520,6 +590,7 @@ test('bridges: every piece of the bridges\' art draws at the heights the ramps g
     for (const h of [[Z, Z, Z], [Z / 3, (2 * Z) / 3, Z], [Z, (2 * Z) / 3, Z / 3], [0, Z / 3, (2 * Z) / 3], [Z / 3, (2 * Z) / 3, Z / 3]]) {
       for (const abut of [false, true]) for (const snow of [0, 1]) specs.push([bridgeSpec(axis, ...h, abut, snow), Math.max(...h)]);
     }
+    for (const open of [1, 2, 3]) for (const h of [0, Z / 3, Z]) specs.push([bridgeSpec(axis, h, h, h, false, 1, open), h]);
     for (const sign of [1, -1]) specs.push([bridgeFootSpec(axis, sign, Z / 3, 0.5), Z / 3]);
     for (const h of [[LZ, LZ, LZ], [0, LZ, LZ], [0, LZ, 0]]) specs.push([lowBridgeSpec(axis, ...h), LZ]);
   }
@@ -540,14 +611,12 @@ test('bridges: a ship under the deck is cut off at the far parapet, so no mast s
       const at = (k, j) => {
         const [fx, fy] = pt(k, j);
         const [vx, vy] = toView(fx, fy, turn, 40, 40);
-        const line = mastClip(map, fx, fy, turn);
-        if (!line) return { ground: (vx + vy) * 16, clip: null };
-        // The line's height at the ship's own screen column (the mast's).
+        const pieces = mastClip(map, fx, fy, turn);
+        if (!pieces) return { ground: (vx + vy) * 16, clip: null };
+        // The top of the piece that holds the mast, at the ship's own screen column.
         const x = (vx - vy) * 32;
-        const n = line.findIndex((p) => p.x >= x);
-        assert.ok(n > 0 && line.every((p, i) => !i || p.x > line[i - 1].x), 'the line runs left to right across the ship');
-        const [a, b] = [line[n - 1], line[n]];
-        return { ground: (vx + vy) * 16, clip: a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x) };
+        const piece = pieces.find((p) => p.front) || pieces[0];
+        return { ground: (vx + vy) * 16, clip: topAt(piece.region, x), pieces };
       };
       const label = `axis ${axis}, turn ${turn}`;
       // Under the first (ramp) tile, crossing the bridge: the top is cut under the parapet.
@@ -565,4 +634,57 @@ test('bridges: a ship under the deck is cut off at the far parapet, so no mast s
   }
   const { map, pt } = bridgeMap('u', 4, true);
   assert.equal(mastClip(map, ...pt(11.5, 20.5), 0), null, 'no boat passes a low bridge');
+});
+
+/** The top (least world y) of polygon `region` at column x. */
+function topAt(region, x) {
+  let top = Infinity;
+  region.forEach((a, i) => {
+    const b = region[(i + 1) % region.length];
+    if ((a.x - x) * (b.x - x) > 0 || a.x === b.x) return;
+    top = Math.min(top, a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x));
+  });
+  return top;
+}
+
+test('bridges: a ship\'s mast sinks behind the far parapet as it goes under a deck and is raised again coming out in front, at every view turn (roadmap: the masthead vanished at the far edge)', async () => {
+  const { mastClip } = await import('../src/render/bridgeProfile.js');
+  const { BRIDGE_CROWN } = await import('../src/render/terrainArt.js');
+  const { toView } = await import('../src/render/view.js');
+  const MAST = 46;
+  for (const axis of ['u', 'v']) {
+    const { map, pt } = bridgeMap(axis, 6);
+    for (let turn = 0; turn < 4; turn++) {
+      // A ship sailing across the middle of the deck (tile 12), a hundredth of a tile at a time.
+      const frames = [];
+      for (let n = 0; n < 100; n++) {
+        const [fx, fy] = pt(12.5, 20.005 + n / 100);
+        const [vx, vy] = toView(fx, fy, turn, 40, 40);
+        const pieces = mastClip(map, fx, fy, turn);
+        const x = (vx - vy) * 32;
+        const ground = (vx + vy) * 16;
+        // How high over its waterline the mast may show (Infinity: not cut at all).
+        const mast = pieces ? ground - topAt((pieces.find((p) => p.front) || pieces[0]).region, x) : Infinity;
+        frames.push({ pieces, mast, front: !!pieces?.some((p) => p.front) });
+      }
+      const label = `axis ${axis}, turn ${turn}`;
+      const under = frames.filter((f) => f.pieces && !f.front);
+      const out = frames.filter((f) => f.front);
+      assert.ok(under.length > 50 && out.length > 10 && out.length < 25, `${label}: under the deck, then coming out in front (${under.length}, ${out.length})`);
+      for (let n = 1; n < 100; n++) {
+        const [a, b] = [frames[n - 1], frames[n]];
+        // Where the cut starts or stops, it cuts nothing: the masthead never vanishes at once.
+        if (!a.pieces !== !b.pieces) assert.ok(Math.min(a.mast, b.mast) >= MAST, `${label}: at ${n}% the cut starts over the masthead (${a.mast}, ${b.mast})`);
+        // Coming out at the near face, the mast shows as far as it showed through the arch, then rises.
+        else if (a.front !== b.front) assert.ok(Math.abs((a.front ? a : b).mast - BRIDGE_CROWN) < 2, `${label}: out at the arch's crown (${a.front ? a.mast : b.mast})`);
+        // In between it moves a little at a time.
+        else if (a.pieces) assert.ok(Math.abs(Math.min(a.mast, 60) - Math.min(b.mast, 60)) < 5, `${label}: at ${n}% the cut jumps from ${a.mast} to ${b.mast}`);
+      }
+      // Leaving the tile in front, the whole mast already shows (it no longer pops up at the tile's edge).
+      const last = frames[0].front ? frames[0] : frames[99];
+      assert.ok(last.front && last.mast >= MAST, `${label}: raised before it leaves the tile (${last.mast})`);
+      // Out in front, the hull still under the deck is drawn before it, the rest after it.
+      for (const f of out) assert.deepEqual(f.pieces.map((p) => p.front), [false, true]);
+    }
+  }
 });
