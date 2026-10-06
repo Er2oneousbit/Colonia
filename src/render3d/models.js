@@ -121,11 +121,15 @@ const UP = new Vector3(0, 1, 0);
  * S x S footprint whose corner nearest the top of the screen is view tile
  * (vx, vy), turned T quarter turns, sunk `rise` px of art (a new building
  * rising out of the ground, as its sprite is drawn `rise` px lower: what is
- * under the ground is not drawn, materials.js uLookClipY).
+ * under the ground is not drawn, materials.js uLookClipY). A model is
+ * built at its true size, S x 4 m across (the market's 8, the warehouse's
+ * 12): a metre is a quarter of a tile whatever the footprint. (It was
+ * S / 4, right only for the one-tile well and fountain: a 3 x 3 model
+ * stood three times too big.)
  */
 export function modelMatrix(vx, vy, S, T, rise = 0, out = new Matrix4()) {
   _p.set(vx + S / 2, -rise * ART_PX, vy + S / 2);
   _q.setFromAxisAngle(UP, (-(T & 3) * Math.PI) / 2);
-  _s.setScalar(S / TILE_M);
+  _s.setScalar(1 / TILE_M);
   return out.compose(_p, _q, _s);
 }
