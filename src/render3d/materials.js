@@ -346,9 +346,30 @@ export function paintSurfaces() {
     }, (err) => {
       console.warn(`Texture ${t.name} could not be painted:`, err);
       t.ready = true;
+      // (The models read it: a surface left unpainted would draw as garbage, so they give way to the sprites.)
+      t.failed = true;
+      failedCount++;
       t.resolveReady(null);
     });
   }
+}
+
+/** How many surfaces could not be painted (cheap: the models ask every frame). */
+let failedCount = 0;
+export function surfacesFailedCount() {
+  return failedCount;
+}
+
+/** The surfaces that could not be painted on this GPU (their names). */
+export function surfacesFailed() {
+  const out = [];
+  for (const t of TEXTURES.values()) if (t.failed) out.push(t.name);
+  return out;
+}
+
+/** How many surfaces were asked for so far. */
+export function surfacesAsked() {
+  return TEXTURES.size;
 }
 
 /** How many surfaces are painted. */
@@ -596,6 +617,7 @@ export function resetLook() {
   TEXTURES.clear();
   CACHE.clear();
   asked = [];
+  failedCount = 0;
 }
 
 /** Every material made so far (the lab lists them, look.js frees them). */

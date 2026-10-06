@@ -449,12 +449,14 @@ export function settingsMenu(app) {
     check('dayNight', 'Day and night', 'The sun sets every few minutes of game time and the city lights its lamps. Tool previews stay bright.'),
     check('seasons', 'Seasons', 'Grass and trees change color through the year: spring blossoms, autumn leaves, bare winter trees. Switched off, the map and the weather stay in summer (no snow); the calendar season still shows next to the date.'),
     check('weather', 'Weather: clouds, rain, snow and thunderstorms', 'Visual only, it never affects the city. Snow settles on the ground, trees and roofs (with Seasons on) and melts after. Falling rain and snow and lightning are not drawn when your system asks for reduced motion; snow on the ground still shows.'),
-    check('showFps', 'Show performance counters (debug HUD)'),
+    check('fullscreen', 'Fullscreen when a game starts', 'Begin, Continue and Load fill the screen. Esc leaves fullscreen (that Esc does nothing else); the ⛶ button in the top bar, or the game menu, goes back in.'),
+    check('showFps', 'Show the performance readout (F3)', 'Frames a second, where the time of each frame goes, and which graphics chip the browser draws with (laptops often have two).'),
     h('div', { class: 'field' }, h('label', {}, 'Theme'),
       h('select', { onchange: (e) => { s.theme = e.target.value; app.applySettings(); } },
         [['auto', 'Match system'], ['light', 'Marble (light)'], ['dark', 'Basalt (dark)']].map(([k, n]) => h('option', { value: k, selected: s.theme === k }, n)))),
     rendererField(app),
     groundField(app),
+    renderScaleField(app),
   ], [h('button', { class: 'btn primary', onclick: () => app.ui.closeModal() }, 'Done')], 'narrow', () => app.ui.closeModal());
 }
 
@@ -483,8 +485,10 @@ function rendererField(app) {
 /**
  * Settings > Ground (WebGL renderer): the 3D ground at high or low quality,
  * or the ground's sprites as the Classic renderer draws them. Auto picks Low
- * on a phone or tablet, and the flat ground without a graphics card. The
- * URL's ground= flag gives way once the player picks here.
+ * on a phone or tablet or a GPU in the processor, and the flat ground with
+ * no GPU at all; it also goes from High to Low once if frames stay slow at
+ * the lowest render scale. The URL's ground= flag gives way once the player
+ * picks here.
  */
 function groundField(app) {
   const s = app.settings;
@@ -498,7 +502,29 @@ function groundField(app) {
         app.applySettings();
       },
     }, [['auto', 'Auto'], ['high', '3D, high quality'], ['low', '3D, low quality'], ['off', 'Flat (as Classic)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
-    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections. Low quality is lighter for phones and tablets, where Auto picks it; without a graphics card Auto keeps the ground flat, which is faster there.'));
+    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections. Low quality is much lighter: Auto picks it on phones, tablets and graphics built into the processor (most laptops), and if frames stay slow even at the lowest render scale; without a graphics chip at all Auto keeps the ground flat, which is faster there.'));
+}
+
+/**
+ * Settings > Render scale (WebGL renderer, render3d/renderScale.js): how
+ * many pixels the 3D scene is drawn with. Auto lowers it (the ground first)
+ * when frames run long and raises it again with room to spare; the HUD,
+ * menus and text are never affected. The URL's scale= flag gives way once
+ * the player picks here.
+ */
+function renderScaleField(app) {
+  const s = app.settings;
+  const now = String(app.flags.scale || s.renderScale || 'auto');
+  return h('div', { class: 'field' }, h('label', {}, 'Render scale (WebGL renderer)'),
+    h('select', {
+      'aria-label': 'Render scale',
+      onchange: (e) => {
+        s.renderScale = e.target.value;
+        app.flags.scale = null;
+        app.applySettings();
+      },
+    }, [['auto', 'Auto'], ['1', '100%'], ['0.75', '75%'], ['0.5', '50%']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
+    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'How sharp the 3D city is drawn, as a share of your screen\'s pixels. Lower is faster on a laptop or a high-resolution screen; the menus and text stay sharp. Auto draws the 3D ground with fewer pixels first, then the rest, only when frames run slow, and goes back up when there is room.'));
 }
 
 /**
@@ -536,6 +562,7 @@ export function pauseMenu(app) {
     btn('Load game', () => app.ui.showModal(loadMenu(app))),
     btn('Mission briefing', () => app.ui.showModal(briefing(app, g.scenario))),
     btn('Settings', () => app.ui.showModal(settingsMenu(app))),
+    app.canFullscreen ? btn(app.isFullscreen ? 'Leave fullscreen' : 'Fullscreen', () => { app.toggleFullscreen(); app.ui.closeModal(); }) : null,
     btn('How to play', () => app.ui.openHelp()),
     btn('Restart this map', () => app.ui.confirm('Restart this map from scratch? Progress since your last save is lost.', () => app.restart(), { yes: 'Restart', danger: true })),
     btn('Quit to main menu', () => app.ui.confirm('Quit to the main menu? Progress since your last save is lost (the autosave remains).', () => app.toMainMenu(), { yes: 'Quit', danger: true }), 'danger'),

@@ -105,6 +105,16 @@ button, input, select { font: inherit; color: inherit; }
   touch-action: none;
 }
 
+/* The WebGL renderer's canvas and the transparent 2D canvas over it, under #view
+   (render/renderer.js mountLayers): never in the way of input. */
+.view-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  pointer-events: none;
+}
+
 .hidden { display: none !important; }
 
 /* ---------- top HUD --------------------------------------------------------- */
@@ -162,7 +172,7 @@ button, input, select { font: inherit; color: inherit; }
 #hud-top.no-season .hud-stat .season { display: none; } /* set by Hud.fitSeason() when the bar is full */
 #hud-top.tight .hud-title, #hud-top.tight .btn-lbl { display: none; } /* the next steps, while it is still full */
 #hud-top.tight .hud-select { max-width: 52px; }
-#hud-top.tighter #hud-turn-left, #hud-top.tighter #hud-turn-right, #hud-top.tighter .msg-btn { display: none; }
+#hud-top.tighter #hud-turn-left, #hud-top.tighter #hud-turn-right, #hud-top.tighter .msg-btn, #hud-top.tighter #hud-fullscreen { display: none; } /* (fullscreen stays in the game menu) */
 .hud-stat.neg { color: #ff8f83; }
 .hud-stat.warn { color: #ffcf6a; } /* unemployment that costs mood */
 .hud-title { font-family: var(--font-title); font-weight: 700; letter-spacing: 0.04em; color: var(--gold); white-space: nowrap; }
@@ -580,7 +590,9 @@ table.tbl.fame td.num, table.tbl.fame-parts td.num { white-space: nowrap; }
   padding: 6px 8px;
   border-radius: 6px;
   pointer-events: none;
-  white-space: pre;
+  /* (The integrated-GPU hint is a long line: wrapped, the readout stays in its corner.) */
+  white-space: pre-wrap;
+  max-width: min(560px, calc(100vw - var(--sidebar-w) - 40px));
 }
 #console {
   position: absolute;

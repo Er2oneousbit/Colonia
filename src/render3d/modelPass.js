@@ -48,7 +48,7 @@
 import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement } from 'three';
 import { MODELS, partShows, modelMatrix } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
-import { LOOK, waterMaterial, surfacesReady, material } from './materials.js';
+import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
 import { fountainTier, tierOf } from './fountainTier.js';
 import { WaterBits } from '../world/map.js';
@@ -62,6 +62,17 @@ export const LOD1_PX = 72;
 const KEEP_FRAMES = 600;
 /** First room in a part's instance buffer (it doubles as needed). */
 const FIRST_ROOM = 8;
+/**
+ * Seconds the models may take to get ready before the console hears why
+ * not (a slow GPU compiles for seconds; one that never finishes is a bug
+ * to see, not a sprite to leave standing silently), and before a compile
+ * that never says it is done is taken as done: three then finishes it at
+ * the first draw, a stall once rather than sprites for good.
+ */
+const SLOW_S = 20;
+const COMPILE_GIVE_UP_S = 30;
+/** Tries at compiling that may throw before the models give way to the sprites for good. */
+const WARM_TRIES = 3;
 
 /** The level of detail for a camera scale (device px per world px). */
 export function lodFor(scale) {
@@ -111,11 +122,95 @@ export class ModelPass {
     this.warming = null;
     this.lost = false;
     this.stats = { kits: 0, triangles: 0, drawn: 0, byType: {} };
+    // Why models cannot draw on this GPU (a program that does not link, textures that could not
+    // be painted): null while all is well. The sprites draw instead, for good.
+    this.failed = null;
+    this.warmTries = 0;
+    this.retryAt = 0;
+    this.warmStart = 0; // when the compile now running started (performance.now())
+    this.since = performance.now(); // when the models last started getting ready
+    this.slowSaid = false;
   }
 
   /** Can models draw now (painted and compiled, the context there)? */
   get ready() {
-    return this.compiled && !this.lost && surfacesReady() && painterFor(this.gl).idle;
+    // (A texture that could not be painted counts as done for surfacesReady: never draw on it.)
+    return !this.failed && this.compiled && !this.lost && surfacesReady() && !surfacesFailedCount() && painterFor(this.gl).idle;
+  }
+
+  /** Models cannot draw on this GPU: say why once, and leave the buildings to their sprites. */
+  fail(why) {
+    if (this.failed) return;
+    this.failed = why;
+    console.error(`3D models: ${why}. The buildings keep their sprites.`);
+  }
+
+  /**
+   * What the models are waiting for, in words (the performance readout and
+   * the console): 'ready', 'failed: ...', or what is not done yet and for
+   * how long.
+   */
+  status() {
+    if (this.failed) return `failed: ${this.failed}`;
+    if (this.lost) return 'waiting: the WebGL context is lost';
+    if (this.ready) return 'ready';
+    const s = Math.round((performance.now() - this.since) / 100) / 10;
+    if (!surfacesReady()) return `waiting ${s} s: textures painted ${surfacesCount()} of ${surfacesAsked()}`;
+    if (!painterFor(this.gl).idle) return `waiting ${s} s: the texture painter is busy`;
+    if (!this.compiled) return `waiting ${s} s: compiling the programs${this.warming ? '' : ' (not started)'}`;
+    return `waiting ${s} s`;
+  }
+
+  /**
+   * Called each frame by the back end: textures that could not be painted
+   * fail the models; a wait past SLOW_S is told to the console once (with
+   * what it waits for); a compile that never reports done is taken as done
+   * after COMPILE_GIVE_UP_S.
+   */
+  watch() {
+    if (this.failed || this.lost) return;
+    if (surfacesFailedCount()) {
+      this.fail(`the textures ${surfacesFailed().join(', ')} could not be painted on this GPU`);
+      return;
+    }
+    if (this.ready) return;
+    const now = performance.now();
+    if (!this.slowSaid && now - this.since > SLOW_S * 1000) {
+      this.slowSaid = true;
+      console.error(`3D models: still not ready after ${SLOW_S} s (${this.status()}); the buildings show their sprites meanwhile.`);
+    }
+    if (this.warming && now - this.warmStart > COMPILE_GIVE_UP_S * 1000) {
+      console.error(`3D models: their programs never reported compiled after ${COMPILE_GIVE_UP_S} s; drawing them anyway.`);
+      this.warming = null;
+      this.compiled = true;
+    }
+  }
+
+  /**
+   * After the compile: did every model program link? A program the GPU's
+   * compiler refused draws nothing (three says so at its first use), which
+   * would leave a hole where the building stands: so the sprites instead.
+   */
+  checkLinked() {
+    const ctx = this.gl.getContext();
+    if (ctx.isContextLost()) return true;
+    const props = this.gl.properties;
+    const seen = new Set();
+    let bad = null;
+    this.rig.modelSlot.traverse((o) => {
+      if (bad || !o.material) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (seen.has(m)) continue;
+        seen.add(m);
+        const prog = props.get(m).currentProgram;
+        if (!prog || !prog.program) continue;
+        if (ctx.getProgramParameter(prog.program, ctx.LINK_STATUS)) continue;
+        bad = `the program of material ${m.name || m.type} did not link (${(ctx.getProgramInfoLog(prog.program) || '').trim().slice(0, 300)})`;
+        return;
+      }
+    });
+    if (bad) this.fail(bad);
+    return !bad;
   }
 
   /**
@@ -327,24 +422,43 @@ export class ModelPass {
    */
   warm(camera, shadows) {
     const key = shadows ? 'shadow' : 'plain';
-    if (key === this.warmKey) return;
+    if (key === this.warmKey || this.failed) return;
+    // (A try that threw waits a little before the next.)
+    if (performance.now() < this.retryAt) return;
     this.warmKey = key;
     this.compiled = false;
-    // (Every material of every look: a frost's ice is the water's program, so the frozen looks need nothing more.)
-    const looks = ['well', 'fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'];
-    for (const look of looks) this.kitFor(look, 1);
-    // The ghosts' tints (the see-through program the stains use, but their own materials).
-    ghostMaterial('ok');
-    ghostMaterial('warn');
-    const rig = this.rig;
-    // The models' slot alone, in the rig's light (three compiles hidden objects too: the target
-    // scene's lights and sky, without the ground's own shader), under the very output state it is
-    // drawn in (tone mapping and sRGB are part of a program).
-    const job = rig.withOutput(() => this.gl.compileAsync(rig.modelSlot, camera, rig.scene));
+    this.warming = null;
+    this.warmStart = performance.now();
+    // (A new light, the ground's quality changed: the wait for this compile starts now.)
+    this.since = this.warmStart;
+    this.slowSaid = false;
+    let job;
+    try {
+      // (Every material of every look: a frost's ice is the water's program, so the frozen looks need nothing more.)
+      const looks = ['well', 'fountain:1', 'fountain:2', 'fountain:3', 'fountain:4'];
+      for (const look of looks) this.kitFor(look, 1);
+      // The ghosts' tints (the see-through program the stains use, but their own materials).
+      ghostMaterial('ok');
+      ghostMaterial('warn');
+      const rig = this.rig;
+      // The models' slot alone, in the rig's light (three compiles hidden objects too: the target
+      // scene's lights and sky, without the ground's own shader), under the very output state it is
+      // drawn in (tone mapping and sRGB are part of a program).
+      job = rig.withOutput(() => this.gl.compileAsync(rig.modelSlot, camera, rig.scene));
+    } catch (err) {
+      // This threw once and the models waited for good, a sprite where each stood and nothing
+      // said: now it is said, tried again, and given up after a few tries.
+      this.warmKey = '';
+      this.warmTries++;
+      this.retryAt = performance.now() + 2000;
+      console.error('3D models: compiling their programs failed:', err);
+      if (this.warmTries >= WARM_TRIES) this.fail(`compiling their programs failed (${err && err.message})`);
+      return;
+    }
     const done = () => {
       if (this.warming !== job) return; // (the light changed again meanwhile)
       this.warming = null;
-      this.compiled = true;
+      if (this.checkLinked()) this.compiled = true;
     };
     this.warming = job;
     job.then(done, done);
@@ -356,6 +470,8 @@ export class ModelPass {
   restored() {
     this.lost = false;
     this.warmKey = '';
+    this.since = performance.now();
+    this.slowSaid = false;
   }
 
   dispose() {

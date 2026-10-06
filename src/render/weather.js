@@ -79,6 +79,9 @@ const SNOW_AMOUNT = [0, 0.4, 0.7, 0.9];
 
 const paletteCache = new Map();
 
+/** The lightning flash's colour, added over the picture (Weather.flashAlpha says how much). */
+export const FLASH_RGB = '200,210,255';
+
 /**
  * Ground and tree colors for a month (0..11). `key` is short and stable, for
  * sprite cache keys. Pass month = null for the plain summer look (seasons off).
@@ -336,8 +339,9 @@ export class Weather {
    * @param {number} dpr  device pixel ratio (sizes are in CSS px)
    * @param {number} dt   seconds since the last frame (animation keeps going while paused)
    * @param {number} time seconds, for snow sway
+   * @param {boolean} flash  add the lightning's flash too (the WebGL back end adds it itself, flashAlpha)
    */
-  draw(ctx, W, H, dpr, dt, time) {
+  draw(ctx, W, H, dpr, dt, time, flash = true) {
     const area = (W * H) / (dpr * dpr);
     this.updateDrops(this.drops, Math.round((this.rain * area) / 2400), () => this.newDrop(W, H, dpr, true));
     // A flake per 4,000 CSS px at full snow, and a little see-through: one
@@ -387,12 +391,17 @@ export class Weather {
       }
       ctx.fill();
     }
-    if (this.flash > 0.01) {
+    if (flash && this.flash > 0.01) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = `rgba(200,210,255,${(0.26 * this.flash).toFixed(3)})`;
+      ctx.fillStyle = `rgba(${FLASH_RGB},${this.flashAlpha().toFixed(3)})`;
       ctx.fillRect(0, 0, W, H);
     }
     ctx.restore();
+  }
+
+  /** How strongly the lightning's flash is added over the whole picture now (0 for none). */
+  flashAlpha() {
+    return this.flash > 0.01 ? Number((0.26 * this.flash).toFixed(3)) : 0;
   }
 
   /** Grow or shrink a particle list toward `target` entries. */

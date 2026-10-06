@@ -364,9 +364,10 @@ export class UI {
     const a = this.app;
     const g = a.game;
     const p = a.perf;
+    // The performance readout (render/perf.js), then the counters a developer wants.
     const lines = [
-      `FPS ${p.fps}  frame ${p.frameMs.toFixed(1)}ms  render ${a.renderer.stats.ms.toFixed(1)}ms`,
-      `sim ${p.simMs.toFixed(2)}ms/frame  ticks/frame ${p.ticks}  speed ${a.paused ? 'paused' : a.speedIndex}`,
+      ...a.perfReport(),
+      `ticks/frame ${p.ticks}  speed ${a.paused ? 'paused' : a.speedIndex}`,
       `objects ${a.renderer.stats.objects}  tiles ${a.renderer.stats.tiles}  sprites ${a.renderer.sprites.created}`,
     ];
     if (g) {

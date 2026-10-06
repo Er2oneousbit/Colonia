@@ -97,48 +97,109 @@ export class Ambient {
    * visible world rectangle (used to skip off-screen clouds and aim flocks).
    */
   draw(ctx, cam, view, time) {
-    this.lastView = view;
-    const k = cam.scale;
     // Cloud shadows
-    if (this.shade > 0.03) for (const c of this.clouds) {
+    for (const p of this.puffs(cam, view)) {
+      const g = ctx.createRadialGradient(p.sx, p.sy, p.r * 0.15, p.sx, p.sy, p.r);
+      g.addColorStop(0, `rgba(${CLOUD_RGB},${p.alpha.toFixed(3)})`);
+      g.addColorStop(1, `rgba(${CLOUD_RGB},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(p.sx, p.sy, p.r, p.r * CLOUD_SQUASH, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Birds: little flapping V shapes with a faint shadow far below them
+    for (const f of this.flocks) this.drawFlock(ctx, f, cam, time);
+  }
+
+  /**
+   * The cloud shadows' puffs in view this frame, in device px: { sx, sy, r,
+   * alpha } (none without sunshine). Also notes the view for the next flock.
+   * The WebGL back end draws them as quads of one soft disc (cloudPuff()),
+   * the 2D canvas as gradients: the same shape.
+   */
+  puffs(cam, view) {
+    this.lastView = view;
+    const out = [];
+    if (!(this.shade > 0.03)) return out;
+    const k = cam.scale;
+    for (const c of this.clouds) {
       for (const p of c.puffs) {
         const wx = c.x + p.dx;
         const wy = c.y + p.dy;
         if (wx + p.r < view.x || wx - p.r > view.x + view.w || wy + p.r < view.y || wy - p.r > view.y + view.h) continue;
-        const sx = (wx - cam.x) * k;
-        const sy = (wy - cam.y) * k;
-        const r = p.r * k;
-        const g = ctx.createRadialGradient(sx, sy, r * 0.15, sx, sy, r);
-        g.addColorStop(0, `rgba(18,28,48,${(c.alpha * this.shade).toFixed(3)})`);
-        g.addColorStop(1, 'rgba(18,28,48,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.ellipse(sx, sy, r, r * 0.55, 0, 0, Math.PI * 2);
-        ctx.fill();
+        out.push({ sx: (wx - cam.x) * k, sy: (wy - cam.y) * k, r: p.r * k, alpha: Number((c.alpha * this.shade).toFixed(3)) });
       }
     }
-    // Birds: little flapping V shapes with a faint shadow far below them
-    for (const f of this.flocks) {
-      for (const bd of f.birds) {
-        const sx = (f.x + bd.dx - cam.x) * k;
-        const sy = (f.y + bd.dy - cam.y) * k;
-        const flap = Math.sin(time * 11 + bd.phase);
-        const wing = 4.5 * k;
-        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-        ctx.lineWidth = 1.2 * k;
-        ctx.beginPath();
-        ctx.moveTo(sx - wing + 30 * k, sy + 60 * k);
-        ctx.lineTo(sx + 30 * k, sy + 60 * k + flap * 1.5 * k);
-        ctx.lineTo(sx + wing + 30 * k, sy + 60 * k);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(40,34,30,0.85)';
-        ctx.lineWidth = 1.3 * k;
-        ctx.beginPath();
-        ctx.moveTo(sx - wing, sy - flap * 2.5 * k);
-        ctx.quadraticCurveTo(sx - wing * 0.4, sy - 1.5 * k, sx, sy);
-        ctx.quadraticCurveTo(sx + wing * 0.4, sy - 1.5 * k, sx + wing, sy - flap * 2.5 * k);
-        ctx.stroke();
-      }
+    return out;
+  }
+
+  /** One flock's birds and their shadows, in device px. */
+  drawFlock(ctx, f, cam, time) {
+    const k = cam.scale;
+    for (const bd of f.birds) {
+      const sx = (f.x + bd.dx - cam.x) * k;
+      const sy = (f.y + bd.dy - cam.y) * k;
+      const flap = Math.sin(time * 11 + bd.phase);
+      const wing = 4.5 * k;
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1.2 * k;
+      ctx.beginPath();
+      ctx.moveTo(sx - wing + 30 * k, sy + 60 * k);
+      ctx.lineTo(sx + 30 * k, sy + 60 * k + flap * 1.5 * k);
+      ctx.lineTo(sx + wing + 30 * k, sy + 60 * k);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(40,34,30,0.85)';
+      ctx.lineWidth = 1.3 * k;
+      ctx.beginPath();
+      ctx.moveTo(sx - wing, sy - flap * 2.5 * k);
+      ctx.quadraticCurveTo(sx - wing * 0.4, sy - 1.5 * k, sx, sy);
+      ctx.quadraticCurveTo(sx + wing * 0.4, sy - 1.5 * k, sx + wing, sy - flap * 2.5 * k);
+      ctx.stroke();
     }
   }
+
+  /** The device px box a flock paints into: its birds and their shadows 30 and 60 world px off. */
+  flockBox(f, cam) {
+    const k = cam.scale;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const bd of f.birds) {
+      const sx = (f.x + bd.dx - cam.x) * k;
+      const sy = (f.y + bd.dy - cam.y) * k;
+      x0 = Math.min(x0, sx - 6 * k);
+      y0 = Math.min(y0, sy - 5 * k);
+      x1 = Math.max(x1, sx + 36 * k);
+      y1 = Math.max(y1, sy + 63 * k);
+    }
+    return [x0, y0, x1, y1];
+  }
+}
+
+/** The cloud shade's colour, and its puffs' height to width (an ellipse cut from a round gradient). */
+export const CLOUD_RGB = '18,28,48';
+export const CLOUD_SQUASH = 0.55;
+
+/**
+ * One cloud puff's shape in white, as Ambient.draw paints it with r =
+ * `size` / 2 (alpha 1 at the middle): the WebGL back end stretches it over
+ * each puff and tints it the shade's colour and strength.
+ */
+export function cloudPuffSpec(size = 512) {
+  const r = size / 2;
+  const h = Math.ceil(size * CLOUD_SQUASH);
+  return {
+    w: size,
+    h,
+    draw(ctx) {
+      const g = ctx.createRadialGradient(r, h / 2, r * 0.15, r, h / 2, r);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(r, h / 2, r, r * CLOUD_SQUASH, 0, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  };
 }

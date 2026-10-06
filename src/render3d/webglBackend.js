@@ -38,11 +38,16 @@
  *      `drawsGround` and leaves them out). Settings > Ground: High, Low
  *      (phones; Auto picks it there) or Off (the sprites; Auto's choice
  *      without a GPU).
- *   4. The picture is copied onto the 2D canvas (present), and the renderer
- *      goes on there: particles, clouds, the night (which so darkens models
- *      too), the weather, signs, previews, outlines. So input, picking and
- *      the overlays work as they always did: the 2D canvas is still the one
- *      on the page.
+ *   4. Over the scene (post): particles, gulls and birds as live art, the
+ *      cloud shade's puffs, then the night's light map and glows and the
+ *      lightning's flash (postPass.js), in the 2D canvas's order, so the
+ *      night darkens models and sprites alike.
+ *   5. Nothing is copied: this canvas is on the page, under the renderer's
+ *      transparent 2D overlay (weather, signs, previews, outlines) and
+ *      #view, which takes the input as it always did (Renderer.mountLayers).
+ *      It is drawn at `sceneScale` of the view's pixels, the 3D ground at
+ *      its own share (the render scale: renderScale.js), and the page
+ *      stretches it to the view.
  *
  * Draw calls: quads are batched in the painter's order, up to SLOTS textures
  * a batch (the fragment shader picks the texture by a per-vertex slot), so a
@@ -71,6 +76,14 @@ import { SunRig } from './sunRig.js';
 import { ModelPass, lodFor } from './modelPass.js';
 import { LOOK, paintSurfaces, resetLook } from './materials.js';
 import { tileOfWorld } from '../render/camera.js';
+import { GpuTimer } from './gpuTimer.js';
+import { PostPass } from './postPass.js';
+import { cloudPuffSpec, CLOUD_RGB } from '../render/ambient.js';
+import { FLASH_RGB } from '../render/weather.js';
+import { drawParticle, particleBox } from '../render/effects.js';
+import { drawGulls } from '../render/waterArt.js';
+import { AutoScale, startRung, fixedScale } from './renderScale.js';
+import { gpuOf, isSoftwareGpu } from '../render/perf.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -78,6 +91,8 @@ const BACKGROUND = 0x2a241c;
 const GROUND_BIAS = 0.02;
 /** Textures one batch (one draw call) can hold; WebGL 2 promises 16 to a fragment shader. */
 const MAX_SLOTS = 16;
+/** The depth of what lies over the whole scene (particles, cloud shade, birds): in front of everything. */
+const FRONT = Infinity;
 /** Models draw nothing under this height (metres; a tile is 4): what rises out of the ground is hidden under it (materials.js uLookClipY). */
 const MODEL_CLIP = -0.008;
 
@@ -145,10 +160,20 @@ export class WebGLBackend {
   constructor(r) {
     this.r = r;
     this.kind = 'webgl';
+    // Its canvas is on the page, under the renderer's 2D overlay (Renderer.mountLayers): its
+    // picture is never copied. `sceneScale` is the share of the view's device px it is drawn at.
+    this.composes = true;
+    this.sceneScale = 1;
     this.canvas = makeCanvas(r.camera.viewW, r.camera.viewH);
     // Colors are the art's bytes: no conversion to or from linear light anywhere.
     ColorManagement.enabled = false;
-    this.gl = new WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+    // Multisampling smooths the models' edges, and costs a GPU in the processor (or none) dearly
+    // for the whole picture: 2.3 times the frame under SwiftShader at a pixel ratio of 2. Only on
+    // a graphics card, then (decided before the context, which keeps it for good).
+    this.gpuClass = gpuClass(probeGpu());
+    // (A laptop with two GPUs: the browser may still pick the one in the processor; the
+    // performance readout names it and says how to change that.)
+    this.gl = new WebGLRenderer({ canvas: this.canvas, antialias: this.gpuClass === 'card', alpha: false, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
     const gl = this.gl;
     gl.outputColorSpace = LinearSRGBColorSpace;
     gl.autoClear = false;
@@ -157,14 +182,27 @@ export class WebGLBackend {
     gl.setClearColor(BACKGROUND, 1);
     gl.info.autoReset = false; // (both renders of a frame are counted: stats.drawCalls)
     this.lost = false;
+    // The graphics chip it draws with (the performance readout names it), and the GPU's own time a frame.
+    this.gpu = gpuOf(gl.getContext());
+    this.gpuClass = gpuClass(this.gpu);
+    this.timer = new GpuTimer(gl.getContext());
+    // The render scale (setRenderScale): Auto's state, or null for a fixed share.
+    this.auto = null;
+    this.scaleChoice = '1';
+    this.groundShare = 1; // the ground's share of the view's device px (the render scale's)
+    this.autoLowered = false; // Auto took the ground from High to Low (frames too slow even at the lowest scale)
     this.canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
       this.lost = true;
+      this.timer.reset();
       this.models.lose();
     }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
+      // (A restored context's extensions are new objects: the timer asks again.)
+      this.timer = new GpuTimer(gl.getContext());
       this.rig.restored();
+      this.postPass.restored();
       this.models.restored();
       if (this.groundPass) this.groundPass.restored();
     }, false);
@@ -179,6 +217,10 @@ export class WebGLBackend {
     // The 3D world's scene and light (the ground and the models share them), and the models.
     this.rig = new SunRig(gl);
     this.models = new ModelPass(gl, this.rig);
+    // The night and the flash over the scene (postPass.js), and the cloud shade's soft disc.
+    this.postPass = new PostPass(gl);
+    this.puffTex = null;
+    this.layers = null; // this frame's (post)
     // The 3D ground (setGround): null while it is off.
     this.groundPass = null;
     this.groundMode = 'off';
@@ -229,7 +271,8 @@ export class WebGLBackend {
    * its textures; the painted layers stay in memory for the next time.
    */
   setGround(mode = 'auto') {
-    const q = mode === 'auto' ? autoGround(this.gl) : mode;
+    this.groundAuto = mode === 'auto';
+    const q = mode === 'auto' ? autoGround(this.gl, this.gpuClass) : mode;
     this.groundMode = q;
     if (q === 'off') {
       if (this.groundPass) this.groundPass.dispose();
@@ -238,7 +281,53 @@ export class WebGLBackend {
     }
     if (!this.groundPass) this.groundPass = new GroundPass(this.gl, q, this.rig);
     else this.groundPass.setQuality(q);
+    this.groundPass.setScale(this.groundShare / this.sceneScale);
     return q;
+  }
+
+  /**
+   * Settings > Render scale (renderScale.js): 'auto', or a share of the
+   * view's device px ('1', '0.75', '0.5') for the 3D scene and its ground.
+   * Auto starts where this GPU suggests and adapts to the frame time.
+   */
+  setRenderScale(choice = 'auto') {
+    const c = String(choice);
+    this.scaleChoice = c;
+    const fixed = fixedScale(c);
+    if (fixed) {
+      this.auto = null;
+      this.applyScale(fixed);
+      return;
+    }
+    this.auto = new AutoScale(startRung(this.gpuClass, this.r.camera.dpr));
+    this.auto.reset(performance.now());
+    this.applyScale(this.auto.step);
+  }
+
+  /** Draw the scene at `scene` of the view's device px, its ground at `ground` (both per axis). */
+  applyScale({ scene, ground }) {
+    this.sceneScale = scene;
+    this.groundShare = Math.min(ground, scene);
+    if (this.groundPass) this.groundPass.setScale(this.groundShare / scene);
+  }
+
+  /**
+   * After each frame (App.frame): `interval` ms since the last frame,
+   * `pageMs` the page's work for it. Auto steps the scale (renderScale.js);
+   * at its lowest step and still slow, an Auto ground at High goes to Low
+   * once (and stays there until the ground is chosen again).
+   */
+  tune(interval, pageMs, now = performance.now()) {
+    const a = this.auto;
+    if (!a || this.lost) return;
+    if (a.frame(interval, pageMs, this.timer.ms, now)) this.applyScale(a.step);
+    if (a.exhausted && this.groundAuto && this.groundMode === 'high' && !this.autoLowered) {
+      this.autoLowered = true;
+      this.setGround('low');
+      this.groundAuto = true;
+      a.exhausted = false;
+      a.slowAtBottom = 0;
+    }
   }
 
   /** Is a building type drawn as a 3D model now (it has one, and its textures and programs are ready)? */
@@ -277,7 +366,14 @@ export class WebGLBackend {
     this.frame++;
     // (Every frame: a restored context comes back with three.js's default black.)
     this.gl.setClearColor(BACKGROUND, 1);
-    if (this.canvas.width !== cam.viewW || this.canvas.height !== cam.viewH) this.gl.setSize(cam.viewW, cam.viewH, false);
+    // Drawn at the render scale's share of the view's device px; the page stretches it to the view
+    // (Renderer.sizeLayers). Everything here is placed in the view's device px all the same.
+    const w = Math.max(1, Math.round(cam.viewW * this.sceneScale));
+    const h = Math.max(1, Math.round(cam.viewH * this.sceneScale));
+    if (this.canvas.width !== w || this.canvas.height !== h) this.gl.setSize(w, h, false);
+    this.sceneSize = `${w}x${h}`;
+    this.postFrom = -1;
+    this.layers = null;
     const map = r.game.map;
     // Depths from behind the map's back corner to past its front, with room for tall art.
     aimCamera(this.camera, cam, -60, map.w + map.h + 60);
@@ -313,6 +409,8 @@ export class WebGLBackend {
     this.modelShadows = this.drawsGround && this.groundPass.quality === 'high';
     // The models' programs, compiled in the background for the light they are drawn in.
     this.models.warm(this.camera, this.rig.sun.castShadow);
+    // (Never waiting silently: a GPU that will not ready them is told to the console and the readout.)
+    this.models.watch();
   }
 
   /** The slot of texture `tex` in the batch being filled (a new batch when it is full). */
@@ -352,13 +450,13 @@ export class WebGLBackend {
     this.textures.delete(spr);
   }
 
-  /** One vertex: device px (x, y), depth D, texture coordinates, straight color and alpha, slot. */
+  /** One vertex: device px (x, y), depth D (FRONT: before everything), texture coordinates, straight color and alpha, slot. */
   vert(x, y, D, u, v, c, a, s) {
     const i = this.n++;
     const p = this.pos;
     p[i * 3] = x * this.sx - 1;
     p[i * 3 + 1] = 1 - y * this.sy;
-    p[i * 3 + 2] = this.zA * D + this.zB;
+    p[i * 3 + 2] = D === FRONT ? -1 : this.zA * D + this.zB;
     this.uv[i * 2] = u;
     this.uv[i * 2 + 1] = v;
     const q = this.col;
@@ -371,6 +469,7 @@ export class WebGLBackend {
 
   /** D at device px row y: on the ground (d < 0) or standing on the ground line of depth d. */
   depthAt(y, d) {
+    if (d === FRONT) return FRONT;
     const Y = this.camY + y / this.k;
     return d < 0 ? groundDepth(Y) - GROUND_BIAS : standDepth(d, Y);
   }
@@ -479,6 +578,43 @@ export class WebGLBackend {
     }
   }
 
+  /**
+   * What lies over the scene and under the night (Renderer.render): the
+   * particles, the gulls over the fishing grounds and the birds, painted as
+   * live art like a walker; the cloud shade's puffs as quads of one soft
+   * disc; then (present) the night and the lightning's flash (postPass.js).
+   * All after the build ghost, in front of everything, in the 2D canvas's
+   * order: particles, gulls, clouds, birds.
+   */
+  post(layers) {
+    const r = this.r;
+    const cam = r.camera;
+    this.closeBatch();
+    this.postFrom = this.batches.length;
+    this.layers = layers;
+    for (const p of layers.particles) this.live((ctx) => drawParticle(ctx, p, cam), particleBox(p, cam), FRONT);
+    for (const g of layers.gulls) this.live((ctx) => drawGulls(ctx, g.sx, g.sy, g.k, g.t, g.seed), g.box, FRONT);
+    if (layers.puffs.length) {
+      const tex = this.puffTexture();
+      const rgb = CLOUD_RGB.split(',').map((v) => Number(v) / 255);
+      for (const p of layers.puffs) {
+        const h = p.r * (tex.image.height / tex.image.width);
+        this.rect(tex, p.sx - p.r, p.sy - h, p.sx + p.r, p.sy + h, 0, 0, 1, 1, FRONT, [rgb[0], rgb[1], rgb[2], p.alpha], 1);
+      }
+    }
+    for (const f of layers.flocks) this.live((ctx) => r.ambient.drawFlock(ctx, f, cam, r.time), r.ambient.flockBox(f, cam), FRONT);
+  }
+
+  /** The cloud shade's puff (ambient.js cloudPuffSpec), white, as a texture (made once). */
+  puffTexture() {
+    if (this.puffTex) return this.puffTex;
+    const spec = cloudPuffSpec(512);
+    const c = makeCanvas(spec.w, spec.h);
+    spec.draw(c.getContext('2d'));
+    this.puffTex = liveTexture(c);
+    return this.puffTex;
+  }
+
   // --------------------------------------------------------------- drawing
 
   /**
@@ -543,6 +679,9 @@ export class WebGLBackend {
 
   present() {
     const r = this.r;
+    // (The GPU's time from here: the live art's upload is GPU work too.)
+    this.timer.poll();
+    this.timer.begin();
     this.closeBatch();
     this.paintLive();
     // Batches -> the mesh's groups, each with its textures (unused slots hold white).
@@ -584,12 +723,17 @@ export class WebGLBackend {
       a.addUpdateRange(0, this.n * a.itemSize);
       a.needsUpdate = true;
     }
+    // The scene's groups and those over it (post): the build ghost is drawn between them.
+    const split = this.postFrom >= 0 ? g.groups.findIndex((gr) => gr.materialIndex >= this.postFrom) : -1;
+    const sceneGroups = split >= 0 ? g.groups.slice(0, split) : g.groups.slice();
+    const postGroups = split >= 0 ? g.groups.slice(split) : [];
     const gl = this.gl;
     gl.info.reset();
     gl.clear(true, true, true);
     const cam = r.camera;
     // This frame's models, instanced, at the level of detail of this zoom (modelPass.js).
-    const built = this.models.update(r, this.placed, lodFor(cam.scale), this.ghosts);
+    // (Low takes the simpler model a zoom step sooner: it is the quality picked for speed.)
+    const built = this.models.update(r, this.placed, lodFor(this.groundMode === 'low' ? cam.scale / 2 : cam.scale), this.ghosts);
     const models = built;
     if (this.drawsGround || models || this.ghosts.length) {
       const vw = cam.viewW / cam.scale;
@@ -603,28 +747,32 @@ export class WebGLBackend {
     }
     if (this.drawsGround) {
       const gp = this.groundPass;
-      // High: the ground and the models in one draw. Low: the ground's kept picture, the models over it.
+      // The models' opaque parts (with the sun's shadow map, High), the ground's picture copied in
+      // behind them (drawn at its own scale: groundPass.js), then their water over it.
+      if (models) this.rig.renderModels(this.camera, 'opaque');
       gp.render(this.camera, `${cam.x},${cam.y},${cam.scale},${cam.viewW},${cam.viewH},${cam.turn}`);
-      if (gp.quality === 'low' && models) this.rig.renderModels(this.camera);
+      if (models && this.rig.hasSeeThrough()) this.rig.renderModels(this.camera, 'see-through');
     } else if (models) {
       this.rig.renderModels(this.camera);
     }
+    g.groups = sceneGroups;
     gl.render(this.quadScene, this.camera);
     // The build ghost over the sprites, as the 2D ghost is drawn (sunRig.js renderGhosts).
     if (this.ghosts.length) this.rig.renderGhosts(this.camera);
-    // Onto the 2D canvas, under everything the renderer draws after the scene.
-    const ctx = r.ctx;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'copy';
-    // A 1:1 copy needs no smoothing, and with it Chrome's software canvas (a
-    // canvas it moved off the GPU after pixels were read from it) blurred
-    // the copy by half a pixel.
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.canvas, 0, 0);
-    ctx.restore();
+    if (postGroups.length) {
+      g.groups = postGroups;
+      gl.render(this.quadScene, this.camera);
+    }
+    g.groups = sceneGroups.concat(postGroups);
+    // The night, then the lightning's flash, over all of it (the 2D canvas's steps, on the GPU).
+    const L = this.layers;
+    if (L && L.night) this.postPass.night(L.night.tint, L.night.lights, cam.viewW, cam.viewH, this.sceneScale);
+    if (L && L.flash > 0) this.postPass.flash(FLASH_RGB.split(',').map((v) => Number(v) / 255), L.flash, cam.viewW, cam.viewH);
+    this.timer.end();
+    // (Nothing is copied: this canvas is on the page, the renderer's 2D layers over it.)
     const st = r.stats;
+    st.gpuMs = this.timer.ms;
+    st.sceneScale = this.sceneScale;
     st.models = built;
     // (By type, their triangles, the level of detail: the smoke test and the console read them.)
     st.modelPass = this.models.stats;
@@ -649,6 +797,8 @@ export class WebGLBackend {
     this.textures.clear();
     if (this.atlasTex) this.atlasTex.dispose();
     this.white.dispose();
+    if (this.puffTex) this.puffTex.dispose();
+    this.postPass.dispose();
     for (const m of this.materials) m.dispose();
     this.geometry.dispose();
     this.models.dispose();
@@ -680,9 +830,12 @@ function liveTexture(canvas) {
  * llvmpipe, as on the CI), low on touch screens (phones and tablets), high
  * elsewhere.
  */
-function autoGround(renderer) {
+function autoGround(renderer, cls = 'card') {
   // Without a GPU the ground's shader is a slideshow (groundPass.js): the flat sprites then.
-  if (softwareGL(renderer)) return 'off';
+  if (cls === 'software' || softwareGL(renderer)) return 'off';
+  // A GPU in the processor (a laptop's Intel UHD ran High at 100% and sluggish): Low, which keeps
+  // its picture while the view is still. The render scale's Auto also draws it smaller there.
+  if (cls === 'integrated') return 'low';
   try {
     if (window.matchMedia('(pointer: coarse)').matches) return 'low';
   } catch {
@@ -691,17 +844,31 @@ function autoGround(renderer) {
   return 'high';
 }
 
+/** 'card', 'integrated' (a GPU in the processor) or 'software' (none), from gpuOf(). */
+function gpuClass(gpu) {
+  if (gpu.software) return 'software';
+  if (gpu.integrated) return 'integrated';
+  return 'card';
+}
+
+/** The GPU the browser will draw with, asked of a throwaway context (before the real one's options are chosen). */
+function probeGpu() {
+  try {
+    if (typeof document === 'undefined') return { name: '', integrated: false, software: false };
+    const c = document.createElement('canvas');
+    const g = c.getContext('webgl2', { powerPreference: 'high-performance' });
+    if (!g) return { name: '', integrated: false, software: false };
+    const out = gpuOf(g);
+    g.getExtension('WEBGL_lose_context')?.loseContext();
+    return out;
+  } catch {
+    return { name: '', integrated: false, software: false };
+  }
+}
+
 /** Does this renderer draw without a GPU (SwiftShader, llvmpipe: the CI)? False when it cannot tell. */
 function softwareGL(renderer) {
-  try {
-    const c = renderer.getContext();
-    const ext = c.getExtension('WEBGL_debug_renderer_info');
-    const name = String(c.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : c.RENDERER));
-    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
-  } catch {
-    // No name to go by.
-    return false;
-  }
+  return isSoftwareGpu(gpuOf(renderer.getContext()).name);
 }
 
 /** Stands for the live-art texture in a batch: it is only made, or remade bigger, once the frame's art is all in. */

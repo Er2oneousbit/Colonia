@@ -57,11 +57,14 @@
  * sprites, the depth-sorted items with their sprites and strips, render/
  * items.js) and hands it to a back end that draws it: the Classic one on the
  * 2D canvas (canvasBackend.js, the default), or the WebGL one (render3d/
- * webglBackend.js), which can draw a building as a 3D model. Everything after
- * the sorted objects (particles, gulls, clouds, the night, the weather, the
- * signs, tool previews and selection outlines) is drawn here on the 2D
- * canvas whichever back end drew the scene; the WebGL one copies its picture
- * onto the 2D canvas first (`present`).
+ * webglBackend.js), which can draw a building as a 3D model. With Classic,
+ * everything after the sorted objects (particles, gulls, clouds, the night,
+ * the weather, the signs, tool previews and selection outlines) is drawn
+ * here on #view. The WebGL one draws on its own canvas on the page and is
+ * handed the layers under the night (`post`: particles to the flash) to
+ * draw itself; the rest is drawn here on a transparent 2D canvas over it
+ * (`mountLayers`, `useLayers`), and #view stays on top, see-through,
+ * taking the input.
  * ----------------------------------------------------------------------------
  */
 
@@ -525,6 +528,16 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
+    // #view's own context (Classic draws everything there); `ctx` is the
+    // one drawn on this frame: #view's, or the overlay's over a composed
+    // WebGL scene (useLayers). The overlay canvas is made with the first
+    // back end that composes.
+    this.mainCtx = this.ctx;
+    this.over = null;
+    this.overCtx = null;
+    this.overDirty = false;
+    this.layered = false;
+    this.lastAlpha = 0;
     this.camera = new Camera();
     this.sprites = new SpriteCache();
     this.effects = new Effects();
@@ -601,9 +614,135 @@ export class Renderer {
   setBackend(be) {
     const next = be || this.canvasBackend;
     if (next === this.backend) return;
-    if (this.backend !== this.canvasBackend) this.backend.dispose();
+    if (this.backend !== this.canvasBackend) {
+      if (this.backend.canvas && this.backend.canvas.parentNode) this.backend.canvas.remove();
+      this.backend.dispose();
+    }
+    if (!next.composes && this.over) {
+      // (Back to Classic: the overlay's full-size bitmap goes too; mountLayers makes it again.)
+      if (this.over.parentNode) this.over.remove();
+      this.over.width = 1;
+      this.over.height = 1;
+      this.over = null;
+      this.overCtx = null;
+      this.layered = null;
+    }
     this.backend = next;
     this.be = next.ready ? next : this.canvasBackend;
+    if (next.composes) this.mountLayers(next);
+    this.useLayers(false);
+  }
+
+  /**
+   * The page's canvases for a back end that composes (WebGL): its own
+   * canvas under #view, and a transparent 2D canvas between them for what
+   * is drawn after the scene (weather, signs, previews, outlines). #view
+   * stays on top and takes the input as it always did; while the WebGL
+   * picture shows, it is see-through (opacity 0, which still takes clicks
+   * and shows the cursor) and nothing is drawn on it. Neither canvas under
+   * it takes pointer events, so input and picking are as before.
+   * Before, the WebGL picture was copied onto #view every frame: at a pixel
+   * ratio of 2 a full-screen copy, and the 2D passes over it, cost more
+   * than the drawing.
+   */
+  mountLayers(be) {
+    const parent = this.canvas.parentNode;
+    if (!parent || typeof document === 'undefined') return;
+    if (!this.over) {
+      this.over = document.createElement('canvas');
+      this.over.className = 'view-layer';
+      this.over.setAttribute('aria-hidden', 'true');
+      this.overCtx = this.over.getContext('2d');
+    }
+    be.canvas.classList.add('view-layer');
+    be.canvas.setAttribute('aria-hidden', 'true');
+    parent.insertBefore(be.canvas, this.canvas);
+    parent.insertBefore(this.over, this.canvas);
+    this.layered = null; // (useLayers sets them up at the next frame)
+    this.sizeLayers();
+  }
+
+  /**
+   * Draw this frame on the composed layers (true: the WebGL canvas and the
+   * overlay show, #view is see-through and `ctx` is the overlay's) or on
+   * #view alone (Classic, or WebGL's context lost). Changes the page only
+   * when it changes.
+   */
+  useLayers(composed) {
+    const on = composed && !!this.over;
+    this.ctx = on ? this.overCtx : this.mainCtx;
+    if (on === this.layered) return;
+    this.layered = on;
+    this.canvas.style.opacity = on ? '0' : '';
+    const gl = this.backend.canvas;
+    if (gl && gl.style) gl.style.visibility = on ? '' : 'hidden';
+    if (this.over) {
+      this.over.style.visibility = on ? '' : 'hidden';
+      this.overDirty = true;
+    }
+  }
+
+  /**
+   * The overlay canvas before this frame's 2D layers: cleared if anything
+   * was drawn on it last frame, and hidden (left out of the page's
+   * compositing) while nothing will be drawn on it this frame. What can draw
+   * there: the weather, the no-road signs, the tool's previews and hints,
+   * the hovered tile, a selection, a fort being deployed, a dragged flag.
+   */
+  clearOverlay(weather) {
+    const busy = weather || this.noRoadMarks.length > 0 || !!this.plan || !!this.tool || !!this.hoverTile
+      || !!this.selectedId || !!this.deployFort || !!this.flagDrag;
+    const c = this.over;
+    if (this.overDirty) {
+      this.overCtx.setTransform(1, 0, 0, 1, 0, 0);
+      this.overCtx.clearRect(0, 0, c.width, c.height);
+      this.overDirty = false;
+    }
+    if (busy) this.overDirty = true;
+    const vis = busy ? '' : 'hidden';
+    if (c.style.visibility !== vis) c.style.visibility = vis;
+  }
+
+  /** Size the composed layers to the view: the overlay in device px, the WebGL canvas's page box (its pixels are the back end's). */
+  sizeLayers() {
+    const cam = this.camera;
+    const css = [`${cam.viewW / cam.dpr}px`, `${cam.viewH / cam.dpr}px`];
+    if (this.over) {
+      if (this.over.width !== cam.viewW || this.over.height !== cam.viewH) {
+        this.over.width = cam.viewW;
+        this.over.height = cam.viewH;
+        this.overDirty = false;
+      }
+      this.over.style.width = css[0];
+      this.over.style.height = css[1];
+    }
+    const gl = this.backend.canvas;
+    if (gl && gl.style) {
+      gl.style.width = css[0];
+      gl.style.height = css[1];
+    }
+  }
+
+  /**
+   * The picture as the player sees it, device px (x, y, w, h) of the view:
+   * #view's own pixels with Classic; with WebGL a frame drawn now, its
+   * canvas and the overlay over it composed into a scratch canvas. For the
+   * smoke test's reads of the screen (the WebGL canvas keeps no picture
+   * between frames, and #view is blank under it).
+   */
+  composedImage(x = 0, y = 0, w = this.camera.viewW, h = this.camera.viewH) {
+    if (!this.layered) return this.mainCtx.getImageData(x, y, w, h);
+    this.render(this.lastAlpha || 0, 0);
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.imageSmoothingEnabled = true;
+    const gl = this.backend.canvas;
+    // (The WebGL canvas may be drawn smaller, render scale: stretched to the view as the page does.)
+    g.drawImage(gl, 0, 0, gl.width, gl.height, -x, -y, this.camera.viewW, this.camera.viewH);
+    if (this.over.style.visibility !== 'hidden') g.drawImage(this.over, -x, -y);
+    return g.getImageData(0, 0, w, h);
   }
 
   /** The view turn being drawn (0..3, view.js). */
@@ -722,6 +861,7 @@ export class Renderer {
     this.canvas.height = this.camera.viewH;
     this.canvas.style.width = `${cssW}px`;
     this.canvas.style.height = `${cssH}px`;
+    this.sizeLayers();
     if (oldDpr !== this.camera.dpr) this.sprites.clear();
   }
 
@@ -780,12 +920,23 @@ export class Renderer {
     const t0 = performance.now();
     this.time += dt;
     this.frame++;
-    const { ctx, camera: cam, game } = this;
+    this.lastAlpha = alpha;
+    const { camera: cam, game } = this;
     cam.smooth = this.motionOn;
     cam.update(dt);
+    // The back end drawing this frame (the Classic one while WebGL cannot),
+    // and the page's canvases for it: a back end that composes (WebGL) draws
+    // on its own canvas, and what follows the scene goes on the transparent
+    // canvas over it; Classic draws everything on #view (useLayers).
+    const be = game && this.backend.ready ? this.backend : this.canvasBackend;
+    const composed = !!be.composes;
+    this.useLayers(composed);
+    const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#2a241c';
-    ctx.fillRect(0, 0, cam.viewW, cam.viewH);
+    if (!composed) {
+      ctx.fillStyle = '#2a241c';
+      ctx.fillRect(0, 0, cam.viewW, cam.viewH);
+    }
     if (!game) return;
     if (this.follow) this.followWalker(alpha);
     const k = cam.scale;
@@ -795,8 +946,6 @@ export class Renderer {
     // Sprites are drawn for the zoom LEVEL; while the zoom eases they are scaled a little.
     const changing = this.palPrev !== null || this.snowPrev !== null;
     this.sprites.beginFrame(cam.spriteScale, changing ? Math.min(this.spriteBudgetMs, this.lookBudgetMs) : this.spriteBudgetMs);
-    // The back end drawing this frame (the Classic one while WebGL cannot).
-    const be = this.backend.ready ? this.backend : this.canvasBackend;
     this.be = be;
     this.stats.backend = be.kind;
     be.begin();
@@ -1086,40 +1235,67 @@ export class Renderer {
     be.items(items);
     // A building being placed that the back end draws as a 3D model: its ghost is that model.
     this.placeGhostModels(be);
-    // The scene is whole: the WebGL back end copies its picture onto the 2D canvas.
-    be.present();
 
-    // --- particles (dust, smoke), under the night and the weather ----------
+    // What lies over the scene and under the night: particles, gulls, cloud
+    // shade and birds, then the night's tint with its pools and glows of
+    // light. Classic paints them on its canvas after the scene (below); a
+    // back end that composes (WebGL) draws them itself, in that order, so
+    // the night darkens them as on the 2D canvas and nothing of the scene
+    // is ever copied (be.post).
     this.effects.update(dt);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.effects.draw(ctx, cam);
-
-    // --- gulls over the fishing grounds (where wharves' boats go) ----------
-    this.drawFishingGrounds(motion);
-
-    // --- ambient: cloud shadows and birds over the city --------------------
     if (this.ambientOn) {
       // Cloud shade needs sunshine; birds stay home at night and in the rain.
       this.ambient.shade = shadowA;
       this.ambient.birdsOk = env.sun > 0.4 && env.rain < 0.2 && env.snow < 0.2;
       this.ambient.update(dt);
-      this.ambient.draw(ctx, cam, vr, this.time);
     }
-
-    // --- night and cloud cover: tint the scene, then light it up -----------
     const tint = env.tint;
-    if (!overlayOn && (tint[0] < 254 || tint[1] < 254 || tint[2] < 254)) {
+    const night = !overlayOn && (tint[0] < 254 || tint[1] < 254 || tint[2] < 254);
+    if (night) {
       this.lights.begin();
       if (env.lamps > 0.01) this.collectLights(visibleBuildings, items, env);
-      this.lights.apply(ctx, cam.viewW, cam.viewH, env);
     }
     this.stats.lights = !overlayOn && env.lamps > 0.01 ? this.lights.nPools + this.lights.nGlows : 0;
+    // (Not with reduced motion: no falling particles and no lightning flashes.)
+    const weather = this.weatherOn && motion && (env.rain > 0.01 || env.snow > 0.01 || this.weather.flash > 0.01 || this.weather.drops.length || this.weather.flakes.length);
+    if (composed) {
+      be.post({
+        particles: this.effects.particles,
+        gulls: this.fishingSpots(motion),
+        puffs: this.ambientOn ? this.ambient.puffs(cam, vr) : [],
+        flocks: this.ambientOn ? this.ambient.flocks : [],
+        night: night ? { tint, lights: this.lights } : null,
+        flash: weather ? this.weather.flashAlpha() : 0,
+      });
+    }
+
+    // The scene is whole (WebGL: drawn now, on its own canvas).
+    const tPresent = performance.now();
+    this.stats.copyMs = null;
+    this.stats.gpuMs = null;
+    be.present();
+    const tScene = performance.now();
+    // Stage times for the performance readout (render/perf.js). Classic draws as it collects: its draw is in `collect`.
+    this.stats.collectMs = tPresent - t0;
+    this.stats.drawMs = Math.max(0, tScene - tPresent - (this.stats.copyMs || 0));
+    // The 2D layers over a composed scene: drawn only when there is something to draw.
+    if (composed) this.clearOverlay(weather);
+
+    if (!composed) {
+      // --- particles (dust, smoke), under the night and the weather --------
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.effects.draw(ctx, cam);
+      // --- gulls over the fishing grounds (where wharves' boats go) --------
+      this.drawFishingGrounds(motion);
+      // --- ambient: cloud shadows and birds over the city ------------------
+      if (this.ambientOn) this.ambient.draw(ctx, cam, vr, this.time);
+      // --- night and cloud cover: tint the scene, then light it up ---------
+      if (night) this.lights.apply(ctx, cam.viewW, cam.viewH, env);
+    }
 
     // --- rain, snow, lightning ---------------------------------------------
-    // (Not with reduced motion: no falling particles and no lightning flashes.)
-    if (this.weatherOn && motion && (env.rain > 0.01 || env.snow > 0.01 || this.weather.flash > 0.01 || this.weather.drops.length || this.weather.flakes.length)) {
-      this.weather.draw(ctx, cam.viewW, cam.viewH, cam.dpr, dt, this.time);
-    }
+    // (A composed scene has had the flash added already: it brightens the scene, not the overlay.)
+    if (weather) this.weather.draw(ctx, cam.viewW, cam.viewH, cam.dpr, dt, this.time, !composed);
 
     // --- no-road signs: over the night and the weather, so always readable --
     this.drawNoRoadMarks();
@@ -1158,7 +1334,9 @@ export class Renderer {
     // Every sprite of the new look is ready: drop the old look, so the next
     // frame shows the new one whole.
     if (this.sprites.pending === 0) this.finishLookChange();
-    this.stats.ms = performance.now() - t0;
+    const tEnd = performance.now();
+    this.stats.overlayMs = tEnd - tScene;
+    this.stats.ms = tEnd - t0;
   }
 
   /**
@@ -2017,19 +2195,33 @@ export class Renderer {
 
   /** Gulls wheeling over each fishing ground in view (still with reduced motion). */
   drawFishingGrounds(motion) {
-    const { ctx, camera: cam, game } = this;
+    const spots = this.fishingSpots(motion);
+    if (!spots.length) return;
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (const g of spots) drawGulls(ctx, g.sx, g.sy, g.k, g.t, g.seed);
+  }
+
+  /**
+   * The fishing grounds in view and their gulls' place, device px: { sx, sy,
+   * k, t, seed, box } (box: where drawGulls paints, for the WebGL back end's
+   * cell of live art).
+   */
+  fishingSpots(motion) {
+    const { camera: cam, game } = this;
     const grounds = game.map.fishingGrounds;
-    if (!grounds || !grounds.length) return;
+    const out = [];
+    if (!grounds || !grounds.length) return out;
     const k = cam.scale;
     const t = motion ? this.time : 0;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
     grounds.forEach((g, n) => {
       const c = this.worldAt(g.x + 0.5, g.y + 0.5); // the tile's center
       const sx = (c.x - cam.x) * k;
       const sy = (c.y - cam.y) * k;
       if (sx < -80 * k || sy < -80 * k || sx > cam.viewW + 80 * k || sy > cam.viewH + 80 * k) return;
-      drawGulls(ctx, sx, sy, k, t, n * 2.3 + g.x * 0.1);
+      out.push({ sx, sy, k, t, seed: n * 2.3 + g.x * 0.1, box: [sx - 36 * k, sy - 62 * k, sx + 36 * k, sy + 20 * k] });
     });
+    return out;
   }
 
   drawExtra(it, ctx = this.ctx) {

@@ -23,6 +23,7 @@ import { log } from './core/debug.js';
 import { Game } from './core/game.js';
 import { saveToSlot, readSlot, deserializeGame, exportToFile, exportSlotToFile, importFromFile, serializeGame, canDownloadFiles } from './core/save.js';
 import { Renderer } from './render/renderer.js';
+import { PerfMeter, perfLines, gpuOf } from './render/perf.js';
 import { WebGLBackend } from './render3d/webglBackend.js';
 import { OVERLAYS } from './render/overlays.js';
 import { UI } from './ui/ui.js';
@@ -47,13 +48,14 @@ import { fortByNumber, roman } from './sim/fortNumbers.js';
 import { AUTO_PAUSE_DEFAULTS, autoPauseFor, autoPauseText } from './ui/autoPause.js';
 import { stepOfKind, nextIdleFrom, cyclable, kindPosition } from './ui/cycle.js';
 import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
+import { fullscreenElement, fullscreenAvailable, requestFullscreen, exitFullscreen, escapeLeavesFullscreen } from './ui/fullscreen.js';
 
 /** Input events that count as a user activation (HTML spec) in some browser. */
 /** Shift+N pressed twice within this long glides to the fort (app.showFort): once picks up its standard. */
 const FORT_KEY_DOUBLE_MS = 450;
 const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
 
-const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ground: 'auto', ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
+const DEFAULT_SETTINGS = { volume: 0.5, muted: false, music: true, musicVolume: 0.35, edgeScroll: true, autosave: true, showFps: false, theme: 'auto', renderer: 'classic', ground: 'auto', renderScale: 'auto', fullscreen: true, ambient: true, dayNight: true, seasons: true, weather: true, difficulty: 'normal', seaRaids: true, autoPause: AUTO_PAUSE_DEFAULTS };
 
 /** Does the player's system ask for less motion (accessibility setting)? */
 function prefersReducedMotion() {
@@ -127,6 +129,7 @@ export class App {
     this.acc = 0;
     this.lastFrame = performance.now();
     this.perf = { fps: 0, frames: 0, fpsTime: 0, frameMs: 0, simMs: 0, ticks: 0 };
+    this.perfMeter = new PerfMeter(); // the performance readout's means (render/perf.js)
     this.debugHud = !!flags.debug;
     this.errorCount = 0;
     this.gameUnsub = [];
@@ -158,6 +161,22 @@ export class App {
     this.unlockHandlers = unlock;
     window.addEventListener('pagehide', () => this.autosaveNow('pagehide'));
     window.addEventListener('resize', () => this.resize());
+    // Fullscreen (ui/fullscreen.js): the canvases and the HUD follow the new size at once (the
+    // window's resize comes too, but not in every browser), and an Esc that left it is noted.
+    this.fullscreenLeftAt = 0;
+    this.fullscreenAsks = 0; // (times it was asked for: the smoke test reads it)
+    for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
+      document.addEventListener(ev, () => {
+        if (!fullscreenElement()) {
+          this.fullscreenLeftAt = performance.now();
+          // (Left during a game: a quick load or a restart keeps it so, until the main menu.)
+          if (this.game) this.fullscreenDeclined = true;
+        }
+        this.resize();
+        this.ui.hud.showFullscreen(!!fullscreenElement());
+      });
+    }
+    this.watchPixelRatio();
     this.resize();
     // Where the browser (or the page embedding the game) allows autoplay, the
     // music starts right away; elsewhere the main menu shows the title gate.
@@ -166,6 +185,56 @@ export class App {
   }
 
   get showDebugHud() { return this.debugHud || this.settings.showFps; }
+
+  /**
+   * A new device pixel ratio (the window dragged to a screen of another
+   * scale, the browser zoomed) does not always fire a resize: listen for the
+   * ratio itself, and again for each new one.
+   */
+  watchPixelRatio() {
+    if (typeof window.matchMedia !== 'function') return;
+    try {
+      const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      const on = () => {
+        mq.removeEventListener('change', on);
+        this.resize();
+        this.watchPixelRatio();
+      };
+      mq.addEventListener('change', on);
+    } catch {
+      // (No resolution media queries: the window's resize still comes.)
+    }
+  }
+
+  /**
+   * Fullscreen when a game starts (Settings, on by default; the URL's
+   * fullscreen=0 turns it off): asked only inside the player's own click or
+   * key press (the browser refuses it otherwise), never for a game that
+   * starts by itself.
+   */
+  fullscreenOnStart() {
+    if (this.flags.fullscreen === false || this.settings.fullscreen === false || this.fullscreenDeclined) return;
+    const act = typeof navigator !== 'undefined' ? navigator.userActivation : null;
+    if (act && !act.isActive) return;
+    if (requestFullscreen()) this.fullscreenAsks++;
+  }
+
+  /** The top bar's and the game menu's fullscreen button: in, or out. */
+  toggleFullscreen() {
+    if (fullscreenElement()) exitFullscreen();
+    else if (requestFullscreen()) this.fullscreenAsks++;
+  }
+
+  /** Is the page fullscreen now (any browser's spelling)? */
+  get isFullscreen() { return !!fullscreenElement(); }
+
+  /** May the page go fullscreen here (the button shows only then)? */
+  get canFullscreen() { return fullscreenAvailable(); }
+
+  /** Was this Esc the browser's, leaving fullscreen (ui/fullscreen.js)? Then the game does nothing with it. */
+  escapeLeftFullscreen() {
+    return escapeLeavesFullscreen(!!fullscreenElement(), this.fullscreenLeftAt, performance.now());
+  }
 
   /** Decide what to show first based on URL flags. */
   boot() {
@@ -232,7 +301,7 @@ export class App {
    */
   applyRenderer() {
     const want = (this.flags.renderer || this.settings.renderer) === 'webgl' ? 'webgl' : 'classic';
-    if (want === this.rendererWant) { this.applyGround(); return; }
+    if (want === this.rendererWant) { this.applyGround(); this.applyRenderScale(); return; }
     this.rendererWant = want;
     const r = this.renderer;
     this.rendererNote = '';
@@ -240,7 +309,9 @@ export class App {
     try {
       r.setBackend(new WebGLBackend(r));
       this.groundWant = null; // (a new back end starts with its ground off)
+      this.scaleWant = null;
       this.applyGround();
+      this.applyRenderScale();
     } catch (err) {
       r.setBackend(null);
       this.rendererNote = 'WebGL is not available in this browser, so the Classic renderer draws the city.';
@@ -262,6 +333,20 @@ export class App {
     if (want === this.groundWant) return;
     this.groundWant = want;
     be.setGround(want);
+  }
+
+  /**
+   * The WebGL renderer's render scale (render3d/renderScale.js): Auto, or a
+   * share of the device pixels for the 3D scene (never the HUD or text).
+   * The URL's scale= flag wins until the player picks in Settings.
+   */
+  applyRenderScale() {
+    const be = this.renderer.backend;
+    if (!be || be.kind !== 'webgl') return;
+    const want = String(this.flags.scale || this.settings.renderScale || 'auto');
+    if (want === this.scaleWant) return;
+    this.scaleWant = want;
+    be.setRenderScale(want);
   }
 
   // ------------------------------------------------------------ game setup
@@ -340,6 +425,8 @@ export class App {
 
   /** Make `game` the active game and hook up its events. */
   startGame(game, cameraState = null) {
+    // (First: the click that started the game is what lets the page go fullscreen.)
+    this.fullscreenOnStart();
     for (const u of this.gameUnsub) u();
     this.gameUnsub = [];
     this.cancelDeploy();
@@ -571,6 +658,7 @@ export class App {
 
   /** Leave the current game and show the main menu over a living demo city. */
   toMainMenu() {
+    this.fullscreenDeclined = false; // (the next game from the menu may go fullscreen again)
     for (const u of this.gameUnsub) u();
     this.gameUnsub = [];
     this.game = null;
@@ -1058,6 +1146,53 @@ export class App {
   }
 
   toggleDebugHud() { this.debugHud = !this.debugHud; }
+
+  /**
+   * The graphics chip the browser draws with: the WebGL back end's, or with
+   * Classic a small WebGL context's made once to ask (and let go at once).
+   */
+  gpuInfo() {
+    const be = this.renderer.backend;
+    if (be.kind === 'webgl' && be.gpu) return be.gpu;
+    if (!this.gpuProbe) {
+      this.gpuProbe = { name: '', integrated: false, software: false };
+      try {
+        const c = document.createElement('canvas');
+        const gl = c.getContext('webgl2', { powerPreference: 'high-performance' }) || c.getContext('webgl');
+        if (gl) {
+          this.gpuProbe = gpuOf(gl);
+          gl.getExtension('WEBGL_lose_context')?.loseContext();
+        }
+      } catch {
+        // (No WebGL: no name.)
+      }
+    }
+    return this.gpuProbe;
+  }
+
+  /** The performance readout's lines (render/perf.js): F3, the console's `perf`. */
+  perfReport() {
+    const r = this.renderer;
+    const st = r.stats;
+    const cam = r.camera;
+    const be = r.be;
+    const gpu = this.gpuInfo();
+    const webgl = be.kind === 'webgl';
+    const info = {
+      backend: be.kind,
+      size: `${cam.viewW}x${cam.viewH}`,
+      dpr: Math.round(cam.dpr * 100) / 100,
+      scene: webgl && be.sceneSize ? `${be.sceneSize} (${Math.round(be.sceneScale * 100)}%, ground ${Math.round(be.groundShare * 100)}%${be.auto ? ', Auto' : ''})` : '',
+      drawCalls: st.drawCalls,
+      gpuTimer: webgl && be.timer && be.timer.available,
+      ground: webgl ? st.ground : '',
+      models: webgl && be.models ? `${be.models.status()}, ${be.models.kits.size} looks built, ${st.models || 0} drawn` : '',
+      gpuName: gpu.name,
+      integrated: gpu.integrated,
+      hint: gpu.hint,
+    };
+    return perfLines(this.perfMeter.last, info);
+  }
   toggleConsole() { this.ui.console.toggle(); }
 
   showBriefing() {
@@ -1069,6 +1204,7 @@ export class App {
 
   frame(now) {
     requestAnimationFrame((t) => this.frame(t));
+    const prevFrame = this.lastFrame;
     const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     const frameStart = performance.now();
@@ -1105,7 +1241,15 @@ export class App {
       this.input.update(dt);
       this.renderer.render(alpha, dt);
       this.music.setMood(this.musicMood());
+      const tUi = performance.now();
       this.ui.update(dt, now);
+      const st = this.renderer.stats;
+      const pageMs = performance.now() - frameStart;
+      this.perfMeter.frame(dt, pageMs, {
+        sim: simMs, collect: st.collectMs, draw: st.drawMs, copy: st.copyMs, overlay: st.overlayMs, ui: performance.now() - tUi, gpu: st.gpuMs,
+      });
+      // The render scale's Auto learns from the frames as shown (WebGL only; render3d/renderScale.js).
+      if (this.renderer.be.tune) this.renderer.be.tune((now - prevFrame), pageMs, now);
       // performance counters
       const p = this.perf;
       p.frames++;

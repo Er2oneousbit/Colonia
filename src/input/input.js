@@ -50,7 +50,7 @@ export const KEY_HELP = [
   ['Home', 'Glide to the map entrance'],
   ['F1', 'Help'],
   ['F2', 'Advisors'],
-  ['F3', 'Toggle debug HUD'],
+  ['F3', 'Performance readout: frames a second, where the time of a frame goes, the graphics chip in use'],
   ['F5 / F9', 'Quick save / quick load'],
   ['` (backtick)', 'Debug console'],
   ['Esc', 'Cancel / close / game menu'],
@@ -474,6 +474,8 @@ export class Input {
     const k = e.key;
     // Keys that work even with menus open.
     if (e.code === 'Backquote') { e.preventDefault(); a.toggleConsole(); return; }
+    // The Esc that leaves fullscreen leaves only fullscreen (ui/fullscreen.js), even where the browser passes it on.
+    if (k === 'Escape' && a.escapeLeftFullscreen && a.escapeLeftFullscreen()) { e.preventDefault(); return; }
     if (k === 'Escape' && this.flag) { e.preventDefault(); this.cancelFlag(); return; } // a flag being dragged goes back
     if (k === 'Escape') { e.preventDefault(); a.escape(); return; }
     if (k === 'F1') { e.preventDefault(); a.ui.openHelp(); return; }

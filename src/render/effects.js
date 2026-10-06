@@ -83,23 +83,35 @@ export class Effects {
 
   /** Draw particles; toScreen maps world px -> device px, k = scale. */
   draw(ctx, cam) {
-    const k = cam.scale;
-    for (const p of this.particles) {
-      const sx = (p.x - cam.x) * k;
-      const sy = (p.y - cam.y) * k;
-      if (p.spark) {
-        const s = 1 - p.life / p.max;
-        ctx.fillStyle = `rgba(255,${Math.round(150 + 100 * s)},${Math.round(60 * s)},${s.toFixed(3)})`;
-        ctx.fillRect(sx - p.size * k * 0.5, sy - p.size * k * 0.5, p.size * k, p.size * k);
-        continue;
-      }
-      const a = 0.5 * (1 - p.life / p.max);
-      ctx.fillStyle = `rgba(${p.color},${a.toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(sx, sy, p.size * k, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    for (const p of this.particles) drawParticle(ctx, p, cam);
   }
+}
+
+/** One particle in device px (camera `cam`). */
+export function drawParticle(ctx, p, cam) {
+  const k = cam.scale;
+  const sx = (p.x - cam.x) * k;
+  const sy = (p.y - cam.y) * k;
+  if (p.spark) {
+    const s = 1 - p.life / p.max;
+    ctx.fillStyle = `rgba(255,${Math.round(150 + 100 * s)},${Math.round(60 * s)},${s.toFixed(3)})`;
+    ctx.fillRect(sx - p.size * k * 0.5, sy - p.size * k * 0.5, p.size * k, p.size * k);
+    return;
+  }
+  const a = 0.5 * (1 - p.life / p.max);
+  ctx.fillStyle = `rgba(${p.color},${a.toFixed(3)})`;
+  ctx.beginPath();
+  ctx.arc(sx, sy, p.size * k, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** The device px box a particle paints into ([x0, y0, x1, y1], a pixel of room for antialiasing). */
+export function particleBox(p, cam) {
+  const k = cam.scale;
+  const sx = (p.x - cam.x) * k;
+  const sy = (p.y - cam.y) * k;
+  const r = (p.spark ? p.size * 0.5 : p.size) * k + 1;
+  return [sx - r, sy - r, sx + r, sy + r];
 }
 
 /**
