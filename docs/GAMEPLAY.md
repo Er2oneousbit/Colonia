@@ -190,6 +190,7 @@ Two bridges carry a road over water, as in the original. Drag either in a straig
 * A liburnian a low bridge cuts off from its Statio sails to a station on its own side with an empty berth, or is laid up (the warning while placing names them).
 * A boat already under way when a low bridge goes up across its route stops short of it and finds another way: a merchant ship turns back to sea, a fishing boat fishes at a ground on its side or goes home, a raider ship puts its warriors ashore near it. One that has no way left (a boat cut off from its wharf, a merchant ship moored upstream) is lost.
 * A low bridge may not be built over a boat (wait until it has passed) nor on the tile where ships come in from the sea, and the two kinds never share a tile: clear one to build the other.
+* Where a road on the bank meets a ship bridge's first or last water tile from the side, or two ship bridges cross, the deck there is a level landing open to the joining way, and the ramps climb from it: nobody steps up or down where ways meet. A ship lowers its mast as it passes under the deck and raises it again as it comes out.
 * The bridge laid across the river on river maps at the start is a ship bridge, free, as it always was. Clearing a bridge is free; the boats' water opens again at once.
 
 ## Workers
