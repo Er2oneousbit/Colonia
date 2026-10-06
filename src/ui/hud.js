@@ -80,6 +80,11 @@ export class Hud {
       h('button', { class: 'hud-btn north', id: 'hud-north', title: 'Where north lies. Click to turn the view back to the start', 'aria-label': 'North', onclick: () => app.turnView(-app.renderer.viewTurn) }, this.northNeedle),
       h('button', { class: 'hud-btn', id: 'hud-turn-right', title: 'Turn the view: the city a quarter turn clockwise (Q or ])', 'aria-label': 'Turn the view clockwise', onclick: () => app.turnView(1) }, '⟳'));
     this.shownTurn = -1;
+    // Fullscreen in and out (ui/fullscreen.js; F11-like, and the way back in after Esc left it).
+    // Hidden where the page may not go fullscreen (a frame that forbids it).
+    this.fullBtn = h('button', { class: 'hud-btn', id: 'hud-fullscreen', 'aria-label': 'Fullscreen', onclick: () => app.toggleFullscreen() }, '⛶');
+    this.fullBtn.classList.toggle('hidden', !app.canFullscreen);
+    this.showFullscreen(false);
     this.el.append(
       this.menuBtn,
       this.title,
@@ -96,9 +101,17 @@ export class Hud {
       h('button', { class: 'hud-btn', id: 'hud-empire', title: 'Empire map (E)', 'aria-label': 'Empire map', onclick: () => app.ui.openEmpire() }, '🧭'),
       h('button', { class: 'hud-btn', title: 'Advisors (F2)', onclick: () => app.ui.openAdvisors() }, '📜', h('span', { class: 'btn-lbl' }, ' Advisors')),
       h('button', { class: 'hud-btn msg-btn', title: 'Messages', onclick: () => app.ui.openAdvisors('messages') }, '✉'),
+      this.fullBtn,
       h('button', { class: 'hud-btn', title: 'Help (F1)', onclick: () => app.ui.openHelp() }, '?'),
     );
     root.appendChild(this.el);
+  }
+
+  /** The fullscreen button's look: whether the page is fullscreen now. */
+  showFullscreen(on) {
+    this.fullBtn.title = on ? 'Leave fullscreen (Esc)' : 'Fullscreen';
+    this.fullBtn.classList.toggle('active', on);
+    this.fitSig = null; // (the bar's room may have changed with the window)
   }
 
   stat(icon, label, title, onclick) {

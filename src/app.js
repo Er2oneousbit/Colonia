@@ -48,6 +48,7 @@ import { fortByNumber, roman } from './sim/fortNumbers.js';
 import { AUTO_PAUSE_DEFAULTS, autoPauseFor, autoPauseText } from './ui/autoPause.js';
 import { stepOfKind, nextIdleFrom, cyclable, kindPosition } from './ui/cycle.js';
 import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
+import { fullscreenElement, fullscreenAvailable, requestFullscreen, exitFullscreen, escapeLeavesFullscreen } from './ui/fullscreen.js';
 
 /** Input events that count as a user activation (HTML spec) in some browser. */
 /** Shift+N pressed twice within this long glides to the fort (app.showFort): once picks up its standard. */
@@ -160,6 +161,18 @@ export class App {
     this.unlockHandlers = unlock;
     window.addEventListener('pagehide', () => this.autosaveNow('pagehide'));
     window.addEventListener('resize', () => this.resize());
+    // Fullscreen (ui/fullscreen.js): the canvases and the HUD follow the new size at once (the
+    // window's resize comes too, but not in every browser), and an Esc that left it is noted.
+    this.fullscreenLeftAt = 0;
+    this.fullscreenAsks = 0; // (times it was asked for: the smoke test reads it)
+    for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
+      document.addEventListener(ev, () => {
+        if (!fullscreenElement()) this.fullscreenLeftAt = performance.now();
+        this.resize();
+        this.ui.hud.showFullscreen(!!fullscreenElement());
+      });
+    }
+    this.watchPixelRatio();
     this.resize();
     // Where the browser (or the page embedding the game) allows autoplay, the
     // music starts right away; elsewhere the main menu shows the title gate.
@@ -168,6 +181,53 @@ export class App {
   }
 
   get showDebugHud() { return this.debugHud || this.settings.showFps; }
+
+  /**
+   * A new device pixel ratio (the window dragged to a screen of another
+   * scale, the browser zoomed) does not always fire a resize: listen for the
+   * ratio itself, and again for each new one.
+   */
+  watchPixelRatio() {
+    if (typeof window.matchMedia !== 'function') return;
+    try {
+      const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      const on = () => {
+        mq.removeEventListener('change', on);
+        this.resize();
+        this.watchPixelRatio();
+      };
+      mq.addEventListener('change', on);
+    } catch {
+      // (No resolution media queries: the window's resize still comes.)
+    }
+  }
+
+  /**
+   * Fullscreen when a game starts (Settings, on by default; the URL's
+   * fullscreen=0 turns it off): asked only inside the player's own click or
+   * key press (the browser refuses it otherwise), never for a game that
+   * starts by itself.
+   */
+  fullscreenOnStart() {
+    if (this.flags.fullscreen === false || this.settings.fullscreen === false) return;
+    const act = typeof navigator !== 'undefined' ? navigator.userActivation : null;
+    if (act && !act.isActive) return;
+    if (requestFullscreen()) this.fullscreenAsks++;
+  }
+
+  /** The top bar's and the game menu's fullscreen button: in, or out. */
+  toggleFullscreen() {
+    if (fullscreenElement()) exitFullscreen();
+    else if (requestFullscreen()) this.fullscreenAsks++;
+  }
+
+  /** May the page go fullscreen here (the button shows only then)? */
+  get canFullscreen() { return fullscreenAvailable(); }
+
+  /** Was this Esc the browser's, leaving fullscreen (ui/fullscreen.js)? Then the game does nothing with it. */
+  escapeLeftFullscreen() {
+    return escapeLeavesFullscreen(!!fullscreenElement(), this.fullscreenLeftAt, performance.now());
+  }
 
   /** Decide what to show first based on URL flags. */
   boot() {
@@ -358,6 +418,8 @@ export class App {
 
   /** Make `game` the active game and hook up its events. */
   startGame(game, cameraState = null) {
+    // (First: the click that started the game is what lets the page go fullscreen.)
+    this.fullscreenOnStart();
     for (const u of this.gameUnsub) u();
     this.gameUnsub = [];
     this.cancelDeploy();

@@ -204,10 +204,19 @@ try {
       if (window.colonia.game && window.__look.length < 3) window.__look.push({ prev: this.palPrev, pending: this.stats.pending, key: this.pal.key });
     };
     window.__unhookRender = () => { r.render = orig; };
+    // Fullscreen on starting a game (ui/fullscreen.js, on by default): the request is recorded,
+    // not made (a headless page that went fullscreen would change size under the checks below).
+    window.__fsAsks = [];
+    document.documentElement.requestFullscreen = function (opts) { window.__fsAsks.push({ el: this === document.documentElement, active: !!navigator.userActivation?.isActive, opts }); return Promise.resolve(); };
   });
   await page.click('text=Found the city');
   await page.waitForFunction(() => window.colonia && window.colonia.game, null, { timeout: 15000 });
   check('sandbox starts from the menu', true);
+  const fsAsk = await page.evaluate(() => ({ asks: window.__fsAsks, setting: window.colonia.settings.fullscreen, counted: window.colonia.fullscreenAsks }));
+  check('Found the city asks for the whole page fullscreen, inside the click (Settings: on by default)', fsAsk.setting === true && fsAsk.asks.length === 1 && fsAsk.asks[0].el && fsAsk.asks[0].active && fsAsk.counted === 1, JSON.stringify(fsAsk));
+  // (Off from here on, stored: a game started by Continue or Load after a reload would make this
+  // headless page truly fullscreen, at another size, under the checks that follow.)
+  await page.evaluate(() => { window.colonia.settings.fullscreen = false; window.colonia.applySettings(); });
   check('the sandbox from the menu is on the Etruscan coast', await page.evaluate(() => window.colonia.game.scenario.site) === 'etruria');
   const founded = await page.evaluate(() => window.colonia.game.scenario.events);
   check('the sandbox from the menu has every event on but the one unticked', JSON.stringify(founded) === JSON.stringify(['wages', 'land', 'sea', 'water', 'clay']), JSON.stringify(founded));
@@ -3759,6 +3768,60 @@ try {
   check('phone: one tap on the title gate starts the menu music', tapped.playing && tapped.mood === 'menu' && !tapped.gate && !tapped.modal, JSON.stringify(tapped));
   await tapPage.close();
 
+  // 7c. Fullscreen (ui/fullscreen.js): with the setting off, starting a game asks for nothing;
+  //     the top bar's button asks; an Esc that just left fullscreen does nothing else, the next
+  //     opens the game menu; and a new window size (as entering or leaving fullscreen gives)
+  //     resizes the canvas and the camera. (Headless pages are not truly made fullscreen: the
+  //     requests are recorded.)
+  {
+    const fp = await ctx.newPage();
+    const ferrors = [];
+    fp.on('pageerror', (e) => ferrors.push(`pageerror: ${e.message}`));
+    await fp.goto(url);
+    await fp.waitForSelector('#title-gate', { timeout: 15000 });
+    await fp.click('#title-gate');
+    await fp.waitForTimeout(500);
+    await fp.evaluate(() => {
+      window.colonia.settings.fullscreen = false;
+      window.__fsAsks = 0;
+      document.documentElement.requestFullscreen = function () { window.__fsAsks++; return Promise.resolve(); };
+    });
+    await fp.click('text=Sandbox');
+    await fp.click('text=Found the city');
+    await fp.waitForFunction(() => window.colonia && window.colonia.game, null, { timeout: 15000 });
+    const offAsks = await fp.evaluate(() => window.__fsAsks);
+    check('with Settings > Fullscreen when a game starts off, Found the city asks for no fullscreen', offAsks === 0, String(offAsks));
+    const btnShown = await fp.isVisible('#hud-fullscreen');
+    await fp.click('#hud-fullscreen');
+    const btnAsks = await fp.evaluate(() => window.__fsAsks);
+    check('the top bar\'s fullscreen button asks for fullscreen', btnShown && btnAsks === 1, JSON.stringify({ btnShown, btnAsks }));
+    await fp.mouse.move(600, 400);
+    await fp.evaluate(() => { window.colonia.fullscreenLeftAt = performance.now(); });
+    await fp.keyboard.press('Escape');
+    const afterLeave = await fp.evaluate(() => !!document.querySelector('.modal'));
+    await fp.waitForTimeout(500);
+    await fp.keyboard.press('Escape');
+    const afterNext = await fp.evaluate(() => !!document.querySelector('.modal'));
+    check('the Esc that left fullscreen does nothing else; the next Esc opens the game menu', !afterLeave && afterNext, JSON.stringify({ afterLeave, afterNext }));
+    const menuFs = await fp.isVisible('.modal .btn:has-text("Fullscreen")');
+    check('the game menu has a Fullscreen button', menuFs);
+    await fp.keyboard.press('Escape');
+    const sizeOf = () => fp.evaluate(() => {
+      const app = window.colonia;
+      const r = app.renderer;
+      const box = r.canvas.getBoundingClientRect();
+      const side = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w')) || 0;
+      return { viewW: r.camera.viewW, viewH: r.camera.viewH, cssW: Math.round(box.width), cssH: Math.round(box.height), want: [innerWidth - side, innerHeight], dpr: r.camera.dpr };
+    });
+    await fp.setViewportSize({ width: 1500, height: 860 });
+    await fp.evaluate(() => document.dispatchEvent(new Event('fullscreenchange')));
+    await fp.waitForTimeout(200);
+    const big = await sizeOf();
+    check('a new window size (entering or leaving fullscreen) resizes the canvas and the camera', big.cssW === big.want[0] && big.cssH === big.want[1] && big.viewW === Math.round(big.cssW * big.dpr) && big.viewH === Math.round(big.cssH * big.dpr), JSON.stringify(big));
+    check('fullscreen: no page errors', ferrors.length === 0, ferrors.join(' | '));
+    await fp.close();
+  }
+
   // 8. The WebGL renderer (beta, render3d/), on a browser of its own that is
   //    told to give WebGL without a GPU (SwiftShader): the demo city draws
   //    with it, the well as a 3D model, clicks still pick a building (the
@@ -3917,6 +3980,102 @@ try {
       }
       check('WebGL renderer: a click on a walker opens its panel', !!walker && wpick.target?.kind === 'walker' && wpick.target.id === walker.id && wpick.ring === walker.id && wpick.live > 0, JSON.stringify({ walker, wpick }));
       await gp.evaluate(() => window.colonia.ui.info.close());
+      // The page's canvases: the WebGL one on the page under a transparent 2D overlay, #view on
+      // top, see-through, still the one a click lands on (Renderer.mountLayers).
+      const layers = await gp.evaluate(() => {
+        const app = window.colonia;
+        const r = app.renderer;
+        const box = r.canvas.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        const gl = r.backend.canvas;
+        return { hitView: hit === r.canvas, viewOpacity: r.canvas.style.opacity, glOnPage: !!gl.parentNode, glPointer: getComputedStyle(gl).pointerEvents, overPointer: getComputedStyle(r.over).pointerEvents, order: [...r.canvas.parentNode.children].indexOf(gl) < [...r.canvas.parentNode.children].indexOf(r.canvas), copy: r.stats.copyMs };
+      });
+      check('WebGL renderer: its canvas is on the page under the 2D overlay and #view, which still takes the clicks; nothing is copied', layers.hitView && layers.viewOpacity === '0' && layers.glOnPage && layers.glPointer === 'none' && layers.overPointer === 'none' && layers.order && layers.copy === null, JSON.stringify(layers));
+      // The composed picture shows what is drawn over the 3D scene: the night's tint, and a red
+      // no-road sign over a building with no road (the sign on the 2D overlay, the night in GL).
+      const dayNight = await gp.evaluate(() => {
+        const r = window.colonia.renderer;
+        // The mean brightness of a sample of the composed picture.
+        const mean = () => {
+          const d = r.composedImage().data;
+          let s = 0;
+          let n = 0;
+          for (let i = 0; i < d.length; i += 4 * 61) { s += d[i] + d[i + 1] + d[i + 2]; n += 3; }
+          return s / n;
+        };
+        r.fixedTime = 0.3;
+        const day = mean();
+        r.fixedTime = 0.8;
+        const night = mean();
+        const lights = r.stats.lights;
+        r.fixedTime = null;
+        return { day: Math.round(day), night: Math.round(night), lights };
+      });
+      check('WebGL renderer: the night\'s tint darkens the composed 3D picture', dayNight.night < dayNight.day * 0.75, JSON.stringify(dayNight));
+      const sign = await gp.evaluate(() => {
+        const app = window.colonia;
+        const g = app.game;
+        const r = app.renderer;
+        const before = new Set(g.buildings.keys());
+        const w = [...g.buildings.values()].find((b) => b.type === 'well');
+        app.ui.selectTool('prefecture');
+        app.input.mouse.over = true;
+        let placed = null;
+        for (let rad = 4; rad < 40 && !placed; rad++) {
+          for (let dy = -rad; dy <= rad && !placed; dy++) {
+            for (let dx = -rad; dx <= rad && !placed; dx++) {
+              if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+              app.input.hover = { x: w.x + dx, y: w.y + dy };
+              app.input.refreshPlan();
+              const plan = r.plan;
+              if (!plan || plan.items.length !== 1 || !plan.items[0].ok || !plan.items[0].noRoad) continue;
+              app.applyPlan(plan);
+              placed = [...g.buildings.values()].find((x) => !before.has(x.id));
+            }
+          }
+        }
+        app.ui.selectTool(null);
+        app.input.hover = null;
+        r.hoverTile = null;
+        if (!placed) return null;
+        r.camera.centerOnTile(placed.x, placed.y);
+        r.render(0, 0);
+        const spot = r.noRoadSpots.find((s) => s.id === placed.id);
+        if (!spot) return { placed: placed.id, spot: null };
+        const n = Math.ceil(spot.r);
+        const px = r.composedImage(Math.round(spot.x - n), Math.round(spot.y - n), 2 * n, 2 * n).data;
+        let red = 0;
+        for (let q = 0; q < px.length; q += 4) if (px[q] > 170 && px[q + 1] < 90 && px[q + 2] < 90) red++;
+        return { placed: placed.id, spot: true, red, of: px.length / 4, overlay: r.over.style.visibility };
+      });
+      if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-sign.png') });
+      check('WebGL renderer: a no-road sign shows in the composed picture over the 3D scene', !!sign && sign.spot && sign.red > sign.of * 0.15 && sign.overlay !== 'hidden', JSON.stringify(sign));
+      // The performance readout (F3, the console's perf): frames, stages, the GPU and the scene's size.
+      await gp.mouse.move(640, 400);
+      await gp.keyboard.press('F3');
+      await gp.waitForTimeout(1300);
+      const readout = await gp.evaluate(() => ({ shown: !document.getElementById('debug-hud').classList.contains('hidden'), text: document.getElementById('debug-hud').textContent, perf: window.colonia.ui.console.run('perf') }));
+      await gp.keyboard.press('F3');
+      check('the performance readout (F3, console perf) shows frames a second, the stages, the 3D scene\'s size and the GPU', readout.shown && /fps/.test(readout.text) && /collect/.test(readout.perf) && /3D scene \d+x\d+/.test(readout.perf) && /GPU: .*SwiftShader/i.test(readout.perf), JSON.stringify(readout).slice(0, 600));
+      // Settings > Render scale: 50% draws the WebGL canvas at half the view's pixels (the page
+      // stretches it; #view and the overlay stay full size), kept in the settings; back to Auto.
+      await gp.keyboard.press('Escape');
+      await gp.click('.modal .btn:has-text("Settings")');
+      const scaleShown = await gp.evaluate(() => document.querySelector('select[aria-label="Render scale"]')?.value || null);
+      await gp.selectOption('select[aria-label="Render scale"]', '0.5');
+      await gp.waitForTimeout(400);
+      const half = await gp.evaluate(() => {
+        const r = window.colonia.renderer;
+        const be = r.backend;
+        return { scale: be.sceneScale, gl: [be.canvas.width, be.canvas.height], view: [r.camera.viewW, r.camera.viewH], over: [r.over.width, r.over.height], css: [be.canvas.style.width, r.canvas.style.width], stored: JSON.parse(localStorage.getItem('colonia.settings')).renderScale, auto: !!be.auto };
+      });
+      await gp.selectOption('select[aria-label="Render scale"]', 'auto');
+      await gp.waitForTimeout(200);
+      const backAuto = await gp.evaluate(() => !!window.colonia.renderer.backend.auto);
+      await gp.click('.modal .btn:has-text("Done")');
+      check('Settings > Render scale: 50% draws the 3D scene at half the pixels, the overlay and the page box as before; Auto again',
+        scaleShown === 'auto' && half.scale === 0.5 && half.gl[0] === Math.round(half.view[0] / 2) && half.gl[1] === Math.round(half.view[1] / 2) && half.over[0] === half.view[0] && half.css[0] === half.css[1] && half.stored === '0.5' && !half.auto && backAuto,
+        JSON.stringify({ scaleShown, half, backAuto }));
       // A lost WebGL context: the Classic renderer draws meanwhile; restored, WebGL again.
       const lose = await gp.evaluate(() => {
         const ext = window.colonia.renderer.backend.gl.getContext().getExtension('WEBGL_lose_context');
@@ -3926,11 +4085,11 @@ try {
         return true;
       });
       await gp.waitForTimeout(400);
-      const during = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects }));
+      const during = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects, viewOpacity: window.colonia.renderer.canvas.style.opacity, glHidden: window.colonia.renderer.backend.canvas.style.visibility }));
       if (lose) await gp.evaluate(() => window.__loseExt.restoreContext());
       await gp.waitForTimeout(600);
       const after = await gp.evaluate(() => ({ backend: window.colonia.renderer.stats.backend, models: window.colonia.renderer.stats.models, drawCalls: window.colonia.renderer.stats.drawCalls }));
-      check('WebGL renderer: a lost context hands the drawing to Classic, and WebGL takes it back when restored', lose && during.backend === '2d' && during.objects > 50 && after.backend === 'webgl' && after.drawCalls > 0, JSON.stringify({ lose, during, after }));
+      check('WebGL renderer: a lost context hands the drawing to Classic (on #view, shown again), and WebGL takes it back when restored', lose && during.backend === '2d' && during.objects > 50 && during.viewOpacity === '' && during.glHidden === 'hidden' && after.backend === 'webgl' && after.drawCalls > 0, JSON.stringify({ lose, during, after }));
       // Settings > Renderer: back to Classic, the setting kept.
       await gp.mouse.move(640, 400);
       await gp.keyboard.press('Escape'); // the game menu
