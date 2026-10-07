@@ -53,6 +53,7 @@ import { MILITARY_MODELS } from './models/militaryModels.js';
 import { EDUCATION_MODELS } from './models/education.js';
 import { DECOR_MODELS } from './models/decor.js';
 import { HEALTH_MODELS } from './models/health.js';
+import { GOVERNMENT_MODELS } from './models/government.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -144,6 +145,8 @@ export const MODELS = Object.freeze({
   ...DECOR_MODELS,
   // The barber, the physician, the baths and the hospital (models/health.js says how).
   ...HEALTH_MODELS,
+  // The senate house and the governor's residences (models/government.js says how).
+  ...GOVERNMENT_MODELS,
 });
 
 /**

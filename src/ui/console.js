@@ -14,6 +14,7 @@ import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
 import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoLearning, buildDemoHealth, buildDemoGardens, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { buildDemoGovernment } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -72,6 +73,7 @@ export const CONSOLE_HELP = [
   ['navy', 'Build a naval station and a navalia on the shore, stocked for a squadron of liburnians (river/coast maps)'],
   ['academy', 'Build a Campus (military academy) near the city, and a Portus by the first Statio if there is one (they train only at full staff)'],
   ['learning', 'Build a library and an academy near the city (and a school if it has none)'],
+  ['government [house|villa|palace]', 'Build a senate house near the city (if it has none) and the governor\'s residence of that grade (default: palace), taking down the one standing'],
   ['gardens [n] [wild]', 'Lay out n gardens (default 24) in blocks beside the city, statues of each size, a gardeners\' yard and a triumphal arch across a road; "wild" leaves every garden and statue untended'],
   ['healing', 'Build baths (piping water to the town if none reaches) and a hospital near the city, and a barber and a physician if it has none'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
@@ -427,6 +429,17 @@ export class DebugConsole {
         if (shown) app.renderer.camera.centerOnTile(shown.x + 1, shown.y + 1);
         const parts = Object.entries(built).map(([k, b]) => (b ? `${k} at ${b.x},${b.y}` : `no ${k}`));
         return `Learning: ${parts.join(', ')}.`;
+      }
+      case 'government': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const grade = ['house', 'villa', 'palace'].includes(args[0]) ? args[0] : 'palace';
+        const built = buildDemoGovernment(g, center, grade);
+        const shown = built.residence || built.senate;
+        if (shown) app.renderer.camera.centerOnTile(shown.x + shown.size / 2, shown.y + shown.size / 2);
+        const parts = Object.entries(built).map(([k, b]) => (b ? `${k} (${b.type}) at ${b.x},${b.y}` : `no ${k}`));
+        return `Government: ${parts.join(', ')}.`;
       }
       case 'gardens': {
         need();

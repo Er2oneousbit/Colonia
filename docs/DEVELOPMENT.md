@@ -105,6 +105,8 @@ The console's `learning` builds a library and an academy beside the city (and a 
 The console's `gardens [n] [wild]` lays out n gardens (24 by default) in blocks beside the city, statues of each size, a gardeners' yard and a triumphal arch across the nearest straight road it fits (granting one); `gardens wild` leaves every garden and statue untended, to see them neglected. The look lab's Gardens scene is key 0 (C steps through the months).
 The console's `healing` builds baths (inside a reservoir's piped area, piping water to the town first if none reaches) and a hospital beside the city, and a barber and a physician if it has none: the WebGL renderer's health models at work.
 
+The console's `government [house|villa|palace]` builds a senate house beside the city (if it has none) and the governor's residence of that grade (the palace by default), taking down the one standing (only one may stand): the WebGL renderer's government models. The look lab's Government scene is key 6.
+
 In the browser's dev tools, `window.colonia` is the running app (`colonia.game` is the simulation).
 
 **Art and music tools** (with `npm run dev` running):

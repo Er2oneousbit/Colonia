@@ -799,6 +799,36 @@ export function buildDemoLearning(game, center) {
   };
 }
 
+/** The governor's residences by grade, for buildDemoGovernment. */
+const RESIDENCE_GRADES = Object.freeze({ house: ['governor_house', 3], villa: ['governor_villa', 4], palace: ['governor_palace', 5] });
+
+/**
+ * A senate house near the city (if it has none) and the governor's
+ * residence of a grade ('house', 'villa' or 'palace'), the one standing
+ * taken down first (only one may stand), each joined by road to the
+ * network that reaches the map entry: the console's `government`, to see
+ * them in 3D (render3d/models/government.js).
+ * @returns {{ senate: object|null, residence: object|null }}
+ */
+export function buildDemoGovernment(game, center, grade = 'palace') {
+  const [type, size] = RESIDENCE_GRADES[grade] || RESIDENCE_GRADES.palace;
+  const has = (t) => [...game.buildings.values()].find((b) => b.type === t) || null;
+  const senate = has('senate') || (game.isUnlocked('senate') ? placeNear(game, 'senate', 4, center, 4, 30) : null);
+  let residence = has(type);
+  if (!residence && game.isUnlocked(type)) {
+    const old = [...game.buildings.values()].filter((b) => b.def.kind === 'residence').map((b) => ({ b, type: b.type, x: b.x, y: b.y, size: b.size }));
+    for (const o of old) removeBuilding(game, o.b, 'undo');
+    game.onMapEdited();
+    residence = placeNear(game, type, size, center, 4, 34);
+    // No room for the new one: the old one goes back where it stood.
+    if (!residence) {
+      for (const o of old) place(game, o.type, o.x, o.y, o.size);
+      game.onMapEdited();
+    }
+  }
+  return { senate, residence };
+}
+
 /**
  * Gardens, statues, a gardeners' yard and a triumphal arch beside the city:
  * the console's `gardens` (render3d/models/decor.js), to see them drawn and
