@@ -40,6 +40,9 @@
  * giving each of its five buildings' triangles).
  * (the Learning scene, labLearning.js: 7, the school, the library and the
  * academy, with commerceTriangles('learning', lod)).
+ * (the Gardens scene, labGardens.js: 0, gardens, statues, the gardeners'
+ * yard and the triumphal arch, with commerceTriangles('gardens', lod);
+ * C its month).
  * (the Health scene, labHealth.js: 8, the barber, the physician, the baths and
  * the hospital, with commerceTriangles('health', lod)).
  * (the Government scene, labGovernment.js: 6, the senate house and the
@@ -77,6 +80,7 @@ import { buildGovernmentScene } from './labGovernment.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
+import { buildGardensScene } from './labGardens.js';
 import { mapStats } from './texReport.js';
 
 /** Classic's closest zoom (config.js ZOOM_LEVELS' last); WebGL's go on to 6x (ZOOM_LEVELS_3D). */
@@ -323,6 +327,12 @@ async function main() {
   }
   // The Water scene (labWater.js): the aqueducts and the castellum, in the same terms.
   for (const [id, s] of Object.entries(buildWaterScene())) {
+    commerce[id] = s;
+    s.group.visible = false;
+    scene.add(s.group);
+  }
+  // The Gardens scene (labGardens.js): gardens, statues, the gardeners' yard, the triumphal arch.
+  for (const [id, s] of Object.entries(buildGardensScene())) {
     commerce[id] = s;
     s.group.visible = false;
     scene.add(s.group);
@@ -740,6 +750,7 @@ async function main() {
     else if (k === ']' && state.scene === 'types') setCard(state.card + 1);
     else if (k === 'v' && state.scene === 'types') overview();
     else if (k === '9') setScene('water');
+    else if (k === '0') setScene('gardens');
     else if (k === '6') setScene('government');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);

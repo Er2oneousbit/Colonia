@@ -4765,7 +4765,68 @@ try {
         await gh.close();
       }
 
-      // 8a4. The senate house and the governor's three residences as models
+      // 8a4. Gardens, statues, the gardeners' yard and the triumphal arch as models (render3d/
+      //      models/decor.js): the console's `gardens` lays them out beside the demo city; each
+      //      draws as a model (waited for: under a software GL kits are built a few a frame) and
+      //      a click on its footprint opens its panel (the arch's on a pier, off its road).
+      {
+        const gd = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const derrs = [];
+        gd.on('pageerror', (e) => derrs.push(`pageerror: ${e.message}`));
+        gd.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) derrs.push(m.text()); });
+        await gd.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gd.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const DECOR = ['garden', 'statue_small', 'statue_medium', 'statue_large', 'gardener_yard', 'triumphal_arch'];
+        const laid = await gd.evaluate((types) => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const said = app.ui.console.run('gardens 8');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = { said };
+          for (const t of types) {
+            const b = [...app.game.buildings.values()].find((v) => v.type === t);
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size, axis: b.axis } : null;
+          }
+          return out;
+        }, DECOR);
+        const decor = [];
+        for (const type of DECOR) {
+          const b = laid[type];
+          if (!b) {
+            decor.push({ type, missing: true });
+            continue;
+          }
+          await gd.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gd.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await gd.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, type);
+          // (The arch: a pier's tile, beside its road; the rest: the footprint's middle.)
+          const at = type === 'triumphal_arch' ? (b.axis === 1 ? [b.x + 0.5, b.y + 1.5] : [b.x + 1.5, b.y + 0.5]) : [b.x + b.size / 2, b.y + b.size / 2];
+          const p = await gd.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, at);
+          await gd.mouse.click(p.x, p.y);
+          await gd.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gd.evaluate(() => window.colonia.ui.info.target);
+          decor.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
+        }
+        await gd.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gd.screenshot({ path: path.join(shots, 'smoke-webgl-gardens.png') });
+        check('WebGL renderer: gardens, the three statues, the gardeners\' yard and the triumphal arch are 3D models, and a click picks each',
+          decor.every((m) => !m.missing && m.drawn >= 1 && m.picked), JSON.stringify({ said: laid.said, decor }));
+        check('WebGL renderer, decor models: no page errors', derrs.length === 0, derrs.join(' | '));
+        await gd.close();
+      }
+
+      // 8a5. The senate house and the governor's three residences as models
       //       (render3d/models/government.js): the console's `government`, a grade at a time
       //       (only one residence may stand); each draws as a model (waited for: under a
       //       software GL kits are built a few a frame), its columns as kits of their own, and

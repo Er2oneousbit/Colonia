@@ -23,6 +23,7 @@ import { rgb, rgbs, glf } from './paint/glsl.js';
 import { RURAL_SURFACES } from './surfacesRural.js';
 import { WALL_SURFACES } from './surfacesWalls.js';
 import { FLORA_SURFACES } from './surfacesFlora.js';
+import { GARDEN_SURFACES } from './surfacesGarden.js';
 import { GOV_SURFACES } from './surfacesGov.js';
 
 /**
@@ -566,6 +567,8 @@ export const SURFACES = Object.freeze({
   ...WALL_SURFACES,
   // The countryside's trees and rocks (surfacesFlora.js): sprays of leaves cut out by their alpha, barks, limestone.
   ...FLORA_SURFACES,
+  // The gardens' clipped box (surfacesGarden.js).
+  ...GARDEN_SURFACES,
   // The senate house's and the residences' stucco (surfacesGov.js).
   ...GOV_SURFACES,
 });
