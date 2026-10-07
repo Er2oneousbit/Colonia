@@ -594,9 +594,8 @@ function junctionPiece(P, M, arms, lod, seed) {
 }
 
 /** The heights of the stair down into a reservoir: risers at x[k], the floor after each. */
-export function cascadeSteps() {
+export function cascadeSteps(n = AQ.steps) {
   const o = AQ.hw;
-  const n = AQ.steps;
   const run = (AQ.half - o) / n;
   const drop = (AQ.floor - AQ.inlet) / n;
   return Array.from({ length: n }, (_, k) => ({ x: o + k * run, x1: k === n - 1 ? AQ.half : o + (k + 1) * run, floor: AQ.floor - (k + 1) * drop }));
@@ -620,7 +619,8 @@ function cascade(P, M, a, lod, seed) {
   const water = [];
   const sheets = [];
   const silt = [];
-  const steps = cascadeSteps();
+  // (Far out, two drops: the stair is a few pixels and each step costs a dozen boxes.)
+  const steps = cascadeSteps(lod === 2 ? 2 : AQ.steps);
   let above = AQ.water;
   for (const s of steps) {
     const f = s.floor;
@@ -629,7 +629,7 @@ function cascade(P, M, a, lod, seed) {
       const [z0, z1] = sz > 0 ? [i + AQ.liner, o] : [-o, -i - AQ.liner];
       walls.push(box(s.x, s.x1, f - bed, f + wallH, z0, z1));
       const [l0, l1] = sz > 0 ? [i, i + AQ.liner] : [-i - AQ.liner, -i];
-      lining.push(box(s.x, s.x1, f - bed, f + wallH, l0, l1, 1, () => 1.05));
+      if (lod < 2) lining.push(box(s.x, s.x1, f - bed, f + wallH, l0, l1, 1, () => 1.05));
       const [c0, c1] = sz > 0 ? [i, o + AQ.copeOut] : [-o - AQ.copeOut, -i];
       coping.push(box(s.x, s.x1, f + wallH, f + wallH + AQ.coping, c0, c1));
     }
