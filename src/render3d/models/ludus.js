@@ -266,8 +266,10 @@ function teacher(lod, seed, out) {
   const board = [box(1.0, 0.68, 0.03, 0, 0.62, 0, lin(0xece6d6))];
   const frame = [];
   if (lod < 2) for (const [w, hh, x, y] of [[1.06, 0.04, 0, 0.6], [1.06, 0.04, 0, 1.3], [0.04, 0.74, -0.51, 0.6], [0.04, 0.74, 0.51, 0.6]]) frame.push(box(w, hh, 0.04, x, y, 0, 0.75));
-  // (Its legs just outside the board's edges and behind its face, the third leg behind.)
-  const legs = [staff([-0.6, 0, 0.16], [-0.53, 1.38, -0.04], 0.022, 5), staff([0.6, 0, 0.16], [0.53, 1.38, -0.04], 0.022, 5), staff([0, 0, -0.45], [0, 1.3, -0.05], 0.022, 5)];
+  // (Its legs just outside the board's edges, the third behind it: the board leans back a tenth of a
+  // radian, so at its top its face is 0.13 back and a leg must be further back still; the tilt sinks
+  // the back leg's foot below the ground, so it starts a hand up.)
+  const legs = [staff([-0.6, 0, 0.16], [-0.56, 1.38, -0.12], 0.022, 5), staff([0.6, 0, 0.16], [0.56, 1.38, -0.12], 0.022, 5), staff([0, 0.06, -0.5], [0, 1.28, -0.2], 0.022, 5)];
   if (lod < 2) legs.push(box(0.9, 0.04, 0.06, 0, 0.56, 0.04, 0.7));
   const letters = lod === 0
     ? [...inscribe('ABCDEFGHI', 1.06, 0.016, 0.1), ...inscribe('LMNOPRSTVX', 0.76, 0.016, 0.1)]
