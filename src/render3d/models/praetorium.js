@@ -42,9 +42,9 @@
 import { CylinderGeometry } from 'three';
 import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { slab, TaggedParts } from './masonry.js';
-import { sentry, staff } from './castra.js';
+import { staff } from './castra.js';
 import {
-  govMaterials, box, gableTri, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, ringRoof, coping, rectMinus, slabs, court,
+  govMaterials, guard, dressWall, box, gableTri, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, ringRoof, coping, rectMinus, slabs, court,
   architraveRound, columnsRound, impluvium, threshold, togate, servant, matron, addPeople, boxEdging, bedPlants, flowerBed, gardenTree,
   lantern, lanternPane,
 } from './domus.js';
@@ -105,6 +105,11 @@ function walls(lod, seed, out) {
   out.trav.push(box(2 * xs + 0.04, 0.45, 0.04, 0, 0, zf + 0.02, 0.9));
   out.trav.push(box(2 * xs + 0.04, 0.45, 0.04, 0, 0, zb - 0.02, 0.9));
   for (const s of [-1, 1]) out.trav.push(box(0.04, 0.45, zf - zb, s * (xs + 0.02), 0, (zf + zb) / 2, 0.9));
+  for (const s of [-1, 1]) {
+    dressWall('z', zb + 0.3, zm, s * xs, s, { y0: 0.45, top: tp, step: 2.2, win: [1.9, 2.45], winW: 0.5, lod, out });
+    dressWall('z', zm, zf - 0.3, s * xs, s, { y0: 0.45, top: ta, step: 2.0, win: [2.1, 2.75], winW: 0.5, lod, out, skip: [[2.4, 3.25]] });
+  }
+  dressWall('x', -xs + 0.3, xs - 0.3, zb, -1, { y0: 0.45, top: tp, step: 2.4, win: [1.9, 2.45], winW: 0.5, lod, out });
   if (lod < 2) {
     out.cope.push(...coping('x', -xs, xs, zf - T / 2, T, ta));
     out.cope.push(...coping('x', -xs, xs, zb + T / 2, T, tp));
@@ -316,9 +321,9 @@ export function buildPraetorium({ lod = 0, seed = 431 } = {}) {
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
   if (lod === 0) {
     addPeople(p, m, 'household', household(m), 'open');
-    sentry(p, m, 'guard', 1.75, 0.06, P.front + 0.55, 0.15, 'staffed', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
-    sentry(p, m, 'guard-more', -3.3, 0.06, P.front + 0.5, -0.1, 'out', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
-    sentry(p, m, 'guard-more', 3.4, 0.06, P.front + 0.5, 0.1, 'out', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
+    addPeople(p, m, 'guard', guard(m, 1.75, 0.06, P.front + 0.55, 0.15), 'staffed');
+    addPeople(p, m, 'guard-more', guard(m, -3.3, 0.06, P.front + 0.5, -0.1), 'out');
+    addPeople(p, m, 'guard-more', guard(m, 3.4, 0.06, P.front + 0.5, 0.1), 'out');
   }
   return p.build();
 }

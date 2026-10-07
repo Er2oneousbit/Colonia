@@ -65,6 +65,8 @@ export function govMaterials() {
     sheet: streamMaterial(true),
     ring: ringMaterial(),
     // The stucco's scored joints, a shade darker than its face.
+    // Gilding: gold leaf on bronze, bright and smooth (the forts' gilt is the standards' worn bronze, which reads brown on a gable).
+    gilt: material('gov-gilt', { color: 0xe8b450, roughness: 0.3, metalness: 0.85, vertexColors: true, snow: 0.5 }),
     joint: material('gov-stucco-joint', { surface: 'stucco', color: 0xc9bfad, vertexColors: true, snow: 0.5 }),
     // A lantern's pane unlit (the lit one is masonry.js lanternPane).
     // Statues in bronze gone dark and green with age (the honorary statues on their pedestals).
@@ -168,6 +170,43 @@ export function frescoFace(axis, a, b, at, n, y0, y1, { main = FRESCO.red, frame
     }
   }
   return out;
+}
+
+/**
+ * A long outer wall dressed so it does not read as a blank sheet: its face
+ * along `axis` from a to b at `at` (n its outward side), pilasters every
+ * `step` from y0 to `top` (bases and capitals close up), between them a
+ * small high window (the dark of the room, a sill and a lintel: no hole is
+ * cut, the wall's inside stays painted), a moulded band under the top.
+ * `skip` [[a, b]]: spans left bare (a door, a porch). Pushes into
+ * out[stone] (pilasters, sills, bands) and out.dark.
+ */
+export function dressWall(axis, a, b, at, n, { y0 = 0, top, step = 2.4, win = [2.1, 2.8], winW = 0.6, lod = 0, out, stone = 'trav', skip = [] }) {
+  const face = at + n * 0.03;
+  const put = (key, w, h, d, p, y) => out[key].push(axis === 'x' ? box(w, h, d, p, y, face + n * d / 2 - n * 0.03, 0.95) : box(d, h, w, face + n * d / 2 - n * 0.03, y, p, 0.95));
+  const span = b - a;
+  const k = Math.max(1, Math.round(span / step));
+  const st = span / k;
+  const free = (p, r) => !skip.some(([s0, s1]) => p + r > s0 && p - r < s1);
+  for (let i = 0; i <= k; i++) {
+    const p = a + i * st;
+    if (!free(p, 0.25)) continue;
+    put(stone, 0.34, top - y0 - 0.3, 0.07, p, y0 + 0.15);
+    if (lod === 0) {
+      put(stone, 0.44, 0.15, 0.1, p, y0);
+      put(stone, 0.44, 0.15, 0.1, p, top - 0.3);
+    }
+  }
+  for (let i = 0; i < k; i++) {
+    const p = a + (i + 0.5) * st;
+    if (!free(p, winW)) continue;
+    put('dark', winW, win[1] - win[0], 0.04, p, win[0]);
+    if (lod < 2) {
+      put(stone, winW + 0.16, 0.07, 0.1, p, win[0] - 0.07);
+      put(stone, winW + 0.2, 0.1, 0.08, p, win[1]);
+    }
+  }
+  if (lod < 2) put(stone, span, 0.14, 0.09, (a + b) / 2, top - 0.22);
 }
 
 /**
@@ -804,8 +843,8 @@ function ionicCapital(r, top, capH, lod, out) {
           const rr = vr * (0.92 - (k / 26) * 0.75);
           pts.push([s * r * 0.98 + Math.cos(a) * rr * s, vy + Math.sin(a) * rr, f * (r * 1.0 + 0.004)]);
         }
-        out.push(tube(pts, r * 0.045, { radial: 3, segments: 20, around: 0.1 }));
-        const eye = new SphereGeometry(r * 0.09, 6, 4);
+        out.push(tube(pts, r * 0.045, { radial: 3, segments: 13, around: 0.1 }));
+        const eye = new SphereGeometry(r * 0.09, 5, 3);
         eye.translate(s * r * 0.98, vy, f * r * 1.0);
         out.push(tintGeometry(boxUV(eye)));
       }
@@ -838,7 +877,7 @@ function corinthianCapital(r, top, capH, lod, out) {
         const y = top + capH * (0.55 + 0.32 * t) - (t > 0.75 ? (t - 0.75) * capH * 0.5 : 0);
         pts.push([Math.sin(a) * rad, y, Math.cos(a) * rad]);
       }
-      out.push(tube(pts, r * 0.07, { radial: 4, segments: 10, around: 0.1 }));
+      out.push(tube(pts, r * 0.07, { radial: 3, segments: 8, around: 0.1 }));
     }
   }
   // The abacus: its sides hollowed (a square cut at the corners reads as much from a few metres).
@@ -858,7 +897,7 @@ function corinthianCapital(r, top, capH, lod, out) {
     // The flower (fleuron) in the middle of each face.
     for (let k = 0; k < 4; k++) {
       const a = (k * Math.PI) / 2;
-      const f = new SphereGeometry(r * 0.13, 6, 4);
+      const f = new SphereGeometry(r * 0.13, 5, 3);
       f.translate(Math.sin(a) * r * 1.12, bellTop + (capH - (bellTop - top)) / 2, Math.cos(a) * r * 1.12);
       out.push(tintGeometry(boxUV(f)));
     }
@@ -869,7 +908,7 @@ function corinthianCapital(r, top, capH, lod, out) {
 function acanthus(r, top, capH, h0, h1, a, row) {
   const pos = [];
   const cols = 3;
-  const rows = 4;
+  const rows = 3;
   const w = r * (row ? 0.42 : 0.48);
   const grid = [];
   for (let j = 0; j <= rows; j++) {
@@ -1014,6 +1053,35 @@ export function lictor(mats, x, y, z, ry) {
   const axe = new BoxGeometry(0.012, 0.12, 0.14);
   axe.translate(b[0] - 0.02, b[1] - 0.05, b[2] - 0.07);
   local.push([tintGeometry(boxUV(axe)), mats.iron]);
+  for (const [g, m] of local) parts.push({ g: g.applyMatrix4(place), material: m });
+  return parts;
+}
+
+/**
+ * A soldier of the governor's guard (men seconded from the legions) at
+ * (x, y, z) facing ry: person() in a red tunic, a bronze helmet for his
+ * hair, a spear upright in his right hand, an oval shield at his left
+ * (`shield`, with the red-and-gold boss) or none. Lighter than the forts'
+ * sentry (figure.js, built for one man at a gate): a palace's guard is a
+ * dozen of them. Returns person parts.
+ */
+export function guard(mats, x, y, z, ry, { shield = true } = {}) {
+  const parts = person(mats, { cloth: 0xa8322b, cloth2: null, skin: 0xa87a58, hair: 0x2a1e14, arms: 'down' }, x, y, z, ry)
+    .map((p) => (p.material === mats.hair ? { g: p.g, material: mats.bronze } : p));
+  const place = new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), ry), new Vector3(1, 1, 1));
+  const local = [];
+  local.push([staff([0.27, 0, 0.1], [0.27, 2.05, 0.1], 0.014, 5), mats.wood]);
+  local.push([tintGeometry(boxUV(new ConeGeometry(0.022, 0.16, 4).translate(0.27, 2.13, 0.1))), mats.iron]);
+  // The helmet's crest and neck guard over the bronze cap.
+  local.push([box(0.03, 0.06, 0.2, 0, 1.7, -0.01, () => lin(0xa8322b)), mats.cloth]);
+  if (shield) {
+    const g = new CylinderGeometry(0.55, 0.55, 0.9, 7, 1, true, -0.5, 1.0);
+    g.translate(0, 0, -0.55);
+    g.scale(0.6, 1, 0.6);
+    g.rotateY(-Math.PI / 2 + 0.25);
+    g.translate(-0.28, 0.62, 0.12);
+    local.push([tintGeometry(boxUV(g), (gx, gy) => (Math.abs(gy - 0.62) < 0.05 ? GOLD : [0.55, 0.12, 0.1])), mats.paint]);
+  }
   for (const [g, m] of local) parts.push({ g: g.applyMatrix4(place), material: m });
   return parts;
 }
@@ -1214,7 +1282,7 @@ export function jet(x, y, z, h, yWater, lod = 0, { n = 1, spread = 0.18, r = 0.0
       const yy = y + 4 * h * t * (1 - t) * (t < 0.5 ? 1 : 1) - (yWater < y ? (y - yWater) * t * t : 0);
       pts.push([x + dx * t * 2, yy, z + dz * t * 2]);
     }
-    const g = tube(pts, r, { radial: lod ? 5 : 8, segments: lod ? 8 : 18, around: 0.05 });
+    const g = tube(pts, r, { radial: lod ? 4 : 6, segments: lod ? 8 : 14, around: 0.05 });
     stream.push(g);
     rings.push(ripples(x + dx * 2, yWater + 0.004, z + dz * 2, 0.012, 0.22, lod));
   }
@@ -1223,8 +1291,8 @@ export function jet(x, y, z, h, yWater, lod = 0, { n = 1, spread = 0.18, r = 0.0
 
 /** A flat ring on the water round (x, z), inner to outer radius, fading at its edges (its v outward: ringMaterial scrolls it). */
 export function ripples(x, y, z, inner, outer, lod = 0) {
-  const seg = lod ? 14 : 32;
-  const rings = lod ? 2 : 4;
+  const seg = lod ? 12 : 20;
+  const rings = lod ? 2 : 3;
   const pos = [];
   const uv = [];
   const idx = [];
@@ -1314,7 +1382,7 @@ export function bedPlants(x0, x1, z0, z1, y, seed, lod = 0) {
     const t = (k + 0.5) / n;
     const x = alongX ? x0 + (x1 - x0) * t : (x0 + x1) / 2;
     const z = alongX ? (z0 + z1) / 2 : z0 + (z1 - z0) * t;
-    out.push(...bush(x, y + 0.27, z, 0.28, { lod, seed: seed + k, squash: 0.8 }));
+    out.push(...bush(x, y + 0.27, z, 0.28, { lod: Math.max(1, lod), seed: seed + k, squash: 0.8 }));
   }
   return out;
 }

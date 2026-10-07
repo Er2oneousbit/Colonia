@@ -44,10 +44,10 @@
 import { CylinderGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { slab, TaggedParts } from './masonry.js';
-import { sentry, staff } from './castra.js';
+import { staff } from './castra.js';
 
 import {
-  govMaterials, box, D, lin, gable, slope, gableTri, rake, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, coping, slabs,
+  govMaterials, guard, dressWall, box, D, lin, gable, slope, gableTri, rake, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, coping, slabs,
   court, column, columnsRound, statue, threshold, rectPool, labrum, jet, couch, togate, servant, matron, addPeople, boxEdging, bedPlants, flowerBed, gardenTree,
   lantern, lanternPane,
 } from './domus.js';
@@ -107,6 +107,8 @@ function walls(lod, seed, out) {
   for (const s of [-1, 1]) out.trav.push(box(0.04, 0.45, ZF - ZB + 0.04, s * (XS + 0.02), 0, (ZF + ZB) / 2, 0.9));
   for (const [a, b] of [[-XS, -dw - 0.26], [dw + 0.26, XS]]) out.stucco.push(box(b - a, 0.55, 0.012, (a + b) / 2, 0.45, ZF + 0.006, () => FRESCO.dado));
   for (const s of [-1, 1]) out.stucco.push(box(0.012, 0.55, ZF - ZB, s * (XS + 0.006), 0.45, (ZF + ZB) / 2, () => FRESCO.dado));
+  for (const s of [-1, 1]) dressWall('z', ZB + 0.3, ZF - 0.3, s * XS, s, { y0: 0.45, top, step: 2.3, win: [2.15, 2.8], lod, out, skip: [[-6.45, -5.45]] });
+  dressWall('x', -XS + 0.3, XS - 0.3, ZB, -1, { y0: 0.45, top, step: 2.6, win: [2.15, 2.8], lod, out });
   if (lod < 2) {
     out.cope.push(...coping('x', -XS, XS, ZF - T / 2, T, top));
     for (const s of [-1, 1]) out.cope.push(...coping('z', ZR, ZF, s * (XS - T / 2), T, top));
@@ -170,7 +172,8 @@ function backRange(lod, seed, out) {
     out.tile.push(...r.tile);
     out.wood.push(...r.wood);
     const g = gableTri(ZR - 0.02, ZB + 0.02, T / 2, T, top, r.ridgeY - 0.03);
-    g.rotateY(Math.PI / 2);
+    // (A quarter turn the way that takes its span (x) onto z as it is: -z would put it at the front.)
+    g.rotateY(-Math.PI / 2);
     g.translate(s * (XS - T / 2), 0, 0);
     out.stucco.push(g);
   }
@@ -393,9 +396,9 @@ export function buildPraetoriumMaius({ lod = 0, seed = 461 } = {}) {
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
   if (lod === 0) {
     addPeople(p, m, 'household', household(m), 'open');
-    sentry(p, m, 'guard', 1.55, 0.06, ZF + 0.55, 0.15, 'staffed', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
-    sentry(p, m, 'guard-more', -1.55, 0.06, ZF + 0.55, -0.15, 'out', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
-    sentry(p, m, 'guard-more', 4.4, 0.06, ZF + 0.55, 0.1, 'out', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
+    addPeople(p, m, 'guard', guard(m, 1.55, 0.06, ZF + 0.55, 0.15), 'staffed');
+    addPeople(p, m, 'guard-more', guard(m, -1.55, 0.06, ZF + 0.55, -0.15), 'out');
+    addPeople(p, m, 'guard-more', guard(m, 4.4, 0.06, ZF + 0.55, 0.1), 'out');
   }
   return p.build();
 }

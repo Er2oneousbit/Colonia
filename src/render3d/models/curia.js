@@ -47,10 +47,9 @@
 import { BoxGeometry, TorusGeometry, SphereGeometry, CylinderGeometry } from 'three';
 import { boxUV, tintGeometry, frameSweep, revolve, profileOf } from '../shapes.js';
 import { slab, paving, wallWithOpenings, TaggedParts } from './masonry.js';
-import { sentry } from './castra.js';
 
 import {
-  govMaterials, box, D, gable, slope, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, statue, victory, togate, lictor, addPeople, lantern, lanternPane,
+  govMaterials, guard, box, D, gable, slope, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, statue, victory, togate, lictor, addPeople, lantern, lanternPane,
 } from './domus.js';
 
 /** The curia's measures (metres): the tests, the lab and the game read them. */
@@ -370,7 +369,7 @@ export function buildCuria({ lod = 0, seed = 401 } = {}) {
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
   if (lod === 0) {
     addPeople(p, m, 'senators', senators(m), 'open');
-    for (const s of [-1, 1]) sentry(p, m, 'guard', s * 1.05, PY, C.podium[1] - 0.15, 0, 'out', { cloth: 0xa8322b, shield: [0.55, 0.12, 0.1] });
+    for (const s of [-1, 1]) addPeople(p, m, 'guard', guard(m, s * 1.05, PY, C.podium[1] - 0.15, 0), 'out');
   }
   return p.build();
 }

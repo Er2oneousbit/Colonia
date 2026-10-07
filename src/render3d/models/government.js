@@ -40,6 +40,7 @@ import { govMaterials, column } from './domus.js';
 import { buildCuria, CURIA, CURIA_LAMPS } from './curia.js';
 import { buildPraetorium, PRAETORIUM_COLONNADES, PRAETORIUM_LAMPS } from './praetorium.js';
 import { buildPraetoriumMaius, PRAETORIUM_MAIUS_COLONNADES, PRAETORIUM_MAIUS_LAMPS } from './praetoriumMaius.js';
+import { buildRegia, REGIA_COLONNADES, REGIA_LAMPS } from './regia.js';
 import { hostileToRome } from '../../sim/combat.js';
 
 /** How near an enemy (tiles, from the building's middle) puts a residence or the senate on its guard: the town gates' watch. */
@@ -103,6 +104,7 @@ const DEFS = {
   },
   governor_house: { build: buildPraetorium, cols: PRAETORIUM_COLONNADES, lamps: PRAETORIUM_LAMPS, water: true },
   governor_villa: { build: buildPraetoriumMaius, cols: PRAETORIUM_MAIUS_COLONNADES, lamps: PRAETORIUM_MAIUS_LAMPS, water: true },
+  governor_palace: { build: buildRegia, cols: REGIA_COLONNADES, lamps: REGIA_LAMPS, water: true },
 };
 
 /** The kit key of a colonnade's column: the type, 'col', its index in the type's list. */
