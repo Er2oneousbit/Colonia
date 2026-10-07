@@ -5653,8 +5653,8 @@ void main() {
       orm = vec3( 1.0 - max( cav * 0.6, ( 1.0 - F.y ) * 0.45 ), 0.5 + ( 1.0 - F.y ) * 0.4, 0.0 );`},normal:{depth:.012/.5}},sW=Object.freeze({boxleaf:{metres:.5,size:512,...S1e}});var _1e={fields:{noise:{cloud:Z(3,4,21),grit:Z(70,2,22),trowel:Z(9,3,23,{sx:.35})},glsl:`
       return vec4( 0.5 + grit * 0.035 + trowel * 0.03, cloud, trowel, 0.0 );`},blur:[2],colour:{noise:{tone:Z(5,3,24),streakN:Z(40,3,25,{sx:.06,coord:"vu"})},glsl:`
       float cav = cavity( F.x, B.x, 6.0 );
-      col = mix( ${Q("#f3eee4")}, ${Q("#e3dacb")}, sstep( 0.35, 0.8, F.y ) * 0.55 );
-      col = mix( col, ${Q("#f8f5ee")}, sstep( 0.6, 0.85, tone ) * 0.3 );
+      col = mix( ${Q("#e8e2d6")}, ${Q("#d9d0c0")}, sstep( 0.35, 0.8, F.y ) * 0.55 );
+      col = mix( col, ${Q("#efebe2")}, sstep( 0.6, 0.85, tone ) * 0.3 );
       col = mix( col, ${Q("#cbc1ae")}, sstep( 0.62, 0.86, streakN ) * 0.14 );
       col = mix( col, ${Q("#a89f90")}, cav * 0.3 );
       orm = vec3( 1.0 - cav * 0.25, 0.62 + F.z * 0.1, 0.0 );`},normal:{depth:8e-4/.5}},oW=Object.freeze({stucco:{metres:2,size:512,..._1e}});var T1e={fields:{noise:{grain:Z(24,4,1),body:Z(5,5,0),cell:Ot(36,2,.9),warp:Z(3,3,5),veinN:Ji(3,4,6,{warp:{u:["warp",.35],v:["warp",.2]}})},glsl:`

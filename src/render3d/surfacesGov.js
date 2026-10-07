@@ -32,8 +32,8 @@ const stucco = {
     noise: { tone: fbm(5, 3, 24), streakN: fbm(40, 3, 25, { sx: 0.06, coord: 'vu' }) },
     glsl: `
       float cav = cavity( F.x, B.x, 6.0 );
-      col = mix( ${rgb('#f3eee4')}, ${rgb('#e3dacb')}, sstep( 0.35, 0.8, F.y ) * 0.55 );
-      col = mix( col, ${rgb('#f8f5ee')}, sstep( 0.6, 0.85, tone ) * 0.3 );
+      col = mix( ${rgb('#e8e2d6')}, ${rgb('#d9d0c0')}, sstep( 0.35, 0.8, F.y ) * 0.55 );
+      col = mix( col, ${rgb('#efebe2')}, sstep( 0.6, 0.85, tone ) * 0.3 );
       col = mix( col, ${rgb('#cbc1ae')}, sstep( 0.62, 0.86, streakN ) * 0.14 );
       col = mix( col, ${rgb('#a89f90')}, cav * 0.3 );
       orm = vec3( 1.0 - cav * 0.25, 0.62 + F.z * 0.1, 0.0 );`,
