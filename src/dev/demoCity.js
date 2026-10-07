@@ -800,6 +800,34 @@ export function buildDemoLearning(game, center) {
 }
 
 /**
+ * A barber, a physician, baths and a hospital near the city (the barber and
+ * the physician only if it has none), each joined by road to the network
+ * that reaches the map entry; the baths inside a reservoir's piped area,
+ * water piped to the town first if none reaches (and left dry where no
+ * water can be had): the console's `healing`, to see the four at work
+ * (render3d/models/health.js).
+ * @returns {{ barber: object|null, clinic: object|null, baths: object|null, hospital: object|null }}
+ */
+export function buildDemoHealth(game, center) {
+  const { map } = game;
+  const has = (type) => [...game.buildings.values()].find((b) => b.type === type) || null;
+  const near = (type, size, minD, maxD) => (game.isUnlocked(type) ? placeNear(game, type, size, center, minD, maxD) : null);
+  const piped = (x, y) => (map.water[map.idx(x, y)] & WaterBits.PIPED) !== 0 && (map.water[map.idx(x + 1, y + 1)] & WaterBits.PIPED) !== 0;
+  let baths = null;
+  if (game.isUnlocked('baths')) {
+    baths = placeJoined(game, 'baths', 2, center, 16, piped);
+    if (!baths && game.isUnlocked('reservoir') && pipeWater(game, center)) baths = placeJoined(game, 'baths', 2, center, 16, piped);
+    baths ||= near('baths', 2, 3, 20);
+  }
+  return {
+    barber: has('barber') || near('barber', 1, 2, 16),
+    clinic: has('clinic') || near('clinic', 1, 2, 16),
+    baths,
+    hospital: near('hospital', 3, 4, 28),
+  };
+}
+
+/**
  * A Portus on the shore of a naval station's water, near the station, joined
  * by road to the city's streets. @returns {object|null} the Portus
  */
