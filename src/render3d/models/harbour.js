@@ -267,6 +267,13 @@ export function pierFoam(x0, x1, z0, z1, out, seed = 1, lod = 0) {
 
 /** A flat geometry facing up from points, RGBA colours and an index (UVs in metres). */
 function flatRGBA(pos, col, idx) {
+  // (Kept on the building's own footprint, the model's middle at the origin: foam spilling past a
+  // mole's outer face would lie on a neighbour's water.)
+  const lim = HARBOUR.half - 0.01;
+  for (let i = 0; i < pos.length; i += 3) {
+    pos[i] = Math.max(-lim, Math.min(lim, pos[i]));
+    pos[i + 2] = Math.max(-lim, Math.min(lim, pos[i + 2]));
+  }
   const g = new BufferGeometry();
   g.setIndex(idx);
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));

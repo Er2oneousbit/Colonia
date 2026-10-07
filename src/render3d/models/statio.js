@@ -78,8 +78,11 @@ function terrace(out, lod, seed) {
   const stepX = [-3.8, -1.4];
   out.stone.push(...ashlar(-H, stepX[0], 0, top, -H, -H + 0.45, { seed, lod }));
   out.stone.push(...ashlar(stepX[1], H, 0, top, -H, -H + 0.45, { seed: seed + 1, lod }));
-  out.stone.push(...ashlar(-H, -H + 0.45, -0.5, top, -H + 0.45, S.quayZ - 0.45, { seed: seed + 2, lod }));
-  out.stone.push(...ashlar(H - 0.45, H, -0.5, top, -H + 0.45, S.quayZ - 0.45, { seed: seed + 3, lod }));
+  // The ends: on the land from the ground, over the water's margin from under its surface.
+  for (const [x0, x1, k] of [[-H, -H + 0.45, 2], [H - 0.45, H, 3]]) {
+    out.stone.push(...ashlar(x0, x1, 0, top, -H + 0.45, HARBOUR.shore, { seed: seed + k, lod }));
+    out.stone.push(...ashlar(x0, x1, -0.5, top, HARBOUR.shore, S.quayZ - 0.45, { seed: seed + k + 40, lod }));
+  }
   out.stone.push(...ashlar(S.west[1], S.east[0], -0.5, top, S.quayZ - 0.5, S.quayZ, { seed: seed + 4, lod }));
   // The fill under the flags (unseen but for its top edge at the steps).
   out.stone.push(slab(2 * H - 0.9, top - 0.1, S.quayZ + H - 0.95, { bevel: 0.01, seed: seed + 5, wobble: 0, tone: 0, grime: 0 }).translate(0, 0, (-H + 0.45 + S.quayZ - 0.5) / 2));

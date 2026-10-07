@@ -149,8 +149,10 @@ export function hasModel(type) {
  * A model's own lamps at night, as points [u, v, z] of its footprint at
  * art turn T (tiles, and art px up), for the night's light map
  * (render/renderer.js collectLights): the granary's lanterns. Empty for
- * most. A lamp is [x, y, z, s] in the model's metres, s the way it faces
- * along z (+1 or -1); one on a side facing away from the view is left out,
+ * most. A lamp is [x, y, z, s, sx] in the model's metres, (sx, s) the way
+ * it faces in x and z (sx 0 if not given, s +1 or -1 along z; a fleet
+ * building's lamp turned to its water may face along x: sx +1 or -1, s 0);
+ * one on a side facing away from the view is left out,
  * since the light map has no depth and its glow would show through the
  * building.
  */
@@ -160,9 +162,10 @@ export function modelLamps(b, T) {
   const S = b.size;
   const t = T & 3;
   const out = [];
-  for (const [x, y, z, s = 1] of def.lamps(b)) {
-    // Its facing (0, s) in (u, v) turned as the art turns: the view sees the sides facing +u or +v.
-    const face = [[0, s], [-s, 0], [0, -s], [s, 0]][t];
+  for (const [x, y, z, s = 1, sx = 0] of def.lamps(b)) {
+    // Its facing (sx, s) in (u, v) turned as the art turns: the view sees the sides facing +u or +v.
+    // (A lamp facing along x, sx, is a fleet building's turned to its water: models/fleet.js.)
+    const face = [[sx, s], [-s, sx], [-sx, -s], [s, -sx]][t];
     if (face[0] + face[1] <= 0) continue;
     // Metres from the middle to the art's (u, v) at turn 0, then turned as render/turn.js turns art.
     const u = S / 2 + x / TILE_M;

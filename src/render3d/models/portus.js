@@ -59,13 +59,13 @@ export const PORTUS = Object.freeze({
   mole: Object.freeze([4.25, 5.95]), // the east mole (x0, x1)
   moleTop: 0.6,
   /** The rowing frame: along x from its stern end (the hortator's) x0 to x1, its middle line at z. */
-  frame: Object.freeze({ x0: -5.0, x1: 1.0, z: -3.95, rail: 0.92, half: 0.66, benches: 6 }),
+  frame: Object.freeze({ x0: -4.6, x1: 1.4, z: -3.95, rail: 0.92, half: 0.66, benches: 6 }),
   /** The practice hulk in the basin: its middle (x, z), its keel's depth under the water, its scale. */
   hulk: Object.freeze({ x: -0.25, z: 1.95, keel: -0.3, scale: 0.85 }),
   /** The corvus on the mole: its pole (x, z) and the bridge's pivot height, its length. */
   corvus: Object.freeze({ x: 5.1, z: 1.95, pivot: 1.0, len: 2.75, pole: 3.7 }),
   /** The lanterns (x, y, z): on a post at the quay's east end and at the hortator's platform. */
-  lamps: Object.freeze([Object.freeze([3.7, 1.95, -1.05]), Object.freeze([-5.55, 1.8, -2.75])]),
+  lamps: Object.freeze([Object.freeze([3.7, 1.95, -1.05]), Object.freeze([-5.15, 1.8, -2.75])]),
 });
 
 const P = PORTUS;

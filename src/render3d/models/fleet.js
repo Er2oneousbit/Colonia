@@ -122,20 +122,29 @@ export function turnPoint([x, y, z], side) {
 }
 
 /**
- * Lamps for models.js modelLamps, turned to the building's side: each lamp
- * given facing both ways, so the one the view sees is kept (they hang in
- * the open, on a pillar's face or a post).
+ * Lamps for models.js modelLamps, turned to the building's side. One that
+ * hangs in the open (on a post, the beacon's fire) is given facing both
+ * ways, so whichever the view sees is kept; one on a face (`faces[i]`, its
+ * facing [x, z] in the model's frame, as the shed's pillar's lantern
+ * toward the water) faces that way turned with the building, so its glow
+ * does not show through the roof from behind (the light map has no depth).
  */
-function lampsAt(points, side) {
+function lampsAt(points, side, faces = []) {
   const out = [];
-  for (const p of points) {
+  points.forEach((p, i) => {
     const [x, y, z] = turnPoint(p, side);
-    out.push(Object.freeze([x, y + 0.11, z, 1]), Object.freeze([x, y + 0.11, z, -1]));
-  }
+    const f = faces[i];
+    if (f) {
+      const [fx, , fz] = turnPoint([f[0], 0, f[1]], side);
+      out.push(Object.freeze([x, y + 0.11, z, Math.round(fz), Math.round(fx)]));
+    } else {
+      out.push(Object.freeze([x, y + 0.11, z, 1]), Object.freeze([x, y + 0.11, z, -1]));
+    }
+  });
   return Object.freeze(out);
 }
-const NAVALIA_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(NAVALIA.lamps, s));
-const STATIO_LAMPS = [0, 1, 2, 3].map((s) => lampsAt([STATIO.fire], s));
+const NAVALIA_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(NAVALIA.lamps, s, [[0, 1]]));
+const STATIO_LAMPS = [0, 1, 2, 3].map((s) => lampsAt([STATIO.fire, STATIO.lamp], s, [null, [0, 1]]));
 const PORTUS_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(PORTUS.lamps, s));
 
 export const FLEET_MODELS = Object.freeze({
@@ -171,7 +180,7 @@ export const FLEET_MODELS = Object.freeze({
   }),
   naval_station: Object.freeze({
     warm: ['naval_station'],
-    // The beacon's fire, lit while the station is staffed: high on its tower, seen from every side.
+    // The beacon's fire (high on its tower, seen from every side) and the lantern at the principia's door, lit while staffed.
     lamps: (b) => (b.efficiency > 0 ? STATIO_LAMPS[waterSideOf(b, null)] : []),
     variant(b, place, ctx) {
       const side = waterSideOf(b, ctx);

@@ -59,18 +59,18 @@ import {
 export const NAVALIA = Object.freeze({
   slipX: 2.85, // the building slip's middle line
   slipHalf: 1.5, // half its sleepers' length
-  shedSlipX: -2.65, // the shed's slipway's middle line
+  shedSlipX: -2.5, // the shed's slipway's middle line
   headZ: -5.55, // the slips' head
   headY: 0.82, // the ramp's top there
   slope: 0.069, // its fall a metre (4 degrees, about the 1 in 14 of Zea's slipways)
-  endZ: 5.95,
+  endZ: 5.88,
   /**
    * The ship shed. Lower than Zea's (whose roofs stood some 7 m up): from
    * the game's camera, 30 degrees down, a roof hides nearly twice its
    * height of what is behind it, and the hull on the slip beside it must
    * show from every side.
    */
-  shed: Object.freeze({ x0: -5.92, x1: 0.62, z0: -3.85, z1: 5.95, eave: 2.6, pitch: 19, pillarX: [-5.65, 0.35], pillarZ: [-1.55, 0.85, 3.25, 5.62] }),
+  shed: Object.freeze({ x0: -5.62, x1: 0.62, z0: -3.85, z1: 5.7, eave: 2.25, pitch: 22, pillarX: [-5.35, 0.35], pillarZ: [-1.55, 0.85, 3.25, 5.45] }),
   /** The staging on piles beside the slip (x0, x1). */
   staging: Object.freeze([4.62, 5.92]),
   /** Where the hull's middle lies on the slip (z), its keel this high over the ways. */
@@ -79,7 +79,7 @@ export const NAVALIA = Object.freeze({
   /** The windlass at the slip's head: its drum's axis (x, y, z). */
   windlass: Object.freeze([2.85, 0.84, -5.35]),
   /** The lanterns (x, y, z): on the shed's front pillar by the slip and at the slip's head. */
-  lamps: Object.freeze([Object.freeze([0.35, 2.0, 5.95]), Object.freeze([4.62, 1.95, -2.2])]),
+  lamps: Object.freeze([Object.freeze([0.35, 1.45, 5.76]), Object.freeze([4.62, 1.95, -2.2])]),
   /**
    * The stock yard's places, each a cart's load (1 m square, 100 units:
    * models/wares.js buildLoad) [x, y, z, yaw]: timber beside the windlass
@@ -168,7 +168,7 @@ function shed(out, lod, seed) {
   for (const x of S.pillarX) {
     S.pillarZ.forEach((z, k) => {
       // Over the water: a pier of harbour concrete faced in tufa from the bed to above the tide, the pillar on it.
-      const footY = 0.95;
+      const footY = 0.4;
       const pier = slab(0.82, footY + 0.5, 0.82, { bevel: 0.02, seed: seed + k * 5 + x, wobble: 0.006, tone: 0.06, grime: 0 }).translate(x, -0.5, z);
       out.tufa.push(tintGeometry(pier, (px, py) => (py < 0.08 ? 0.5 : py < 0.35 ? 0.68 : 0.95)));
       if (lod < 2) out.foam.push(pierFoam(x - 0.41, x + 0.41, z - 0.41, z + 0.41, 0.35, seed + k + x, lod));
@@ -180,7 +180,7 @@ function shed(out, lod, seed) {
   // The beams along the pillars' tops, the length of the shed.
   for (const x of S.pillarX) out.wood.push(board(0.32, 0.3, S.z1 - S.z0 + 0.1, { tone: 0.75 }).translate(x, top, (S.z0 + S.z1) / 2));
   // The roof: a tiled gable along the shed, its eaves over the beams.
-  const roof = gableRoof({ x0: S.x0, x1: S.x1, z0: S.z0, z1: S.z1, eaveY: S.eave, pitch: D(S.pitch), along: 'z', lod, seed: seed + 90, over: 0.3, gableOver: 0.25 });
+  const roof = gableRoof({ x0: S.x0, x1: S.x1, z0: S.z0, z1: S.z1, eaveY: S.eave, pitch: D(S.pitch), along: 'z', lod, seed: seed + 90, over: 0.3, gableOver: 0.18 });
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
   // The trusses at the pillars and the open end: a tie beam, two rafters, a king post and two struts.
