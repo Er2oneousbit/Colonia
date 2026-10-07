@@ -111,15 +111,21 @@ export function wallAlong(axis, a, b, at, t, y0, y1, openings = [], k = 1) {
     if (p1 - p0 < 1e-3 || q1 - q0 < 1e-3) return;
     out.push(axis === 'x' ? box(p1 - p0, q1 - q0, t, (p0 + p1) / 2, q0, at, k) : box(t, q1 - q0, p1 - p0, at, q0, (p0 + p1) / 2, k));
   };
-  const ops = [...openings].sort((p, q) => p.a - q.a);
-  let x = a;
-  for (const o of ops) {
-    put(x, o.a, y0, y1);
-    put(o.a, o.b, y0, o.lo);
-    put(o.a, o.b, o.hi, y1);
-    x = o.b;
+  // Cut along the wall at every opening's sides; in each strip, fill the heights no opening takes
+  // (a door and a window over it share a strip: the curia's front).
+  const cuts = [...new Set([a, b, ...openings.flatMap((o) => [o.a, o.b])])].filter((x) => x >= a && x <= b).sort((p, q) => p - q);
+  for (let i = 0; i + 1 < cuts.length; i++) {
+    const p0 = cuts[i];
+    const p1 = cuts[i + 1];
+    const mid = (p0 + p1) / 2;
+    const holes = openings.filter((o) => o.a < mid && o.b > mid).map((o) => [o.lo, o.hi]).sort((p, q) => p[0] - q[0]);
+    let y = y0;
+    for (const [lo, hi] of holes) {
+      put(p0, p1, y, Math.min(lo, y1));
+      y = Math.max(y, hi);
+    }
+    put(p0, p1, y, y1);
   }
-  put(x, b, y0, y1);
   return out;
 }
 

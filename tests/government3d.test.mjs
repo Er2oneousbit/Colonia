@@ -241,3 +241,17 @@ test('government3d: the game\'s pass draws a palace\'s states from one kit, its 
   assert.equal(kit(), first, 'the same kit through every state');
   mp.dispose();
 });
+
+test('government3d: a wall leaves every opening open, a window over a door too (the curia\'s front)', async () => {
+  const { wallAlong } = await import('../src/render3d/models/domus.js');
+  const ops = [{ a: -1.25, b: 1.25, lo: 0, hi: 4.3 }, { a: -0.5, b: 0.5, lo: 6, hi: 7 }, { a: 2, b: 3, lo: 6, hi: 7 }];
+  const pieces = wallAlong('x', -5, 5, 0, 0.4, 0, 9, ops);
+  const covered = (x, y) => pieces.some((g) => {
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    return x > bb.min.x && x < bb.max.x && y > bb.min.y && y < bb.max.y;
+  });
+  for (const o of ops) assert.ok(!covered((o.a + o.b) / 2, (o.lo + o.hi) / 2), `opening at ${o.a}..${o.b}, ${o.lo}..${o.hi}`);
+  // And the wall is whole round them: between the door and the window over it, beside them, above.
+  for (const [x, y] of [[0, 5], [0, 8], [-3, 2], [4, 6.5], [1, 6.5]]) assert.ok(covered(x, y), `wall at ${x}, ${y}`);
+});
