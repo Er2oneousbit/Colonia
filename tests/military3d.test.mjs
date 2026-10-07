@@ -165,6 +165,32 @@ test('military3d: no fort hides its men at rest in the yard, from any corner the
   }
 });
 
+/** A geometry's signed volume: positive for a closed solid wound to face outward, negative inside out. */
+function signedVolume(geo) {
+  const p = geo.attributes.position;
+  const idx = geo.index ? geo.index.array : null;
+  const count = idx ? idx.length : p.count;
+  let v = 0;
+  for (let t = 0; t < count; t += 3) {
+    const [a, b, c] = idx ? [idx[t], idx[t + 1], idx[t + 2]] : [t, t + 1, t + 2];
+    v += (p.getX(a) * (p.getY(b) * p.getZ(c) - p.getZ(b) * p.getY(c)) - p.getY(a) * (p.getX(b) * p.getZ(c) - p.getZ(b) * p.getX(c)) + p.getZ(a) * (p.getX(b) * p.getY(c) - p.getY(b) * p.getX(c))) / 6;
+  }
+  return v;
+}
+
+test('military3d: the gates\' mirrored leaves are not inside out (a mirror reverses a solid\'s winding)', () => {
+  for (const type of TYPES) {
+    for (let lod = 0; lod < 3; lod++) {
+      MODELS[type].build(type, lod).traverse((o) => {
+        if (!o.isMesh || !['doors', 'bands'].includes(o.name)) return;
+        // Each leaf is a closed solid, so the part's volume is the leaves' together: one inside out
+        // cancels its twin (it was 0 for the legion's doors when the left leaf was a bare scale(-1)).
+        assert.ok(signedVolume(o.geometry) > 1e-3, `${type} lod ${lod} ${o.name}|${o.userData.when}: ${signedVolume(o.geometry)}`);
+      });
+    }
+  }
+});
+
 test('military3d: a fort\'s state from the sim: deployed or men away, manned or staffed, empty', () => {
   const f = { id: 7, type: 'fort_legion', efficiency: 1, rally: null };
   const game = gameWith({ units: [{ fort: 7 }, { fort: 7 }, { fort: 9 }] });
@@ -185,6 +211,10 @@ test('military3d: the barracks and the academy\'s states from the sim', () => {
   assert.equal(barracksState({ id: 3, efficiency: 1, trainProgress: 40 }), 'out');
   assert.equal(barracksState({ id: 3, efficiency: 1, trainProgress: 0 }), 'open');
   assert.equal(barracksState({ id: 3, efficiency: 0, trainProgress: 40 }), 'shut');
+  // A recruit trained and held back (no fort with room, or no arms: sim/military.js updateBarracks
+  // leaves its count at 100 and says why): nobody drills at the post.
+  assert.equal(barracksState({ id: 3, efficiency: 1, trainProgress: 100, blocked: 'All staffed forts are fully manned.' }), 'open');
+  assert.equal(barracksState({ id: 3, efficiency: 1, trainProgress: 100, blocked: '' }), 'out');
   const a = { id: 5, efficiency: 1 };
   const quiet = gameWith();
   assert.equal(academyState(a, quiet), 'open');
@@ -236,6 +266,8 @@ test('military3d: the cavalry\'s stalls hold a horse a trooper; the barracks sho
   const game = gameWith({ units: [{ fort: 4 }, { fort: 4 }, { fort: 4 }] });
   const v = MODELS.fort_cavalry.variant({ id: 4, type: 'fort_cavalry', efficiency: 1 }, { snow: 0 }, { game });
   assert.equal(horses(v.more), 3);
+  // Deployed, the troopers ride out with their remounts: the stalls stand empty.
+  assert.equal(horses(MODELS.fort_cavalry.variant({ id: 4, type: 'fort_cavalry', efficiency: 1, rally: { x: 1, y: 1 } }, { snow: 0 }, { game }).more), 0);
   // A set of arms for each 50 weapons (a legionary's), a sheaf for each 50 arrows, a horse for each 100.
   assert.deepEqual(barracksShows({}), { sets: 0, sheaves: 0, horses: 0 });
   assert.deepEqual(barracksShows({ weapons: 50, arrows: 51, horses: 99 }), { sets: 1, sheaves: 2, horses: 0 });
@@ -287,14 +319,16 @@ test('military3d: the game\'s pass draws a fort by its state from one kit, its s
   assert.ok(shown('home') >= 1 && shown('staffed') >= 1 && shown('shut') === 0);
   assert.equal(horses(), 2);
   const kit = mp.kits.get('fort_cavalry|2');
-  // Deployed: the standards out, the gate open; a third trooper joins.
-  b.rally = { x: 9.5, y: 9.5 };
+  // A third trooper joins; then deployed: the standards out, the gate open, the stalls empty.
   game.units.set(3, { id: 3, side: 'rome', fort: 4 });
   game.time.totalTicks++;
   frame();
+  assert.equal(horses(), 3);
+  b.rally = { x: 9.5, y: 9.5 };
+  frame();
   assert.equal(shown('home'), 0);
   assert.ok(shown('staffed') >= 1);
-  assert.equal(horses(), 3);
+  assert.equal(horses(), 0);
   assert.equal(mp.kits.get('fort_cavalry|2'), kit, 'the same kit through every state');
   mp.dispose();
 });

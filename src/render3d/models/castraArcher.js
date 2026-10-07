@@ -33,7 +33,7 @@ import { artRng } from '../texgen.js';
 import { lin } from './rural.js';
 import {
   CASTRA, fortBag, pour, assemble, TANK_WATER, onSide, prism, box, cyl, staff, gravel, tent, signum, vexillum, imago,
-  standardBase, inscribe, sentry, D,
+  standardBase, inscribe, sentry, mirrorX, D,
 } from './castra.js';
 
 /** The archer fort's measures (metres): the tests, the lab and the game read them. */
@@ -211,7 +211,7 @@ function gate(lod, seed, out) {
       for (let k = 0; k < n; k++) leaf.push(box((gh - 0.04) / n - 0.008, dh - 0.05, 0.06, -(gh - 0.04) + ((k + 0.5) * (gh - 0.04)) / n, 0.04, 0, 0.72 + ((k * 0.37) % 1) * 0.12));
       if (lod === 0) for (const y of [0.35, dh - 0.45]) leaf.push(box(gh - 0.1, 0.1, 0.03, -(gh - 0.04) / 2, y, -0.045, 0.7));
       for (const g of leaf) {
-        if (s < 0) g.scale(-1, 1, 1);
+        if (s < 0) mirrorX([g]);
         if (open) g.rotateY(-s * D(86));
         g.translate(s * (gh - 0.02), 0, zd);
       }

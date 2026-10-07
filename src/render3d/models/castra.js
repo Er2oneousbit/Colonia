@@ -545,7 +545,7 @@ export function stoneGate({ lod, seed, out, h = 2.75, merlon = 3.05, spring = 1.
       const g = new ExtrudeGeometry(leaf, { depth: 0.08, bevelEnabled: false, curveSegments: 4 });
       g.deleteAttribute('uv');
       g.translate(-(gh - 0.02), 0, -0.04);
-      if (s < 0) g.scale(-1, 1, 1);
+      if (s < 0) mirrorX([g]);
       // Hinged at its outer edge (x = s * gh): open, it swings back toward the yard against the side.
       if (open) g.rotateY(-s * D(88));
       g.translate(s * (gh - 0.02), 0, zd);
@@ -556,7 +556,7 @@ export function stoneGate({ lod, seed, out, h = 2.75, merlon = 3.05, spring = 1.
         // Iron bands across the leaf.
         for (const yy of [0.35, 1.0, 1.65]) {
           const band = box(gh - 0.08, 0.06, 0.02, -(gh - 0.02) / 2, yy, 0.045, 0.8);
-          if (s < 0) band.scale(-1, 1, 1);
+          if (s < 0) mirrorX([band]);
           if (open) band.rotateY(-s * D(88));
           band.translate(s * (gh - 0.02), 0, zd);
           (open ? out.studsOpen : out.studsShut).push(band);
@@ -573,7 +573,7 @@ export function stoneGate({ lod, seed, out, h = 2.75, merlon = 3.05, spring = 1.
 /**
  * A barrack block (the contubernia's rooms in a row) along z, its yard face
  * toward -x (it stands on the +x side of the yard; mirror it with
- * scale(-1, 1, 1)): x0..x1 deep, z0..z1 long, walls to `eave` on the yard
+ * mirrorX): x0..x1 deep, z0..z1 long, walls to `eave` on the yard
  * side and the back, a tiled gable along it, a door and a window for each
  * room. `walls` the walls' key in `out` (plaster, core).
  */
@@ -737,7 +737,7 @@ export function aquila(x, z, h, lod, out) {
     sh.closePath();
     const g = new ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: false });
     g.deleteAttribute('uv');
-    if (s < 0) g.scale(-1, 1, 1);
+    if (s < 0) mirrorX([g]);
     // (Swept back a little.)
     g.rotateY(-s * 0.35);
     g.translate(x + s * 0.03, y + 0.1, z - 0.01);

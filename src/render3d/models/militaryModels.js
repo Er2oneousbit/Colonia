@@ -51,9 +51,11 @@ const MEMO = new WeakMap();
  * the building alone): a fort's lanterns follow the state its model shows.
  */
 let lastGame = null;
+/** (Held weakly: a game left behind for a new one or the menu is not kept alive by it.) */
+const lastGameOf = () => (lastGame ? lastGame.deref() || null : null);
 export function armyOf(game) {
   if (!game || !game.units) return null;
-  lastGame = game;
+  if (lastGameOf() !== game) lastGame = new WeakRef(game);
   const tick = game.time ? game.time.totalTicks : 0;
   let m = MEMO.get(game);
   if (m && m.tick === tick && m.n === game.units.size) return m;
@@ -93,12 +95,15 @@ export function fortMen(b, game) {
  * The barracks' state: 'out' while a recruit is in training (staffed, his
  * training begun: sim/military.js updateBarracks counts b.trainProgress up
  * to 100 and starts again when he marches off), 'open' staffed, 'shut'
- * not. A ghost shows it staffed, nobody training.
+ * not. A recruit trained and held back (no fort with room, no arms for
+ * him) leaves the count at 100 with b.blocked saying why: nobody drills
+ * then, as the panel says nothing happens. A ghost shows it staffed,
+ * nobody training.
  */
 export function barracksState(b) {
   if (b.id === null || b.id === undefined) return 'open';
   if (!(b.efficiency > 0)) return 'shut';
-  return b.trainProgress > 0 ? 'out' : 'open';
+  return b.trainProgress > 0 && !b.blocked ? 'out' : 'open';
 }
 
 /**
@@ -215,12 +220,17 @@ function fortModel(type, build) {
     variant(b, place, ctx) {
       const game = ctx && ctx.game;
       const v = { key: frost(place) ? `${type}:ice` : type, state: fortState(b, game), ice: false };
-      // (A ghost's stalls are empty: the ala comes with its recruits.)
-      if (type === 'fort_cavalry') v.more = STALLS[b.id === null || b.id === undefined ? 0 : fortMen(b, game)];
+      // The stalls hold a remount for each trooper (an ala's men each kept more than one horse);
+      // deployed or away, they ride out with them. (A ghost's stalls are empty: the ala comes with
+      // its recruits.)
+      if (type === 'fort_cavalry') {
+        const home = v.state !== 'out' && b.id !== null && b.id !== undefined;
+        v.more = STALLS[home ? Math.min(CAVALRY_FORT.stalls, fortMen(b, game)) : 0];
+      }
       return v;
     },
     warm: [type],
-    lamps: (b) => (fortState(b, lastGame) === 'shut' ? NONE : LAMPS[type]),
+    lamps: (b) => (fortState(b, lastGameOf()) === 'shut' ? NONE : LAMPS[type]),
     build(key, lod) {
       const g = build({ lod }).group;
       return key.endsWith(':ice') ? frozen(g, TANK_WATER) : g;

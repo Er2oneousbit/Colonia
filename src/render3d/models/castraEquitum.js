@@ -23,7 +23,7 @@
  *     cloth (the Niederbieber head)
  *
  * The horses in the stalls are drawn as the farms' horses (`more`, one for
- * each trooper of the ala: models/militaryModels.js fortMore), so only the
+ * each trooper of the ala at home: models/militaryModels.js STALLS), so only the
  * building is here. States as the legion fort's: 'open', 'out', 'shut';
  * 'home' and 'staffed' tags.
  *

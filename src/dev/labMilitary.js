@@ -150,8 +150,15 @@ export function buildMilitaryScene() {
     return kits.get(id);
   };
   const _m = new Matrix4();
+  /** Free a group's geometries (the look's materials are shared and kept). */
+  const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
   function build() {
-    for (const it of holders) it.h.clear();
+    // (The buildings' own groups, then the kits their copies share.)
+    for (const it of holders) {
+      for (const c of it.h.children) if (!c.userData.copy) free(c);
+      it.h.clear();
+    }
+    for (const k of kits.values()) free(k);
     kits.clear();
     for (const it of holders) {
       const key = ice ? `${it.kind}:ice` : it.kind;
@@ -162,6 +169,7 @@ export function buildMilitaryScene() {
         const k = kitOf(e.key);
         for (let j = 0; j < e.n; j++) {
           const c = k.clone();
+          c.userData.copy = true;
           c.matrixAutoUpdate = false;
           c.matrix.copy(_m.fromArray(e.mats, j * 16));
           c.traverse((m) => { if (m.isMesh) m.visible = partShows(m.userData.when, e.state || 'always', false); });
