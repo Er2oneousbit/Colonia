@@ -13,6 +13,13 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.16)
+
+* **The school, the library and the academy in 3D** (under WebGL): a school held under a portico as Roman schools were, the master in his wicker chair under an awning, the alphabet on an easel, boys on benches with wax tablets and rolls; a library behind four marble columns with BIBLIOTHECA cut over them, its cupboards of rolls, Minerva and the herms of Homer, Ennius, Plato and Cicero in its court, a reader and a scribe; an academy round a half-round exedra and a garden with box hedges and a sundial, a speaker declaiming to his listeners and two walking in the covered walk. Staffed, their doors and cupboards stand open and their people are there; idle, all is shut. Console: `learning` builds one of each beside the city
+* A browser check fixed at its cause: the walker-press check picked walkers a few steps from home, who were gone by the release (three in a row once); it now picks those with plenty of walk ahead
+* Headless sim: identical to v0.20.15 on every difficulty
+* 1243 unit tests, 259 browser checks
+
 ## Done (v0.20.15)
 
 * **The forts, the barracks and the military academy in 3D** (under WebGL): Roman forts in miniature after Housesteads, the Saalburg and Vindolanda, kept low so the soldiers at rest stay in view in the yard: the legion fort in coursed sandstone with the eagle, the signa and the headquarters' portico; the archer fort a turf rampart with timber towers, leather tents and straw butts; the cavalry fort limewashed with stable-barracks, a horse for each trooper and the dragon standard. Deployed, the standards are gone; empty, the gate is shut. The barracks' armoury fills with arms and arrows as its stock comes in and a recruit drills at the post; the Campus is a training ground with a hall of the town's young men, posts, butts and a riding ring

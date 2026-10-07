@@ -795,7 +795,18 @@ try {
       const r = window.colonia.renderer;
       const cam = r.camera;
       const rect = window.colonia.canvas.getBoundingClientRect();
-      for (const s of r.walkerSpots) {
+      const g = window.colonia.game;
+      // Plenty of walk left: a walker a few steps from home is gone by the release (the
+      // press ticks the game 12 times), and three such in a row failed this check (v0.20.15:
+      // walkers 44, 46 and 48 all left during the press). Those with the most road ahead first.
+      const ahead = (id) => {
+        const w = g.walkers.get(id);
+        if (!w) return -1;
+        if (w.path) return w.path.length - 1 - (w.pathIndex || 0);
+        return w.roamLeft ?? 0;
+      };
+      const spots = [...r.walkerSpots].filter((s) => ahead(s.id) >= 8).sort((a, b) => ahead(b.id) - ahead(a.id));
+      for (const s of spots) {
         const q = cam.toScreen(s.wx, s.wy - 9);
         const x = rect.left + q.x / cam.dpr;
         const y = rect.top + q.y / cam.dpr;
