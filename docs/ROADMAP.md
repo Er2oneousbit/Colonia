@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.19)
+
+* **Gardens, statues, the gardeners' yard and the triumphal arch in 3D** (under WebGL): gardens after Pompeii's excavated peristyles, clipped box hedges round beds of roses, oleander, myrtle, acanthus and lilies, a basin, a pergola hung with oscilla, a sundial or a pool with a winged boy, no two alike, joining their hedges with neighbouring gardens into one garden, and following the months (bare vines in winter, roses in May, grapes ripening purple in autumn); untended they grow ragged and dry. Statues carved after the Prima Porta Augustus, a togate patron and a bronze general, an equestrian emperor after Marcus Aurelius or one enthroned after the Cumae Augustus, on inscribed bases; untended they weather green with lichen and patina, their wreaths fallen. A topiarius's yard with seedlings in pierced pots and box clipped to cones. A triumphal arch after the Arch of Titus with Victories, a relief of the procession and a gilt quadriga, turned along its road. Console: `gardens [n] [wild]`
+* Headless sim: identical to v0.20.18 on every difficulty
+* 1269 unit tests, 264 browser checks
+
 ## Done (v0.20.18)
 
 * **The barber, the physician, the baths and the hospital in 3D** (under WebGL): the barber's shop open to the street, a client under a linen cloth with the razor at his cheek and neighbours gossiping on the bench; the physician's consulting room under MEDICVS, the doctor taking a patient's pulse, his assistant grinding a remedy, the staff of Asclepius outside; a neighbourhood bath after Pompeii's Stabian and Forum baths, a vaulted hot room and a domed one, the furnace and its stoker, bathers in the exercise yard, steam rising in winter, cold and shut without workers, an empty pool without water; a hospital on the army's plan, wards round a corridor and a court of medicinal herbs, a surgeon at work in the operating hall, convalescents in the sun. Console: `healing` builds them beside the city
