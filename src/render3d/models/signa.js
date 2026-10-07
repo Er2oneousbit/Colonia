@@ -23,7 +23,7 @@
  *   grand (3 x 3)  the equestrian bronze, gilded, as Marcus Aurelius on
  *                  the Capitol, on its tall base over three steps behind a
  *                  bronze railing, bronze lampstands before it; or the
- *                  emperor enthroned as Jupiter (the seated Augustus from
+ *                  emperor enthroned as the king of the gods (the seated Augustus from
  *                  Cumae, Claudius from Lanuvium), colossal, sceptre in hand
  *
  * Which of a size's designs stands where is the tile's (decor.js: a hash of
@@ -48,9 +48,9 @@ import { frameSweep, revolve, profileOf, boxUV, tintGeometry, tube } from '../sh
 import { material } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
-import { lin, weeds } from './rural.js';
+import { lin } from './rural.js';
 import { castraMaterials } from './castra.js';
-import { bush } from './learning.js';
+import { laurelCrown, groundWeeds } from './hortus.js';
 import { figure, horse, HORSE, head, victory, carve, textWidth, loft, ellipsoid, member } from './statuary.js';
 
 /** Each size's designs (decor.js picks one by the tile). */
@@ -93,7 +93,9 @@ const L = (hex, k = 1) => lin(hex, k);
 /** Geometry lists by material key, gathered while a statue is built. */
 function bins() {
   const keys = ['trav', 'marble', 'bronze', 'gilt', 'letters', 'paint', 'clay', 'leaf', 'stain', 'lamp'];
-  return Object.fromEntries(keys.map((k) => [k, []]));
+  const b = Object.fromEntries(keys.map((k) => [k, []]));
+  b.crowns = [];
+  return b;
 }
 
 /** A square of travertine paving `half` metres each way, `h` thick. */
@@ -252,7 +254,7 @@ function streaks(face, at, a0, a1, y0, y1, seed, out, n = 7) {
 function pottedLaurel(x, y, z, lod, seed, out) {
   const seg = lod === 2 ? 6 : lod ? 10 : 16;
   out.clay.push(revolve(profileOf([[0, 0], [0.17, 0], [0.24, 0.1], [0.28, 0.42], [0.31, 0.46], [0.29, 0.51], [0.24, 0.49], [0, 0.49]]), { segments: seg, metres: 0.4 }).translate(x, y, z));
-  out.leaf.push(...bush(x, y + 1.08, z, 0.42, { lod, seed }));
+  out.crowns.push(...laurelCrown(x, y + 0.62, z, 0.95, 0.42, lod, Math.round(seed * 7) & 1023));
   out.paint.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.035, 0.45, 5, 1).translate(x, y + 0.65, z)), () => L(0x4a3a2a)));
 }
 
@@ -269,7 +271,7 @@ function bench(x, y, z, len, ry, lod, seed, out) {
 /** Weeds come up in the paving's joints and against the base. */
 function weedsIn(half, lod, seed, out, n = 14) {
   if (lod === 2) return;
-  out.leaf.push(...weeds(lod ? Math.ceil(n / 2) : n, -half, half, -half, half, seed, Math.max(1, lod)).map((g) => g.translate(0, 0.02, 0)));
+  out.leaf.push(...groundWeeds(lod ? Math.ceil(n / 2) : n, -half, half, -half, half, seed, lod));
 }
 
 // ---------------------------------------------------------------------------
@@ -394,14 +396,14 @@ export function buildStatue({ design = 'augustus', worn = false, lod = 0, seed =
     else if (k === 'cloth' && design === 'augustus' && !worn) {
       // The cloak's paint, faded: Augustus's paludamentum in red.
       const c = g.attributes.color;
-      for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * 0.95, c.getY(i) * 0.55, c.getZ(i) * 0.5);
+      for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * 0.8, c.getY(i) * 0.46, c.getZ(i) * 0.42);
       out[marbleKey].push(g);
     } else out[marbleKey].push(g);
   });
   // A support by the standing leg (marble needs one; a bronze stands on its own): a palm stump.
   if (!bronze && lod < 2) out.marble.push(member([[0.19, top + 0.08, -0.13], [0.2, top + 0.3, -0.14], [0.19, top + 0.55, -0.13]], 0.085, 0.06, { radial: 12, segs: 4, bulge: 0.15, at: 0.1 }));
   // Laurels in pots at the corners, benches either side facing in.
-  for (const [x, z] of [[-3.3, -3.3], [3.3, -3.3], [-3.3, 3.3], [3.3, 3.3]]) pottedLaurel(x, h0, z, lod, seed + x * 3 + z, out);
+  for (const [x, z] of [[-3.15, -3.15], [3.15, -3.15], [-3.15, 3.15], [3.15, 3.15]]) pottedLaurel(x, h0, z, lod, seed + x * 3 + z, out);
   for (const sx of [-1, 1]) bench(sx * 2.6, h0, 0.2, 1.6, Math.PI / 2, lod, seed + 30 + sx, out);
   if (worn) {
     droppings([[0, top + 0.08 + 1.72 * s, 0.02, 5, 0.12], [0.22 * s, top + 0.08 + 1.5 * s, 0, 3, 0.1], [-0.22 * s, top + 0.08 + 1.5 * s, 0, 3, 0.1], [0, top, 0.4, 5, 0.9], [0, y1 - 0.16, 1.15, 4, 1.2], [2.6, h0 + 0.48, 0.2, 3, 0.4]], seed + 9, out);
@@ -546,6 +548,7 @@ function finish(name, out, worn, lod) {
   p.add('pots', m.clay, out.clay);
   p.add('leaf', m.leaf, out.leaf);
   p.add('stains', m.stain, out.stain, { cast: false });
+  for (const c of out.crowns) p.add(c.name, c.material, c.geos);
   p.add('lamp', lanternPane(), out.lamp, { cast: false });
   return p.build();
 }

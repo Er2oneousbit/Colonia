@@ -78,7 +78,7 @@ const LABELS = [
   [14.5, 0.5, 4.8, 'General in bronze', 'GERMANICO CAESARI'],
   [12.5, 3.5, 4.6, 'Statues, neglected', 'Lichen, patina, streaks'],
   [18, 1, 6.8, 'Equestrian bronze', 'After Marcus Aurelius, gilded'],
-  [21, 1, 6.4, 'Enthroned as Jupiter', 'After the Augustus from Cumae'],
+  [21, 1, 6.4, 'Enthroned as king of the gods', 'After the Augustus from Cumae'],
   [19.5, 5, 6.4, 'Grand statues, neglected', 'Green bronze, cold lamps'],
   [6, 6, 2.6, "Gardeners' yard (topiaria)", 'At work'],
   [8, 6, 2.6, "Gardeners' yard", 'Shut'],
@@ -120,7 +120,7 @@ middle a marble basin on its foot (<i>labrum</i>), a sundial, a pool with a bron
 by its tile, so a row of gardens is not a pattern; gardens side by side lose the hedges between them and become one garden.
 Untended (the gardeners' care, Colonia's own rule) the box grows ragged and brown, weeds come up in the walks, the basin is dry.</p>
 <p><b>The statues</b> after the statues themselves: the Augustus of Prima Porta in marble with his cloak's paint, a patron of the
-colony in his toga, a general in bronze; the gilded Marcus Aurelius on his horse; an emperor enthroned as Jupiter, after the seated
+colony in his toga, a general in bronze; the gilded Marcus Aurelius on his horse; an emperor enthroned as the king of the gods, after the seated
 Augustus from Cumae. Small ones: a herm of Liber, a portrait bust, a Victory on a globe. Their bases are cut as the honorific bases
 were, in Roman capitals (S P Q R; D D, by decree of the council; P P, at public cost). Neglected: lichen and black streaks on the
 marble, the bronze gone green, droppings, the wreath fallen.</p>

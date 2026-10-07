@@ -24,7 +24,7 @@
  *                 curved overfold (sinus) and the band across the chest
  *                 (balteus), the left arm wrapped in it, a book roll in
  *                 the right hand
- *       seated    the emperor as Jupiter, enthroned (Claudius from
+ *       seated    the emperor enthroned as the king of the gods (Claudius from
  *                 Lanuvium, Augustus from Cumae): bare to the waist, the
  *                 mantle over the lap and the left shoulder, a sceptre
  *                 high in the right hand, a Victory on a globe in the left
@@ -218,10 +218,10 @@ export function head(x, y, z, ry = 0, { lod = 0, beard = false, wreath = false, 
     if (lod < 2) {
       const front = smoothstep(0.55, 0.9, P.getZ(i));
       // The nose: a ridge down the middle of the face, deepest at its tip.
-      pz += front * 0.26 * gauss(px, 0.13) * smoothstep(0.12, -0.32, py) * smoothstep(-0.48, -0.3, py);
+      pz += front * 0.42 * gauss(px, 0.12) * smoothstep(0.12, -0.32, py) * smoothstep(-0.48, -0.3, py);
       // The brow over the eyes, the sockets under it, the mouth's line.
-      pz += front * 0.07 * gauss(py - 0.12, 0.08) * gauss(Math.abs(px) - 0.3, 0.3);
-      pz -= front * 0.09 * gauss(py + 0.02, 0.1) * gauss(Math.abs(px) - 0.32, 0.14);
+      pz += front * 0.11 * gauss(py - 0.12, 0.08) * gauss(Math.abs(px) - 0.3, 0.3);
+      pz -= front * 0.15 * gauss(py + 0.02, 0.1) * gauss(Math.abs(px) - 0.32, 0.14);
       pz -= front * 0.04 * gauss(py + 0.52, 0.04) * gauss(px, 0.25);
     }
     P.setXYZ(i, px * 0.085, py * 0.112, pz * 0.1);
@@ -343,7 +343,7 @@ function leg(hip, knee, ankle, toe, lod) {
   const A = v3(ankle);
   const out = [];
   out.push(member([H, H.clone().lerp(K, 0.5), K], 0.102, 0.06, { radial, segs: lod ? 3 : 7, bulge: 0.14, at: 0.25, wide: 0.3 }));
-  out.push(ellipsoid(0.056, 1, 1.15, 1, K.x, K.y, K.z + 0.012, lod ? 7 : 10, lod ? 5 : 8));
+  out.push(ellipsoid(0.047, 1, 1.1, 1, K.x, K.y, K.z + 0.012, lod ? 7 : 10, lod ? 5 : 8));
   out.push(member([K, K.clone().lerp(A, 0.5), A], 0.058, 0.035, { radial, segs: lod ? 3 : 7, bulge: 0.3, at: 0.26, wide: 0.2 }));
   // The foot: a wedge from the heel to the toes, along `toe`.
   const t = v3(toe).normalize();
@@ -368,7 +368,7 @@ function leg(hip, knee, ankle, toe, lod) {
 const TORSO = [
   [0.84, 0, -0.012, 0.148, 0.108], [0.92, 0, -0.016, 0.17, 0.122], [1.0, 0, -0.008, 0.162, 0.114],
   [1.08, 0, -0.002, 0.146, 0.104], [1.18, 0, 0.004, 0.157, 0.11], [1.28, 0, 0.008, 0.178, 0.12],
-  [1.37, 0, 0.004, 0.192, 0.118], [1.44, 0, -0.008, 0.2, 0.1], [1.49, 0, -0.012, 0.15, 0.08], [1.535, 0, -0.006, 0.062, 0.058],
+  [1.37, 0, 0.004, 0.192, 0.118], [1.44, 0, -0.008, 0.2, 0.1], [1.495, 0, -0.012, 0.172, 0.088], [1.54, 0, -0.006, 0.072, 0.064],
 ];
 
 /**
@@ -492,7 +492,7 @@ export function figure(pose = 'cuirass', { lod = 0, seed = 1, beard = false, wre
   const out = { flesh: [], cloth: [], gear: [], hair: [], wreath: [] };
   const R = lod === 2 ? 5 : lod ? 8 : 12;
   const headAt = (dy = 0, dz = 0, ry = 0.12) => {
-    const h = head(0.004, 1.705 + dy, 0.02 + dz, ry, { lod, beard, wreath });
+    const h = head(0.004, 1.705 + dy, 0.02 + dz, ry, { lod, beard, wreath, scale: 1.08 });
     out.flesh.push(...h.skin);
     out.hair.push(...h.hair);
     out.wreath.push(...h.wreath);
@@ -526,10 +526,22 @@ export function figure(pose = 'cuirass', { lod = 0, seed = 1, beard = false, wre
       out.gear.push(loft([[0.965, 0, -0.012, 0.192, 0.142], [0.995, 0, -0.01, 0.198, 0.146], [1.02, 0, -0.008, 0.188, 0.136]], { seg: lod ? 16 : 30, caps: false }));
       for (const s of [-1, 1]) out.gear.push(ellipsoid(0.085, 0.9, 0.5, 1.05, s * 0.215, 1.47, -0.005, lod ? 8 : 12, lod ? 5 : 8));
     }
-    // The cloak: bunched round the hips in heavy folds, over the left forearm, hanging below it.
-    const roll = [[0.18, 1.01, -0.01], [0.13, 0.95, 0.12], [-0.02, 0.92, 0.16], [-0.16, 0.96, 0.13], [-0.25, 1.06, 0.16], [-0.26, 1.12, 0.25]];
-    out.cloth.push(tube(roll, 0.055, { radial: R, segments: lod ? 10 : 24, around: 0.3 }));
-    if (lod < 2) out.cloth.push(tube(roll.map(([x, y, z]) => [x * 0.97, y - 0.045, z + 0.012]), 0.04, { radial: R, segments: lod ? 8 : 20, around: 0.3 }));
+    // The cloak: wound round the hips in heavy folds (higher on the left), its end gathered over the
+    // left forearm and hanging below it. A shell of cloth over the hips, faced inside too.
+    const sash = (k, a0, a1) => loft([[0.85, 0, -0.012, 0.205 * k, 0.158 * k], [0.92, 0, -0.014, 0.228 * k, 0.174 * k], [0.99, 0, -0.012, 0.224 * k, 0.17 * k], [1.06, 0, -0.008, 0.198 * k, 0.15 * k]], {
+      seg: lod === 2 ? 8 : lod ? 14 : 30, a0, a1, caps: false,
+      deform: (p, th) => {
+        p.y -= 0.05 * Math.sin(th);
+        if (lod < 2) {
+          const f = 1 + 0.07 * Math.sin(th * 9 + p.y * 30);
+          p.x *= f;
+          p.z = -0.012 + (p.z + 0.012) * f;
+        }
+      },
+      tint: (q, th) => 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(th * 9 + q.y * 30)),
+    });
+    out.cloth.push(sash(1, -Math.PI * 0.82, Math.PI * 0.62), sash(0.97, Math.PI * 0.62, -Math.PI * 0.82));
+    out.cloth.push(tube([[-0.21, 1.0, 0.1], [-0.25, 1.07, 0.17], [-0.26, 1.12, 0.25]], 0.05, { radial: R, segments: lod ? 4 : 10, around: 0.3 }));
     out.cloth.push(drape([-0.28, 1.08, 0.21], [-0.3, 0.36, 0.16], 0.08, 0.14, lod, { seed: seed + 3, turn: 0.3, thick: 0.045 }));
     out.gear.push(...staffOf([-0.245, 0.0, 0.31], [-0.245, 2.15, 0.31], 0.013, lod, 'spear'));
     // A shoulder strap of the cuirass, and the support a marble needs by its standing leg (a stump).
@@ -645,12 +657,17 @@ export function horse({ lod = 0, pose = 'step', turnHead = 0.18, cloth = true } 
   const withers = new Vector3(0, 1.42, 0.4);
   const crest = new Vector3(0, 1.82, 0.62);
   const poll = new Vector3(Math.sin(turnHead) * 0.08, drawn ? 2.1 : 2.0, drawn ? 0.76 : 0.8);
-  const neck = limb([withers, new Vector3(0, 1.62, 0.56), crest, poll], 0.22, 0.12, { radial, segs: lod ? 5 : 10 });
-  neck.scale(0.78, 1, 1);
+  const neck = limb([withers, new Vector3(0, 1.62, 0.56), crest, poll], 0.27, 0.13, { radial, segs: lod ? 5 : 10 });
+  neck.scale(0.74, 1, 1);
   neck.computeVertexNormals();
   body.push(neck);
-  const headRings = [[-0.04, 0, 0.0, 0.07, 0.1], [0.02, 0, -0.01, 0.1, 0.15], [0.14, 0, -0.03, 0.1, 0.14], [0.3, 0, -0.05, 0.078, 0.095], [0.45, 0, -0.06, 0.072, 0.08], [0.53, 0, -0.065, 0.06, 0.06], [0.56, 0, -0.07, 0.03, 0.03]];
-  const hd = loft(headRings, { axis: 'z', seg: lod === 2 ? 6 : lod ? 10 : 16, tint: (q) => 0.85 - 0.3 * smoothstep(0.35, 0.52, q.z) });
+  const headRings = [[-0.06, 0, 0.01, 0.06, 0.08], [0.0, 0, -0.005, 0.095, 0.13], [0.1, 0, -0.035, 0.105, 0.16], [0.2, 0, -0.04, 0.085, 0.12], [0.32, 0, -0.045, 0.07, 0.09], [0.44, 0, -0.05, 0.068, 0.08], [0.52, 0, -0.055, 0.07, 0.075], [0.57, 0, -0.06, 0.05, 0.055], [0.6, 0, -0.06, 0.02, 0.025]];
+  const hd = loft(headRings, {
+    axis: 'z', seg: lod === 2 ? 6 : lod ? 12 : 20,
+    // The face flat down its front (the forehead and the bridge of the nose), the cheeks round.
+    deform: (p, th) => { const c = Math.cos(th); if (c > 0.35) p.y -= (c - 0.35) * 0.05; },
+    tint: (q) => 0.85 - 0.3 * smoothstep(0.4, 0.58, q.z),
+  });
   hd.rotateX(drawn ? 0.8 : 1.0);
   hd.rotateY(turnHead);
   hd.translate(poll.x, poll.y, poll.z);
@@ -676,7 +693,6 @@ export function horse({ lod = 0, pose = 'step', turnHead = 0.18, cloth = true } 
     const P = pts.map(v3);
     // The forearm or the gaskin heavy with muscle where it leaves the body, the cannon below lean.
     body.push(member(P.slice(0, 3), r0, r0 * 0.5, { radial, segs: lod ? 3 : 7, bulge: 0.25, at: 0.3, wide: 0.25 }));
-    body.push(ellipsoid(r0 * 0.5, 1, 1.2, 1, P[2].x, P[2].y, P[2].z, lod ? 6 : 9, lod ? 5 : 7));
     body.push(member(P.slice(2), r0 * 0.4, r0 * 0.32, { radial: Math.max(5, radial - 2), segs: lod ? 3 : 6, bulge: 0.3, at: 0.72, wide: 0.1 }));
     const hoof = new CylinderGeometry(0.05, 0.065, 0.08, radial, 1);
     const end = P[P.length - 1];

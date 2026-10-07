@@ -35,7 +35,7 @@ import { Matrix4, Group } from 'three';
 import { buildSmallStatue, buildStatue, buildGrandStatue, SIGNA, GRAND_LAMPS } from './signa.js';
 import { buildYard, TOPIARIA } from './topiaria.js';
 import { buildArch } from './fornix.js';
-import { buildPlot, buildHedge, buildHedgeStub, buildHedgePost, buildGardenWarm, DESIGNS, gardenSeason, HEDGE_END } from './hortus.js';
+import { buildPlot, buildHedge, buildHedgeStub, buildHedgePost, buildGardenWarm, DESIGNS, gardenSeason, STUB } from './hortus.js';
 
 /** The care step (sim/gardens.js) from which a garden or a statue is drawn neglected: as its sprite (buildingArt.js). */
 export const NEGLECT_STEP = 2;
@@ -123,7 +123,7 @@ export function hedgeLayout(mask) {
   const runs = [];
   const stubs = [];
   const posts = [];
-  const mid = (2 + HEDGE_END) / 2;
+  const mid = STUB.mid;
   for (let i = 0; i < 4; i++) {
     if (has(i)) continue;
     const turn = new Matrix4().makeRotationY(SIDE_TURN[i]);

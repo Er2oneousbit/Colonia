@@ -800,6 +800,69 @@ export function buildDemoLearning(game, center) {
 }
 
 /**
+ * Gardens, statues, a gardeners' yard and a triumphal arch beside the city:
+ * the console's `gardens` (render3d/models/decor.js), to see them drawn and
+ * to measure many of them. `count` gardens in blocks of four by three (side
+ * by side, their hedges join), a statue of each size twice over (the small
+ * ones three times), a yard joined by road, and an arch granted and built
+ * across the nearest straight road it fits. Gardens and statues need no road.
+ * @returns {{ gardens: number, statues: number, yard: object|null, arch: object|null }}
+ */
+export function buildDemoGardens(game, center, { count = 24 } = {}) {
+  const out = { gardens: 0, statues: 0, yard: null, arch: null };
+  return withDemoMarble(game, () => {
+    for (let tries = 0; out.gardens < count && tries < 200; tries++) {
+      const spot = findSpot(game, 4, center, 3, 60)[0];
+      if (!spot) break;
+      let placed = 0;
+      for (let dy = 0; dy < 3; dy++) {
+        for (let dx = 0; dx < 4 && out.gardens < count; dx++) {
+          if (place(game, 'garden', spot.x + dx, spot.y + dy, 1)) {
+            out.gardens++;
+            placed++;
+          }
+        }
+      }
+      if (!placed) break;
+    }
+    for (const [type, size, n] of [['statue_small', 1, 3], ['statue_medium', 2, 2], ['statue_large', 3, 2]]) {
+      if (!game.isUnlocked(type)) continue;
+      for (let k = 0; k < n; k++) {
+        const s = findSpot(game, size + 1, center, 3, 60)[0];
+        if (s && place(game, type, s.x, s.y, size)) out.statues++;
+      }
+    }
+    if (game.isUnlocked('gardener_yard')) out.yard = placeNear(game, 'gardener_yard', 1, center, 3, 30);
+    out.arch = archAcross(game, center);
+    return out;
+  });
+}
+
+/**
+ * Grant a triumphal arch and build it across the nearest straight road to
+ * `center` it fits on (sim/construction.js checkArch: its middle row or
+ * column plain road, the rest open land). Takes the grant back if no road
+ * will do. @returns {object|null} the arch
+ */
+function archAcross(game, center) {
+  const { map } = game;
+  const was = game.city.archesEarned || 0;
+  game.city.archesEarned = was + 1;
+  const roads = [];
+  for (let y = 2; y < map.h - 2; y++) {
+    for (let x = 2; x < map.w - 2; x++) {
+      if (map.hasRoad(x, y)) roads.push({ x, y, d: Math.hypot(x - center.x, y - center.y) });
+    }
+  }
+  roads.sort((a, b) => a.d - b.d);
+  for (const r of roads.slice(0, 600)) {
+    if (place(game, 'triumphal_arch', r.x - 1, r.y - 1, 3)) return [...game.buildings.values()].pop();
+  }
+  game.city.archesEarned = was;
+  return null;
+}
+
+/**
  * A Portus on the shore of a naval station's water, near the station, joined
  * by road to the city's streets. @returns {object|null} the Portus
  */

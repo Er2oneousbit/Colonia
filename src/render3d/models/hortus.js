@@ -71,6 +71,8 @@ export function gardenSeason(month) {
 export const HEDGE = Object.freeze({ inset: 0.07, thick: 0.38, h: 0.56, gap: 0.42, post: 0.72 });
 /** Where a side's run of hedge ends at a corner (the post's inner face). */
 export const HEDGE_END = 2 - HEDGE.inset - HEDGE.thick;
+/** A stub of hedge: from a little inside the run's end out to the tile's edge (its half length, its middle). */
+export const STUB = Object.freeze({ half: (2 - HEDGE_END + 0.02) / 2, mid: (2 + HEDGE_END - 0.02) / 2 });
 /** The walks' half width. */
 const WALK = 0.35;
 
@@ -138,6 +140,26 @@ function sprays(out, { sp, tex, x, cy, z, r, hh, n, size, palette, rnd, up = 0.3
     const c = leafLin(pick(rnd, palette)).map((v) => v * k);
     list.push({ p, dir, side, size: s, cell: Math.floor(rnd() * 4), out: o, c });
   }
+}
+
+/**
+ * Weeds come up over x0..x1, z0..z1 (rural.js weeds: lumpy tufts, green
+ * going dry), `y` over the ground, smooth at every level (a tuft of twenty
+ * flat faces reads as a cut gem), dulled to the colour of a neglected
+ * plot, and cut off at the ground (what is under it is never seen).
+ */
+export function groundWeeds(n, x0, x1, z0, z1, seed, lod, y = 0.02) {
+  return weeds(n, x0, x1, z0, z1, seed, Math.max(1, lod)).map((g) => {
+    g.translate(0, y, 0);
+    const P = g.attributes.position;
+    const C = g.attributes.color;
+    for (let i = 0; i < P.count; i++) {
+      if (P.getY(i) < 0) P.setY(i, 0);
+      C.setXYZ(i, C.getX(i) * 0.62, C.getY(i) * 0.6, C.getZ(i) * 0.5);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
 }
 
 /** A lumpy closed clump (far out, and the ghost's): a welded icosphere pushed about, its colour by height. */
@@ -395,6 +417,15 @@ function hedgeRun(x0, x1, { worn, lod, round0 = false, round1 = false, height = 
       out.push(limb([[x, y - 0.05, zc + (rnd() - 0.5) * 0.2], [x + (rnd() - 0.5) * 0.1, y + 0.1 + rnd() * 0.12, zc + (rnd() - 0.5) * 0.3]], 0.03, 0.012, { radial: 4, segs: 2 }));
     }
   }
+  // Inside its own length and its tile: a ragged face's lumps and its shoots stop at the run's ends
+  // (a stub's at the tile's edge, where the next garden's begins).
+  for (const q of out) {
+    const P = q.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      P.setX(i, Math.max(x0, Math.min(x1, P.getX(i))));
+      P.setZ(i, Math.min(1.998, P.getZ(i)));
+    }
+  }
   return out;
 }
 
@@ -435,8 +466,8 @@ function ground(out, { worn, lod, rnd }) {
   }
   if (worn && lod < 2) {
     // Weeds come up through the gravel and over the beds.
-    out.solid.push(...weeds(lod ? 6 : 14, -1.6, 1.6, -WALK, WALK, 31, Math.max(1, lod)).map((g) => g.translate(0, 0.02, 0)));
-    out.solid.push(...weeds(lod ? 4 : 9, -WALK, WALK, -1.6, 1.6, 37, Math.max(1, lod)).map((g) => g.translate(0, 0.02, 0)));
+    out.solid.push(...groundWeeds(lod ? 6 : 14, -1.6, 1.6, -WALK, WALK, 31, lod));
+    out.solid.push(...groundWeeds(lod ? 4 : 9, -WALK, WALK, -1.6, 1.6, 37, lod));
   }
 }
 
@@ -459,14 +490,23 @@ function sundial(out, { worn, lod }) {
   const seg = lod === 2 ? 8 : lod ? 14 : 24;
   out.gravel.push(revolve(profileOf([[0, 0], [0.6, 0], [0.6, 0.05], [0, 0.05]]), { segments: seg, metres: 1 }));
   out.marble.push(revolve(profileOf([[0, 0.04], [0.2, 0.04], [0.2, 0.1], [0.15, 0.14], [0.12, 0.16], [0.11, 0.86], [0.15, 0.9], [0.15, 0.94], [0, 0.94]]), { segments: seg, metres: 0.6 }));
-  // The dial: a block, its south face cut into a quarter sphere with the hour lines, a gnomon.
-  out.marble.push(slab(0.36, 0.28, 0.3, { bevel: 0.01, seed: 5, wobble: worn ? 0.01 : 0, tone: 0, grime: 0.1 }).translate(0, 0.94, 0));
+  // The dial: a flat marble disc on a square capital, its hour lines cut in it, a bronze gnomon
+  // (the flat dial, as the one found in the forum of Pompeii's Temple of Apollo; askew untended).
+  out.marble.push(slab(0.32, 0.06, 0.32, { bevel: 0.01, seed: 5, wobble: 0, tone: 0, grime: 0.1 }).translate(0, 0.94, 0));
+  const dial = revolve(profileOf([[0, 0], [0.22, 0], [0.23, 0.03], [0.22, 0.05], [0, 0.05]]), { segments: seg, metres: 0.6 });
+  if (worn) dial.rotateZ(0.08);
+  out.marble.push(dial.translate(0, 1.0, 0));
   if (lod < 2) {
-    const bowl = new SphereGeometry(0.13, 12, 8, 0, Math.PI, 0, Math.PI / 2);
-    bowl.rotateX(Math.PI / 2 + 0.6);
-    bowl.translate(0, 1.16, 0.15);
-    out.bronze.push(tintGeometry(boxUV(bowl), () => 0.4));
-    out.bronze.push(tintGeometry(boxUV(new BoxGeometry(0.008, 0.008, 0.14).translate(0, 1.16, 0.1))));
+    for (let k = 0; k <= (lod ? 4 : 10); k++) {
+      const a = -Math.PI / 2 + (k / (lod ? 4 : 10)) * Math.PI;
+      out.bronze.push(tintGeometry(boxUV(new BoxGeometry(0.004, 0.003, 0.16).translate(0, 0, 0.08).rotateY(a).translate(0, 1.051, -0.02)), () => 0.35));
+    }
+    // The gnomon: a triangle of bronze standing on the dial, its edge toward the pole.
+    const gn = new BoxGeometry(0.006, 0.12, 0.16);
+    const P = gn.attributes.position;
+    for (let i = 0; i < P.count; i++) if (P.getY(i) > 0 && P.getZ(i) > 0) P.setY(i, -0.06);
+    gn.computeVertexNormals();
+    out.bronze.push(tintGeometry(boxUV(gn.translate(0, 1.11, -0.02))));
   }
 }
 
@@ -479,7 +519,7 @@ function pool(out, { worn, ice, lod, rnd }) {
   }
   out.lining.push(slab(2 * h - 2 * kerb, 0.06, 2 * h - 2 * kerb, { bevel: 0.005, seed: 9, wobble: 0, tone: 0, grime: 0 }));
   if (!worn) out.water.push(tintGeometry(boxUV(new BoxGeometry(2 * h - 2 * kerb, 0.005, 2 * h - 2 * kerb).translate(0, 0.165, 0))));
-  else if (lod < 2) out.solid.push(...weeds(lod ? 2 : 5, -0.4, 0.4, -0.4, 0.4, 41, lod).map((g) => g.translate(0, 0.06, 0)));
+  else if (lod < 2) out.solid.push(...groundWeeds(lod ? 2 : 5, -0.4, 0.4, -0.4, 0.4, 41, lod, 0.06));
   out.marble.push(revolve(profileOf([[0, 0], [0.08, 0], [0.08, 0.04], [0.055, 0.07], [0.05, 0.42], [0.07, 0.46], [0, 0.46]]), { segments: lod === 2 ? 6 : 12, metres: 0.4 }));
   if (lod < 2) for (const g of victory(lod, { scale: 0.42 })) out.bronze.push(g.translate(0, 0.46, 0));
 }
@@ -632,6 +672,25 @@ function beds(design, out, o) {
   violets(out, -1.45, -WALK - 0.1, -WALK - 0.12, o);
 }
 
+/**
+ * A clipped laurel's crown of sprays at (x, y0, z), `h` tall and `r`
+ * round, for a model that has no garden of its own (a statue's potted
+ * laurels): [{ name, material, geos }] for its parts, the sprays or, far
+ * out, a clump.
+ */
+export function laurelCrown(x, y0, z, h, r, lod, seed = 1) {
+  const out = bins();
+  shrub(out, { x, z, h, r, y0, leaf: { sp: 'myrtle', tex: 'leaf-ovate', palette: PALETTE.myrtle }, lod, rnd: artRng(seed), dens: 1.4, stems: 0 });
+  const m = hortusMaterials();
+  const parts = [];
+  if (out.solid.length) parts.push({ name: 'laurel-clump', material: m.solid, geos: out.solid });
+  for (const [key, cards] of out.cards) {
+    const [sp, tex] = key.split('|');
+    parts.push({ name: `sprays-${sp}-${tex}`, material: foliageMaterial(sp, tex, lod > 0), geos: [cardGeometry(cards, tex, lod === 0)] });
+  }
+  return parts;
+}
+
 /** The garden's materials. */
 export function hortusMaterials() {
   const c = castraMaterials();
@@ -698,12 +757,14 @@ export function buildPlot({ design = 'labrum', season = 'bloom', worn = false, i
   else pergola(out, o);
   beds(design, out, o);
   const plot = finish(`garden:${design}`, out, lod, { ice: ice && !worn });
-  // Kept inside its tile: a spray or a weed that strays over the edge would hang over the neighbour's.
+  // Kept inside its tile and over the ground: a spray or a weed that strays over the edge would hang over
+  // the neighbour's (and a stem's foot under the ground only costs depth).
   for (const m of plot.meshes) {
     const P = m.geometry.attributes.position;
     for (let i = 0; i < P.count; i++) {
       P.setX(i, Math.max(-1.99, Math.min(1.99, P.getX(i))));
       P.setZ(i, Math.max(-1.99, Math.min(1.99, P.getZ(i))));
+      if (P.getY(i) < 0) P.setY(i, 0);
     }
   }
   return plot;
@@ -719,7 +780,7 @@ export function buildHedge({ worn = false, lod = 0 } = {}) {
 /** A stub of hedge from the post's place out to the tile's edge (x -0.225..0.225 about its middle): where a run goes on into the next garden. */
 export function buildHedgeStub({ worn = false, lod = 0 } = {}) {
   const out = bins();
-  const half = (2 - HEDGE_END) / 2 + 0.01;
+  const half = STUB.half;
   out.box.push(...hedgeRun(-half, half, { worn, lod }));
   return finish('garden:stub', out, lod);
 }

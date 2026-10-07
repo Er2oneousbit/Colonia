@@ -13,7 +13,7 @@ import { GROUND_LAYERS } from '../render3d/ground/groundSurfaces.js';
 import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
-import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoLearning, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoLearning, buildDemoGardens, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -72,6 +72,7 @@ export const CONSOLE_HELP = [
   ['navy', 'Build a naval station and a navalia on the shore, stocked for a squadron of liburnians (river/coast maps)'],
   ['academy', 'Build a Campus (military academy) near the city, and a Portus by the first Statio if there is one (they train only at full staff)'],
   ['learning', 'Build a library and an academy near the city (and a school if it has none)'],
+  ['gardens [n] [wild]', 'Lay out n gardens (default 24) in blocks beside the city, statues of each size, a gardeners\' yard and a triumphal arch across a road; "wild" leaves every garden and statue untended'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
   ['searaid [n]', 'Launch a raid of n warriors by sea right now (river/coast maps; default: normal size)'],
   ['wolves [here]', 'List the wolf packs; "here" sets a new pack down near the middle of the view'],
@@ -425,6 +426,27 @@ export class DebugConsole {
         if (shown) app.renderer.camera.centerOnTile(shown.x + 1, shown.y + 1);
         const parts = Object.entries(built).map(([k, b]) => (b ? `${k} at ${b.x},${b.y}` : `no ${k}`));
         return `Learning: ${parts.join(', ')}.`;
+      }
+      case 'gardens': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const wild = args.includes('wild');
+        const n = Math.max(0, Math.min(400, Number(args.find((a) => /^\d+$/.test(a))) || (wild ? 0 : 24)));
+        const built = n ? buildDemoGardens(g, center, { count: n }) : null;
+        if (wild) {
+          // Untended for months: as far down as their care goes (sim/gardens.js).
+          for (const b of g.buildings.values()) {
+            if (!b.def.tended) continue;
+            b.tendedDay = g.time.totalDays - 400;
+            b.careStep = CONFIG.CARE_LEVELS.length - 1;
+          }
+          g.dirty.des = true;
+        }
+        if (built && built.arch) app.renderer.camera.centerOnTile(built.arch.x + 1, built.arch.y + 1);
+        return built
+          ? `Gardens: ${built.gardens} gardens, ${built.statues} statues, ${built.yard ? 'a gardeners\' yard' : 'no yard'}, ${built.arch ? `an arch at ${built.arch.x},${built.arch.y}` : 'no arch (no straight road it fits)'}${wild ? '; all left untended' : ''}.`
+          : 'Every garden and statue left untended.';
       }
       case 'invade':
       case 'searaid': {

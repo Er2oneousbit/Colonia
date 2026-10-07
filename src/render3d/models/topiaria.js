@@ -251,5 +251,11 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
     for (const s of [-1, 1]) shears.push(tintGeometry(boxUV(new BoxGeometry(0.012, 0.012, 0.26).rotateY(s * 0.18).translate(0.55, 1.12, 0.68 + s * 0.012))));
     p.add('shears', m.iron, shears, { when: 'open', cast: false });
   }
-  return p.build();
+  const yard = p.build();
+  // Over the ground: a leaning handle's end or a sandal's sole a little under it only costs depth.
+  for (const m of yard.meshes) {
+    const P = m.geometry.attributes.position;
+    for (let i = 0; i < P.count; i++) if (P.getY(i) < 0) P.setY(i, 0);
+  }
+  return yard;
 }

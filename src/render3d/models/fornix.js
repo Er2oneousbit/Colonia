@@ -198,7 +198,7 @@ function quadriga(y, lod) {
   const out = [];
   const s = 0.88;
   for (const [k, z] of [-0.96, -0.32, 0.32, 0.96].entries()) {
-    const hz = horse({ lod: Math.max(1, lod), pose: 'draw', turnHead: (k - 1.5) * 0.12, cloth: false });
+    const hz = horse({ lod, pose: 'draw', turnHead: (k - 1.5) * 0.12, cloth: false });
     // Built facing +z: turned to face +x, out over the arch's front.
     const m = new Matrix4().makeScale(s, s, s).premultiply(new Matrix4().makeRotationY(Math.PI / 2)).premultiply(new Matrix4().makeTranslation(0.55, y, z));
     for (const g of hz.body) out.push(g.applyMatrix4(m));
