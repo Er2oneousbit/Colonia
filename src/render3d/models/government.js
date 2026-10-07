@@ -21,7 +21,9 @@
  *           this very building (sim/crime.js: a rioter's `target`; the
  *           residence is a mob's first choice, the senate its second), or
  *           an enemy within ALARM_TILES of it (raiders, Caesar's legions
- *           marching on the residence, sim/combat.js hostileToRome): the
+ *           marching on the residence, a native warband on the attack, and
+ *           wild beasts too, as the town gates shut for them: sim/combat.js
+ *           hostileToRome, walls/wallGame.js gateShut): the
  *           doors barred, the household indoors, soldiers at the door
  * A build ghost shows it 'open'.
  *

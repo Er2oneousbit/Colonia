@@ -816,11 +816,15 @@ export function buildDemoGovernment(game, center, grade = 'palace') {
   const senate = has('senate') || (game.isUnlocked('senate') ? placeNear(game, 'senate', 4, center, 4, 30) : null);
   let residence = has(type);
   if (!residence && game.isUnlocked(type)) {
-    for (const b of [...game.buildings.values()]) {
-      if (b.def.kind === 'residence') removeBuilding(game, b, 'undo');
-    }
+    const old = [...game.buildings.values()].filter((b) => b.def.kind === 'residence').map((b) => ({ b, type: b.type, x: b.x, y: b.y, size: b.size }));
+    for (const o of old) removeBuilding(game, o.b, 'undo');
     game.onMapEdited();
     residence = placeNear(game, type, size, center, 4, 34);
+    // No room for the new one: the old one goes back where it stood.
+    if (!residence) {
+      for (const o of old) place(game, o.type, o.x, o.y, o.size);
+      game.onMapEdited();
+    }
   }
   return { senate, residence };
 }

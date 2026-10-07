@@ -162,6 +162,7 @@ function atrium(lod, seed, out) {
   out.floor.push(...slabs(rectMinus([-xs + T, xs - T, zm + T / 2, zf - T], [[-1.55, 1.55, 2.575, 3.575]]), 0, FY, 0.92));
   // The rooms either side (alae, cubicula): walls with two doors each, the dark inside.
   const wy = 2.8;
+  const wf = 2.72;
   for (const s of [-1, 1]) {
     const x = s * 3.05;
     const doors = [{ a: 1.35, b: 2.15, lo: FY, hi: 2.1 }, { a: 2.9, b: 3.7, lo: FY, hi: 2.1 }];
@@ -171,20 +172,21 @@ function atrium(lod, seed, out) {
   }
   // The fauces: the passage from the door, between the front rooms; its floor the threshold's mosaic.
   for (const s of [-1, 1]) {
-    out.inner.push(box(0.2, wy - FY, zf - T - 3.95, s * 0.85, FY, (zf - T + 3.95) / 2));
-    out.inner.push(box(3.05 - 0.85, wy - FY, 0.2, s * 1.95, FY, 3.95));
-    out.fresco.push(...frescoFace('x', s * 0.95, s * 2.95, 3.85, -1, FY, wy, { lod, main: FRESCO.black, frame: FRESCO.red, panel: 1.0 }).map((g) => g));
+    // (Behind the atrium's front columns, and kept under the roof's front slope, which falls toward the opening.)
+    out.inner.push(box(0.2, wf - FY, zf - T - 4.25, s * 0.85, FY, (zf - T + 4.25) / 2));
+    out.inner.push(box(3.05 - 0.85, wf - FY, 0.2, s * 1.95, FY, 4.15));
+    out.fresco.push(...frescoFace('x', s * 0.95, s * 2.95, 4.05, -1, FY, wf, { lod, main: FRESCO.black, frame: FRESCO.red, panel: 1.0 }).map((g) => g));
   }
   // The back wall of the atrium, painted either side of the tablinum's opening.
   out.fresco.push(...frescoFace('x', -2.95, 2.95, zm + T / 2, 1, FY, wy, { gaps: [[-1.5, 1.5]], lod, main: FRESCO.red, panel: 0.9 }));
   if (lod < 2) {
     // The master's strongbox (arca) on its plinth, bound in bronze, as the Vettii's in their atrium.
-    out.wood.push(box(0.9, 0.55, 0.55, -2.25, FY + 0.12, 1.55, 0.6));
+    out.inWood.push(box(0.9, 0.55, 0.55, -2.25, FY + 0.12, 1.55, 0.6));
     out.trav.push(box(1.0, 0.12, 0.62, -2.25, FY, 1.55, 0.9));
     out.bronze.push(box(0.92, 0.05, 0.57, -2.25, FY + 0.6, 1.55), box(0.06, 0.56, 0.57, -2.6, FY + 0.12, 1.55), box(0.06, 0.56, 0.57, -1.9, FY + 0.12, 1.55));
     // A marble table (cartibulum) behind the impluvium.
-    out.marble.push(slab(1.0, 0.06, 0.5, { bevel: 0.01, seed: seed + 9, wobble: 0, tone: 0, grime: 0 }).translate(0, FY + 0.78, 1.95));
-    for (const s of [-1, 1]) out.marble.push(slab(0.12, 0.78, 0.42, { bevel: 0.01, seed: seed + 10 + s, wobble: 0, tone: 0, grime: 0.1 }).translate(s * 0.38, FY, 1.95));
+    out.inMarble.push(slab(1.0, 0.06, 0.5, { bevel: 0.01, seed: seed + 9, wobble: 0, tone: 0, grime: 0 }).translate(0, FY + 0.78, 1.95));
+    for (const s of [-1, 1]) out.inMarble.push(slab(0.12, 0.78, 0.42, { bevel: 0.01, seed: seed + 10 + s, wobble: 0, tone: 0, grime: 0.1 }).translate(s * 0.38, FY, 1.95));
   }
 }
 
@@ -257,7 +259,7 @@ function household(m) {
 /** Build the house: { group, meshes, triangles }; meshes tagged in userData.when. Its columns are not in it (government.js). */
 export function buildPraetorium({ lod = 0, seed = 431 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['stucco', 'trav', 'cope', 'inner', 'fresco', 'tesserae', 'floor', 'pave', 'tile', 'wood', 'beam', 'stylobate', 'marble', 'bronze', 'dark',
+  const keys = ['stucco', 'trav', 'cope', 'inner', 'fresco', 'tesserae', 'floor', 'pave', 'tile', 'wood', 'beam', 'stylobate', 'marble', 'bronze', 'dark', 'inWood', 'inMarble',
     'pool', 'water', 'lawn', 'gravel', 'earth', 'leaf', 'flowers', 'pane'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   walls(lod, seed, out);
@@ -286,6 +288,9 @@ export function buildPraetorium({ lod = 0, seed = 431 } = {}) {
   p.add('beam', m.stucco, out.beam);
   p.add('stylobate', m.trav, out.stylobate, small);
   p.add('marble', m.marble, out.marble);
+  // The atrium's strongbox and table under its roof: no snow on them.
+  p.add('furniture', m.shelteredWood, out.inWood, small);
+  p.add('table', m.shelteredMarble, out.inMarble, small);
   p.add('bronze', m.bronze, out.bronze, small);
   p.add('inside', m.dark, out.dark, small);
   p.add('pool', m.marble, out.pool, small);

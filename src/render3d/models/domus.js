@@ -71,6 +71,10 @@ export function govMaterials() {
     // A lantern's pane unlit (the lit one is masonry.js lanternPane).
     // Statues in bronze gone dark and green with age (the honorary statues on their pedestals).
     statueBronze: material('gov-statue-bronze', { surface: 'bronze', color: 0x9aa58c, rough: 1.3, vertexColors: true, snow: 0.7 }),
+    // Under a roof the look lays no snow by itself (it goes by a surface's facing): what a roof shelters
+    // takes materials with none (learning.js's sheltered floors and wood; these the furniture's).
+    shelteredCloth: material('gov-cloth-sheltered', { surface: 'wool', vertexColors: true, snow: 0 }),
+    shelteredSilver: material('gov-silver-sheltered', { color: 0xd4d4d8, roughness: 0.32, metalness: 1, snow: 0 }),
     lampOut: material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }),
   };
 }
@@ -127,6 +131,8 @@ export function wallAlong(axis, a, b, at, t, y0, y1, openings = [], k = 1) {
  * roof. Thin boxes standing 6 mm proud of the wall. Returns geometries.
  */
 export function frescoFace(axis, a, b, at, n, y0, y1, { main = FRESCO.red, frame = FRESCO.ochre, dado = FRESCO.black, gaps = [], lod = 0, panel = 1.3 } = {}) {
+  // (Either end may be given first: a wall drawn mirrored for the house's other side.)
+  if (b < a) [a, b] = [b, a];
   const out = [];
   const t = 0.012;
   const c = at + n * t / 2;
@@ -551,6 +557,8 @@ export function gableTri(x0, x1, z, t, y0, y1) {
 
 /** A box from (x0, y0) to (x1, y1) in the x-y plane, `h` thick across the line (up), `d` deep about z: a raking cornice. */
 export function rake(x0, y0, x1, y1, z, d, h, k = 0.96) {
+  // (Drawn left to right, so its thickness stands up off the line whichever end was given first.)
+  if (x1 < x0) [x0, y0, x1, y1] = [x1, y1, x0, y0];
   const L = Math.hypot(x1 - x0, y1 - y0);
   const g = new BoxGeometry(L, h, d);
   g.translate(0, h / 2, 0);
@@ -626,7 +634,8 @@ export function couch(x, z, y0, ry, L = 2.0, lod = 0, colour = lin(0x8a2a2a)) {
 /** A ridge of rounded tiles from (x0, z0) to (x1, z1) at height y (where two rings or slopes meet). */
 export function ridgeCap(x0, z0, x1, z1, y, lod = 0, r = 0.11) {
   const L = Math.hypot(x1 - x0, z1 - z0);
-  const g = new CylinderGeometry(r, r, L, lod ? 4 : 8, 1, false, -Math.PI / 2, Math.PI);
+  // (The half from theta 0 to pi: turned onto its side below, it is the upper half, ridge up.)
+  const g = new CylinderGeometry(r, r, L, lod ? 4 : 8, 1, false, 0, Math.PI);
   g.rotateZ(Math.PI / 2);
   g.rotateY(-Math.atan2(z1 - z0, x1 - x0));
   g.translate((x0 + x1) / 2, y, (z0 + z1) / 2);
@@ -826,7 +835,7 @@ function ionicCapital(r, top, capH, lod, out) {
       const p = g.attributes.position;
       for (let i = 0; i < p.count; i++) {
         const t = Math.abs(p.getY(i)) / r;
-        const k = t < 0.3 ? 0.78 : 1;
+        const k = t < 0.4 ? 0.78 : 1;
         p.setX(i, p.getX(i) * k);
         p.setZ(i, p.getZ(i) * k);
       }

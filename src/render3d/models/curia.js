@@ -121,7 +121,8 @@ function hall(lod, seed, out) {
   const winY = [8.15, 9.2];
   // The front wall: openings for the door and the three windows.
   const ops = [{ a: -dw, b: dw, lo: PY, hi: PY + dh }, ...wins.map(([x, w]) => ({ a: x - w / 2, b: x + w / 2, lo: winY[0], hi: winY[1] }))];
-  out.stucco.push(...wallAlong('x', -HX, HX, HZ1 - WALL / 2, WALL, PY, top, ops, 0.97));
+  // (Between the brick sides, which run the hall's whole length: no two faces in one plane at the corners.)
+  out.stucco.push(...wallAlong('x', -HX + WALL, HX - WALL, HZ1 - WALL / 2, WALL, PY, top, ops, 0.97));
   // Scored as marble blocks (close up): joints in courses, each course's joints a half block on from the last.
   if (lod === 0) {
     const course = 0.62;
@@ -129,14 +130,14 @@ function hall(lod, seed, out) {
     const z = HZ1 + 0.004;
     for (let y = PY + course, i = 0; y < top - 0.1; y += course, i++) {
       // (Each course's bed joint broken where an opening crosses it.)
-      let x0 = -HX;
+      let x0 = -HX + WALL;
       for (const o of [...ops].sort((p, q) => p.a - q.a)) {
         if (y < o.lo - 0.01 || y > o.hi + 0.01) continue;
         if (o.a - 0.05 > x0) out.joints.push(box(o.a - 0.05 - x0, 0.022, 0.008, (x0 + o.a - 0.05) / 2, y, z));
         x0 = o.b + 0.05;
       }
-      out.joints.push(box(HX - x0, 0.022, 0.008, (x0 + HX) / 2, y, z));
-      for (let x = -HX + (i % 2 ? blockL / 2 : blockL); x < HX - 0.1; x += blockL) {
+      out.joints.push(box(HX - WALL - x0, 0.022, 0.008, (x0 + HX - WALL) / 2, y, z));
+      for (let x = -HX + WALL + (i % 2 ? blockL / 2 : blockL); x < HX - WALL - 0.1; x += blockL) {
         const inOpening = ops.some((o) => x > o.a - 0.02 && x < o.b + 0.02 && y + course > o.lo && y < o.hi);
         if (!inOpening) out.joints.push(box(0.022, course - 0.022, 0.008, x, y - course + 0.022, z));
       }
@@ -273,8 +274,8 @@ function porch(lod, seed, out) {
   // Marble benches along the hall's front, either side of the door.
   for (const s of [-1, 1]) {
     const bx = s * 3.15;
-    out.marble.push(slab(1.9, 0.08, 0.5, { bevel: 0.01, seed: seed + 10 + s, wobble: 0, tone: 0, grime: 0 }).translate(bx, PY + 0.4, HZ1 + 0.35));
-    for (const e of [-1, 1]) out.marble.push(slab(0.16, 0.4, 0.44, { bevel: 0.012, seed: seed + 12 + e, wobble: 0.002, tone: 0.03, grime: 0.2 }).translate(bx + e * 0.78, PY, HZ1 + 0.35));
+    out.sheltered.push(slab(1.9, 0.08, 0.5, { bevel: 0.01, seed: seed + 10 + s, wobble: 0, tone: 0, grime: 0 }).translate(bx, PY + 0.4, HZ1 + 0.35));
+    for (const e of [-1, 1]) out.sheltered.push(slab(0.16, 0.4, 0.44, { bevel: 0.012, seed: seed + 12 + e, wobble: 0.002, tone: 0.03, grime: 0.2 }).translate(bx + e * 0.78, PY, HZ1 + 0.35));
   }
   // Bronze lampstands (candelabra) on lion's-foot tripods, a lantern on each.
   for (const [lx, ly, lz] of C.lamps) {
@@ -333,7 +334,7 @@ function senators(mats) {
 /** Build the curia: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut', 'out'). The porch's columns are not in it (government.js). */
 export function buildCuria({ lod = 0, seed = 401 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['trav', 'paving', 'marble', 'stucco', 'joints', 'brick', 'tile', 'wood', 'bronze', 'gilt', 'letters', 'dark', 'floor', 'statue', 'pane'];
+  const keys = ['trav', 'paving', 'marble', 'stucco', 'joints', 'brick', 'tile', 'wood', 'bronze', 'gilt', 'letters', 'dark', 'floor', 'statue', 'pane', 'sheltered'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   podium(lod, seed, out);
   hall(lod, seed + 100, out);
@@ -355,7 +356,8 @@ export function buildCuria({ lod = 0, seed = 401 } = {}) {
   p.add('gilt', m.gilt, out.gilt);
   p.add('letters', m.letters, out.letters, small);
   p.add('inside', m.dark, out.dark, small);
-  p.add('floor', m.shelteredMarble, out.floor, small);
+  // The porch's floor inside the door and its benches under the roof: no snow on them.
+  p.add('floor', m.shelteredMarble, [...out.floor, ...out.sheltered], small);
   p.add('statues', m.statueBronze, out.statue);
   // The doors: bronze, shut (idle, or barred against a mob) or open (in session).
   const [dw, dh] = C.door;

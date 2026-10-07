@@ -245,7 +245,7 @@ function wings(lod, seed, out) {
     const r = gable({ x0, x1, z0: ZB, z1: ZR, eaveY: eave, pitch: D(20), along: 'x', over: 0.06, gableOver: 0.0, lod, seed: seed + s });
     out.tile.push(...r.tile);
     out.wood.push(...r.wood);
-    const g = gableTri(ZR - 0.02, ZB + 0.02, T / 2, T, eave, r.ridgeY - 0.03);
+    const g = gableTri(ZB + 0.02, ZR - 0.02, T / 2, T, eave, r.ridgeY - 0.03);
     // (A quarter turn the way that takes its span (x) onto z as it is: -z would put it at the front.)
     g.rotateY(-Math.PI / 2);
     g.translate(s * (XS - T / 2), 0, 0);
@@ -271,11 +271,11 @@ function hall(lod, seed, out) {
   out.stucco.push(...wallAlong('x', -HX, HX, ZR + T / 2, T, 0, eave, ops));
   for (const o of ops) out.dark.push(darkIn('x', o.a, o.b, o.lo, o.hi, ZR, -1, 0.06));
   for (const [x, w] of wins) {
-    out.marble.push(box(w + 0.24, 0.1, 0.16, x, HY + 2.1, ZR + 0.06, 0.95));
-    out.marble.push(box(w + 0.3, 0.16, 0.12, x, HY + 3.9, ZR + 0.04, 0.95));
+    out.marble.push(box(w + 0.24, 0.1, 0.16, x, HY + 2.1, ZR + T + 0.06, 0.95));
+    out.marble.push(box(w + 0.3, 0.16, 0.12, x, HY + 3.9, ZR + T + 0.04, 0.95));
   }
-  for (const s of [-1, 1]) out.marble.push(box(0.24, dh + 0.1, 0.12, s * (dw + 0.12), HY, ZR + 0.06, 0.96));
-  out.marble.push(box(2 * dw + 0.7, 0.3, 0.16, 0, HY + dh, ZR + 0.08, 0.96));
+  for (const s of [-1, 1]) out.marble.push(box(0.24, dh + 0.1, 0.12, s * (dw + 0.12), HY, ZR + T + 0.06, 0.96));
+  out.marble.push(box(2 * dw + 0.7, 0.3, 0.16, 0, HY + dh, ZR + T + 0.08, 0.96));
   for (const s of [-1, 1]) {
     out.stucco.push(...wallAlong('z', ZB, ZR, s * (HX - T / 2), T, 0, eave, [-7.6, -5.6].map((z) => ({ a: z - 0.45, b: z + 0.45, lo: 5.6, hi: 6.2 }))));
     for (const z of [-7.6, -5.6]) out.dark.push(darkIn('z', z - 0.45, z + 0.45, 5.6, 6.2, s * (HX - T), -s));
@@ -463,7 +463,7 @@ export function buildRegia({ lod = 0, seed = 491 } = {}) {
     addPeople(p, m, 'household', household(m), 'open');
     for (const s of [-1, 1]) addPeople(p, m, 'guard', guard(m, s * 1.5, PY, ZP + 0.42, 0), 'staffed');
     for (const [x, z] of [[-1.8, 9.35], [1.8, 9.35], [-0.6, 1.0], [0.6, 1.0], [-1.2, R.hall.colZ + 0.75], [1.2, R.hall.colZ + 0.75]]) {
-      const y = z > 8.5 ? 0.06 : z > 0 ? PY + 0.02 : HY;
+      const y = z > 8.5 ? 0.06 : z > 0 ? PY + 0.02 : PY + 0.3;
       addPeople(p, m, 'guard-more', guard(m, x, y, z, 0), 'out');
     }
   }

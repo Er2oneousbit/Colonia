@@ -92,7 +92,7 @@ function walls(lod, seed, out) {
   const ops = [{ a: -dw, b: dw, lo: FY, hi: FY + dh }, ...win.map(([x, w]) => ({ a: x - w / 2, b: x + w / 2, lo: winY[0], hi: winY[1] }))];
   out.stucco.push(...wallAlong('x', -XS, XS, ZF - T / 2, T, 0, top, ops));
   for (const [x, w] of win) {
-    out.dark.push(darkIn('x', x - w / 2, x + w / 2, winY[0], winY[1], ZF - T, -1));
+    out.dark.push(darkIn('x', x - w / 2, x + w / 2, winY[0], winY[1], ZF - T + 0.012, -1, 0.06));
     out.trav.push(box(w + 0.14, 0.06, 0.1, x, winY[0] - 0.06, ZF + 0.04, 0.95));
   }
   // The sides run the whole depth; the back.
@@ -171,7 +171,7 @@ function backRange(lod, seed, out) {
     const r = gable({ x0, x1, z0: ZB, z1: ZR, eaveY: top, pitch: D(18), along: 'x', over: 0.06, gableOver: 0.0, lod, seed: seed + s });
     out.tile.push(...r.tile);
     out.wood.push(...r.wood);
-    const g = gableTri(ZR - 0.02, ZB + 0.02, T / 2, T, top, r.ridgeY - 0.03);
+    const g = gableTri(ZB + 0.02, ZR - 0.02, T / 2, T, top, r.ridgeY - 0.03);
     // (A quarter turn the way that takes its span (x) onto z as it is: -z would put it at the front.)
     g.rotateY(-Math.PI / 2);
     g.translate(s * (XS - T / 2), 0, 0);
@@ -234,11 +234,11 @@ function triclinium(lod, seed, out) {
   const left = couch(-1.45, -5.0, cY, Math.PI / 2, 2.2, lod, lin(0xb07a20));
   const right = couch(1.45, -5.0, cY, -Math.PI / 2, 2.2, lod, lin(0xb07a20));
   for (const c of [back, left, right]) {
-    out.wood.push(...c.wood);
+    out.inWood.push(...c.wood);
     out.cloth.push(...c.cloth);
   }
-  out.marble.push(tintGeometry(boxUV(new CylinderGeometry(0.42, 0.42, 0.05, lod ? 10 : 20, 1).translate(0, cY + 0.6, -5.3)), () => 0.95));
-  out.marble.push(tintGeometry(boxUV(new CylinderGeometry(0.06, 0.12, 0.58, lod ? 6 : 10, 1).translate(0, cY + 0.29, -5.3)), () => 0.9));
+  out.inMarble.push(tintGeometry(boxUV(new CylinderGeometry(0.42, 0.42, 0.05, lod ? 10 : 20, 1).translate(0, cY + 0.6, -5.3)), () => 0.95));
+  out.inMarble.push(tintGeometry(boxUV(new CylinderGeometry(0.06, 0.12, 0.58, lod ? 6 : 10, 1).translate(0, cY + 0.29, -5.3)), () => 0.9));
   if (lod === 0) {
     // Dishes and a jug on the table.
     for (const [x, z] of [[-0.15, -5.4], [0.18, -5.2], [0.0, -5.0]]) out.silver.push(tintGeometry(boxUV(new CylinderGeometry(0.1, 0.07, 0.03, 10, 1).translate(x, cY + 0.65, z))));
@@ -322,7 +322,7 @@ function household(m) {
 /** Build the villa: { group, meshes, triangles }; meshes tagged in userData.when. Its peristyle's columns are not in it (government.js). */
 export function buildPraetoriumMaius({ lod = 0, seed = 461 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['stucco', 'trav', 'cope', 'fresco', 'tesserae', 'floor', 'pave', 'tile', 'wood', 'beam', 'stylobate', 'marble', 'bronze', 'gilt', 'silver', 'dark',
+  const keys = ['stucco', 'trav', 'cope', 'fresco', 'tesserae', 'floor', 'pave', 'tile', 'wood', 'beam', 'stylobate', 'marble', 'bronze', 'gilt', 'silver', 'inWood', 'inMarble', 'dark',
     'poolFloor', 'pool', 'water', 'jet', 'rings', 'lawn', 'gravel', 'earth', 'leaf', 'flowers', 'clay', 'cloth', 'pane'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   walls(lod, seed, out);
@@ -355,8 +355,11 @@ export function buildPraetoriumMaius({ lod = 0, seed = 461 } = {}) {
   p.add('marble', m.marble, out.marble);
   p.add('bronze', m.bronze, out.bronze, small);
   p.add('gilt', m.gilt, out.gilt, small);
-  p.add('silver', m.silver, out.silver, small);
-  p.add('cushions', m.cloth, out.cloth, small);
+  p.add('silver', m.shelteredSilver, out.silver, small);
+  p.add('cushions', m.shelteredCloth, out.cloth, small);
+  // The triclinium's furniture under its roof: no snow on it.
+  p.add('furniture', m.shelteredWood, out.inWood, small);
+  p.add('table', m.shelteredMarble, out.inMarble, small);
   p.add('inside', m.dark, out.dark, small);
   p.add('pool-floor', m.marble, out.poolFloor, small);
   p.add('pool', m.water, out.pool, small);
