@@ -4293,6 +4293,76 @@ try {
       check('WebGL renderer: no page errors', gerrors.length === 0, gerrors.join(' | '));
       await gp.close();
 
+      // 8a. The fleet's waterside buildings on a coast (render3d/models/fleet.js):
+      //     the Navalia, the Statio and the Portus drawn as 3D models out over
+      //     the water, a click on each picks it by its footprint, and the
+      //     navalia's hull on its slip follows the sim's progress.
+      {
+        const fp = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const ferrors = [];
+        fp.on('pageerror', (e) => ferrors.push(`pageerror: ${e.message}`));
+        fp.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) ferrors.push(m.text()); });
+        await fp.goto(`${url}?skipmenu=1&maptype=coast&map=small&seed=demo&mute=1&money=90000&renderer=3d`);
+        await fp.waitForFunction(() => window.colonia && window.colonia.game, null, { timeout: 30000 });
+        const built = await fp.evaluate(() => {
+          const app = window.colonia;
+          app.paused = true;
+          app.ui.console.run('demo 2');
+          app.ui.console.run('navy');
+          app.ui.console.run('academy');
+          return [...app.game.buildings.values()].filter((b) => ['navalia', 'naval_station', 'portus'].includes(b.type)).map((b) => b.type).sort();
+        });
+        const fleet3d = [];
+        for (const type of ['navalia', 'naval_station', 'portus']) {
+          const b = await fp.evaluate((t) => {
+            const app = window.colonia;
+            const v = [...app.game.buildings.values()].find((x) => x.type === t);
+            if (!v) return null;
+            if (t === 'navalia') v.progress = 60; // (a ship planked to the sheer on the slip: hullStep 3)
+            app.ui.info.close();
+            app.renderer.camera.zoomIndex = 3;
+            app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2);
+            return { id: v.id, x: v.x, y: v.y, size: v.size, side: v.waterSide, rows: v.waterRows };
+          }, type);
+          if (!b) {
+            fleet3d.push({ type, missing: true });
+            continue;
+          }
+          // Wait for the model and its kits, not a fixed time: under a software GL kits are built a few a frame.
+          await fp.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            if (!((mp.byType || {})[t] >= 1) || mp.deferred) return false;
+            if (t !== 'navalia') return true;
+            const hull = r.backend.models.kits.get(`navalia:hull:3|${mp.lod}`);
+            return !!hull && Math.max(...hull.meshes.map((im) => im.count)) >= 1;
+          }, type, { timeout: 20000, polling: 100 }).catch(() => {});
+          const drawn = await fp.evaluate((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            const hull = r.backend.models.kits.get(`navalia:hull:3|${mp.lod}`);
+            return { n: (mp.byType || {})[t] || 0, hull: hull ? Math.max(...hull.meshes.map((im) => im.count)) : 0 };
+          }, type);
+          const p = await fp.evaluate(([x, y]) => {
+            const cam = window.colonia.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const rc = window.colonia.canvas.getBoundingClientRect();
+            return { x: rc.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: rc.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await fp.mouse.click(p.x, p.y);
+          await fp.waitForTimeout(150);
+          const target = await fp.evaluate(() => window.colonia.ui.info.target);
+          await fp.evaluate(() => window.colonia.ui.info.close());
+          if (shots) await fp.screenshot({ path: path.join(shots, `smoke-webgl-${type}.png`) });
+          fleet3d.push({ type, ...b, drawn: drawn.n, hull: drawn.hull, picked: target?.kind === 'building' && target.id === b.id });
+        }
+        check("WebGL renderer: the Navalia, the Statio and the Portus are 3D models out over the water, the navalia's hull by its progress, a click picks each",
+          built.length === 3 && fleet3d.every((c) => !c.missing && c.drawn >= 1 && c.picked && c.rows === 2) && fleet3d.find((c) => c.type === 'navalia').hull >= 1,
+          JSON.stringify({ built, fleet3d }));
+        check('WebGL renderer: no page errors on the coast with the fleet', ferrors.length === 0, ferrors.join(' | '));
+        await fp.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks

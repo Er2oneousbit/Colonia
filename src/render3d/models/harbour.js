@@ -64,8 +64,8 @@ export function harbourMaterials() {
     plaster: material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }),
     red: material('stucco-red', { surface: 'plaster', color: 0xc0644a, vertexColors: true, snow: 1 }),
     // A hull's paint over its planks (encaustic: pigment in wax), Rome's red; the pitch below is the wood's own vertex colour.
-    paint: material('hull-paint', { surface: 'wood', color: 0xd25a3c, vertexColors: true, snow: 1 }),
-    gilt: material('hull-gilt', { surface: 'bronze', color: 0xf0c060, vertexColors: true, snow: 0.7 }),
+    paint: material('hull-paint', { color: 0x9e3426, roughness: 0.55, snow: 1 }),
+    gilt: material('hull-gilt', { color: 0xc9973c, roughness: 0.38, metalness: 0.75, snow: 0.7 }),
     linen: material('sail-linen', { surface: 'wool', color: 0xe9e1cc, vertexColors: true, snow: 0.9 }),
     dark: material('room-dark', { color: 0x0e0b09, roughness: 1, snow: 0, wet: 0 }),
     // Foam where the water laps a pile or a pier (see-through, fading out by its vertex alpha).
@@ -816,9 +816,9 @@ function finishHull(out, lod, ts) {
       e.rotateZ(-s * Math.PI / 2);
       e.translate(s * (p[0] - nx * 0.06), p[1] - ny * 0.06, p[2]);
       out.white.push(tintGeometry(boxUV(e)));
-      const pu = new SphereGeometry(0.045, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.2);
+      const pu = new SphereGeometry(0.05, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.2);
       pu.rotateZ(-s * Math.PI / 2);
-      pu.translate(s * (p[0] - nx * 0.075), p[1] - ny * 0.075, p[2] + 0.02);
+      pu.translate(s * (p[0] - nx * 0.082), p[1] - ny * 0.082, p[2] + 0.025);
       out.black.push(tintGeometry(boxUV(pu)));
     }
   }

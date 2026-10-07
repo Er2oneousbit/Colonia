@@ -44,6 +44,16 @@ the water, open at the sea's end, a spare mast and yard on trestles, oars racked
 yard of timber, iron and linen. The liburnian on the slip is built shell first, as Greek and Roman hulls were: the keel and posts on
 their blocks, the strakes rising, the frames fitted inside, then the wales, the oar box, the bronze ram after the one found off
 Athlit, the eye on the bow and the paint.</p>
+<p><b>The Statio</b> (naval station), after the fleets' stations at Misenum and Ravenna and the small provincial ones: a stone
+terrace with the headquarters (<i>principia</i>, CLASSIS cut over its portico, the squadron's red <i>vexillum</i> by the door) and a
+store of oars and sails; a quay with mooring rings and steps down; two moles of <i>opus pilarum</i>, harbour concrete piers with
+arches through them as at Puteoli, bollards along them; the station's boat in the basin; on one mole a beacon tower in tiers, as
+the lighthouses of Ostia and Dover, its fire burning while the station is manned. Its liburnians tie up past the moles' ends.</p>
+<p><b>The Portus</b> (training harbour), after Polybius, who tells how Rome taught its first war fleet's crews to row on benches
+set out on dry land while the ships were built, a man giving them the stroke, and of the <i>corvus</i>, the boarding bridge; and
+after Agrippa's Portus Julius, where the crews of the fleet that won at Naulochus trained: a rowing frame on the shore, a quay, a
+pier, a mole with the corvus on its pole, a practice hulk moored in the basin. While a new ship's crew trains there the frame is
+manned, the hortator beats the stroke, marines stand on the hulk and the bridge is down on its deck.</p>
 <h3>Controls</h3>
 <ul>
 <li>Detail 0, 1, 2 (L). Spring to winter; N: snow lying; T: rain. 1 to 4: day, golden hour, night, winter.</li>
@@ -122,6 +132,7 @@ export function harbourScenes(lab) {
       }
     },
     refresh,
+    setLod,
   };
 }
 

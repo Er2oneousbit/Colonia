@@ -29,12 +29,13 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'),
+ * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'|'harbour'),
  * setSeason(name), setSnow(0..3),
  * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
  * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
  * fountainTriangles(lod), setCommerceLod(0..2), commerceTriangles(id, lod)
- * (the Market, Forum, Warehouse and Services scenes, labCommerce.js: K, J, X, S).
+ * (the Market, Forum, Warehouse and Services scenes, labCommerce.js: K, J, X, S), harbour
+ * (the Harbour scene, labHarbour.js, D: setLod, items, triangles(type, key, lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -912,7 +913,7 @@ async function main() {
     },
     /** The Harbour scene (labHarbour.js): its level of detail, its buildings, a look's triangles as the game builds it. */
     harbour: {
-      setLod: (n) => harbour.scene.setLod(n),
+      setLod: (n) => harbour.setLod(n),
       get items() { return harbour.scene.items.map((it) => ({ type: it.type, note: it.note, x: it.holder.position.x, z: it.holder.position.z, triangles: it.tris })); },
       triangles: (type, key, l) => harbour.scene.triangles(type, key, l),
     },

@@ -221,9 +221,17 @@ function tower(out, lod, seed) {
     }
   }
   const coals = revolve(profileOf([[0, 0], [0.31, 0], [0.24, 0.12], [0.1, 0.2], [0, 0.22]]), { segments: lod ? 8 : 14, metres: 0.4 });
-  coals.translate(fx, base + 0.52, fz);
+  out.ash.push(coals.clone().scale(1, 0.5, 1).translate(fx, base + 0.5, fz));
+  coals.translate(fx, base + 0.56, fz);
   out.embers.push(coals);
-  out.ash.push(coals.clone().scale(1, 0.5, 1).translate(0, -0.03, 0));
+  // The flames over the coals: crossed tongues, brightest at their roots, seen through the arches.
+  const seg = lod ? 5 : 9;
+  [[0, 0, 0.55, 0.2], [0.09, 0.05, 0.42, 0.13], [-0.08, -0.06, 0.38, 0.12], [0.02, -0.1, 0.32, 0.1]].forEach(([dx, dz, h, r], k) => {
+    if (lod && k > 1) return;
+    const f = new CylinderGeometry(0, r, h, seg, 2);
+    f.translate(fx + dx, base + 0.72 + h / 2, fz + dz);
+    out.flames.push(tintGeometry(boxUV(f), (x, y) => 1 - 0.35 * Math.min(1, (y - base - 0.72) / h)));
+  });
 }
 
 /** The principia: socle, stuccoed walls over a red dado, the door, windows, the roof, the portico and its plaque. */
@@ -355,7 +363,7 @@ export function buildStatio({ lod = 0, seed = 71, ice = false } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const out = {
     flags: [], stone: [], tufa: [], brick: [], tile: [], wood: [], plaster: [], red: [], dark: [], iron: [], bronze: [], marble: [], letters: [],
-    rope: [], linen: [], foam: [], embers: [], ash: [], doorOpen: [], doorShut: [],
+    rope: [], linen: [], foam: [], embers: [], flames: [], ash: [], doorOpen: [], doorShut: [],
   };
   terrace(out, lod, seed);
   mole(out, ...S.west, lod, seed + 100);
@@ -394,6 +402,7 @@ export function buildStatio({ lod = 0, seed = 71, ice = false } = {}) {
   p.add('doors', m.wood, out.doorOpen, { when: 'open' });
   p.add('doors', m.wood, out.doorShut, { when: 'shut' });
   p.add('fire', m.ember, out.embers, { when: 'open', cast: false });
+  p.add('flames', material('beacon-flame', { color: 0xffb050, roughness: 1, emissive: 0xff9a3a, emissiveIntensity: 3.2, snow: 0, wet: 0 }), out.flames, { when: 'open', cast: false });
   p.add('ash', material('cold-ash', { color: 0x4a4440, roughness: 0.95, snow: 1 }), out.ash, { when: 'shut' });
   // The lantern by the door.
   if (lod < 2) {
