@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.20)
+
+* **The senate house and the governor's residences in 3D** (under WebGL): the senate house after the Curia Julia and Sabratha's curia, a tall hall on a podium behind six Corinthian columns with CVRIA on the frieze, bronze doors under S·P·Q·R and a gilt Victory on the gable, senators in purple-striped togas on its steps and lictors with their fasces; the Governor's House a Pompeian atrium house round its impluvium and a painted peristyle; the Villa a great peristyle with a long pool, playing jets, statues and lemon trees, the governor dining with his guests in the triclinium; the Palace on a raised platform behind a gate of Corinthian columns cut REGIA, a court with two fountains and cypresses, an audience hall with gilt capitals, a gilded ridge and an eagle, two-storey wings either side. When rioters or enemies come near, the doors are barred, the household goes in and more guards stand out; in a hard frost the pools freeze and the fountains stop. Console: `government [house|villa|palace]`
+* Headless sim: identical to v0.20.19 on every difficulty
+* 1280 unit tests, 266 browser checks
+
 ## Done (v0.20.19)
 
 * **Gardens, statues, the gardeners' yard and the triumphal arch in 3D** (under WebGL): gardens after Pompeii's excavated peristyles, clipped box hedges round beds of roses, oleander, myrtle, acanthus and lilies, a basin, a pergola hung with oscilla, a sundial or a pool with a winged boy, no two alike, joining their hedges with neighbouring gardens into one garden, and following the months (bare vines in winter, roses in May, grapes ripening purple in autumn); untended they grow ragged and dry. Statues carved after the Prima Porta Augustus, a togate patron and a bronze general, an equestrian emperor after Marcus Aurelius or one enthroned after the Cumae Augustus, on inscribed bases; untended they weather green with lichen and patina, their wreaths fallen. A topiarius's yard with seedlings in pierced pots and box clipped to cones. A triumphal arch after the Arch of Titus with Victories, a relief of the procession and a gilt quadriga, turned along its road. Console: `gardens [n] [wild]`
