@@ -58,7 +58,7 @@ const GREEN = lin(0x3f7a3a);
 function turfTint(x, y, z) {
   const c = Math.floor(y / 0.16);
   const k = ((c * 0.618 + Math.floor((x + z) / 0.42) * 0.31) % 1);
-  const g = 0.78 + 0.2 * k;
+  const g = 1.0 + 0.25 * k;
   // (The joints between courses darker.)
   const j = Math.abs(y / 0.16 - c - 0.5) > 0.42 ? 0.78 : 1;
   return g * j;
