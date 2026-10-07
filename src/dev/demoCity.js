@@ -784,6 +784,22 @@ export function buildDemoAcademy(game, center) {
 }
 
 /**
+ * A school, a library and an academy near the city (a school only if it has
+ * none), each joined by road to the network that reaches the map entry: the
+ * console's `learning`, to see the three at work (render3d/models/
+ * education.js). @returns {{ school: object|null, library: object|null, academy: object|null }}
+ */
+export function buildDemoLearning(game, center) {
+  const has = (type) => [...game.buildings.values()].find((b) => b.type === type) || null;
+  const near = (type, size, minD, maxD) => (game.isUnlocked(type) ? placeNear(game, type, size, center, minD, maxD) : null);
+  return {
+    school: has('school') || near('school', 2, 3, 20),
+    library: near('library', 2, 3, 20),
+    academy: near('academy', 3, 4, 28),
+  };
+}
+
+/**
  * A Portus on the shore of a naval station's water, near the station, joined
  * by road to the city's streets. @returns {object|null} the Portus
  */

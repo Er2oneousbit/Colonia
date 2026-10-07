@@ -38,6 +38,8 @@
  * (the Harbour scene, labHarbour.js, D: setLod, items, triangles(type, key, lod)).
  * (the Military scene, labMilitary.js: C, with commerceTriangles('military', lod)
  * giving each of its five buildings' triangles).
+ * (the Learning scene, labLearning.js: 7, the school, the library and the
+ * academy, with commerceTriangles('learning', lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -65,6 +67,7 @@ import { buildCommerceScenes } from './labCommerce.js';
 import { buildWallsScene } from './labWalls.js';
 import { harbourScenes } from './labHarbour.js';
 import { buildMilitaryScene } from './labMilitary.js';
+import { buildLearningScene } from './labLearning.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -305,7 +308,7 @@ async function main() {
   let harbour = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
   // (The Walls scene, labWalls.js, takes the same calls.)
-  const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene() };
+  const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene(), learning: buildLearningScene() };
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -721,6 +724,7 @@ async function main() {
     else if (commerce[state.scene] && commerce[state.scene].onKey && commerce[state.scene].onKey(k)) refreshButtons();
     // (After the scene's own keys: in the Walls scene C cycles the stone.)
     else if (k === 'c') setScene('military');
+    else if (k === '7') setScene('learning');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
