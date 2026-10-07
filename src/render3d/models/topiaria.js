@@ -49,7 +49,7 @@ export const TOPIARIA = Object.freeze({
   /** The gate's opening in the front wall. */
   gate: Object.freeze([-0.5, 0.5]),
   /** The lantern on the right gate pier (x, y, z), facing the street. */
-  lamp: Object.freeze([0.66, 1.05, 1.82]),
+  lamp: Object.freeze([0.5, 1.0, 1.83]),
 });
 
 const T = TOPIARIA;

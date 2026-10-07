@@ -102,6 +102,8 @@ URL flags, appended to the address (for example `dist/colonia.html?debug=1&seed=
 
 The console's `learning` builds a library and an academy beside the city (and a school if it has none): the WebGL renderer's education models at work.
 
+The console's `gardens [n] [wild]` lays out n gardens (24 by default) in blocks beside the city, statues of each size, a gardeners' yard and a triumphal arch across the nearest straight road it fits (granting one); `gardens wild` leaves every garden and statue untended, to see them neglected. The look lab's Gardens scene is key 8 (C steps through the months).
+
 In the browser's dev tools, `window.colonia` is the running app (`colonia.game` is the simulation).
 
 **Art and music tools** (with `npm run dev` running):
