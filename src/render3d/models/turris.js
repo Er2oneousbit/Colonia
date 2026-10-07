@@ -259,8 +259,9 @@ export function buildTurris({ look = 'polygonal', lod = 0 } = {}) {
     P.add('finial', material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.5 }), tintGeometry(boxUV(fin)));
   }
   P.add('roof', M.tile, tiles);
-  // Manned: two archers on the gallery, the front one and one on the right-hand side.
-  if (lod < 2) {
+  // Manned: two archers on the gallery, the front one and one on the right-hand side (close up only:
+  // at the middle zooms a man is a few pixels and his figure thousands of triangles).
+  if (lod === 0) {
     // (Each body's parts by its material's name, as figureParts gives them, and the bows and helmets.)
     const crew = { bows: [], helms: [] };
     const mats = {};
