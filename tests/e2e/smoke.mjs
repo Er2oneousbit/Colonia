@@ -4562,7 +4562,10 @@ try {
       const qerrors = [];
       gq.on('pageerror', (e) => qerrors.push(`pageerror: ${e.message}`));
       gq.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) qerrors.push(m.text()); });
-      await gq.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d`);
+      // The render scale pinned at 100%: under CI's software GL its Auto steps down as frames run
+      // slow, and a new scale is a change the ground rightly draws again for, which broke the
+      // still-view check below (v0.20.15: 1 -> 2 redraws in a still view).
+      await gq.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
       await gq.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
       const autoGround = await gq.evaluate(() => window.colonia.renderer.stats.ground);
       check('3D ground: Auto keeps the flat sprites on a software GL', autoGround === 'off', String(autoGround));
@@ -4608,9 +4611,11 @@ try {
       });
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d.png') });
       check('3D ground: the console\'s "ground low" draws the 3D ground under the city', lowDrawn.ground === 'low' && lowDrawn.backend === 'webgl' && lowDrawn.colours > 50 && lowDrawn.redraws >= 1 && lowDrawn.objects > 50, JSON.stringify(lowDrawn));
+      const scaleThen = await gq.evaluate(() => window.colonia.ui.console.run('scale'));
       await gq.waitForTimeout(400);
       const still = await gq.evaluate(() => window.colonia.renderer.stats.groundRedraws);
-      check('3D ground: a still view keeps its picture (Low draws the ground again only when something changed)', still === lowDrawn.redraws, `${lowDrawn.redraws} -> ${still}`);
+      const scaleNow = await gq.evaluate(() => window.colonia.ui.console.run('scale'));
+      check('3D ground: a still view keeps its picture (Low draws the ground again only when something changed)', still === lowDrawn.redraws, `${lowDrawn.redraws} -> ${still}; ${scaleThen} -> ${scaleNow}`);
       const onPageQ = (fx, fy) => gq.evaluate(([x, y]) => {
         const app = window.colonia;
         const cam = app.renderer.camera;
