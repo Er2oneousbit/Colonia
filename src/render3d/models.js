@@ -49,6 +49,7 @@ import { SERVICE_MODELS } from './models/services.js';
 import { WALL_MODELS } from './models/wallModels.js';
 import { FLEET_MODELS } from './models/fleet.js';
 import { MILITARY_MODELS } from './models/militaryModels.js';
+import { EDUCATION_MODELS } from './models/education.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -130,6 +131,8 @@ export const MODELS = Object.freeze({
   ...FLEET_MODELS,
   // The forts, the barracks and the military academy (models/militaryModels.js says how).
   ...MILITARY_MODELS,
+  // The school, the library and the academy (models/education.js says how).
+  ...EDUCATION_MODELS,
 });
 
 /**
