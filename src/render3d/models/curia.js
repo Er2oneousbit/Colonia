@@ -44,13 +44,13 @@
  * ----------------------------------------------------------------------------
  */
 
-import { BufferGeometry, Float32BufferAttribute, BoxGeometry, TorusGeometry, SphereGeometry, CylinderGeometry } from 'three';
+import { BoxGeometry, TorusGeometry, SphereGeometry, CylinderGeometry } from 'three';
 import { boxUV, tintGeometry, frameSweep, revolve, profileOf } from '../shapes.js';
 import { slab, paving, wallWithOpenings, TaggedParts } from './masonry.js';
 import { sentry } from './castra.js';
-import { roofSlope } from './learning.js';
+
 import {
-  govMaterials, box, D, gable, wallAlong, darkIn, doubleDoor, letters, statue, victory, togate, lictor, addPeople, lantern, lanternPane,
+  govMaterials, box, D, gable, slope, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, statue, victory, togate, lictor, addPeople, lantern, lanternPane,
 } from './domus.js';
 
 /** The curia's measures (metres): the tests, the lab and the game read them. */
@@ -79,35 +79,6 @@ const C = CURIA;
 const PY = C.floorY;
 const [HX, HZ1, HZ0] = C.hall;
 const WALL = 0.45;
-
-/** A triangle prism: a gable's tympanum over x0..x1, front face at z, `t` thick behind it, from y0 up to its apex at y1. */
-export function gableTri(x0, x1, z, t, y0, y1) {
-  const xm = (x0 + x1) / 2;
-  const F = [[x0, y0, z], [x1, y0, z], [xm, y1, z]];
-  const B = F.map(([x, y]) => [x, y, z - t]);
-  const pos = [];
-  const tri = (a, b, c) => pos.push(...a, ...b, ...c);
-  tri(F[0], F[1], F[2]);
-  tri(B[1], B[0], B[2]);
-  tri(F[0], F[2], B[2]);
-  tri(F[0], B[2], B[0]);
-  tri(F[2], F[1], B[1]);
-  tri(F[2], B[1], B[2]);
-  const g = new BufferGeometry();
-  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
-  g.computeVertexNormals();
-  return tintGeometry(boxUV(g));
-}
-
-/** A box from (x0, y0) to (x1, y1) in the x-y plane, `h` thick across the line (up), `d` deep about z: a raking cornice. */
-export function rake(x0, y0, x1, y1, z, d, h, k = 0.96) {
-  const L = Math.hypot(x1 - x0, y1 - y0);
-  const g = new BoxGeometry(L, h, d);
-  g.translate(0, h / 2, 0);
-  g.rotateZ(Math.atan2(y1 - y0, x1 - x0));
-  g.translate((x0 + x1) / 2, (y0 + y1) / 2, z);
-  return tintGeometry(boxUV(g), () => k);
-}
 
 /** The podium, the steps, the cheeks and the paving round it. */
 function podium(lod, seed, out) {
@@ -295,7 +266,7 @@ function porch(lod, seed, out) {
   else if (lod === 1) out.letters.push(box(1.7, 0.28, 0.006, 0, fr + 0.07, pz + 0.294));
   // The porch's roof: a low tiled slope from the hall's front down to the cornice, boards under it.
   const top = ab + 1.17;
-  const r = roofSlope([[xL + 0.1, top - 0.02, zf + 0.05], [-xL - 0.1, top - 0.02, zf + 0.05], [-xL - 0.1, top + 0.32, HZ1 + 0.02], [xL + 0.1, top + 0.32, HZ1 + 0.02]], { lod, seed: seed + 5 });
+  const r = slope([[xL + 0.1, top - 0.02, zf + 0.05], [-xL - 0.1, top - 0.02, zf + 0.05], [-xL - 0.1, top + 0.32, HZ1 + 0.02], [xL + 0.1, top + 0.32, HZ1 + 0.02]], { lod, seed: seed + 5 });
   out.tile.push(...r.tile);
   out.wood.push(...r.wood);
   // The coffered ceiling under it (close up): beams across from the columns to the wall.

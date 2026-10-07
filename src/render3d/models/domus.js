@@ -33,10 +33,10 @@ import {
   material, waterMaterial, shallowWaterMaterial, streamMaterial, ringMaterial,
 } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
-import { slab, GLYPHS, lantern, lanternPane } from './masonry.js';
+import { slab, GLYPHS, lantern, lanternPane, tuscanColumn } from './masonry.js';
 import { lin, D } from './rural.js';
 import { box, staff, people } from './castra.js';
-import { learningMaterials, person, at, roofSlope, bush, hedge } from './learning.js';
+import { learningMaterials, person, at, bush, hedge } from './learning.js';
 
 export { box, D, lin, lantern, lanternPane };
 
@@ -76,6 +76,8 @@ export function govMaterials() {
 /** Fresco colours (linear RGB), after the Pompeian styles: cinnabar red, black, yellow ochre, white, green. */
 export const FRESCO = Object.freeze({
   red: lin(0x9e2a1c, 1.6),
+  // The street fronts' dado: a deep oxblood, the red of a house front gone dull in the sun.
+  dado: lin(0x7a3026, 1.25),
   black: lin(0x221a16, 1.2),
   ochre: lin(0xd09a3a, 1.4),
   white: lin(0xece4d0),
@@ -239,6 +241,132 @@ export function shutters(x, z, w, h, y0, open, n = 1) {
   return out;
 }
 
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const len3 = (a) => Math.hypot(a[0], a[1], a[2]);
+
+/**
+ * A tiled slope over a four-sided quad: the eave's two ends first, then the
+ * top edge's (parallel to the eave), each side end over end as in
+ * masonry.js tiledRoof: flat tegulae as one sheet in courses, imbrices over
+ * the joints, antefixes at the eave, the boards under it facing down (so
+ * it casts its shadow and is not see-through from below). Unlike
+ * tiledRoof, the imbrices run square to the eave whatever the quad's
+ * shape, and are clipped to its sides as they run: a ring's corner slopes
+ * and a slope cut short against a wall are trapezoids leaning one way,
+ * where tiledRoof's runs (along the line between the edges' middles)
+ * would lean off past the slope's end. Returns { tile, wood }.
+ */
+export function slope(quad, { lod = 0, seed = 1, pitch = 0.42, thick = 0.06, r = 0.07, antefix = true } = {}) {
+  const [e0, e1, t1, t0] = quad;
+  const rnd = artRng(seed);
+  // The sheet: rows along the slope, each course a shade lighter or darker, lapping the one below.
+  const courses = lod === 2 ? 1 : Math.max(2, Math.round(Math.max(len3(sub3(t0, e0)), len3(sub3(t1, e1))) / 0.5));
+  const pos = [];
+  const col = [];
+  const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  for (let c = 0; c < courses; c++) {
+    const lap = c ? 0.25 : 0;
+    const lift = lod === 2 ? 0 : thick * 0.5;
+    const a0 = lerp(e0, t0, (c - lap) / courses);
+    const a1 = lerp(e1, t1, (c - lap) / courses);
+    const b0 = lerp(e0, t0, (c + 1) / courses);
+    const b1 = lerp(e1, t1, (c + 1) / courses);
+    a0[1] += lift;
+    a1[1] += lift;
+    pos.push(...a0, ...a1, ...b1, ...a0, ...b1, ...b0);
+    const s = 0.86 + rnd() * 0.18;
+    for (let k = 0; k < 6; k++) col.push(s, s, s);
+  }
+  const sheet = new BufferGeometry();
+  sheet.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  sheet.setAttribute('color', new Float32BufferAttribute(col, 3));
+  sheet.computeVertexNormals();
+  const flip = sheet.attributes.normal.getY(0) < 0;
+  if (flip) flipTris(sheet);
+  boxUV(sheet);
+  const tile = [sheet];
+  // The boards under it, facing down.
+  const under = new BufferGeometry();
+  const q = quad.map(([x, y, z]) => [x, y - 0.03, z]);
+  under.setAttribute('position', new Float32BufferAttribute([...q[0], ...q[1], ...q[2], ...q[0], ...q[2], ...q[3]], 3));
+  under.computeVertexNormals();
+  if (under.attributes.normal.getY(0) > 0) flipTris(under);
+  const wood = [tintGeometry(boxUV(under), () => 0.55)];
+  if (lod === 2) return { tile, wood };
+  // Imbrices: square to the eave (L its unit direction, U the slope's rise square to it, both in its plane).
+  const em = lerp(e0, e1, 0.5);
+  const L = sub3(e1, e0);
+  const ll = len3(L);
+  for (let i = 0; i < 3; i++) L[i] /= ll;
+  const tm = lerp(t0, t1, 0.5);
+  const D0 = sub3(tm, em);
+  const along = dot3(D0, L);
+  const U = [D0[0] - L[0] * along, D0[1] - L[1] * along, D0[2] - L[2] * along];
+  const lat = (p) => dot3(sub3(p, em), L);
+  // Each side's lateral position as the slope rises (s 0 at the eave to 1 at the top).
+  const [a0, b0, a1, b1] = [lat(e0), lat(t0), lat(e1), lat(t1)];
+  const lo = Math.min(a0, b0);
+  const hi = Math.max(a1, b1);
+  const n = Math.max(1, Math.round((hi - lo) / pitch));
+  const radial = lod ? 3 : 5;
+  for (let k = 1; k < n; k++) {
+    const x = lo + ((hi - lo) * k) / n;
+    let s0 = 0;
+    let s1 = 1;
+    // Inside while side 0 (a0 + (b0 - a0) s) is at most x and side 1 (a1 + (b1 - a1) s) at least x.
+    for (const [a, b, sign] of [[a0, b0, 1], [a1, b1, -1]]) {
+      const d = (b - a) * sign;
+      const c = (x - a) * sign;
+      if (Math.abs(d) < 1e-9) {
+        if (c < 0) s1 = -1;
+        continue;
+      }
+      if (d > 0) s1 = Math.min(s1, c / d);
+      else s0 = Math.max(s0, c / d);
+    }
+    if (s1 - s0 < 0.05) continue;
+    const at = (s) => [em[0] + L[0] * x + U[0] * s, em[1] + L[1] * x + U[1] * s, em[2] + L[2] * x + U[2] * s];
+    tile.push(imbrexRun(at(s1), at(s0), lod ? 3 : radial, r, 0.9 + rnd() * 0.15));
+    if (antefix && lod === 0 && s0 < 1e-6) tile.push(antefixAt(at(0), sub3(at(0), at(1)), 0.95 + rnd() * 0.1));
+  }
+  return { tile, wood };
+}
+
+/** Turn every triangle of a non-indexed geometry over (swap its second and third points). */
+function flipTris(g) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i += 3) {
+    const x = p.getX(i + 1);
+    const y = p.getY(i + 1);
+    const z = p.getZ(i + 1);
+    p.setXYZ(i + 1, p.getX(i + 2), p.getY(i + 2), p.getZ(i + 2));
+    p.setXYZ(i + 2, x, y, z);
+  }
+  g.computeVertexNormals();
+}
+
+/** An imbrex run from a to b: a half pipe lying on the slope, its ridge up. */
+function imbrexRun(a, b, radial, r, k) {
+  const d = sub3(b, a);
+  const l = len3(d);
+  const g = new CylinderGeometry(r, r * 1.05, l, radial * 2, 1, true, Math.PI / 2, Math.PI);
+  g.rotateX(Math.PI / 2);
+  g.rotateX(-Math.asin(d[1] / l));
+  g.rotateY(Math.atan2(d[0], d[2]));
+  g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 0.01, (a[2] + b[2]) / 2);
+  return tintGeometry(boxUV(g), () => k);
+}
+
+/** An antefix: a small upright palmette closing an imbrex at the eave, facing `down` the slope. */
+function antefixAt(p, down, k) {
+  const g = revolve(profileOf([[0, 0], [0.06, 0], [0.075, 0.05], [0.05, 0.11], [0.015, 0.15], [0, 0.155]]), { segments: 5, metres: 0.6 });
+  g.scale(1, 1, 0.12);
+  g.rotateY(Math.atan2(down[0], down[2]));
+  g.translate(p[0], p[1] - 0.02, p[2]);
+  return tintGeometry(g, () => k);
+}
+
 /**
  * A tiled ring of roof round an open court, after the compluviate roof:
  * four slopes from the outer walls' tops (`outer` [x0, x1, z0, z1] at
@@ -264,7 +392,7 @@ export function ringRoof(outer, inner, topY, eaveY, { lod = 0, seed = 1, skip = 
   for (const [side, q] of Object.entries(sides)) {
     k++;
     if (skip.includes(side)) continue;
-    const r = roofSlope(q, { lod, seed: seed + k * 7 });
+    const r = slope(q, { lod, seed: seed + k * 7 });
     tile.push(...r.tile);
     wood.push(...r.wood);
   }
@@ -298,7 +426,7 @@ export function gable({ x0, x1, z0, z1, eaveY, pitch = D(22), along = 'z', over 
       [[x1 + gableOver, eY, z0 - over], [x0 - gableOver, eY, z0 - over], [x0 - gableOver, ridgeY, cz], [x1 + gableOver, ridgeY, cz]],
     ];
   quads.forEach((q, k) => {
-    const r = roofSlope(q, { lod, seed: seed + k * 5 });
+    const r = slope(q, { lod, seed: seed + k * 5 });
     tile.push(...r.tile);
     wood.push(...r.wood);
   });
@@ -347,11 +475,11 @@ export function slabs(rects, y0, y1, k = 1) {
  * into out.tile, out.wood, out.beam, out.stylobate, out.floor; returns
  * the columns' places [x, z] (about `step` apart, on `sides`).
  */
-export function court({ outer, inner, topY, eaveY, floorY, step, sides = 'fblr', lod = 0, seed = 1, out, beamH = 0.3, kerb = 0.1, holes = [] }) {
-  const r = ringRoof(outer, inner, topY, eaveY, { lod, seed });
+export function court({ outer, inner, topY, eaveY, floorY, step, sides = 'fblr', lod = 0, seed = 1, out, beamH = 0.3, kerb = 0.1, holes = [], skip = '' }) {
+  const r = ringRoof(outer, inner, topY, eaveY, { lod, seed, skip });
   out.tile.push(...r.tile);
   out.wood.push(...r.wood);
-  out.beam.push(...architraveRound(inner, eaveY - beamH, eaveY, 'fblr'));
+  out.beam.push(...architraveRound(inner, eaveY - beamH, eaveY, [...'fblr'].filter((c) => !skip.includes(c)).join('')));
   // The stylobate: a kerb of stone under the columns round the court, a step up from the garden.
   const [a0, a1, b0, b1] = inner;
   const w = 0.42;
@@ -361,6 +489,99 @@ export function court({ outer, inner, topY, eaveY, floorY, step, sides = 'fblr',
   const t = 0.3;
   out.floor.push(...slabs(rectMinus([x0 + t, x1 - t, z0 + t, z1 - t], [[a0 - w / 2, a1 + w / 2, b0 - w / 2, b1 + w / 2], ...holes]), floorY - 0.12, floorY, 0.95));
   return columnsRound(inner, step, sides);
+}
+
+/** A triangle prism: a gable's tympanum over x0..x1, front face at z, `t` thick behind it, from y0 up to its apex at y1. */
+export function gableTri(x0, x1, z, t, y0, y1) {
+  const xm = (x0 + x1) / 2;
+  const F = [[x0, y0, z], [x1, y0, z], [xm, y1, z]];
+  const B = F.map(([x, y]) => [x, y, z - t]);
+  const pos = [];
+  const tri = (a, b, c) => pos.push(...a, ...b, ...c);
+  tri(F[0], F[1], F[2]);
+  tri(B[1], B[0], B[2]);
+  tri(F[0], F[2], B[2]);
+  tri(F[0], B[2], B[0]);
+  tri(F[2], F[1], B[1]);
+  tri(F[2], B[1], B[2]);
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return tintGeometry(boxUV(g));
+}
+
+/** A box from (x0, y0) to (x1, y1) in the x-y plane, `h` thick across the line (up), `d` deep about z: a raking cornice. */
+export function rake(x0, y0, x1, y1, z, d, h, k = 0.96) {
+  const L = Math.hypot(x1 - x0, y1 - y0);
+  const g = new BoxGeometry(L, h, d);
+  g.translate(0, h / 2, 0);
+  g.rotateZ(Math.atan2(y1 - y0, x1 - x0));
+  g.translate((x0 + x1) / 2, (y0 + y1) / 2, z);
+  return tintGeometry(boxUV(g), () => k);
+}
+
+/**
+ * A porch over a street door (prothyron): two columns `half` either side
+ * of x = 0 on the pavement, `depth` out from the front at zf, a beam on
+ * them, a little tiled gable with its pediment to the street. Columns of
+ * `order` (domus.js column) in `out[stone]`, or Tuscan ones of radius r;
+ * the beam in out.trav, the pediment in out.stucco, tiles and boards in
+ * out.tile and out.wood.
+ */
+export function porch({ half = 1.0, zf, depth = 0.8, h = 2.5, lod = 0, seed = 1, out, order = null, stone = 'trav', r = 0.1, y0 = 0.06 }) {
+  const pz = zf + depth - 0.1;
+  for (const s of [-1, 1]) {
+    const geos = order ? (() => { const c = column(order, h, lod); return [...c.stone, ...c.cap]; })() : tuscanColumn(r, h, lod);
+    for (const g of geos) out[stone].push(g.translate(s * half, y0, pz));
+    out.trav.push(box(0.2, 0.2, pz - zf + 0.1, s * half, y0 + h, (pz + zf) / 2, 0.95));
+  }
+  out.trav.push(box(2 * half + 0.24, 0.2, 0.22, 0, y0 + h, pz, 0.95));
+  const w = half + 0.24;
+  const pr = gable({ x0: -w, x1: w, z0: zf, z1: pz + 0.08, eaveY: y0 + h + 0.22, pitch: D(22), along: 'z', over: 0.1, gableOver: 0.1, lod, seed });
+  out.tile.push(...pr.tile);
+  out.wood.push(...pr.wood);
+  out.stucco.push(gableTri(-w + 0.02, w - 0.02, pz + 0.12, 0.08, y0 + h + 0.2, pr.ridgeY - 0.04));
+  return pr;
+}
+
+/**
+ * A rectangular pool sunk to its kerb in a garden at (x, z), w x d over all:
+ * a kerb of marble slabs `h` high, the water `dw` under its top, a floor
+ * under the water. Returns { kerb, floor, water, y }.
+ */
+export function rectPool(x, z, w, d, y0, h, { dw = 0.07, t = 0.2, lod = 0, seed = 1 } = {}) {
+  const kerb = [];
+  for (const s of [-1, 1]) {
+    kerb.push(slab(w, h, t, { bevel: 0.02, seed: seed + s, wobble: 0, tone: 0.02, grime: 0.15 }).translate(x, y0, z + s * (d / 2 - t / 2)));
+    kerb.push(slab(t, h, d - 2 * t, { bevel: 0.02, seed: seed + 3 + s, wobble: 0, tone: 0.02, grime: 0.15 }).translate(x + s * (w / 2 - t / 2), y0, z));
+  }
+  const y = y0 + h - dw;
+  return {
+    kerb,
+    floor: [box(w - 2 * t, 0.02, d - 2 * t, x, y0, z, 0.6)],
+    water: [box(w - 2 * t + 0.01, 0.01, d - 2 * t + 0.01, x, y - 0.005, z)],
+    y,
+  };
+}
+
+/**
+ * A dining couch (lectus triclinaris) at (x, z) on y0, `L` long along x
+ * turned ry: a wooden frame on turned legs, a mattress, cushions, a
+ * coverlet in `colour`. Returns { wood, cloth } (the cloth dyed in its vertices).
+ */
+export function couch(x, z, y0, ry, L = 2.0, lod = 0, colour = lin(0x8a2a2a)) {
+  const wood = [];
+  const cloth = [];
+  const local = [];
+  const W = 0.95;
+  local.push([box(L, 0.1, W, 0, 0.42, 0, 0.7), 'wood']);
+  if (lod < 2) for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) local.push([box(0.08, 0.42, 0.08, sx * (L / 2 - 0.08), 0, sz * (W / 2 - 0.08), 0.6), 'wood']);
+  local.push([box(L - 0.04, 0.14, W - 0.06, 0, 0.52, 0, () => lin(0xd8ccb0)), 'cloth']);
+  local.push([box(L + 0.02, 0.03, W - 0.02, 0, 0.66, 0.02, () => colour), 'cloth']);
+  if (lod === 0) for (const k of [-1, 0, 1]) local.push([box(0.4, 0.14, 0.26, k * (L / 3), 0.69, -W / 2 + 0.2, () => lin(0xc8a85a)), 'cloth']);
+  const m = new Matrix4().makeRotationY(ry).setPosition(x, y0, z);
+  for (const [g, k] of local) (k === 'wood' ? wood : cloth).push(g.applyMatrix4(m));
+  return { wood, cloth };
 }
 
 /** A ridge of rounded tiles from (x0, z0) to (x1, z1) at height y (where two rings or slopes meet). */
@@ -496,7 +717,7 @@ export function column(order, h, lod = 0, { smooth = false } = {}) {
     const prof = o.base === 'attic'
       ? [[r * 1.3, ph], { arc: [r * 1.18, ph + r * 0.13, r * 0.13, D(-90), D(90)], n }, [r * 1.08, ph + r * 0.28], { arc: [r * 1.16, ph + r * 0.37, r * 0.09, D(-90), D(-180)], n }, [r * 1.06, ph + r * 0.43], { arc: [r * 1.1, ph + r * 0.52, r * 0.1, D(-90), D(90)], n }, [r, baseTop], [0, baseTop]]
       : [[r * 1.24, ph], { arc: [r * 1.12, ph + r * 0.2, r * 0.2, D(-90), D(90)], n }, [r, baseTop], [0, baseTop]];
-    stone.push(revolve(profileOf(prof), { segments: seg, metres: 1, tint: () => 0.9 }));
+    stone.push(revolve(profileOf(prof), { segments: 16, metres: 1, tint: () => 0.9 }));
   }
   // The capital's height, and the shaft up to it: a slight swell a third of the way up (entasis).
   const capH = order === 'pompeian' ? r * 0.9 : order === 'ionic' ? r * 0.8 : r * 2.3;
@@ -504,7 +725,7 @@ export function column(order, h, lod = 0, { smooth = false } = {}) {
   const fluted = !smooth && lod === 0;
   const flutes = o.flutes;
   const third = baseTop + (top - baseTop) / 3;
-  const rows = lod === 2 ? 1 : lod ? 3 : 4;
+  const rows = lod === 2 ? 1 : lod ? 3 : 3;
   const prof = [];
   const rAt = (t) => r * (1 - 0.14 * t + 0.03 * Math.sin(Math.PI * t * 0.9));
   for (let k = 0; k <= rows; k++) {
@@ -541,8 +762,9 @@ export function column(order, h, lod = 0, { smooth = false } = {}) {
   }
   if (order === 'pompeian') {
     // A Doric echinus (a quarter round) under a square abacus.
-    const n = lod ? 2 : 5;
-    cap.push(revolve(profileOf([[r * 0.88, top], [r * 0.9, top + r * 0.1], { arc: [r * 0.9, top + r * 0.5, r * 0.4, D(-90), D(0)], n }, [r * 1.3, top + r * 0.5], [0, top + r * 0.5]]), { segments: seg, metres: 1 }));
+    // (From the middle distance the echinus is a cone: one ring of faces.)
+    const prof = lod ? [[r * 0.88, top], [r * 1.3, top + r * 0.5], [0, top + r * 0.5]] : [[r * 0.88, top], [r * 0.9, top + r * 0.1], { arc: [r * 0.9, top + r * 0.5, r * 0.4, D(-90), D(0)], n: 5 }, [r * 1.3, top + r * 0.5], [0, top + r * 0.5]];
+    cap.push(revolve(profileOf(prof), { segments: lod ? seg : 16, metres: 1 }));
     cap.push(slab(r * 2.6, capH - r * 0.5, r * 2.6, { bevel: r * 0.05, wobble: 0, tone: 0, grime: 0 }).translate(0, top + r * 0.5, 0));
   } else if (order === 'ionic') {
     ionicCapital(r, top, capH, lod, cap);
@@ -554,7 +776,7 @@ export function column(order, h, lod = 0, { smooth = false } = {}) {
 
 /** An Ionic capital on a shaft of radius r topped at `top`: the echinus, the two bolsters with their volutes front and back, the thin abacus. */
 function ionicCapital(r, top, capH, lod, out) {
-  const seg = lod ? 10 : 20;
+  const seg = lod ? 8 : 16;
   out.push(revolve(profileOf([[r * 0.88, top], { arc: [r * 0.88, top + r * 0.32, r * 0.32, D(-90), D(0)], n: lod ? 2 : 4 }, [r * 1.12, top + r * 0.32], [0, top + r * 0.32]]), { segments: seg, metres: 1 }));
   const vy = top + r * 0.32;
   const vr = r * 0.36;
@@ -582,7 +804,7 @@ function ionicCapital(r, top, capH, lod, out) {
           const rr = vr * (0.92 - (k / 26) * 0.75);
           pts.push([s * r * 0.98 + Math.cos(a) * rr * s, vy + Math.sin(a) * rr, f * (r * 1.0 + 0.004)]);
         }
-        out.push(tube(pts, r * 0.045, { radial: 4, segments: 30, around: 0.1 }));
+        out.push(tube(pts, r * 0.045, { radial: 3, segments: 20, around: 0.1 }));
         const eye = new SphereGeometry(r * 0.09, 6, 4);
         eye.translate(s * r * 0.98, vy, f * r * 1.0);
         out.push(tintGeometry(boxUV(eye)));
@@ -854,7 +1076,8 @@ export function statue(x, z, ry, { y0 = 0, h = 1.1, kind = 'togate', lod = 0, sc
     ? { cloth: 0xf0f0f0, cloth2: 0xf6f6f6, long: true, arms: arms || 'orate' }
     : kind === 'draped' ? { cloth: 0xf0f0f0, cloth2: 0xf6f6f6, long: true, arms: arms || 'hold' }
       : { cloth: 0xf0f0f0, cloth2: null, long: false, arms: arms || 'down' };
-  for (const p of person(one, opts, x, top, z, ry, 1.06 * scale)) out.statue.push(p.g);
+  // (One stone: the skin and the hair as pale as the drapery, or the statue would be painted.)
+  for (const p of person(one, { ...opts, skin: 0xf2f0ec, hair: 0xe6e2da }, x, top, z, ry, 1.06 * scale)) out.statue.push(p.g);
   return out;
 }
 
@@ -876,7 +1099,7 @@ export function victory(x, y, z, s = 1, lod = 0) {
   }
   const one = { cloth: 'g', skin: 'g', hair: 'g', leather: 'g' };
   if (lod === 1) out.push(...figureMass(x, foot, z, s));
-  else for (const p of person(one, { cloth: 0xffffff, cloth2: null, long: true, arms: 'orate' }, x, foot, z, 0, s)) out.push(p.g);
+  else for (const p of person(one, { cloth: 0xffffff, cloth2: null, long: true, arms: 'orate', skin: 0xf4eee0, hair: 0xece4d0 }, x, foot, z, 0, s)) out.push(p.g);
   // The wreath in her raised right hand.
   const wreath = new TorusGeometry(0.09 * s, 0.018 * s, 4, lod ? 8 : 14);
   wreath.translate(x + 0.32 * s, foot + 1.74 * s, z + 0.38 * s);

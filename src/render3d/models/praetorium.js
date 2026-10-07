@@ -41,14 +41,13 @@
 
 import { CylinderGeometry } from 'three';
 import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
-import { slab, tuscanColumn, TaggedParts } from './masonry.js';
+import { slab, TaggedParts } from './masonry.js';
 import { sentry, staff } from './castra.js';
 import {
-  govMaterials, box, D, gable, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, ringRoof, coping, rectMinus, slabs, court,
+  govMaterials, box, gableTri, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, ringRoof, coping, rectMinus, slabs, court,
   architraveRound, columnsRound, impluvium, threshold, togate, servant, matron, addPeople, boxEdging, bedPlants, flowerBed, gardenTree,
   lantern, lanternPane,
 } from './domus.js';
-import { gableTri } from './curia.js';
 
 /** The house's measures (metres): the tests, the lab and the game read them. */
 export const PRAETORIUM = Object.freeze({
@@ -129,20 +128,10 @@ function walls(lod, seed, out) {
     out.trav.push(box(w + 0.12, 0.06, 0.1, x, winY[0] - 0.06, zf + 0.04, 0.95));
   }
   // The front's painted dado (red, as Pompeian fronts were) between the socle and the white above, broken by the door.
-  for (const [a, b] of [[-xs, -dw - 0.26], [dw + 0.26, xs]]) out.stucco.push(box(b - a, 0.7, 0.012, (a + b) / 2, 0.45, zf + 0.006, () => FRESCO.red));
-  for (const s of [-1, 1]) out.stucco.push(box(0.012, 0.7, zf - zb, s * (xs + 0.006), 0.45, (zf + zb) / 2, () => FRESCO.red));
+  for (const [a, b] of [[-xs, -dw - 0.26], [dw + 0.26, xs]]) out.stucco.push(box(b - a, 0.55, 0.012, (a + b) / 2, 0.45, zf + 0.006, () => FRESCO.dado));
+  for (const s of [-1, 1]) out.stucco.push(box(0.012, 0.55, zf - zb, s * (xs + 0.006), 0.45, (zf + zb) / 2, () => FRESCO.dado));
   // The porch over the door (prothyron): two columns, a beam, a little tiled gable with its pediment to the street.
-  const px = 0.98;
-  const pz = 5.72;
-  for (const s of [-1, 1]) {
-    for (const g of tuscanColumn(0.1, 2.5, lod)) out.trav.push(g.translate(s * px, 0.06, pz));
-    out.trav.push(box(0.2, 0.2, pz - zf + 0.1, s * px, 2.56, (pz + zf) / 2, 0.95));
-  }
-  out.trav.push(box(2 * px + 0.24, 0.2, 0.22, 0, 2.56, pz, 0.95));
-  const pr = gable({ x0: -1.22, x1: 1.22, z0: zf, z1: 5.8, eaveY: 2.78, pitch: D(22), along: 'z', over: 0.1, gableOver: 0.1, lod, seed: seed + 30 });
-  out.tile.push(...pr.tile);
-  out.wood.push(...pr.wood);
-  out.stucco.push(gableTri(-1.2, 1.2, 5.84, 0.08, 2.76, pr.ridgeY - 0.04));
+  porch({ half: 0.98, zf, depth: 0.82, h: 2.5, lod, seed: seed + 30, out });
   // The pavement before the house: flags, a kerb, the clients' benches against the front.
   out.pave.push(box(2 * xs + 0.1, 0.06, 5.96 - zf, 0, 0, (5.96 + zf) / 2, 0.92));
   out.trav.push(box(2 * xs + 0.1, 0.12, 0.16, 0, 0, 5.88, 0.85));
