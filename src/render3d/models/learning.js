@@ -42,8 +42,14 @@ import { box, castraMaterials, flipFaces, inscribe } from './castra.js';
 export function learningMaterials() {
   return {
     ...castraMaterials(),
-    // Book rolls: papyrus and parchment, matte, their tones in the vertices.
-    papyrus: material('papyrus', { color: 0xffffff, roughness: 0.85, vertexColors: true, snow: 0.5 }),
+    // Book rolls: papyrus and parchment, matte, their tones in the vertices (kept under a roof or in
+    // hand: no snow settles on them).
+    papyrus: material('papyrus', { color: 0xffffff, roughness: 0.85, vertexColors: true, snow: 0 }),
+    // Floors and furniture under a roof: the look lays snow by a surface's facing, not by what is over
+    // it, so what a roof shelters takes none.
+    shelteredFloor: material('cocciopesto-sheltered', { surface: 'cocciopesto', vertexColors: true, snow: 0 }),
+    shelteredMarble: material('marble-sheltered', { surface: 'marble', vertexColors: true, snow: 0 }),
+    shelteredWood: material('wood-sheltered', { surface: 'wood', vertexColors: true, snow: 0 }),
     // Every face and hand one material, every head of hair another: their tones in the vertices.
     skin: material('skin-tones', { color: 0xffffff, roughness: 0.55, vertexColors: true, snow: 0, wet: 0 }),
     hair: material('hair-tones', { color: 0xffffff, roughness: 0.7, vertexColors: true, snow: 0.2 }),
@@ -408,24 +414,26 @@ export function herm(x, y, z, ry, { h = 1.75, lod = 0, beard = true, name = null
   out.push(slab(0.3, 0.08, 0.26, { bevel: 0.01, seed: 3, wobble: 0, tone: 0, grime: 0.3 }));
   out.push(slab(0.3, 0.05, 0.27, { bevel: 0.008, seed: 4, wobble: 0, tone: 0, grime: 0 }).translate(0, shaft + 0.06, 0));
   // The head: the skull, the neck, the beard, a fillet of hair.
-  const seg = lod ? 8 : 14;
+  const seg = lod === 2 ? 5 : lod ? 8 : 14;
   const head = new SphereGeometry(0.105, seg, Math.round(seg * 0.75));
   head.scale(0.9, 1.15, 1.0);
   head.translate(0, shaft + 0.32, 0.01);
   out.push(tintGeometry(boxUV(head)));
   out.push(tintGeometry(boxUV(new CylinderGeometry(0.06, 0.075, 0.16, seg, 1).translate(0, shaft + 0.18, 0))));
-  if (beard) {
+  if (beard && lod < 2) {
     // The beard against the jaw, the hair a cap over the skull.
     const b = new SphereGeometry(0.08, seg, Math.round(seg * 0.6));
     b.scale(0.92, 1.12, 0.72);
     b.translate(0, shaft + 0.25, 0.05);
     out.push(tintGeometry(boxUV(b), () => 0.92));
   }
-  const cap = new SphereGeometry(0.11, seg, Math.round(seg * 0.4), 0, Math.PI * 2, 0, Math.PI * 0.5);
-  cap.scale(0.92, 1.0, 1.02);
-  cap.rotateX(-0.3);
-  cap.translate(0, shaft + 0.34, -0.005);
-  out.push(tintGeometry(boxUV(cap), () => 0.9));
+  if (lod < 2) {
+    const cap = new SphereGeometry(0.11, seg, Math.round(seg * 0.4), 0, Math.PI * 2, 0, Math.PI * 0.5);
+    cap.scale(0.92, 1.0, 1.02);
+    cap.rotateX(-0.3);
+    cap.translate(0, shaft + 0.34, -0.005);
+    out.push(tintGeometry(boxUV(cap), () => 0.9));
+  }
   // The name, cut in small capitals high on the shaft's face (where the taper leaves it 0.25 wide).
   if (name && lod === 0) {
     const yy = shaft - 0.12;

@@ -362,7 +362,7 @@ export function buildAcademia({ lod = 0, seed = 271 } = {}) {
   p.add('dado', m.red, out.red, small);
   p.add('panels', material('stucco-ochre', { surface: 'plaster', color: 0xd8b070, vertexColors: true, snow: 1 }), out.ochre, small);
   p.add('paint', m.paint, out.paint, small);
-  p.add('floor', material('cocciopesto', { surface: 'cocciopesto', vertexColors: true, snow: 0.8 }), out.floor, small);
+  p.add('floor', m.shelteredFloor, out.floor, small);
   p.add('roof', m.tile, out.tile);
   p.add('wood', m.wood, out.wood);
   p.add('marble', m.marble, out.marble);

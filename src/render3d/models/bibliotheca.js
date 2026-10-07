@@ -91,7 +91,7 @@ function hall(lod, seed, out) {
     out.trav.push(slab(4.6, h, z1 - z0, { bevel: 0.015, seed: seed + 3 + k, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(0, 0, (z0 + z1) / 2));
   }
   // The hall's floor: marble slabs.
-  out.marble.push(...paving(-H + T, H - T, backZ, colZ + 0.4, 0.02, seed + 9, { rowW: 0.62, minL: 0.5, maxL: 0.9, lod, tone: 0.08, grime: 0.05 }).map((g) => g.translate(0, py, 0)));
+  out.floor.push(...paving(-H + T, H - T, backZ, colZ + 0.1, 0.02, seed + 9, { rowW: 0.62, minL: 0.5, maxL: 0.9, lod, tone: 0.08, grime: 0.05 }).map((g) => g.translate(0, py, 0)));
   // The walls: squared limestone outside, up to the eave; the gables over the ends.
   const wallH = eave - py;
   out.ashlar.push(box(2 * H, wallH, T, 0, py, -H + T / 2, (x, y) => 0.8 + 0.2 * Math.min(1, y / 1.5)));
@@ -262,7 +262,7 @@ function court(lod, seed, out) {
   for (const s of [-1, 1]) {
     const px = s * 2.75;
     const pz = -0.62;
-    const pot = revolve(profileOf([[0, 0], [0.16, 0], [0.24, 0.12], [0.26, 0.42], [0.29, 0.46], [0.27, 0.5], [0.22, 0.48], [0, 0.48]]), { segments: lod ? 10 : 18, metres: 0.4 });
+    const pot = revolve(profileOf([[0, 0], [0.16, 0], [0.24, 0.12], [0.26, 0.42], [0.29, 0.46], [0.27, 0.5], [0.22, 0.48], [0, 0.48]]), { segments: lod === 2 ? 6 : lod ? 10 : 18, metres: 0.4 });
     out.clay.push(pot.translate(px, y0, pz));
     out.leaf.push(...bush(px, y0 + 1.35, pz, 0.45, { lod, seed: seed + 21 + s }));
     out.wood.push(staff([px, y0 + 0.45, pz], [px, y0 + 1.0, pz], 0.03, 5));
@@ -302,7 +302,7 @@ function readers(mats) {
 /** Build the library: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
 export function buildLibrary({ lod = 0, seed = 241 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['trav', 'ashlar', 'marble', 'tile', 'wood', 'red', 'ochre', 'paint', 'letters', 'statue', 'bronze', 'clay', 'leaf', 'gateOpen', 'gateShut',
+  const keys = ['trav', 'ashlar', 'marble', 'floor', 'tile', 'wood', 'red', 'ochre', 'paint', 'letters', 'statue', 'bronze', 'clay', 'leaf', 'gateOpen', 'gateShut',
     'arm_wood', 'arm_doorOpen', 'arm_doorShut', 'arm_paper', 'arm_tags', 'arm_dark'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   hall(lod, seed, out);
@@ -316,7 +316,10 @@ export function buildLibrary({ lod = 0, seed = 241 } = {}) {
   p.add('ashlar', material('library-ashlar', { surface: 'ashlarLime', vertexColors: true, snow: 1 }), out.ashlar);
   p.add('marble', m.marble, [...out.marble, ...out.statue]);
   p.add('roof', m.tile, out.tile);
-  p.add('wood', m.wood, [...out.wood, ...out.arm_wood]);
+  p.add('wood', m.wood, out.wood);
+  // Under the hall's roof: its floor and the cupboards take no snow.
+  p.add('hall-floor', m.shelteredMarble, out.floor, small);
+  p.add('cupboards', m.shelteredWood, out.arm_wood);
   p.add('dado', m.red, out.red, small);
   p.add('walls', material('stucco-ochre', { surface: 'plaster', color: 0xd8b070, vertexColors: true, snow: 1 }), out.ochre, small);
   p.add('paint', m.paint, [...out.paint, ...out.arm_tags], small);
@@ -327,8 +330,8 @@ export function buildLibrary({ lod = 0, seed = 241 } = {}) {
   p.add('inside', m.dark, out.arm_dark, small);
   // The rolls on the shelves, behind their doors.
   p.add('rolls', m.papyrus, out.arm_paper, small);
-  p.add('cupboard-doors', m.wood, out.arm_doorOpen, { when: 'open' });
-  p.add('cupboard-doors', m.wood, out.arm_doorShut, { when: 'shut' });
+  p.add('cupboard-doors', m.shelteredWood, out.arm_doorOpen, { when: 'open' });
+  p.add('cupboard-doors', m.shelteredWood, out.arm_doorShut, { when: 'shut' });
   p.add('gates', m.bronze, out.gateOpen, { when: 'open', cast: lod === 0 });
   p.add('gates', m.bronze, out.gateShut, { when: 'shut', cast: lod === 0 });
   if (lod < 2) {

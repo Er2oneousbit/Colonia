@@ -14,6 +14,7 @@ import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
 import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
+import { buildDemoLearning } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -71,6 +72,7 @@ export const CONSOLE_HELP = [
   ['farms', 'Build one farm of every kind (at different steps of their year), a horse ranch and a stocked granary beside the city'],
   ['navy', 'Build a naval station and a navalia on the shore, stocked for a squadron of liburnians (river/coast maps)'],
   ['academy', 'Build a Campus (military academy) near the city, and a Portus by the first Statio if there is one (they train only at full staff)'],
+  ['learning', 'Build a library and an academy near the city (and a school if it has none)'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
   ['searaid [n]', 'Launch a raid of n warriors by sea right now (river/coast maps; default: normal size)'],
   ['wolves [here]', 'List the wolf packs; "here" sets a new pack down near the middle of the view'],
@@ -414,6 +416,16 @@ export class DebugConsole {
         if (shown) app.renderer.camera.centerOnTile(shown.x, shown.y);
         const parts = [academy ? `a Campus at ${academy.x},${academy.y}` : null, portus ? `a Portus at ${portus.x},${portus.y}` : null].filter(Boolean);
         return parts.length ? `Built ${parts.join(' and ')}. They train only at full staff (military labor may need to go first).` : 'No room for a Campus near the city, or it is locked in this mission.';
+      }
+      case 'learning': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const built = buildDemoLearning(g, center);
+        const shown = built.academy || built.library || built.school;
+        if (shown) app.renderer.camera.centerOnTile(shown.x + 1, shown.y + 1);
+        const parts = Object.entries(built).map(([k, b]) => (b ? `${k} at ${b.x},${b.y}` : `no ${k}`));
+        return `Learning: ${parts.join(', ')}.`;
       }
       case 'invade':
       case 'searaid': {

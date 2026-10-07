@@ -119,7 +119,8 @@ function awning(lod, out) {
     const zm = (zA + zB) / 2;
     const ym = (yA + yB) / 2 - sag;
     for (const [z0, y0, z1, y1] of [[zA, yA, zm, ym], [zm, ym, zB, yB]]) {
-      pos.push(a, y0, z0, b, y0, z0, b, y1, z1, a, y0, z0, b, y1, z1, a, y1, z1);
+      // (Wound so its face is the sheet's top: the sun's side, where snow and light fall.)
+      pos.push(a, y0, z0, b, y1, z1, b, y0, z0, a, y0, z0, a, y1, z1, b, y1, z1);
       for (let i = 0; i < 6; i++) col.push(...c);
     }
   }
@@ -380,7 +381,7 @@ export function buildSchool({ lod = 0, seed = 211 } = {}) {
   const p = new TaggedParts('school');
   const small = { cast: false };
   p.add('court', m.earth, out.earth, small);
-  p.add('floor', material('cocciopesto', { surface: 'cocciopesto', vertexColors: true, snow: 0.8 }), out.floor, small);
+  p.add('floor', m.shelteredFloor, out.floor, small);
   p.add('stone', m.trav, out.trav);
   p.add('walls', m.plaster, out.plaster);
   p.add('dado', m.red, out.red, small);
