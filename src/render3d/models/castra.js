@@ -173,8 +173,15 @@ export function prism(a0, a1, sec, f = null) {
  * of every 4): a limewashed wall shows the cream above them.
  */
 export function limewash(g, dv = 1.45) {
+  if (g.userData.limewashed) return g;
+  g.userData.limewashed = true;
   const uv = g.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) + dv);
+  const n = g.attributes.normal;
+  for (let i = 0; i < uv.count; i++) {
+    // (A top's v runs along the ground, through every zone: kept in the cream.)
+    if (Math.abs(n.getY(i)) > 0.7) uv.setY(i, 1.6 + (((uv.getY(i) % 2) + 2) % 2));
+    else uv.setY(i, uv.getY(i) + dv);
+  }
   return g;
 }
 

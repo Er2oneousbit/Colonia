@@ -37,7 +37,7 @@ import { slab } from './masonry.js';
 import { gableRoof, leanTo, lin, D } from './rural.js';
 import {
   CASTRA, fortBag, pour, assemble, TANK_WATER, onSide, stoneRun, stoneTower, stoneGate, box, staff, tank,
-  vexillum, draco, imago, standardBase, inscribe, sentry, oven,
+  vexillum, draco, imago, standardBase, inscribe, sentry, oven, limewash,
 } from './castra.js';
 
 /** The cavalry fort's measures (metres): the tests, the lab and the game read them. */
@@ -204,6 +204,8 @@ export function buildCavalryFort({ lod = 0, seed = 151 } = {}) {
   out.marble.push(box(1.36, 0.24, 0.04, 0, 2.2, z - 0.02, 0.95));
   if (lod === 0) out.letters.push(...inscribe('ALA·PETRIANA', 2.245, z + 0.003, 0.13));
   else if (lod === 1) out.letters.push(box(1.0, 0.11, 0.006, 0, 2.26, z + 0.002));
+  // (Everything of the rampart and the gate limewashed, its painted zones' red and black left below.)
+  for (const gg of out.plaster) limewash(gg);
   // The horse yard: beaten earth.
   out.earth.push(box(2 * 4.75, CASTRA.floorY, 2 * 4.75, 0, 0, 0, (x, y, zz) => 0.82 + 0.18 * Math.cos(x * 0.5 + 1) * Math.cos(zz * 0.4)));
   stable(lod, seed + 50, out);
