@@ -109,22 +109,26 @@ export function flanksGate(map, buildings, x, y) {
 }
 
 /** Do `n` tiles in a row from (x, y) toward bit `b` all join a wall? */
-function runs(map, buildings, x, y, b, n) {
+function runs(map, buildings, x, y, b, n, extra) {
   const [dx, dy] = STEP[b];
-  for (let k = 1; k <= n; k++) if (!joins(map, buildings, x + dx * k, y + dy * k)) return false;
+  for (let k = 1; k <= n; k++) {
+    const tx = x + dx * k;
+    const ty = y + dy * k;
+    if (!joins(map, buildings, tx, ty) && !(extra && extra(tx, ty))) return false;
+  }
   return true;
 }
 
 /** Is there a gate, a watchtower or a corner within `n` tiles of (x, y) along its straight run (axis 'x' or 'y')? */
-function nearStrongPoint(map, buildings, x, y, axis, n) {
+function nearStrongPoint(map, buildings, x, y, axis, n, extra) {
   for (let k = -n; k <= n; k++) {
     if (!k) continue;
     const tx = axis === 'x' ? x + k : x;
     const ty = axis === 'y' ? y + k : y;
     if (!map.inBounds(tx, ty)) continue;
     if (isGate(map, tx, ty) || isTurris(map, buildings, tx, ty)) return true;
-    if (map.wall[map.idx(tx, ty)] === Wall.WALL) {
-      const m = wallMask(map, buildings, tx, ty);
+    if (map.wall[map.idx(tx, ty)] === Wall.WALL || (extra && extra(tx, ty))) {
+      const m = wallMask(map, buildings, tx, ty, extra);
       if (m !== 10 && m !== 5) return true;
     }
   }
@@ -133,21 +137,22 @@ function nearStrongPoint(map, buildings, x, y, axis, n) {
 
 /**
  * The tower a wall tile (not a gate) carries, from its map mask: 'round',
- * 'square' or null (see the header).
+ * 'square' or null (see the header). `extra(x, y)`: more tiles that count
+ * as walls (a dragged wall's plan).
  */
-export function towerOf(map, buildings, x, y, mask) {
+export function towerOf(map, buildings, x, y, mask, extra = null) {
   if (flanksGate(map, buildings, x, y)) return 'round';
   const bits = BITS.filter((b) => mask & b);
   if (bits.length >= 3) return 'square';
   if (bits.length === 2 && mask !== 10 && mask !== 5) {
     // A corner whose runs go on: a diagonal dragged as a staircase of corners gets none.
-    return bits.every((b) => runs(map, buildings, x, y, b, 2)) ? 'square' : null;
+    return bits.every((b) => runs(map, buildings, x, y, b, 2, extra)) ? 'square' : null;
   }
   if (mask === 10 || mask === 5) {
     const axis = mask === 10 ? 'x' : 'y';
     const c = axis === 'x' ? x : y;
     if (((c % INTERVAL) + INTERVAL) % INTERVAL !== INTERVAL / 2) return null;
-    return nearStrongPoint(map, buildings, x, y, axis, 2) ? null : 'square';
+    return nearStrongPoint(map, buildings, x, y, axis, 2, extra) ? null : 'square';
   }
   return null;
 }
@@ -211,7 +216,7 @@ export function wallPiece(map, buildings, x, y, vt, look, hp = null, extra = nul
     return { key: `wall:${look}:gate:${damage}`, T: along, gate: true, shape: 'gate', tower: null, damage, stubs: [] };
   }
   const { shape, T } = shapeOf(rotMask(mask, vt));
-  const tower = towerOf(map, buildings, x, y, mask);
+  const tower = towerOf(map, buildings, x, y, mask, extra);
   return { key: `wall:${look}:${shape}${tower ? `+${tower}` : ''}:${damage}`, T, gate: false, shape, tower, damage, stubs };
 }
 

@@ -395,7 +395,7 @@ function crack(axis, c, at, out, y1, y0, seed) {
 function rubbleAt(a, dmg, lod, seed) {
   const rnd = artRng(seed + 31);
   const out = [];
-  const n = (dmg >= 2 ? 9 : 4) - lod * 2;
+  const n = lod === 2 ? (dmg >= 2 ? 3 : 1) : (dmg >= 2 ? 9 : 4) - lod * 2;
   for (const s of [-1, 1]) {
     for (let k = 0; k < n; k++) {
       const along = (rnd() - 0.5) * 2.6;
@@ -413,7 +413,7 @@ function rubbleAt(a, dmg, lod, seed) {
     // Breaching: a heap of broken masonry against the foot of the breach.
     if (dmg >= 2) {
       // A lumpy mound of broken core and mortar (a squashed, dented ball half sunk), stones on it.
-      const heap = new IcosahedronGeometry(1, lod ? 1 : 2);
+      const heap = new IcosahedronGeometry(1, lod === 2 ? 0 : lod ? 1 : 2);
       const p = heap.attributes.position;
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i);
@@ -745,7 +745,7 @@ function gatehouse(P, M, { lod, dmg, seed }) {
   } else {
     // Breaching: the top broken off in steps.
     const rnd = artRng(seed + 9);
-    for (let k = 0; k < 9; k++) {
+    for (let k = 0; k < (lod === 2 ? 4 : 9); k++) {
       const x = -W.half + 0.25 + rnd() * (2 * W.half - 0.5);
       const z = (rnd() < 0.5 ? -1 : 1) * (d - 0.3);
       up.push(slab(0.55, 0.2 + rnd() * 0.7, 0.55, { seed: seed + k, bevel: 0.02, wobble: 0.03 }).translate(x, top, z));

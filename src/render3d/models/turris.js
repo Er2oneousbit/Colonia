@@ -201,7 +201,7 @@ export function buildTurris({ look = 'polygonal', lod = 0 } = {}) {
     }
   }
   // A ladder up to the gallery beside the door.
-  wood.push(ladder(g0 + 0.95, 0.07, 13, lod).translate(-1.95, 0, h + T.out + 0.36));
+  wood.push(ladder(g0 + 0.95, 0.07, 13, lod).translate(-1.95, 0, h + T.out + 0.28));
   // Torches out of the front and back windows, in iron brackets.
   if (lod < 2) {
     for (const ry of [0, Math.PI]) {
@@ -223,7 +223,7 @@ export function buildTurris({ look = 'polygonal', lod = 0 } = {}) {
   const nl = lod === 2 ? 2 : 5;
   for (let l = 0; l < nl; l++) {
     for (const s of [-1, 1]) {
-      const log = new CylinderGeometry(0.075, 0.075, 1.05, lod ? 5 : 8, 1);
+      const log = new CylinderGeometry(0.075, 0.075, 0.95, lod ? 5 : 8, 1);
       if (l % 2) log.rotateX(Math.PI / 2).translate(s * 0.36, 0.08 + l * 0.15, 0);
       else log.rotateZ(Math.PI / 2).translate(0, 0.08 + l * 0.15, s * 0.36);
       boxUV(log);
@@ -234,11 +234,11 @@ export function buildTurris({ look = 'polygonal', lod = 0 } = {}) {
     // Kindling heaped inside the crib.
     crib.push(...woodpile(0.7, 0.55, 21, lod).map((q) => q.translate(0, 0.05, 0)));
   }
-  for (const q of crib) q.translate(3.45, 0, 3.45);
+  for (const q of crib) q.translate(3.38, 0, 3.38);
   P.add('bark', R.bark, crib);
   const rick = strawStack(0.48, 1.25, 23, lod);
-  P.add('thatch', R.thatch, rick.thatch.map((q) => q.translate(-3.45, 0, 3.45)));
-  wood.push(...rick.wood.map((q) => q.translate(-3.45, 0, 3.45)));
+  P.add('thatch', R.thatch, rick.thatch.map((q) => q.translate(-3.4, 0, 3.4)));
+  wood.push(...rick.wood.map((q) => q.translate(-3.4, 0, 3.4)));
   P.add('dressed', M.dressed, dressed);
   P.add('dark', M.dark, dark, { cast: false });
   P.add('wood', M.wood, wood);
