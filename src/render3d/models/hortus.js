@@ -277,7 +277,8 @@ function myrtle(out, x, z, { season, worn, lod, rnd, plain, h = 1.1 }) {
 
 /** Acanthus (Acanthus mollis): a rosette of big lobed leaves on the ground, its spikes of flowers in early summer. */
 function acanthus(out, x, z, { season, worn, lod, rnd, plain }) {
-  if (lod === 2 || plain) {
+  // (Past the full level a rosette's leaves are a clump: one draw fewer for every garden in view.)
+  if (lod >= 1 || plain) {
     out.solid.push(clump(x, 0.12, z, 0.4, 0.45, worn ? 0x6a6a34 : 0x2c5224, 1, rnd));
     return;
   }
@@ -318,7 +319,7 @@ function lilies(out, x, z, { season, worn, lod, rnd, plain }) {
     const hgt = season === 'spring' ? 0.5 + rnd() * 0.2 : 0.95 + rnd() * 0.3;
     const dry = worn || season === 'autumn';
     out.bark.push(tintGeometry(boxUV(new CylinderGeometry(0.008, 0.012, hgt, 4, 1).translate(sx, hgt / 2, sz)), () => lin(dry ? 0x8a7a48 : 0x5a7a34)));
-    if (lod < 2 && !plain) sprays(out, { sp: 'olive', tex: 'leaf-lance', palette: dry ? PALETTE.dry : PALETTE.lily, x: sx, cy: hgt * 0.45, z: sz, r: 0.1, hh: hgt * 0.4, n: lod ? 3 : 6, size: 0.18, rnd, up: 0.7 });
+    if (lod === 0 && !plain) sprays(out, { sp: 'olive', tex: 'leaf-lance', palette: dry ? PALETTE.dry : PALETTE.lily, x: sx, cy: hgt * 0.45, z: sz, r: 0.1, hh: hgt * 0.4, n: lod ? 3 : 6, size: 0.18, rnd, up: 0.7 });
     if (season === 'bloom' && !worn) {
       for (let f = 0; f < (lod ? 1 : 3); f++) {
         const a = rnd() * 6.28;
@@ -622,8 +623,9 @@ function pergola(out, { season, worn, lod, rnd, plain }) {
       out.fruit.push(balls(items, lod ? -1 : 0));
     }
   }
-  // Oscilla: marble discs carved with a mask, hung by a chain between the pillars (one fallen, untended).
-  if (lod < 2) {
+  // Oscilla: marble discs carved with a mask, hung by a chain between the pillars (one fallen, untended);
+  // close up only (a hand's breadth across: from the middle level out, two more draws a garden for nothing).
+  if (lod === 0) {
     for (const [x, z, k] of [[-0.6, pz, 0], [0.62, -pz, 1]]) {
       const fallen = worn && k === 1;
       const d = new CylinderGeometry(0.13, 0.13, 0.025, lod ? 10 : 18, 1);
