@@ -919,8 +919,22 @@ try {
     const free = g.cheats.freeBuild;
     g.cheats.freeBuild = true;
     const out = { hip: app.ui.console.run('hippodrome') };
-    g.cheats.freeBuild = free;
     const find = (k) => [...g.buildings.values()].find((b) => b.def.kind === k || b.type === k);
+    if (!find('hippodrome_part')) {
+      // No 15 x 5 of open land 8 to 34 tiles from the city on this random map (a wooded one:
+      // trees count as taken; seed 243207 failed so). The check is of the panel, not the map:
+      // clear the trees round the city, say so, and build again.
+      const homes = [...g.buildings.values()].filter((b) => b.house);
+      const cx = homes.reduce((s, b) => s + b.x, 0) / Math.max(1, homes.length);
+      const cy = homes.reduce((s, b) => s + b.y, 0) / Math.max(1, homes.length);
+      const m = g.map;
+      for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (Math.hypot(x - cx, y - cy) <= 40 && m.terrain[m.idx(x, y)] === 2) m.terrain[m.idx(x, y)] = 0;
+      m.touch();
+      console.log(`smoke: no room for the hippodrome on seed ${g.seed}: cleared the trees round the city`);
+      out.cleared = true;
+      out.hip2 = app.ui.console.run('hippodrome');
+    }
+    g.cheats.freeBuild = free;
     const text = () => document.querySelector('#info-panel')?.textContent || '';
     const part = find('hippodrome_part');
     if (part) { app.ui.info.showBuilding(part.id); out.target = app.ui.info.target?.id; out.main = part.main; out.hipPanel = text(); }

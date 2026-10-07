@@ -13,6 +13,15 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.15)
+
+* **The forts, the barracks and the military academy in 3D** (under WebGL): Roman forts in miniature after Housesteads, the Saalburg and Vindolanda, kept low so the soldiers at rest stay in view in the yard: the legion fort in coursed sandstone with the eagle, the signa and the headquarters' portico; the archer fort a turf rampart with timber towers, leather tents and straw butts; the cavalry fort limewashed with stable-barracks, a horse for each trooper and the dragon standard. Deployed, the standards are gone; empty, the gate is shut. The barracks' armoury fills with arms and arrows as its stock comes in and a recruit drills at the post; the Campus is a training ground with a hall of the town's young men, posts, butts and a riding ring
+* **Town walls, gates and the watchtower in 3D**: walls in the province's own stone (polygonal limestone, squared tufa, ashlar, or brick on the Po's plain) that join up as you drag them, with towers at corners and every eight tiles; gates after Turin's and Pompeii's, arched between round towers, shut while an enemy is near; cracked, broken down and breached as raiders strike. The watchtower is a stone tower with a timber gallery, its archers on watch, a torch burning at night
+* **The fleet's buildings in 3D**: the navalia's ship shed and open slip, where the liburnian takes shape as it is built (keel, planks, oar box, bronze ram, painted eye); the naval station's moles of arched piers with a beacon tower burning at night; the training harbour's rowing benches on the shore, where a new ship's crew pulls at the oars while the boarding bridge drops onto a practice hulk. All three stand out over the water on piles
+* A browser check fixed: the hippodrome check had no room for a 15 x 5 track near the city on a wooded random map; it now clears the trees there first and logs the seed
+* Headless sim: identical to v0.20.14 on every difficulty
+* 1235 unit tests, 257 browser checks
+
 ## Done (v0.20.14)
 
 * **The prefecture in 3D** (under WebGL): a watch house of Rome's vigiles after the VII cohort's in Trastevere, brick under a tiled gable with VIGILES COH·VII over the studded door, a household shrine, pitched rope buckets on a rack, a force pump in its water tank, a ladder, a roof hook and axes; while its crew is out at a fire its kit is gone and one man keeps the door; idle, it is shut; its lantern burns at night
