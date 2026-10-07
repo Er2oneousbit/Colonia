@@ -57,7 +57,7 @@ import { slab, paving, tuscanColumn, wallWithOpenings, lantern, lanternPane, Tag
 import { lin, woodpile, ruralMaterials, leanTo } from './rural.js';
 import { staff, inscribe, people } from './castra.js';
 import { person, roofSlope, box } from './learning.js';
-import { healthMaterials, steamMaterial, plume, towel } from './healing.js';
+import { healthMaterials, steamMaterial, plume, towel, coals } from './healing.js';
 
 /** The baths' measures (metres): the tests, the lab and the game read them. */
 export const BALNEUM = Object.freeze({
@@ -208,8 +208,8 @@ function caldarium(lod, seed, out) {
     g.translate(x, 0, zc);
     out.brick.push(g);
   }
-  // The vault: its outer shell rendered in opus signinum, a rib of brick at each end.
-  out.signinum.push(vault(x0 - 0.04, x1 + 0.04, spring, zc, r + 0.02, seg, 0.95));
+  // The vault: its outer shell, rendered over (buildBalneum gives it its two materials, cold and warm).
+  out.warmVault.push(vault(x0 - 0.04, x1 + 0.04, spring, zc, r + 0.02, seg, 0.95));
   const win = { w: 0.62, y0: 0.32, y1: 0.78 };
   out.brick.push(lunette(x0, spring, zc, r - 0.02, t, -1, seg));
   out.brick.push(lunette(x1, spring, zc, r - 0.02, t, 1, seg, win));
@@ -225,8 +225,10 @@ function caldarium(lod, seed, out) {
   }
   // The furnace's mouth: dark within, its coals (staffed) or ash (cold); a brick apron before it.
   out.dark.push(box(0.02, F.h + F.w / 2, F.w, x1 - t + 0.03, 0, F.z));
-  out.coalsLit.push(tintGeometry(boxUV(new BoxGeometry(0.2, 0.1, F.w - 0.08).translate(x1 - 0.18, 0.05, F.z)), (px, py, pz) => 0.7 + 0.3 * Math.abs(Math.sin(pz * 41 + py * 17))));
-  out.coalsCold.push(box(0.2, 0.08, F.w - 0.08, x1 - 0.18, 0, F.z, 0.8));
+  const c = coals(x1 - 0.2, 0.0, F.z, F.w / 2 - 0.06, { seed: seed + 41, lod });
+  out.coalsLit.push(...c.hot);
+  out.coalsCold.push(...c.hot.map((g) => g.clone()));
+  out.charcoal.push(...c.dark);
   out.brick.push(box(0.5, 0.04, F.w + 0.3, x1 + 0.25, 0, F.z, 0.7));
   // Through the inspection hole: the pilae under the floor, stacks of square bricks in the dark.
   out.dark.push(box(0.02, 0.34, 0.62, x1 - t + 0.04, 0, HYPO));
@@ -275,10 +277,10 @@ function tholos(lod, seed, out) {
   for (const [w, d, cx, cz] of [[x1 - x0, 0.12, (x0 + x1) / 2, z0 + 0.06], [x1 - x0, 0.12, (x0 + x1) / 2, z1 - 0.06], [0.12, z1 - z0, x0 + 0.06, (z0 + z1) / 2]]) {
     out.trav.push(slab(w, 0.1, d, { bevel: 0.01, seed: seed + cx * 3 + cz, wobble: 0, tone: 0.03, grime: 0.2 }).translate(cx, block + 0.06, cz));
   }
-  // The drum and the dome: plaster below, the cone in signinum, open at its top (the opening that let the steam out).
+  // The drum and the dome: brick below, the cone rendered over, open at its top (the opening that let the steam out).
   const yd = block + 0.08;
   const drum = revolve(profileOf([[r, yd], [r, yd + 0.32], [r + 0.06, yd + 0.34], [r + 0.06, yd + 0.4], [r - 0.02, yd + 0.4]]), { segments: seg, metres: 1, tint: () => 0.92 });
-  out.plaster.push(drum.translate(x, 0, z));
+  out.brick.push(drum.translate(x, 0, z));
   const ro = 0.2;
   const prof = [];
   const n = lod === 2 ? 3 : lod ? 6 : 10;
@@ -289,7 +291,7 @@ function tholos(lod, seed, out) {
   }
   prof.push([ro + 0.04, top + 0.06], [ro, top + 0.06], [ro - 0.02, top - 0.08]);
   const dome = revolve(prof, { segments: seg, metres: 1, tint: (p) => 0.8 + 0.2 * Math.min(1, (p.y - yd) / 1.0) });
-  out.signinum.push(dome.translate(x, 0, z));
+  out.warmVault.push(dome.translate(x, 0, z));
   // The dark of the room under the opening (not the sky through a hollow shell).
   const hole = new CylinderGeometry(ro - 0.02, ro - 0.02, 0.02, lod ? 8 : 16, 1);
   out.dark.push(tintGeometry(boxUV(hole.translate(x, top - 0.1, z))));
@@ -505,7 +507,7 @@ function folk(mats, ice) {
 export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const keys = ['earth', 'sand', 'flags', 'floor', 'shelter', 'trav', 'stone', 'plaster', 'red', 'brick', 'signinum', 'tile', 'wood', 'dark', 'letters', 'marble', 'bronze', 'lead', 'iron',
-    'logs', 'blue', 'vents', 'glass', 'water', 'ice', 'stain', 'leaves', 'stream', 'labrumWater', 'doorOpen', 'doorShut', 'coalsLit', 'coalsCold'];
+    'logs', 'blue', 'vents', 'glass', 'water', 'ice', 'stain', 'leaves', 'stream', 'labrumWater', 'doorOpen', 'doorShut', 'coalsLit', 'coalsCold', 'charcoal', 'warmVault'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   caldarium(lod, seed, out);
   tholos(lod, seed + 20, out);
@@ -520,7 +522,7 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
     out.trav.push(...out.shelter.splice(0));
     out.flags.push(...out.floor.splice(0));
     out.wood.push(...out.logs.splice(0));
-    out.letters = out.lead = out.iron = out.leaves = out.stain = out.red = out.labrumWater = out.stream = out.coalsLit = out.coalsCold = out.glass = [];
+    out.letters = out.lead = out.iron = out.leaves = out.stain = out.red = out.labrumWater = out.stream = out.coalsLit = out.coalsCold = out.charcoal = out.glass = [];
     out.stone.length = 0;
   }
   const p = new TaggedParts('balneum');
@@ -534,7 +536,12 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
   p.add('walls', m.plaster, out.plaster);
   p.add('dado', m.red, out.red, small);
   p.add('brick', m.brick, out.brick);
-  p.add('vaults', m.signinum, out.signinum);
+  p.add('terrace', m.signinum, out.signinum);
+  // The vaults and the dome rendered in lime, warm grey-pink: snow lies on them while the
+  // baths are cold; while the fire is in, the heat under them melts it (a copy that holds little).
+  const render = { surface: 'limestone', color: 0xe6c8b6, vertexColors: true };
+  p.add('vaults', material('vault-render', { ...render, snow: 1 }), out.warmVault, { when: 'cold' });
+  p.add('vaults', material('vault-render-warm', { ...render, snow: 0.12 }), out.warmVault.map((g) => g.clone()), { when: 'flow' });
   p.add('roof', m.tile, [...out.tile, ...out.vents]);
   p.add('wood', m.wood, out.wood);
   p.add('inside', m.dark, out.dark, small);
@@ -555,6 +562,7 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
   p.add('doors', m.wood, out.doorShut, { when: 'cold' });
   p.add('coals', m.embers, out.coalsLit, { when: 'flow', cast: false });
   p.add('coals', m.ash, out.coalsCold, { when: 'cold', cast: false });
+  p.add('charcoal', m.dark, out.charcoal, small);
   // The caldarium's window: lit from within while the fire is in (the lanterns' horn, which the night lights).
   p.add('window', lanternPane(), out.glass, { when: 'flow', cast: false });
   p.add('window', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), out.glass.map((g) => g.clone()), { when: 'cold', cast: false });
@@ -568,18 +576,18 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
   }
   // Smoke from the flue stack and two of the vents while the fire is in; in a hard frost, steam from
   // the dome's top, the window and the vents. (At every level: the program must be compiled with the rest.)
-  const smoke = [lin(0x8a8580), lin(0x6a6560)];
+  const smoke = [lin(0x8a8580), lin(0x77716a)];
   const T = B.tholos;
   const C = B.caldarium;
   const rows = lod === 2 ? 3 : lod ? 5 : 8;
   p.add('smoke', steamMaterial(), [
-    plume(C.x1 + 0.2, 3.2, C.z0 + 0.2, { h: 1.5, r: 0.1, seed: 1, rows, rgb: smoke[1], alpha: 0.75, lean: [-0.45, 0.2] }),
-    ...(lod < 2 ? [-0.6, 1.8].map((x, i) => plume(x, C.spring + 0.32, C.z1 - 0.1, { h: 0.9, r: 0.05, seed: 2 + i, rows, rgb: smoke[0], alpha: 0.45, lean: [-0.25, 0.15] })) : []),
+    plume(C.x1 + 0.2, 3.2, C.z0 + 0.2, { h: 1.6, r: 0.15, n: 3, seed: 1, rows, rgb: smoke[1], alpha: 1, lean: [-0.45, 0.2] }),
+    ...(lod < 2 ? [-0.6, 1.8].map((x, i) => plume(x, C.spring + 0.32, C.z1 - 0.1, { h: 0.9, r: 0.07, seed: 2 + i, rows, rgb: smoke[0], alpha: 0.7, lean: [-0.25, 0.15] })) : []),
   ], { when: 'flow', cast: false });
   p.add('steam', steamMaterial(), [
-    plume(T.x, T.top + 0.04, T.z, { h: 1.3, r: 0.16, n: 3, seed: 5, rows, alpha: 0.85, lean: [0.3, 0.25] }),
-    plume(B.window[0] - 0.05, B.window[1] + 0.2, B.window[2], { h: 0.8, r: 0.12, seed: 6, rows, alpha: 0.6, lean: [-0.35, 0.2] }),
-    ...(lod < 2 ? [-0.6, 0.6, 1.8].map((x, i) => plume(x, C.spring + 0.32, C.z0 + 0.12, { h: 0.9, r: 0.06, seed: 7 + i, rows, alpha: 0.7, lean: [-0.2, 0.3] })) : []),
+    plume(T.x, T.top + 0.04, T.z, { h: 1.35, r: 0.2, n: 3, seed: 5, rows, alpha: 1, lean: [0.3, 0.25] }),
+    plume(B.window[0] - 0.05, B.window[1] + 0.2, B.window[2], { h: 0.9, r: 0.15, n: 3, seed: 6, rows, alpha: 0.9, lean: [-0.35, 0.2] }),
+    ...(lod < 2 ? [-0.6, 0.6, 1.8].map((x, i) => plume(x, C.spring + 0.32, C.z0 + 0.12, { h: 1.0, r: 0.08, seed: 7 + i, rows, alpha: 0.9, lean: [-0.2, 0.3] })) : []),
   ], { when: 'ice', cast: false });
   if (lod === 0) {
     const { list, things } = folk(m, ice);

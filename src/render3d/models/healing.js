@@ -383,7 +383,7 @@ export function herbBed(x0, x1, z0, z1, { lod = 0, seed = 1, rows = 3, bloom = 0
       const ball = bush(px, h + r0 * 0.6, pz, r0, { lod: 2, seed: seed * 17 + r * 7 + k, squash: 0.8 });
       for (const q of ball) {
         const c = q.attributes.color;
-        for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) / 0.045 * g[0] * 0.8, c.getY(i) / 0.11 * g[1] * 0.8, c.getZ(i) / 0.032 * g[2] * 0.8);
+        for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) / 0.045 * g[0] * 1.5, c.getY(i) / 0.11 * g[1] * 1.5, c.getZ(i) / 0.032 * g[2] * 1.5);
       }
       out.leaf.push(...ball);
       // Flowers on some rows (lavender, chamomile, poppy): a few dots over the crown, close up.
@@ -395,6 +395,30 @@ export function herbBed(x0, x1, z0, z1, { lod = 0, seed = 1, rows = 3, bloom = 0
         }
       }
     }
+  }
+  return out;
+}
+
+/**
+ * A bed of coals: lumps of charcoal heaped in a disc of radius r at (x, y, z),
+ * some of them glowing. Returns { hot, dark }: the glowing lumps (the
+ * embers' material, shown while the fire is in), the rest (charcoal, always).
+ * A cold fire shows its `hot` lumps in ash.
+ */
+export function coals(x, y, z, r, { seed = 1, lod = 0, n = 0 } = {}) {
+  const rnd = artRng(seed);
+  const out = { hot: [], dark: [] };
+  const count = n || (lod ? 10 : 26);
+  for (let k = 0; k < count; k++) {
+    const a = rnd() * Math.PI * 2;
+    const d = Math.sqrt(rnd()) * r;
+    const s = 0.025 + rnd() * 0.025;
+    const g = new SphereGeometry(s, lod ? 5 : 6, lod ? 3 : 4);
+    g.scale(1.2, 0.7, 1);
+    g.rotateY(rnd() * 3);
+    g.translate(x + Math.cos(a) * d, y + s * 0.5 + (1 - d / r) * r * 0.25, z + Math.sin(a) * d);
+    const t = 0.6 + rnd() * 0.4;
+    (k % 5 < 2 ? out.hot : out.dark).push(tintGeometry(boxUV(g), () => t));
   }
   return out;
 }
@@ -411,7 +435,7 @@ export function herbBed(x0, x1, z0, z1, { lod = 0, seed = 1, rows = 3, bloom = 0
  */
 export function steamMaterial() {
   // (Kept by the look's cache, which a shut-down back end empties: set up again on the next ask.)
-  const m = material('bath-steam', { color: 0xf4f2ee, roughness: 0.95, opacity: 0.55, snow: 0, wet: 0 });
+  const m = material('bath-steam', { color: 0xf4f2ee, roughness: 0.95, opacity: 0.9, snow: 0, wet: 0 });
   if (m.userData.steam) return m;
   m.userData.steam = true;
   // (The plain normal map swapped for a real one: one program either way, the texture differs.)

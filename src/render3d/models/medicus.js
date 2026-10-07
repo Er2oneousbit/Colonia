@@ -38,14 +38,14 @@
  * ----------------------------------------------------------------------------
  */
 
-import { BoxGeometry, CylinderGeometry, SphereGeometry } from 'three';
+import { BoxGeometry, CylinderGeometry } from 'three';
 import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, gableRoof, D } from './rural.js';
 import { staff, inscribe, people } from './castra.js';
 import { person, bush, box } from './learning.js';
-import { healthMaterials, lectus, table, potRow, pot, mortar, asclepius, towel, inFrame } from './healing.js';
+import { healthMaterials, lectus, table, potRow, pot, mortar, asclepius, towel, inFrame, coals } from './healing.js';
 
 /** The physician's measures (metres): the tests, the lab and the game read them. */
 export const MEDICUS = Object.freeze({
@@ -205,13 +205,16 @@ function inside(lod, seed, out) {
   const xl = -H + W;
   out.shelter.push(box(0.26, 0.04, 1.3, xl + 0.13, y0 + 1.55, -0.95, 0.8));
   if (lod < 2) {
-    if (lod === 0) out.terracotta.push(...potRow(-1.6, -0.3, y0 + 1.59, 0, { seed: seed + 31, lod, s: 0.16 }).map((g) => g.rotateY(Math.PI / 2).translate(xl + 0.13, 0, -0.95 + 0.0)));
+    if (lod === 0) out.terracotta.push(...potRow(-0.62, 0.62, y0 + 1.59, 0, { seed: seed + 31, lod, s: 0.16 }).map((g) => g.rotateY(Math.PI / 2).translate(xl + 0.13, 0, -0.95)));
     out.shelter.push(box(0.03, 0.03, 1.3, xl + 0.2, y0 + 1.42, -0.95, 0.6));
     if (lod === 0) {
-      for (let k = 0; k < 6; k++) {
-        const g = new CylinderGeometry(0.05, 0.012, 0.32, 6, 1);
-        g.translate(xl + 0.2, y0 + 1.25, -1.5 + k * 0.22);
-        out.herbs.push(tintGeometry(boxUV(g), () => (k % 2 ? [0.12, 0.13, 0.05] : [0.16, 0.12, 0.05])));
+      // (Bundles hung head down from the rod by their stalks: sage, rue, wormwood, drying grey-green and brown.)
+      for (let k = 0; k < 5; k++) {
+        const z = -1.45 + k * 0.25;
+        const g = new CylinderGeometry(0.045, 0.02, 0.2, 6, 1);
+        g.translate(xl + 0.2, y0 + 1.22, z);
+        out.herbs.push(tintGeometry(boxUV(g), () => [[0.09, 0.1, 0.05], [0.13, 0.1, 0.05], [0.07, 0.09, 0.06]][k % 3]));
+        out.shelter.push(box(0.012, 0.1, 0.012, xl + 0.2, y0 + 1.32, z, 0.6));
       }
     }
   }
@@ -223,11 +226,10 @@ function inside(lod, seed, out) {
     const a = (k / 3) * Math.PI * 2;
     out.bronze.push(staff([bx + Math.cos(a) * 0.17, y0, bz + Math.sin(a) * 0.17], [bx + Math.cos(a) * 0.12, y0 + 0.58, bz + Math.sin(a) * 0.12], 0.014, 4));
   }
-  const coals = new SphereGeometry(0.17, lod ? 8 : 12, 4, 0, Math.PI * 2, 0, Math.PI / 2);
-  coals.scale(1, 0.25, 1);
-  coals.translate(bx, y0 + 0.62, bz);
-  out.coalsLit.push(tintGeometry(boxUV(coals), (px, py, pz) => 0.6 + 0.4 * Math.abs(Math.sin(px * 40 + pz * 37))));
-  out.coalsCold.push(tintGeometry(boxUV(coals.clone()), () => 0.8));
+  const heap = coals(bx, y0 + 0.6, bz, 0.15, { seed: seed + 51, lod, n: lod ? 8 : 18 });
+  out.coalsLit.push(...heap.hot);
+  out.coalsCold.push(...heap.hot.map((g) => g.clone()));
+  out.dark.push(...heap.dark);
 }
 
 /** The boards across the opening (shut). */
@@ -245,15 +247,21 @@ function folk(mats) {
   const things = { linen: [] };
   const y0 = M.floorY;
   const [cx, cz] = M.couch;
-  // The patient, sitting on the couch's edge facing the street, his left arm held out (bound at the forearm).
-  const px = cx + 0.2;
-  const pz = cz + 0.12;
-  list.push(...person(mats, { cloth: 0x8a5a3a, hair: 0x2e2119, skin: 0xb08060, sit: 0.56, arms: [[-0.12, 0.76, 0.3], [0.42, 0.95, 0.34]], lean: 0.06 }, px, y0, pz, 0));
-  things.linen.push(box(0.12, 0.07, 0.07, px + 0.3, y0 + 0.9, pz + 0.3, 0.95));
-  // The doctor, in a Greek mantle, standing before him: one hand at the wrist, the other at the elbow.
-  const dx = px + 0.62;
-  const dz = pz + 0.55;
-  const dry = -Math.PI * 0.72;
+  // The patient, sitting on the couch's edge, turned toward the doctor, his arm held out to him (a
+  // bandage at the forearm). The two face each other across the street's diagonal, so the game's
+  // camera, which looks in from the street's corner, sees both in profile.
+  const px = cx + 0.25;
+  const pz = cz + 0.1;
+  const pry = -Math.PI / 4;
+  list.push(...person(mats, { cloth: 0x8a5a3a, hair: 0x2e2119, skin: 0xb08060, sit: 0.56, arms: [[-0.12, 0.76, 0.3], [0.1, 0.95, 0.44]], lean: 0.06 }, px, y0, pz, pry));
+  const [wx, wz] = inFrame(px, pz, pry, 0.1, 0.44);
+  const [bx, bz] = inFrame(px, pz, pry, 0.12, 0.32);
+  const band = box(0.08, 0.07, 0.14, 0, 0, 0, 0.95);
+  band.rotateY(pry);
+  things.linen.push(band.translate(bx, y0 + 0.93, bz));
+  // The doctor, in a Greek mantle, standing before him: one hand at the wrist (the pulse), the other under the arm.
+  const [dx, dz] = inFrame(px, pz, pry, 0.05, 0.86);
+  const dry = pry + Math.PI;
   const toLocal = (wx, wy, wz) => {
     // (A point of the room in the doctor's own frame: his right +x, ahead +z.)
     const c = Math.cos(dry);
@@ -262,7 +270,7 @@ function folk(mats) {
     const oz = wz - dz;
     return [ox * c - oz * s, wy - y0, ox * s + oz * c];
   };
-  list.push(...person(mats, { cloth: 0xe0d8c4, cloth2: 0x4a5a6a, hair: 0x6a625a, beard: true, long: true, arms: [toLocal(px + 0.42, y0 + 1.0, pz + 0.36), toLocal(px + 0.3, y0 + 0.98, pz + 0.24)] }, dx, y0, dz, dry));
+  list.push(...person(mats, { cloth: 0xe0d8c4, cloth2: 0x4a5a6a, hair: 0x6a625a, beard: true, long: true, arms: [toLocal(wx, y0 + 1.0, wz), toLocal(bx, y0 + 0.9, bz)] }, dx, y0, dz, dry));
   // The assistant at the table, grinding: seated on a stool, leaning to the mortar.
   const ax = H - W - 0.95;
   const az = -0.12;

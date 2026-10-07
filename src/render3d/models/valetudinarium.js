@@ -71,8 +71,8 @@ export const VALETUDINARIUM = Object.freeze({
   /** The gate in the street wall: its opening (|x|), its piers' height. */
   gate: 0.8,
   gateH: 2.45,
-  /** The lanterns at the gate (x, y, z), on its piers, facing the street. */
-  lamps: Object.freeze([Object.freeze([-1.08, 2.53, 5.73]), Object.freeze([1.08, 2.53, 5.73])]),
+  /** The lanterns: on the gate's piers, and one hung by the hall's door (x, y, z), facing the street. */
+  lamps: Object.freeze([Object.freeze([-1.08, 2.53, 5.73]), Object.freeze([1.08, 2.53, 5.73]), Object.freeze([1.16, 2.02, -2.8])]),
 });
 
 const V = VALETUDINARIUM;
@@ -166,6 +166,7 @@ function sideRange(lod, seed) {
     out.plaster.push(box(T, E - 0.12, wz - 0.22 - z, xo + T / 2, 0, (z + wz - 0.22) / 2, 0.93));
     out.plaster.push(box(T, 1.65, 0.44, xo + T / 2, 0, wz, 0.93), box(T, E - 0.12 - 2.05, 0.44, xo + T / 2, 2.05, wz, 0.93));
     out.dark.push(box(0.02, 0.4, 0.44, xo + 0.06, 1.65, wz));
+    out.trav.push(slab(0.1, 0.05, 0.56, { bevel: 0.008, seed: Math.round(wz * 13), wobble: 0, tone: 0.03, grime: 0 }).translate(xo + 0.0, 1.6, wz));
     z = wz + 0.22;
   }
   out.plaster.push(box(T, E - 0.12, zf - z, xo + T / 2, 0, (z + zf) / 2, 0.93));
@@ -195,7 +196,14 @@ function sideRange(lod, seed) {
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
   out.plaster.push(gableWall(roofX0 - 0.23, roofX1 + 0.1, zf - T / 2, E, roof.ridgeY));
-  if (lod < 2) out.dark.push(box(0.5, 0.36, 0.02, (xo + xw) / 2, 1.5, zf + 0.002));
+  if (lod < 2) {
+    // A window in the gable end: its dark on the wall's face, a sill of travertine, a wooden frame, two bars.
+    const wx = (xo + xw) / 2;
+    out.dark.push(box(0.5, 0.36, 0.006, wx, 1.5, zf + 0.004));
+    out.trav.push(slab(0.66, 0.05, 0.12, { bevel: 0.008, seed: seed + 17, wobble: 0, tone: 0.03, grime: 0 }).translate(wx, 1.45, zf + 0.02));
+    for (const [w, h, x, y] of [[0.58, 0.04, wx, 1.86], [0.04, 0.36, wx - 0.27, 1.5], [0.04, 0.36, wx + 0.27, 1.5]]) out.wood.push(box(w, h, 0.05, x, y, zf + 0.0, 0.6));
+    if (lod === 0) for (const dx of [-0.09, 0.09]) out.wood.push(box(0.02, 0.36, 0.02, wx + dx, 1.5, zf + 0.02, 0.4));
+  }
   // The beds, one in each ward, along its outer wall.
   const beds = V.sideDoors.map((dz) => [xo + T + 0.45, dz]);
   return { out, beds };
@@ -251,7 +259,8 @@ function backRange(lod, seed, out) {
     out.wood.push(...roof.wood);
     // The outer gable at the corner.
     const gw = gableWall(zo + 0.0, zc + 0.4, 0, E, roof.ridgeY);
-    gw.rotateY(Math.PI / 2);
+    // (Built along x: a quarter turn the other way brings x onto z, the back's -z.)
+    gw.rotateY(-Math.PI / 2);
     gw.translate(s * (xo - T / 2), 0, 0);
     out.plaster.push(gw);
   }
@@ -297,6 +306,8 @@ function hall(lod, seed, out) {
     c.rotateX(Math.PI / 2);
     c.translate(0, eave + 0.36, zf + 0.01);
     out.dark.push(tintGeometry(boxUV(c)));
+    // (Crossed bronze bars in it, close up.)
+    if (lod === 0) for (const a of [0, Math.PI / 2]) out.bronze.push(box(0.4, 0.025, 0.025, 0, 0, 0, 0.8).translate(0, -0.0125, 0).rotateZ(a).translate(0, eave + 0.36, zf + 0.03));
     const ring = new CylinderGeometry(0.25, 0.25, 0.05, lod ? 12 : 24, 1, true);
     ring.rotateX(Math.PI / 2);
     ring.translate(0, eave + 0.36, zf + 0.02);
@@ -415,8 +426,9 @@ function folk(mats, beds) {
   things.bronze.push(...bb.bowl);
   // In the hall: the patient on the table, the surgeon at his side, an orderly holding the lamp and the dressings.
   list.push(...abed(mats, { cloth: 0xd8cdb4, hair: 0x2e2119, skin: 0xb88a64 }, 0.0, fy + 0.8, -4.25, Math.PI / 2, { blanket: 0xe8e0d0 }));
-  list.push(...person(mats, { cloth: 0xe0d8c4, hair: 0x6a625a, skin: 0xa87a58, beard: true, long: true, arms: [[-0.2, 1.0, 0.42], [0.18, 1.02, 0.36]] }, 0.2, fy, -3.5, Math.PI));
-  list.push(...person(mats, { cloth: 0x8a7a62, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, -0.95, fy, -3.65, Math.PI * 0.8));
+  // (The surgeon across the table from the door, so the court sees him at work; the orderly at the patient's head.)
+  list.push(...person(mats, { cloth: 0xe0d8c4, hair: 0x6a625a, skin: 0xa87a58, beard: true, long: true, arms: [[-0.2, 1.0, 0.42], [0.18, 1.02, 0.36]] }, 0.15, fy, -4.95, 0.1));
+  list.push(...person(mats, { cloth: 0x8a7a62, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, -1.22, fy, -4.2, Math.PI / 2));
   return { list, things };
 }
 
@@ -424,7 +436,7 @@ function folk(mats, beds) {
 export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const keys = ['plaster', 'red', 'redIn', 'floor', 'trav', 'tile', 'wood', 'dark', 'shelter', 'linen', 'doorOpen', 'doorShut', 'gravel', 'flags', 'marble',
-    'bedWood', 'soil', 'leaf', 'bloom', 'snake', 'letters', 'pots', 'beds', 'bedCloth'];
+    'bedWood', 'soil', 'leaf', 'bloom', 'snake', 'letters', 'pots', 'beds', 'bedCloth', 'bronze'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   // The side ranges: the left one built, a copy mirrored for the right.
   const left = sideRange(lod, seed);
@@ -454,7 +466,7 @@ export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
   if (lod === 2) {
     out.wood.push(...out.bedWood.splice(0));
     out.plaster.push(...out.redIn.splice(0));
-    out.letters = out.snake = out.bloom = out.pots = [];
+    out.letters = out.snake = out.bloom = out.pots = out.bronze = [];
   }
   const p = new TaggedParts('valetudinarium');
   const small = { cast: false };
@@ -476,12 +488,15 @@ export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
   p.add('serpent', m.gilt, out.snake, small);
   p.add('letters', m.letters, out.letters, small);
   p.add('pots', m.clay, out.pots, small);
+  p.add('bronze', m.bronze, out.bronze, small);
   p.add('doors', m.wood, out.doorOpen, { when: 'open' });
   p.add('doors', m.wood, out.doorShut, { when: 'shut' });
   if (lod < 2) {
     for (const [lx, ly, lz] of V.lamps) {
       const l = lantern(lx, ly, lz, lod);
-      p.add('lantern', m.bronze, l.bronze, small);
+      // (The hall's hangs from an iron bracket out of its wall; the gate's stand on the piers' caps.)
+      const hung = lz < 0 ? [staff([lx, ly + 0.3, lz], [lx, ly + 0.42, lz], 0.01, 4), staff([lx, ly + 0.42, lz], [lx, ly + 0.42, V.hall.z], 0.012, 4)] : [];
+      p.add('lantern', m.bronze, [...l.bronze, ...hung], small);
       p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
       p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
     }
