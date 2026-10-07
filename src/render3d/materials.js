@@ -119,6 +119,7 @@ uniform vec2 uLookSway;
 uniform float uLookKind;
 uniform float uLookClipY;
 uniform float uLookMetres;
+uniform float uLookWorldUV;
 varying vec3 vLookWPos;
 varying vec3 vLookWNormal;
 float lookHash( vec3 p ) {
@@ -149,6 +150,28 @@ const VERT_WORLD = /* glsl */ `
   lw = modelMatrix * lw;
   vLookWPos = lw.xyz * uLookMetres;
   vLookWNormal = normalize( mat3( modelMatrix ) * ln );
+  // A town wall's stone (uLookWorldUV): its texture read at the world's metres on the face's own
+  // plane, so a wall of many tiles, each a copy of a few pieces turned every way, is one surface
+  // whose stones run on from tile to tile and never repeat with them (models/townWall.js).
+  if ( uLookWorldUV > 0.5 ) {
+    vec3 an = abs( vLookWNormal );
+    vec2 wuv = an.y > max( an.x, an.z ) ? vLookWPos.xz : an.x > an.z ? vLookWPos.zy : vLookWPos.xy;
+    #ifdef USE_MAP
+      vMapUv = ( mapTransform * vec3( wuv, 1 ) ).xy;
+    #endif
+    #ifdef USE_NORMALMAP
+      vNormalMapUv = ( normalMapTransform * vec3( wuv, 1 ) ).xy;
+    #endif
+    #ifdef USE_ROUGHNESSMAP
+      vRoughnessMapUv = ( roughnessMapTransform * vec3( wuv, 1 ) ).xy;
+    #endif
+    #ifdef USE_METALNESSMAP
+      vMetalnessMapUv = ( metalnessMapTransform * vec3( wuv, 1 ) ).xy;
+    #endif
+    #ifdef USE_AOMAP
+      vAoMapUv = ( aoMapTransform * vec3( wuv, 1 ) ).xy;
+    #endif
+  }
 }
 `;
 
@@ -301,11 +324,13 @@ const FRAG_FADE = /* glsl */ `
  * `snow` is how much snow sticks (0..1), `wet` how much it darkens when wet,
  * `sway` (metres at the tip) bends the vertices with the wind, by their
  * height over `swayH` (a grass blade's own height, a tree's), as `kind`
- * (LOOK_KIND: grass by default when it sways) bends.
+ * (LOOK_KIND: grass by default when it sways) bends; `worldUV` reads the
+ * textures at the world's metres on each face (a town wall's stone).
  */
-export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1, kind = sway > 0 ? LOOK_KIND.GRASS : LOOK_KIND.PLAIN } = {}) {
+export function patchLook(mat, { snow = 1, wet = 1, sway = 0, swayH = 1, kind = sway > 0 ? LOOK_KIND.GRASS : LOOK_KIND.PLAIN, worldUV = false } = {}) {
   const own = {
     uLookSnowMul: { value: snow }, uLookWetMul: { value: wet }, uLookSway: { value: new Vector2(sway, swayH) }, uLookKind: { value: kind },
+    uLookWorldUV: { value: worldUV ? 1 : 0 },
   };
   mat.userData.look = own;
   mat.onBeforeCompile = (shader) => {
@@ -453,7 +478,7 @@ export function material(key, opts = {}) {
   if (m) return m;
   const {
     surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = true,
-    physical = false, side, sway = 0, swayH = 1, kind, emissive, emissiveIntensity, roughness, metalness, opacity,
+    physical = false, side, sway = 0, swayH = 1, kind, emissive, emissiveIntensity, roughness, metalness, opacity, worldUV = false,
   } = opts;
   const p = { color: new Color(color), vertexColors };
   if (surface) {
@@ -484,7 +509,7 @@ export function material(key, opts = {}) {
   }
   m = physical ? new MeshPhysicalMaterial(p) : new MeshStandardMaterial(p);
   m.name = key;
-  patchLook(m, { snow, wet, sway, swayH, ...(kind === undefined ? {} : { kind }) });
+  patchLook(m, { snow, wet, sway, swayH, worldUV, ...(kind === undefined ? {} : { kind }) });
   CACHE.set(key, m);
   return m;
 }

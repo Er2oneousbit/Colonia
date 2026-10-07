@@ -59,6 +59,7 @@ import { buildFountainScene } from './labFountain.js';
 import { ruralScenes } from './labRural.js';
 import { buildWoodsScene } from './labWoods.js';
 import { buildCommerceScenes } from './labCommerce.js';
+import { buildWallsScene } from './labWalls.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
@@ -294,7 +295,8 @@ async function main() {
   /** The Woods scene (labWoods.js), made with the lab's buttons below. */
   let woods = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
-  const commerce = buildCommerceScenes();
+  // (The Walls scene, labWalls.js, takes the same calls.)
+  const commerce = { ...buildCommerceScenes(), ...buildWallsScene() };
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -478,6 +480,12 @@ async function main() {
       sc.top = 66;
       sc.bottom = -66;
       sc.far = 200;
+      sc.updateProjectionMatrix();
+    } else if (commerce[name] && commerce[name].shadowBox) {
+      // (A scene wider than the lab's square: the Walls scene's town.)
+      const sc = look.sun.shadow.camera;
+      const half = commerce[name].shadowBox;
+      Object.assign(sc, { left: -half, right: half, top: half, bottom: -half, far: 200 });
       sc.updateProjectionMatrix();
     }
     groundGroup.visible = name === 'ground';
@@ -685,6 +693,8 @@ async function main() {
     else if (k === 'j') setScene('forum');
     else if (k === 'x') setScene('warehouse');
     else if (k === 's') setScene('services');
+    else if (k === 'a') setScene('walls');
+    else if (commerce[state.scene] && commerce[state.scene].onKey && commerce[state.scene].onKey(k)) refreshButtons();
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
@@ -881,6 +891,8 @@ async function main() {
     /** The Market, Forum and Warehouse scenes: a model's triangles at a level of detail (and its goods'). */
     commerceTriangles: (id, l) => commerce[id].triangles(l),
     setCommerceLod: (n) => setFountainLod(n),
+    /** The Walls scene (labWalls.js): its pieces, setLook(stone), setLod via setCommerceLod. */
+    walls: commerce.walls,
     /** The Farms and Granary scenes (labRural.js): their state, level of detail and triangles. */
     rural: {
       setFarms: (st) => rural.setFarms(st),
