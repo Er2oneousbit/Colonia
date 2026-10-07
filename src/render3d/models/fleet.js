@@ -30,6 +30,7 @@
 import { Group, Matrix4, Quaternion, Vector3 } from 'three';
 import { buildNavalia, buildNavaliaHull, NAVALIA } from './navalia.js';
 import { buildStatio, STATIO } from './statio.js';
+import { buildPortus, buildPortusPart, PORTUS } from './portus.js';
 import { waterRowsSide } from '../../sim/entities.js';
 
 /** A hard frost: the sprites' deep snow (levels 2 and 3 of 0..3), as models.js reads it; the water's margins freeze. */
@@ -135,6 +136,7 @@ function lampsAt(points, side) {
 }
 const NAVALIA_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(NAVALIA.lamps, s));
 const STATIO_LAMPS = [0, 1, 2, 3].map((s) => lampsAt([STATIO.fire], s));
+const PORTUS_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(PORTUS.lamps, s));
 
 export const FLEET_MODELS = Object.freeze({
   navalia: Object.freeze({
@@ -184,4 +186,44 @@ export const FLEET_MODELS = Object.freeze({
       return buildStatio({ lod, ice: kind === 'ice' }).group;
     },
   }),
+  portus: Object.freeze({
+    warm: ['portus', 'portus:drill', 'portus:corvus:up'],
+    lamps: (b) => (b.efficiency > 0 ? PORTUS_LAMPS[waterSideOf(b, null)] : []),
+    variant(b, place, ctx) {
+      const side = waterSideOf(b, ctx);
+      const state = staffedState(b);
+      const ice = frost(place);
+      const drill = portusDrill(b, ctx && ctx.game);
+      const more = cached(`portus|${side}|${state}|${ice ? 1 : 0}|${drill ? 1 : 0}`, () => {
+        const mats = SIDE_MATS[side];
+        return [
+          { key: ice ? 'portus:ice' : 'portus', n: 1, mats, state },
+          // At drill the oars are at the frame and the corvus is down on the hulk; else racked and raised.
+          drill ? { key: 'portus:drill', n: 1, mats, state: 'always' } : { key: 'portus:rack', n: 1, mats, state: 'always' },
+          { key: drill ? 'portus:corvus:down' : 'portus:corvus:up', n: 1, mats, state: 'always' },
+        ];
+      });
+      return { key: 'portus:none', state, ice: false, more };
+    },
+    build(key, lod) {
+      const kind = key.split(':').slice(1).join(':');
+      if (kind === 'none') return new Group();
+      if (kind === '' || kind === 'ice') return buildPortus({ lod, ice: kind === 'ice' }).group;
+      return buildPortusPart(kind, { lod }).group;
+    },
+  }),
 });
+
+/**
+ * Is a new ship's crew at drill at this Portus? A liburnian moored at its
+ * berth training (sim/training.js trainAt: state 'training', `drill` the
+ * school's id), while the Portus is fully staffed and reached by road, so
+ * the days count (as sim/training.js trainsNow, read without its berth
+ * lookup, which caches on the building). A ghost has no id and no ships.
+ */
+export function portusDrill(b, game) {
+  if (b.id === null || b.id === undefined || !game || !game.units) return false;
+  if (!(b.efficiency >= 1) || b.accessRoad < 0) return false;
+  for (const u of game.units.values()) if (u.drill === b.id && u.state === 'training') return true;
+  return false;
+}

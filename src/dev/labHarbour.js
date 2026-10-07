@@ -140,6 +140,9 @@ export const HARBOUR_SCENE = Object.freeze({
     // South shore: footprint rows 12 and 13 (water), 14 (land), facing -y (side 0).
     { type: 'naval_station', name: 'Statio', note: 'staffed, the beacon lit', x: 2, y: 12, side: 0, b: { efficiency: 1 } },
     { type: 'naval_station', name: 'Statio', note: 'idle', x: 6, y: 12, side: 0, b: { efficiency: 0 } },
+    { type: 'portus', name: 'Portus', note: 'idle', x: 10, y: 12, side: 0, b: { efficiency: 0 } },
+    { type: 'portus', name: 'Portus', note: 'staffed, no crew in training', x: 14, y: 12, side: 0, b: { efficiency: 1 } },
+    { type: 'portus', name: 'Portus', note: 'a new crew at drill', x: 18, y: 12, side: 0, b: { efficiency: 1 }, train: true },
   ]),
 });
 
@@ -204,6 +207,8 @@ export function buildHarbourScene(tex, quality = 'high') {
     // The footprint's middle, in metres.
     holder.position.set(ORIGIN_X + (s.x + 1.5) * 4, 0, ORIGIN_Z + (s.y + 1.5) * 4);
     group.add(holder);
+    // (A training ship moored at its berth, as the sim keeps one at a Portus: sim/training.js trainAt.)
+    if (s.train) game.units.set(900 + k, { id: 900 + k, type: 'liburnian', drill: 100 + k, state: 'training' });
     return { ...s, holder, id: 100 + k, tris: 0 };
   });
   const _m = new Matrix4();
