@@ -225,7 +225,7 @@ test('decor3d: each level of detail is lighter than the one before, and within b
     'statue_large:equestrian:worn': [36000, 12000, 4500],
     'statue_large:enthroned:worn': [36000, 12000, 4500],
     gardener_yard: [14000, 4000, 1500],
-    'triumphal_arch:0': [80000, 24000, 8000],
+    'triumphal_arch:0': [80000, 26000, 9000],
   };
   for (const [key, b] of Object.entries(budget)) {
     const t = [0, 1, 2].map((l) => kitOf(modelFor(key).build(key, l)).triangles);

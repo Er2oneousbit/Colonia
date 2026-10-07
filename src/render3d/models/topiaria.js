@@ -40,6 +40,7 @@ import { slab, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, ruralMaterials, wallRun, leanTo, wattleFence, heap, basket, blk } from './rural.js';
 import { people, staff } from './castra.js';
 import { learningMaterials, person } from './learning.js';
+import { hortusMaterials } from './hortus.js';
 
 /** The yard's measures (metres): the tests, the lab and the game read them. */
 export const TOPIARIA = Object.freeze({
@@ -214,10 +215,11 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
   const m = { ...ruralMaterials(), ...learningMaterials() };
   const p = new TaggedParts('gardener_yard');
   const small = { cast: lod === 0 };
-  p.add('soil', material('garden-loam', { surface: 'earth', color: 0x8a6a4c, vertexColors: true, snow: 1 }), out.soil, { cast: false });
-  p.add('gravel', material('garden-gravel', { surface: 'earth', color: 0xe6d8bc, vertexColors: true, snow: 1 }), out.gravel, { cast: false });
+  const hm = hortusMaterials();
+  p.add('soil', hm.soil, out.soil, { cast: false });
+  p.add('gravel', hm.gravel, out.gravel, { cast: false });
   p.add('wall', ruralMaterials().wall, out.wall);
-  p.add('daub', material('garden-stucco', { surface: 'limestone', color: 0xf4efe4, vertexColors: true, snow: 1 }), out.daub);
+  p.add('daub', hm.plaster, out.daub);
   p.add('cap', m.stone, out.cap);
   p.add('roof', m.tile, out.tile);
   p.add('wood', m.wood, [...out.wood]);
@@ -227,7 +229,7 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
   p.add('pots', m.clay, out.clay);
   p.add('inside', ruralMaterials().dark, out.dark, { cast: false });
   p.add('seedlings', ruralMaterials().leaf, out.leaf, small);
-  p.add('box', material('box-hedge', { surface: 'boxleaf', vertexColors: true, snow: 0.9, wet: 0.6, normal: 1.4 }), out.box);
+  p.add('box', hm.box, out.box);
   p.add('compost', m.earth, out.compost, { cast: false });
   p.add('wicker', m.wicker, out.wicker);
   p.add('gates', m.wood, out.gateOpen, { when: 'open' });

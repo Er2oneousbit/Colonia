@@ -149,17 +149,38 @@ function sprays(out, { sp, tex, x, cy, z, r, hh, n, size, palette, rnd, up = 0.3
  * plot, and cut off at the ground (what is under it is never seen).
  */
 export function groundWeeds(n, x0, x1, z0, z1, seed, lod, y = 0.02) {
-  return weeds(n, x0, x1, z0, z1, seed, Math.max(1, lod)).map((g) => {
-    g.translate(0, y, 0);
-    const P = g.attributes.position;
-    const C = g.attributes.color;
-    for (let i = 0; i < P.count; i++) {
-      if (P.getY(i) < 0) P.setY(i, 0);
-      C.setXYZ(i, C.getX(i) * 0.62, C.getY(i) * 0.6, C.getZ(i) * 0.5);
+  // Far out a tuft is a few pixels: the countryside's lumps will do.
+  if (lod === 2) return weeds(Math.ceil(n / 2), x0, x1, z0, z1, seed, 1).map((g) => clampUp(g.translate(0, y, 0)));
+  // Close up, grass and weeds as they come up in a joint or a walk: tufts of blades fanning out,
+  // green going to straw, a dandelion's yellow head here and there.
+  const rnd = artRng(seed);
+  const out = [];
+  const blades = lod ? 3 : 6;
+  for (let k = 0; k < n; k++) {
+    const cx = x0 + rnd() * (x1 - x0);
+    const cz = z0 + rnd() * (z1 - z0);
+    const tone = lin(pick(rnd, [0x6a7a34, 0x7a8238, 0x8a8440, 0x9a8a4c, 0x5e7030]));
+    for (let j = 0; j < blades; j++) {
+      const a = rnd() * Math.PI * 2;
+      const h = 0.1 + rnd() * 0.22;
+      const g = new CylinderGeometry(0.002, 0.014, h, 3, 1);
+      g.translate(0, h / 2, 0);
+      g.rotateZ(0.35 + rnd() * 0.4);
+      g.rotateY(a);
+      g.translate(cx + (rnd() - 0.5) * 0.06, y, cz + (rnd() - 0.5) * 0.06);
+      out.push(tintGeometry(boxUV(g), (px, py) => tone.map((v) => v * (0.55 + 0.45 * Math.min(1, (py - y) / h)))));
     }
-    g.computeVertexNormals();
-    return g;
-  });
+    if (lod === 0 && rnd() < 0.25) out.push(balls([{ p: [cx, y + 0.16, cz], r: 0.022, c: lin(0xd8b830) }], 0));
+  }
+  return out;
+}
+
+/** A geometry's points under the ground lifted onto it. */
+function clampUp(g) {
+  const P = g.attributes.position;
+  for (let i = 0; i < P.count; i++) if (P.getY(i) < 0) P.setY(i, 0);
+  g.computeVertexNormals();
+  return g;
 }
 
 /** A lumpy closed clump (far out, and the ghost's): a welded icosphere pushed about, its colour by height. */
@@ -279,7 +300,7 @@ function acanthus(out, x, z, { season, worn, lod, rnd, plain }) {
       const sz = z + (rnd() - 0.5) * 0.2;
       const hgt = 0.9 + rnd() * 0.3;
       out.bark.push(tintGeometry(boxUV(new CylinderGeometry(0.012, 0.016, hgt, 4, 1).translate(sx, hgt / 2, sz)), () => lin(0x6a7a40)));
-      out.fruit.push(tintGeometry(boxUV(new CylinderGeometry(0.02, 0.05, hgt * 0.45, lod ? 5 : 7, 1).translate(sx, hgt * 0.78, sz)), (px, py) => lin((Math.floor(py * 40) & 1) ? 0xc0a8c8 : 0xece6ea)));
+      out.fruit.push(tintGeometry(boxUV(new CylinderGeometry(0.008, 0.04, hgt * 0.42, lod ? 5 : 7, lod ? 1 : 6).translate(sx, hgt * 0.78, sz)), (px, py) => lin((Math.floor(py * 30) & 1) ? 0x9a7a9c : 0xd8ccd6)));
     }
   }
 }
@@ -392,7 +413,7 @@ function hedgeRun(x0, x1, { worn, lod, round0 = false, round1 = false, height = 
       if (!worn) return base;
       // Browning in patches, worst at the foot.
       const brown = smoothstep(0.2, 0.7, 0.5 + 0.5 * Math.sin(p.z * 2.3 + 1) * Math.sin(p.z * 5.1));
-      return [base * (1.0 + 0.35 * brown), base * (0.92 - 0.1 * brown), base * (0.55 - 0.15 * brown)];
+      return [base * (1.3 + 0.5 * brown), base * (1.02 - 0.05 * brown), base * (0.5 - 0.15 * brown)];
     },
   });
   // Built with x along the loft's z: turn it so the run lies along x (z -> x), on the +z side.
@@ -667,6 +688,15 @@ function beds(design, out, o) {
     pool: [['oleander', 1, -1], ['oleander', -1, 1], ['rose', 1, 1], ['acanthus', -1, -1]],
   };
   for (const [what, sx, sz] of plans[design]) plant[what](at(sx, sz));
+  // Low herbs between the plants (the beds were never bare earth: Jashemski's root cavities are
+  // thick in them), close up only.
+  if (o.lod === 0 && !o.plain && o.season !== 'winter') {
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        for (let k = 0; k < 4; k++) out.solid.push(clump(sx * (0.48 + rnd() * 0.95), 0.035, sz * (0.48 + rnd() * 0.95), 0.07 + rnd() * 0.05, 0.55, o.worn ? 0x6e6a36 : pick(rnd, [0x46602e, 0x52683a, 0x3e5a2a]), 0, rnd));
+      }
+    }
+  }
   // Violets along the beds' walk edges, in two of them.
   violets(out, WALK + 0.1, 1.45, WALK + 0.12, o);
   violets(out, -1.45, -WALK - 0.1, -WALK - 0.12, o);
@@ -696,7 +726,7 @@ export function hortusMaterials() {
   const c = castraMaterials();
   const r = ruralMaterials();
   return {
-    soil: material('garden-loam', { surface: 'earth', color: 0x8a6a4c, vertexColors: true, snow: 1 }),
+    soil: material('garden-loam', { surface: 'earth', color: 0x9c7c5c, vertexColors: true, snow: 1 }),
     gravel: material('garden-gravel', { surface: 'earth', color: 0xe6d8bc, vertexColors: true, snow: 1, rough: 1 }),
     tile: c.clay,
     marble: c.marble,

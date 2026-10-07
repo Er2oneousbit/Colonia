@@ -75,7 +75,10 @@ const gauss = (v, w) => Math.exp(-(v * v) / (w * w));
  *   caps           close both ends (only for a full turn)
  * Faces point out of the skin; normals are smooth.
  */
-export function loft(rings, { seg = 16, axis = 'y', deform = null, tint = null, caps = true, a0 = 0, a1 = TAU } = {}) {
+export function loft(rings, { seg = 16, axis = 'y', deform = null, tint = null, caps = true, a0 = 0, a1 = TAU, smooth = 1 } = {}) {
+  // `smooth`: rings between the given ones (a Catmull-Rom curve through each of a ring's numbers), so
+  // a few rings make a body that turns smoothly, not one of flat bands a polished bronze shows up.
+  if (smooth > 1 && rings.length > 2) rings = smoothRings(rings, smooth);
   const N = rings.length;
   const full = Math.abs(a1 - a0 - TAU) < 1e-6;
   const cols = seg + 1;
@@ -172,6 +175,30 @@ export function loft(rings, { seg = 16, axis = 'y', deform = null, tint = null, 
     }
   }
   return g;
+}
+
+/** Rings `k` times as many, each number of a ring on a Catmull-Rom curve through the given ones. */
+function smoothRings(rings, k) {
+  const out = [];
+  const n = rings.length;
+  const at = (i) => rings[Math.max(0, Math.min(n - 1, i))];
+  for (let i = 0; i < n - 1; i++) {
+    for (let s = 0; s < k; s++) {
+      const t = s / k;
+      const p0 = at(i - 1);
+      const p1 = at(i);
+      const p2 = at(i + 1);
+      const p3 = at(i + 2);
+      out.push(p1.map((_, j) => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t * t * t)));
+    }
+  }
+  out.push(rings[n - 1]);
+  // (A curve may overshoot a radius to below nothing at a pointed end: keep them positive.)
+  for (const r of out) {
+    r[3] = Math.max(0.001, r[3]);
+    r[4] = Math.max(0.001, r[4]);
+  }
+  return out;
 }
 
 /** A ball of radius r squashed by (sx, sy, sz) at (x, y, z): a joint, a deltoid, a fist. */
@@ -382,7 +409,7 @@ function torso(lod, { cuirass = false, shift = 0, sway = 1 } = {}) {
   // (A hero's build: broader and deeper than the town's people, as the sculptors gave it.)
   const rings = TORSO.filter((r, i) => lod < 2 || i % 2 === 0 || i === TORSO.length - 1).map((r, i, a) => [r[0] + shift, r[1], r[2], r[3] * (i === a.length - 1 ? 1.15 : 1.1), r[4] * (i === a.length - 1 ? 1.1 : 1.14)]);
   return loft(rings, {
-    seg,
+    seg, smooth: lod === 2 ? 1 : lod ? 2 : 3,
     deform: (p, th) => {
       const y = p.y - shift;
       const front = Math.max(0, Math.cos(th));
@@ -643,7 +670,7 @@ export function horse({ lod = 0, pose = 'step', turnHead = 0.18, cloth = true } 
     [-0.12, 0, 1.14, 0.255, 0.3], [0.2, 0, 1.17, 0.25, 0.31], [0.42, 0, 1.22, 0.225, 0.3], [0.56, 0, 1.27, 0.17, 0.25], [0.64, 0, 1.32, 0.06, 0.08],
   ];
   body.push(loft(lod === 2 ? rings.filter((r, i) => i % 2 === 0) : rings, {
-    axis: 'z', seg,
+    axis: 'z', seg, smooth: lod === 2 ? 1 : lod ? 2 : 4,
     deform: (p, th) => {
       // A flat back, the croup rounded either side of the spine, the belly hanging.
       const top = Math.max(0, Math.cos(th));
@@ -663,7 +690,7 @@ export function horse({ lod = 0, pose = 'step', turnHead = 0.18, cloth = true } 
   body.push(neck);
   const headRings = [[-0.06, 0, 0.01, 0.06, 0.08], [0.0, 0, -0.005, 0.095, 0.13], [0.1, 0, -0.035, 0.105, 0.16], [0.2, 0, -0.04, 0.085, 0.12], [0.32, 0, -0.045, 0.07, 0.09], [0.44, 0, -0.05, 0.068, 0.08], [0.52, 0, -0.055, 0.07, 0.075], [0.57, 0, -0.06, 0.05, 0.055], [0.6, 0, -0.06, 0.02, 0.025]];
   const hd = loft(headRings, {
-    axis: 'z', seg: lod === 2 ? 6 : lod ? 12 : 20,
+    axis: 'z', seg: lod === 2 ? 6 : lod ? 12 : 20, smooth: lod === 2 ? 1 : 3,
     // The face flat down its front (the forehead and the bridge of the nose), the cheeks round.
     deform: (p, th) => { const c = Math.cos(th); if (c > 0.35) p.y -= (c - 0.35) * 0.05; },
     tint: (q) => 0.85 - 0.3 * smoothstep(0.4, 0.58, q.z),
