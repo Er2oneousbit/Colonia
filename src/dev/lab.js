@@ -59,6 +59,7 @@ import { buildFountainScene } from './labFountain.js';
 import { ruralScenes } from './labRural.js';
 import { buildWoodsScene } from './labWoods.js';
 import { buildCommerceScenes } from './labCommerce.js';
+import { buildMilitaryScene } from './labMilitary.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
@@ -294,7 +295,7 @@ async function main() {
   /** The Woods scene (labWoods.js), made with the lab's buttons below. */
   let woods = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
-  const commerce = buildCommerceScenes();
+  const commerce = { ...buildCommerceScenes(), military: buildMilitaryScene() };
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -685,6 +686,7 @@ async function main() {
     else if (k === 'j') setScene('forum');
     else if (k === 'x') setScene('warehouse');
     else if (k === 's') setScene('services');
+    else if (k === 'c') setScene('military');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
