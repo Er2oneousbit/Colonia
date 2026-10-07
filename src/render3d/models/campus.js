@@ -39,7 +39,7 @@ import { material } from '../materials.js';
 import { TaggedParts, slab, tuscanColumn, lantern, lanternPane } from './masonry.js';
 import { gableRoof, railFence, lin, D } from './rural.js';
 import { figureParts } from './figure.js';
-import { castraMaterials, box, staff, prism, vexillum, inscribe } from './castra.js';
+import { castraMaterials, box, staff, prism, vexillum, inscribe, people } from './castra.js';
 
 /** The academy's measures (metres): the tests, the lab and the game read them. */
 export const ACADEMY = Object.freeze({
@@ -255,20 +255,20 @@ export function buildAcademy({ lod = 0, seed = 191 } = {}) {
   p.add('ring-sand', material('ring-sand', { surface: 'earth', color: 0xe8d4a8, vertexColors: true, snow: 1 }), out.sand, { cast: false });
   p.add('ashlar', m.ashlar, out.ashlar);
   p.add('stone', m.stone, out.stone);
-  p.add('flags', m.flags, out.flags);
+  p.add('flags', m.flags, out.flags, { cast: false });
   p.add('roof', m.tile, out.tile);
   p.add('wood', m.wood, [...out.wood, ...std.wood]);
   p.add('walls', m.plaster, out.plaster);
   p.add('panels', m.red, out.red, { cast: false });
   p.add('inside', m.dark, out.dark, { cast: false });
-  p.add('bronze', m.bronze, out.bronze);
+  p.add('bronze', m.bronze, out.bronze, { cast: false });
   p.add('paint', m.paint, out.paint, { cast: false });
   p.add('letters', m.letters, out.letters, { cast: false });
   p.add('bank', m.turf, out.turf);
   p.add('straw', m.straw, out.straw);
-  p.add('rope', m.rope, out.rope);
-  p.add('cloth', m.cloth, std.cloth);
-  p.add('iron', m.iron, lod < 2 ? std.iron : []);
+  p.add('rope', m.rope, out.rope, { cast: false });
+  p.add('cloth', m.cloth, std.cloth, { cast: lod === 0 });
+  p.add('iron', m.iron, lod < 2 ? std.iron : [], { cast: false });
   p.add('doors', m.wood, out.doorOpen, { when: 'staffed' });
   p.add('doors', m.wood, out.doorShut, { when: 'shut' });
   if (lod < 2) {
@@ -283,30 +283,23 @@ export function buildAcademy({ lod = 0, seed = 191 } = {}) {
     // The drill master on his tribunal while it is staffed, his vine staff in hand.
     const [x0, x1, z0, z1, h] = C.tribunal;
     const doc = figureParts({ cloth: 0xa8322b, cloth2: 0x7a6248, reach: 0.4 }, (x0 + x1) / 2 + 0.2, h + 0.08, (z0 + z1) / 2 + 0.1, Math.PI / 2 - 0.3);
-    for (const f of doc) p.add(`master-${f.material.name}`, f.material, [f.g], { when: 'staffed' });
+    people(p, m, 'master', doc, 'staffed');
     // Men drilling: three at the posts (wicker shields, wooden swords), an archer at the line, a rider in the ring.
     const men = [];
     C.pali.slice(0, 3).forEach(([px, pz], i) => men.push(...figureParts({ cloth: [0xa8322b, 0xcfc3a8, 0x3f7a3a][i], reach: 1 }, px + 0.05, 0.03, pz + 0.6, Math.PI + 0.1 * i)));
     men.push(...figureParts({ cloth: 0x3f7a3a, reach: 1 }, 3.5, 0.03, 0.25, Math.PI));
     men.push(...figureParts({ cloth: 0xc9962e }, rx - 0.4, 0.66, rz + 0.2, -Math.PI * 0.3 + Math.PI / 2, 0.92));
-    const byMat = new Map();
-    for (const f of men) {
-      if (!byMat.has(f.material)) byMat.set(f.material, []);
-      byMat.get(f.material).push(f.g);
-    }
-    for (const [mat, list] of byMat) p.add(`drill-${mat.name}`, mat, list, { when: 'out' });
-    const gear = [];
     C.pali.slice(0, 3).forEach(([px, pz]) => {
       const w = new CylinderGeometry(0.3, 0.3, 0.04, 12, 1);
       w.rotateX(Math.PI / 2);
       w.scale(0.85, 1.2, 1);
       w.translate(px + 0.25, 0.95, pz + 0.48);
-      gear.push(tintGeometry(boxUV(w), () => lin(0xb8995a)));
+      men.push({ g: tintGeometry(boxUV(w), () => lin(0xb8995a)), material: m.paint });
+      men.push({ g: staff([px - 0.28, 1.25, pz + 0.4], [px - 0.16, 1.55, pz + 0.08], 0.025, 4), material: m.wood });
     });
-    p.add('drill-gear', m.paint, gear, { when: 'out' });
-    p.add('drill-swords', m.wood, C.pali.slice(0, 3).map(([px, pz]) => staff([px - 0.28, 1.25, pz + 0.4], [px - 0.16, 1.55, pz + 0.08], 0.025, 4)), { when: 'out' });
     // The archer's bow: drawn, its string to his cheek.
-    p.add('drill-bow', m.wood, [staff([3.3, 0.9, -0.15], [3.32, 1.55, -0.12], 0.014, 4), staff([3.32, 1.55, -0.12], [3.28, 2.0, -0.18], 0.014, 4)], { when: 'out' });
+    men.push({ g: staff([3.3, 0.9, -0.15], [3.32, 1.55, -0.12], 0.014, 4), material: m.wood }, { g: staff([3.32, 1.55, -0.12], [3.28, 2.0, -0.18], 0.014, 4), material: m.wood });
+    people(p, m, 'drill', men, 'out');
   }
   return p.build();
 }

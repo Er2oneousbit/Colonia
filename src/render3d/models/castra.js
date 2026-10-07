@@ -929,21 +929,17 @@ export { lantern, lanternPane };
  * under `name` in state `when`.
  */
 export function sentry(p, mats, name, x, y, z, ry, when, { cloth = 0xa8322b, shield = null } = {}) {
-  const parts = figureParts({ cloth, cloth2: null, skin: 0xa87a58 }, x, y, z, ry, 0.95);
-  for (const f of parts) {
-    // (The figure's hair cap is a helmet here.)
-    const m = f.material.name.startsWith('hair-') ? mats.bronze : f.material;
-    p.add(`${name}-${m.name}`, m, [f.g], { when });
-  }
+  // (The figure's hair cap is a helmet here.)
+  const parts = figureParts({ cloth, cloth2: null, skin: 0xa87a58 }, x, y, z, ry, 0.95).map((f) => (f.material.name.startsWith('hair-') ? { g: f.g, material: mats.bronze } : f));
   // The spear upright beside him, a shield at his side.
   const c = Math.cos(ry);
   const s = Math.sin(ry);
   const at = (dx, dz) => [x + dx * c + dz * s, z - dx * s + dz * c];
   const [sx, sz] = at(0.26, 0.08);
-  p.add(`${name}-spear`, mats.wood, [staff([sx, y, sz], [sx, y + 2.0, sz], 0.014, 5)], { when });
+  parts.push({ g: staff([sx, y, sz], [sx, y + 2.0, sz], 0.014, 5), material: mats.wood });
   const tip = new ConeGeometry(0.022, 0.16, 4);
   tip.translate(sx, y + 2.08, sz);
-  p.add(`${name}-iron`, mats.iron, [tintGeometry(boxUV(tip))], { when });
+  parts.push({ g: tintGeometry(boxUV(tip)), material: mats.iron });
   if (shield) {
     const [hx, hz] = at(-0.26, 0.12);
     const g = new CylinderGeometry(0.55, 0.55, 0.95, 6, 1, true, -0.5, 1.0);
@@ -951,8 +947,32 @@ export function sentry(p, mats, name, x, y, z, ry, when, { cloth = 0xa8322b, shi
     g.scale(0.62, 1, 0.62);
     g.rotateY(ry - Math.PI / 2 + 0.2);
     g.translate(hx, y + 0.62, hz);
-    p.add(`${name}-shield`, mats.paint, [tintGeometry(boxUV(g), () => shield)], { when });
+    parts.push({ g: tintGeometry(boxUV(g), () => shield), material: mats.paint });
   }
+  people(p, mats, name, parts, when);
+}
+
+/**
+ * People (figure.js figureParts, and what they hold) added to TaggedParts
+ * `p` in state `when`, one part a material: every figure's tunic in the one
+ * dyed cloth, its colour carried by its vertices, so a crowd of men in
+ * three colours is one draw call for their clothes, not three.
+ */
+export function people(p, mats, name, parts, when) {
+  const by = new Map();
+  for (const f of parts) {
+    let { g, material: m } = f;
+    if (m.name.startsWith('cloth-') && m !== mats.cloth) {
+      // (cloth-<hex>: the colour from its name, times the figure's own shading in its vertices.)
+      const rgb = lin(Number.parseInt(m.name.slice(6), 16));
+      const col = g.attributes.color;
+      for (let i = 0; i < col.count; i++) col.setXYZ(i, col.getX(i) * rgb[0], col.getY(i) * rgb[1], col.getZ(i) * rgb[2]);
+      m = mats.cloth;
+    }
+    if (!by.has(m)) by.set(m, []);
+    by.get(m).push(g);
+  }
+  for (const [m, list] of by) p.add(`${name}-${m.name}`, m, list, { when });
 }
 
 /** The look's double-sided cloth for things seen from both sides (a flag, a tent's flap). */
@@ -1029,51 +1049,57 @@ export function pour(from, to, fn = (l) => l) {
  * ([x, y, z], hung from the gate's passage walls, x toward the nearer one),
  * lit while 'staffed'. Returns { p, mats } for the fort to add its own.
  */
-export function assemble(name, out, std, lod, lamps) {
+export function assemble(name, out, std, lod, lamps, { facing = 'ashlar' } = {}) {
   const mats = castraMaterials();
   // Far out, small fittings are under a pixel and each a draw call for every fort in view.
   if (lod === 2) {
     out.iron = out.bronze = out.letters = out.rope = [];
     std.rope = [];
   }
+  // Fewer materials, fewer draw calls (each part is one for every fort in view, and one more in the
+  // sun's shadow pass if it casts): the ovens' clay is the roofs' terracotta, the plaques are stone;
+  // from the middle zooms out the core behind the facing is the facing's.
+  out.tile.push(...out.clay.splice(0));
+  out.stone.push(...out.marble.splice(0));
+  if (lod > 0) out[facing].push(...out.core.splice(0));
+  // The standards: their metal all gilt from the middle zooms out (the discs a speck), the cords cloth.
+  const sm = { wood: std.wood || [], gilt: [...(std.gilt || []), ...(std.bronze || [])], silver: [...(std.silver || []), ...(std.iron || [])], cloth: [...(std.cloth || []), ...(std.rope || [])] };
+  if (lod > 0) sm.gilt.push(...sm.silver.splice(0));
   const p = new TaggedParts(name);
-  p.add('yard', mats.gravel, out.gravel, { cast: false });
-  p.add('ground', mats.earth, out.earth, { cast: false });
+  const small = { cast: false };
+  p.add('yard', mats.gravel, out.gravel, small);
+  p.add('ground', mats.earth, out.earth, small);
   p.add('ashlar', mats.ashlar, out.ashlar);
   p.add('core', mats.core, out.core);
   p.add('stone', mats.stone, out.stone);
-  p.add('flags', mats.flags, out.flags);
+  p.add('flags', mats.flags, out.flags, small);
   p.add('bank', mats.turf, out.turf);
   p.add('roof', mats.tile, out.tile);
   p.add('thatch', mats.thatch, out.thatch);
-  p.add('clay', mats.clay, out.clay);
   p.add('wood', mats.wood, out.wood);
   p.add('walls', mats.plaster, out.plaster);
-  p.add('dado', mats.red, out.red, { cast: false });
-  p.add('inside', mats.dark, out.dark, { cast: false });
-  p.add('iron', mats.iron, out.iron);
-  p.add('bronze', mats.bronze, out.bronze);
-  p.add('plaque', mats.marble, out.marble);
-  p.add('letters', mats.letters, out.letters, { cast: false });
+  p.add('dado', mats.red, out.red, small);
+  p.add('inside', mats.dark, out.dark, small);
+  p.add('iron', mats.iron, out.iron, small);
+  p.add('bronze', mats.bronze, out.bronze, small);
+  p.add('letters', mats.letters, out.letters, small);
   p.add('leather', mats.leather, out.leather);
-  p.add('rope', mats.rope, out.rope);
+  p.add('rope', mats.rope, out.rope, small);
   p.add('straw', mats.straw, out.straw);
   p.add('hay', mats.hay, out.hay);
-  p.add('paint', mats.paint, out.paint);
-  p.add('cloth', mats.cloth, out.cloth);
-  p.add(TANK_WATER, waterMaterial(), out.water, { cast: false });
+  p.add('paint', mats.paint, out.paint, small);
+  p.add('cloth', mats.cloth, out.cloth, small);
+  p.add(TANK_WATER, waterMaterial(), out.water, small);
   p.add('doors', mats.wood, out.doorOpen, { when: 'staffed' });
   p.add('doors', mats.wood, out.doorShut, { when: 'shut' });
-  p.add('bands', mats.iron, out.studsOpen, { when: 'staffed' });
-  p.add('bands', mats.iron, out.studsShut, { when: 'shut' });
-  // The standards: at home (manned or not), gone out with the men when deployed.
-  p.add('std-wood', mats.wood, std.wood || [], { when: 'home' });
-  p.add('std-gilt', mats.gilt, std.gilt || [], { when: 'home' });
-  p.add('std-silver', mats.silver, std.silver || [], { when: 'home' });
-  p.add('std-cloth', mats.cloth, std.cloth || [], { when: 'home' });
-  p.add('std-iron', mats.iron, std.iron || [], { when: 'home' });
-  p.add('std-bronze', mats.bronze, std.bronze || [], { when: 'home' });
-  p.add('std-rope', mats.rope, std.rope || [], { when: 'home' });
+  p.add('bands', mats.iron, out.studsOpen, { when: 'staffed', cast: false });
+  p.add('bands', mats.iron, out.studsShut, { when: 'shut', cast: false });
+  // The standards: at home (manned or not), gone out with the men when deployed. Only their poles
+  // and flags cast a shadow close up.
+  p.add('std-wood', mats.wood, sm.wood, { when: 'home', cast: lod === 0 });
+  p.add('std-gilt', mats.gilt, sm.gilt, { when: 'home', cast: false });
+  p.add('std-silver', mats.silver, sm.silver, { when: 'home', cast: false });
+  p.add('std-cloth', mats.cloth, sm.cloth, { when: 'home', cast: lod === 0 });
   // The lanterns at the gate, hung on brackets from the passage's walls: lit while the fort is manned.
   if (lod < 2) {
     for (const [lx, ly, lz] of lamps) {

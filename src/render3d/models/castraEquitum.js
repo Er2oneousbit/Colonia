@@ -233,7 +233,7 @@ export function buildCavalryFort({ lod = 0, seed = 151 } = {}) {
   draco(-1.5, sz, 2.05, lod, std, lin(0xa8322b));
   vexillum(-1.05, sz, 1.95, lod, std, GOLD);
   imago(-1.95, sz, 1.8, lod, std);
-  const { p, mats } = assemble('castra-equitum', out, std, lod, Q.lamps);
+  const { p, mats } = assemble('castra-equitum', out, std, lod, Q.lamps, { facing: 'plaster' });
   if (lod === 0) sentry(p, mats, 'sentry', 0.55, 2.45, O - 0.35, 0.2, 'open', { cloth: 0xc9962e, shield: GOLD });
   return p.build();
 }

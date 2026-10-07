@@ -43,7 +43,7 @@ import { material } from '../materials.js';
 import { TaggedParts, slab, lantern, lanternPane } from './masonry.js';
 import { gableRoof, leanTo, lin, D } from './rural.js';
 import { figureParts } from './figure.js';
-import { castraMaterials, box, cyl, staff, vexillum } from './castra.js';
+import { castraMaterials, box, cyl, staff, vexillum, people } from './castra.js';
 
 /** The barracks' measures (metres): the tests, the lab and the game read them. */
 export const BARRACKS = Object.freeze({
@@ -377,12 +377,12 @@ export function buildBarracks({ lod = 0, seed = 171 } = {}) {
   p.add('walls', m.plaster, out.plaster);
   p.add('dado', m.red, out.red, { cast: false });
   p.add('inside', m.dark, out.dark, { cast: false });
-  p.add('iron', m.iron, [...out.iron, ...(lod < 2 ? std.iron : [])]);
-  p.add('bronze', m.bronze, out.bronze);
+  p.add('iron', m.iron, [...out.iron, ...(lod < 2 ? std.iron : [])], { cast: false });
+  p.add('bronze', m.bronze, out.bronze, { cast: false });
   p.add('paint', m.paint, out.paint);
   p.add('wicker', material('wicker', { surface: 'wicker', vertexColors: true, snow: 0.8 }), out.wicker);
-  p.add('cloth', m.cloth, std.cloth);
-  p.add('gilt', m.gilt, std.gilt);
+  p.add('cloth', m.cloth, std.cloth, { cast: lod === 0 });
+  p.add('gilt', m.gilt, std.gilt, { cast: false });
   p.add('doors', m.wood, out.doorOpen, { when: 'staffed' });
   p.add('doors', m.wood, out.doorShut, { when: 'shut' });
   if (lod < 2) {
@@ -396,21 +396,19 @@ export function buildBarracks({ lod = 0, seed = 171 } = {}) {
   // People: the clerk at his table while staffed; a recruit at the first post and his instructor while one trains.
   if (lod === 0) {
     const tz = B.office[3] + 0.5;
-    const clerk = figureParts({ cloth: 0xd8ccb0, cloth2: 0x7a5a3a }, 0.6, 0.03, tz - 0.42, 0);
-    for (const f of clerk) p.add(`clerk-${f.material.name}`, f.material, [f.g], { when: 'staffed' });
+    people(p, m, 'clerk', figureParts({ cloth: 0xd8ccb0, cloth2: 0x7a5a3a }, 0.6, 0.03, tz - 0.42, 0), 'staffed');
     const [px, pz] = B.pali[0];
-    const recruit = figureParts({ cloth: 0xcfc3a8, reach: 1 }, px - 0.1, 0.03, pz + 0.62, Math.PI + 0.15);
-    for (const f of recruit) p.add(`recruit-${f.material.name}`, f.material, [f.g], { when: 'out' });
-    // His wicker shield on his left arm, his wooden sword raised.
+    const drill = figureParts({ cloth: 0xcfc3a8, reach: 1 }, px - 0.1, 0.03, pz + 0.62, Math.PI + 0.15);
+    // His wicker shield on his left arm, his wooden sword raised; his instructor with his vine staff.
     const ws = wickerShield(1);
     ws.scale(0.85, 0.85, 0.85);
     ws.rotateY(Math.PI + 0.15);
     ws.translate(px + 0.18, 0.45, pz + 0.46);
-    p.add('recruit-wicker', material('wicker', { surface: 'wicker', vertexColors: true, snow: 0.8 }), [ws], { when: 'out' });
-    p.add('recruit-sword', m.wood, [staff([px - 0.32, 1.25, pz + 0.38], [px - 0.2, 1.55, pz + 0.05], 0.025, 4)], { when: 'out' });
-    const doctor = figureParts({ cloth: 0xa8322b, cloth2: 0x7a6248 }, px + 1.1, 0.03, pz + 1.15, -Math.PI * 0.75);
-    for (const f of doctor) p.add(`doctor-${f.material.name}`, f.material, [f.g], { when: 'out' });
-    p.add('doctor-vitis', m.wood, [staff([px + 0.82, 0.03, pz + 1.0], [px + 0.86, 1.0, pz + 0.95], 0.016, 4)], { when: 'out' });
+    drill.push({ g: ws, material: material('wicker', { surface: 'wicker', vertexColors: true, snow: 0.8 }) });
+    drill.push({ g: staff([px - 0.32, 1.25, pz + 0.38], [px - 0.2, 1.55, pz + 0.05], 0.025, 4), material: m.wood });
+    drill.push(...figureParts({ cloth: 0xa8322b, cloth2: 0x7a6248 }, px + 1.1, 0.03, pz + 1.15, -Math.PI * 0.75));
+    drill.push({ g: staff([px + 0.82, 0.03, pz + 1.0], [px + 0.86, 1.0, pz + 0.95], 0.016, 4), material: m.wood });
+    people(p, m, 'recruit', drill, 'out');
   }
   return p.build();
 }
