@@ -4001,6 +4001,87 @@ try {
       check('WebGL renderer: a fountain is a 3D model, a click picks it, and its look follows its neighbourhood',
         !!fnt && fview.fountains >= 1 && fview.tier === 1 && fpick?.kind === 'building' && fpick.id === fnt.id && rich.tier === 4,
         JSON.stringify({ fnt, fview, fpick, rich }));
+      // The aqueduct and the castellum (render3d/aqueducts/, models/aqueduct.js, castellum.js): an
+      // aqueduct dragged over a straight road (its arch) from a reservoir placed at its west end;
+      // drawn as 3D models, a click on an aqueduct tile picks the tile and one on the reservoir the
+      // building. Cleared again, so the steps after see the city as it was.
+      const aqWorks = await gp.evaluate(() => {
+        const app = window.colonia;
+        const g = app.game;
+        const m = g.map;
+        const free = (x, y) => m.inBounds(x, y) && m.isFree(x, y) && !m.isWater(x, y);
+        let at = null;
+        for (let i = 0; i < m.size && !at; i++) {
+          const x = m.xOf(i);
+          const y = m.yOf(i);
+          if (m.road[i] !== 1 || m.building[i] || m.wall[i] || m.aqueduct[i] || !m.hasRoad(x, y - 1) || !m.hasRoad(x, y + 1) || m.hasRoad(x - 1, y) || m.hasRoad(x + 1, y)) continue;
+          let ok = free(x + 1, y) && free(x + 2, y) && free(x - 1, y) && free(x - 2, y);
+          for (let dx = -5; dx <= -3 && ok; dx++) for (let dy = -1; dy <= 1 && ok; dy++) ok = free(x + dx, y + dy);
+          if (ok) at = { x, y };
+        }
+        if (!at) return null;
+        at.free = g.cheats.freeBuild;
+        g.cheats.freeBuild = true;
+        app.ui.selectTool('reservoir');
+        app.input.hover = { x: at.x - 4, y: at.y };
+        app.input.refreshPlan();
+        if (app.renderer.plan && app.renderer.plan.items.every((it) => it.ok)) app.applyPlan(app.renderer.plan);
+        app.ui.selectTool('aqueduct');
+        app.input.drag = { x0: at.x - 2, y0: at.y, x1: at.x + 2, y1: at.y };
+        app.input.refreshPlan();
+        app.applyPlan(app.renderer.plan);
+        app.input.drag = null;
+        app.ui.selectTool(null);
+        const res = [...g.buildings.values()].find((b) => b.type === 'reservoir' && b.x === at.x - 5 && b.y === at.y - 1);
+        app.renderer.camera.zoomIndex = 4;
+        app.renderer.camera.centerOnTile(at.x - 1, at.y);
+        let tiles = 0;
+        for (let dx = -2; dx <= 2; dx++) if (m.aqueduct[m.idx(at.x + dx, at.y)]) tiles++;
+        return { ...at, tiles, res: res ? res.id : null };
+      });
+      // Waiting for the state, not a time: kits are built within a frame's budget, slowly under a software GL.
+      await gp.waitForFunction(() => {
+        const by = window.colonia.renderer.stats.modelPass?.byType || {};
+        return by.aqueduct >= 5 && by.reservoir >= 1;
+      }, null, { timeout: 30000, polling: 100 }).catch(() => {});
+      const aqDrawn = await gp.evaluate(() => ({ ...(window.colonia.renderer.stats.modelPass?.byType || {}) }));
+      const aqPicks = {};
+      if (aqWorks) {
+        await gp.mouse.move(300, 12);
+        let p = await onPage(aqWorks.x + 1.5, aqWorks.y + 0.5);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        aqPicks.aqueduct = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        p = await onPage(aqWorks.x - 3.5, aqWorks.y + 0.5);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        aqPicks.reservoir = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-aqueduct.png') });
+        await gp.evaluate((at) => {
+          const app = window.colonia;
+          app.ui.selectTool('clear');
+          for (const d of [{ x0: at.x - 2, y0: at.y, x1: at.x + 2, y1: at.y }, { x0: at.x - 5, y0: at.y - 1, x1: at.x - 3, y1: at.y + 1 }]) {
+            app.input.drag = d;
+            app.input.refreshPlan();
+            if (app.renderer.plan) app.applyPlan(app.renderer.plan);
+          }
+          // (Clearing the road's arch takes its road with it: the road is laid again.)
+          app.ui.selectTool('road');
+          app.input.drag = { x0: at.x, y0: at.y, x1: at.x, y1: at.y };
+          app.input.refreshPlan();
+          if (app.renderer.plan) app.applyPlan(app.renderer.plan);
+          app.input.drag = null;
+          app.ui.selectTool(null);
+          app.game.cheats.freeBuild = at.free;
+        }, aqWorks);
+      }
+      check('WebGL renderer: an aqueduct over a road and a reservoir are 3D models; a click on the aqueduct picks its tile, on the reservoir the building',
+        !!aqWorks && aqWorks.tiles === 5 && !!aqWorks.res && aqDrawn.aqueduct >= 5 && aqDrawn.reservoir >= 1
+          && aqPicks.aqueduct?.kind === 'tile' && aqPicks.aqueduct.x === aqWorks.x + 1 && aqPicks.aqueduct.y === aqWorks.y
+          && aqPicks.reservoir?.kind === 'building' && aqPicks.reservoir.id === aqWorks.res,
+        JSON.stringify({ aqWorks, aqDrawn, aqPicks }));
       // The market, the forum and the warehouse drawn as models (render3d/models/commerce.js),
       // the warehouse's stock as loads in its court, and a click on each picks it by its footprint;
       // the prefecture and the engineer's post likewise (render3d/models/services.js).

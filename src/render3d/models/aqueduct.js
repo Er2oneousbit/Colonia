@@ -169,7 +169,8 @@ export function aqueductMaterials(look) {
     // Opus signinum: the channel's lining, pink with its crushed tile.
     lining: material('aq-signinum', { surface: 'cocciopesto', worldUV: true, snow: 0.7 }),
     // What a dry channel keeps: silt and dead leaves, dull.
-    silt: material('aq-silt', { color: 0x9a8a6c, roughness: 0.96, snow: 0.8, wet: 0.6 }),
+    // (The earth's grain read at the world's metres, tinted to a grey-brown mud: a plain colour read as paper.)
+    silt: material('aq-silt', { surface: 'earth', worldUV: true, color: 0xb8a487, snow: 0.8, wet: 0.6 }),
     // The damp under a leaking joint, darker and greener down the pier.
     leak: material('aq-leak', { color: 0x26332a, roughness: 0.5, opacity: 0.32, snow: 0, wet: 0 }),
     water: aqueductWater(),
