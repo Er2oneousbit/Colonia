@@ -39,7 +39,7 @@ import { artRng } from '../texgen.js';
 import { slab, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, ruralMaterials, wallRun, leanTo, wattleFence, heap, basket, blk } from './rural.js';
 import { people, staff } from './castra.js';
-import { learningMaterials, person } from './learning.js';
+import { learningMaterials, person, at } from './learning.js';
 import { hortusMaterials } from './hortus.js';
 
 /** The yard's measures (metres): the tests, the lab and the game read them. */
@@ -247,10 +247,14 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
   }
   if (lod === 0) {
     // The gardener at work: clipping the cone with his shears, in a tunic of undyed wool.
-    const list = person(m, { cloth: 0x8a7656, hair: 0x2a1e16, skin: 0x9a6c4c, arms: 'hold' }, 0.3, 0.02, 0.7, Math.PI * 0.42);
+    // (He faces the cone, his hands together at its side on the shears' handles.)
+    const [gx, gz] = [0.34, 0.74];
+    const gry = Math.atan2(0.72 - gx, 0.55 - gz);
+    const list = person(m, { cloth: 0x8a7656, hair: 0x2a1e16, skin: 0x9a6c4c, arms: [[-0.08, 0.98, 0.3], [0.09, 1.0, 0.31]] }, gx, 0.02, gz, gry);
     people(p, m, 'gardener', list, 'open');
     const shears = [];
-    for (const s of [-1, 1]) shears.push(tintGeometry(boxUV(new BoxGeometry(0.012, 0.012, 0.26).rotateY(s * 0.18).translate(0.55, 1.12, 0.68 + s * 0.012))));
+    const [sx, sz] = at(gx, gz, gry, 0, 0.44);
+    for (const s of [-1, 1]) shears.push(tintGeometry(boxUV(new BoxGeometry(0.012, 0.012, 0.26).rotateY(gry + s * 0.16).translate(sx, 0.99, sz))));
     p.add('shears', m.iron, shears, { when: 'open', cast: false });
   }
   const yard = p.build();
