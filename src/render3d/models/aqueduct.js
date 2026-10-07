@@ -58,7 +58,6 @@ export const AQ = Object.freeze({
   hw: 0.65, // the arcade's half thickness
   span: 1.4, // a straight's arch: its half opening (2.8 m); the half piers fill the rest to the edge
   roadSpan: 1.56, // the road's arch: 3.1 m, a cart's width and more
-  roadSpring: 1.95,
   footH: 0.3,
   footOut: 0.06,
   spring: 2.05, // the impost's top, where the arches spring
@@ -473,10 +472,10 @@ function impost(x0, x1, y = AQ.spring) {
  */
 function archPiece(P, M, arms, lod, { road = false, caps = '', seed = 1 } = {}) {
   const H = AQ.half;
-  // The road's arch is wider and springs lower, its piers slimmer (the arcade's half piers meet them at
-  // the edge, where both are the wall's full section): a cart's width, and it reads as a gate in the line.
+  // The road's arch is wider, its piers slimmer (the arcade's half piers meet them at the edge, where
+  // both are the wall's full section, their imposts at one height): a cart's width, a gate in the line.
   const r = road ? AQ.roadSpan : AQ.span;
-  const spring = road ? AQ.roadSpring : AQ.spring;
+  const spring = AQ.spring;
   const n = lod === 0 ? 18 : lod === 1 ? 10 : 6;
   const outline = [[-H, 0], [-r, 0], [-r, spring], ...arc(0, spring, r, n), [r, spring], [r, 0], [H, 0], [H, AQ.body], [-H, AQ.body]];
   P.add(road ? 'dressed' : 'body', road ? M.dressed : M.body, extrude(outline, -AQ.hw, AQ.hw));
@@ -485,8 +484,8 @@ function archPiece(P, M, arms, lod, { road = false, caps = '', seed = 1 } = {}) 
   if (lod < 2) dressed.push(...impost(r, H, spring), ...impost(-H, -r, spring));
   const nv = lod === 0 ? (road ? 15 : 11) : lod === 1 ? 7 : 0;
   if (nv) {
-    // (The road's ring stops at the string course: its keystone touches it.)
-    const ring = archRing(0, spring, r, nv, road ? AQ.body - spring - r - 0.05 : AQ.ring, road ? 0.06 : 0.035, road ? 0.05 : 0.08);
+    // (The road's ring runs up under the string course, which stands out further: its crown is lost behind it.)
+    const ring = archRing(0, spring, r, nv, road ? AQ.course[1] - AQ.spring - AQ.roadSpan : AQ.ring, road ? 0.06 : 0.035, road ? 0 : 0.08);
     if (road) dressed.push(...ring);
     else P.add('ring', M.ring, ring);
   }
@@ -575,12 +574,14 @@ function junctionPiece(P, M, arms, lod, seed) {
       body.push(toArm(extrude(outline, -AQ.hw, AQ.hw), a));
       foot.push(toArm(plinth(r - AQ.footOut, H), a));
       if (lod < 2) {
-        for (const g of impost(r, H, AQ.smallSpring)) dressed.push(toArm(g, a));
+        // (The edge pier's impost at the arcade's springing, as the straight's half of the same pier: they meet.)
+        for (const g of impost(r, H)) dressed.push(toArm(g, a));
         if (lod === 0) for (const g of archRing(sc, AQ.smallSpring, sr, 5, 0.22, 0.03, 0.05)) ring.push(toArm(g, a));
       }
     } else if (arms[a] === 'r') {
       cascade(P, M, a, lod, seed + a);
-      foot.push(toArm(box(o, H, 0, AQ.footH, -AQ.hw - AQ.footOut, AQ.hw + AQ.footOut, 0.9), a));
+      // (Its plinth stops short of the edge: past it the castellum's podium steps up.)
+      foot.push(toArm(box(o, H - 0.05, 0, AQ.footH, -AQ.hw - AQ.footOut, AQ.hw + AQ.footOut, 0.9), a));
     }
   }
   P.add('body', M.body, body);

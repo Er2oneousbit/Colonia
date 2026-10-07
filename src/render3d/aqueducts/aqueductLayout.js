@@ -175,8 +175,9 @@ export function reservoirJoins(map, b, isWater) {
  */
 export function sideOf(lx, lz, S = 3) {
   const edge = (S + 1) / 2;
-  if (Math.abs(lx - edge) < 1e-6) return { side: 0, k: Math.round(lz) };
-  if (Math.abs(lz - edge) < 1e-6) return { side: 1, k: Math.round(-lx) };
-  if (Math.abs(lx + edge) < 1e-6) return { side: 2, k: Math.round(-lz) };
-  return { side: 3, k: Math.round(lx) };
+  // (+ 0: never a -0, which strict equality's object compare tells from 0.)
+  if (Math.abs(lx - edge) < 1e-6) return { side: 0, k: Math.round(lz) + 0 };
+  if (Math.abs(lz - edge) < 1e-6) return { side: 1, k: Math.round(-lx) + 0 };
+  if (Math.abs(lx + edge) < 1e-6) return { side: 2, k: Math.round(-lz) + 0 };
+  return { side: 3, k: Math.round(lx) + 0 };
 }

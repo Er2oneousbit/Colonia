@@ -213,7 +213,11 @@ function tank(P, M, lod, seed) {
   P.add('foot', M.foot, box(-sH, sH, 0, sY, -sH, sH, 0.9));
   // The podium's body under its paving; at the full detail its top is flags.
   const top = lod === 0 ? pY - 0.05 : pY;
-  P.add('foot', M.foot, box(-pH, pH, sY, top, -pH, pH, 0.95));
+  // (A ring round the tank: its top stood over the tank's floor and showed through the water as a pavement.)
+  P.add('foot', M.foot, [
+    box(-pH, pH, sY, top, o, pH, 0.95), box(-pH, pH, sY, top, -pH, -o, 0.95),
+    box(o, pH, sY, top, -o, o, 0.95), box(-pH, -o, sY, top, -o, o, 0.95),
+  ]);
   if (lod === 0) {
     const skip = (x, z) => Math.abs(x) < o - 0.02 && Math.abs(z) < o - 0.02;
     P.add('paving', M.dressed, paving(-pH, pH, -pH, pH, 0.05, seed + 3, { skip, rowW: 0.7, minL: 0.6, maxL: 1.2, lod }).map((g) => g.translate(0, top, 0)));
