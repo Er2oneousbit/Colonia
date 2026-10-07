@@ -4350,7 +4350,7 @@ try {
             return { x: rc.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: rc.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
           }, [b.x + b.size / 2, b.y + b.size / 2]);
           await fp.mouse.click(p.x, p.y);
-          await fp.waitForTimeout(150);
+          await fp.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
           const target = await fp.evaluate(() => window.colonia.ui.info.target);
           await fp.evaluate(() => window.colonia.ui.info.close());
           if (shots) await fp.screenshot({ path: path.join(shots, `smoke-webgl-${type}.png`) });

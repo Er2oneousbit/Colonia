@@ -147,8 +147,18 @@ const NAVALIA_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(NAVALIA.lamps, s, [[0, 1]]
 const STATIO_LAMPS = [0, 1, 2, 3].map((s) => lampsAt([STATIO.fire, STATIO.lamp], s, [null, [0, 1]]));
 const PORTUS_LAMPS = [0, 1, 2, 3].map((s) => lampsAt(PORTUS.lamps, s));
 
+/**
+ * Is a fleet building drawn as its model (webglBackend.js hasModel)? Not
+ * one of an older save that stands wholly on land (`waterRows` 0: placed
+ * before the rule that puts its front rows out over the water): its piles,
+ * slip and boats would stand on the grass; its sprite has a look of its
+ * own for that. A ghost (no id) is always placed out over the water.
+ */
+export const overWater = (b) => b.id === null || b.id === undefined || b.waterRows !== 0;
+
 export const FLEET_MODELS = Object.freeze({
   navalia: Object.freeze({
+    fits: overWater,
     warm: ['navalia', 'navalia:hull:4'],
     lamps: (b) => (b.efficiency > 0 ? NAVALIA_LAMPS[waterSideOf(b, null)] : []),
     variant(b, place, ctx) {
@@ -179,6 +189,7 @@ export const FLEET_MODELS = Object.freeze({
     },
   }),
   naval_station: Object.freeze({
+    fits: overWater,
     warm: ['naval_station'],
     // The beacon's fire (high on its tower, seen from every side) and the lantern at the principia's door, lit while staffed.
     lamps: (b) => (b.efficiency > 0 ? STATIO_LAMPS[waterSideOf(b, null)] : []),
@@ -196,6 +207,7 @@ export const FLEET_MODELS = Object.freeze({
     },
   }),
   portus: Object.freeze({
+    fits: overWater,
     warm: ['portus', 'portus:drill', 'portus:corvus:up'],
     lamps: (b) => (b.efficiency > 0 ? PORTUS_LAMPS[waterSideOf(b, null)] : []),
     variant(b, place, ctx) {

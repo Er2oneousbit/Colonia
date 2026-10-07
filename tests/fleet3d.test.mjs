@@ -245,10 +245,37 @@ test('fleet3d: the lamps light while staffed, on the footprint; the shed\'s face
       }
     }
   }
-  // The navalia's lantern on the shed's front pillar faces the water: seen at two turns of four, turned with its side.
+  // The navalia's lantern on the shed's front pillar faces the water: seen exactly at the turns whose
+  // view sees the water side (its direction in (u, v), turned as the art turns, toward +u or +v).
   for (let side = 0; side < 4; side++) {
-    const turns = [0, 1, 2, 3].filter((T) => modelLamps({ type: 'navalia', size: 3, efficiency: 1, waterSide: side }, T).length === 2);
-    assert.equal(turns.length, 2, `side ${side}: ${turns}`);
+    for (let T = 0; T < 4; T++) {
+      let [a, c] = [[0, -1], [1, 0], [0, 1], [-1, 0]][side];
+      for (let k = 0; k < T; k++) [a, c] = [-c, a];
+      const lit = modelLamps({ type: 'navalia', size: 3, efficiency: 1, waterSide: side }, T).length === 2;
+      assert.equal(lit, a + c > 0, `side ${side} turn ${T}`);
+    }
+  }
+  // A lamp given no facing along x is drawn as before the facing was added (the granary's, the forum's).
+  for (const type of ['granary', 'forum']) {
+    const b = { type, size: MODELS_SIZE[type], efficiency: 1 };
+    for (let T = 0; T < 4; T++) {
+      const old = [];
+      for (const [x, y, z, s = 1] of MODELS[type].lamps(b)) {
+        const face = [[0, s], [-s, 0], [0, -s], [s, 0]][T];
+        if (face[0] + face[1] > 0) old.push(x);
+      }
+      assert.equal(modelLamps(b, T).length, old.length, `${type} turn ${T}`);
+    }
+  }
+});
+
+const MODELS_SIZE = { granary: 3, forum: 2 };
+
+test('fleet3d: a fleet building of an older save, wholly on land, keeps its sprite', () => {
+  for (const type of TYPES) {
+    assert.equal(MODELS[type].fits({ id: 3, type, waterRows: 0 }), false, type);
+    assert.equal(MODELS[type].fits({ id: 3, type, waterRows: 2 }), true, type);
+    assert.equal(MODELS[type].fits({ id: null, type }), true, `${type}: a ghost`);
   }
 });
 

@@ -21,6 +21,8 @@
  *               its looks will want: one asked for later would put the
  *               models back to sprites until it is painted)
  *     lamps(b)  optional: its lamps at night (modelLamps)
+ *     fits(b)   optional: false keeps this building's sprite (a fleet
+ *               building of an older save, wholly on land: models/fleet.js)
  *   }
  * and variant() may add `more`: [{ key, n, mats, state }], more kits
  * drawn in the building's frame (n matrices in its metres), each with its

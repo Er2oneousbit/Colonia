@@ -344,8 +344,13 @@ export class WebGLBackend {
    * Is a building type drawn as a 3D model now (it has one, and its textures
    * and programs are ready)? A farm's only with the 3D ground on, which
    * draws its field (with the ground's sprites, its sprite draws the field).
+   * Given the building, its type's `fits(b)` may keep its sprite (a fleet
+   * building of an older save, standing wholly on land: models/fleet.js).
    */
-  hasModel(type) { return hasModel(type) && this.models.ready && (!MODELS[type].needsGround || this.drawsGround); }
+  hasModel(type, b = null) {
+    const def = MODELS[type];
+    return hasModel(type) && this.models.ready && (!def.needsGround || this.drawsGround) && (!b || !def.fits || def.fits(b));
+  }
 
   /** A model's lamps at night (models.js modelLamps), for the renderer's light map. */
   modelLamps(b, T) { return modelLamps(b, T); }

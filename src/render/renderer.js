@@ -1135,7 +1135,7 @@ export class Renderer {
     const shadowA = env.sun * (1 - env.overcast * 0.75);
     // (A building with a 3D model casts its own shadow on the 3D ground: be.modelShadows.)
     if (!overlayOn && shadowA > 0.03) {
-      for (const b of visibleBuildings) if (!(be.modelShadows && be.hasModel(b.type))) this.drawBuildingShadow(b, shadowA);
+      for (const b of visibleBuildings) if (!(be.modelShadows && be.hasModel(b.type, b))) this.drawBuildingShadow(b, shadowA);
     }
 
     // --- walkers ------------------------------------------------------------
@@ -1498,7 +1498,7 @@ export class Renderer {
         // its door, a warehouse's at its gate), whatever its kind's windows do; with a model only, so
         // Classic's night is as it was. Its sprite's windows and torches are not where the model's
         // walls are: a model's lamps are its only lights.
-        if (this.be?.hasModel(b.type)) {
+        if (this.be?.hasModel(b.type, b)) {
           this.modelLampLights(b, lamps, tile, flick);
           continue;
         }
@@ -1709,7 +1709,7 @@ export class Renderer {
     // strips are not drawn, but they are still kept for clicks, so a figure
     // behind it is hidden where its sprite would be (coverDepthAt).
     // (`be` is missing on a renderer made without its constructor, as some tests do: no model then.)
-    const model = !!this.be?.hasModel(b.type);
+    const model = !!this.be?.hasModel(b.type, b);
     const spec = () => buildingSpec(b.type, b.size, variant, state, true, snow, sick, T);
     // (A model's sprite from the small cover cache, its look changed as the drawn ones are: the old
     // one kept while the new one waits for the frame's budget.)
