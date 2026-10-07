@@ -71,8 +71,11 @@ export const LUDUS = Object.freeze({
   /** The benches: [x0, z0, x1, z1] each, their seats at seatY. */
   benches: Object.freeze([[-2.62, -0.25, -2.3, 2.15], [2.3, -0.25, 2.62, 2.15], [-1.35, 2.62, 1.35, 2.94]]),
   seatY: 0.4,
-  /** The lantern on the column right of the middle (x, y, z), facing the street. */
-  lamp: Object.freeze([0.95, 1.72, -1.83]),
+  /**
+   * The lantern on the right gate pier (x, y, z), facing the street (one under the portico would sit
+   * behind the awning, and the night's glow, which has no depth, would show on the roof).
+   */
+  lamp: Object.freeze([1.17, 1.38, 3.78]),
 });
 
 const L = LUDUS;
@@ -202,14 +205,14 @@ function portico(lod, seed, out) {
   out.wood.push(box(1.18, 0.035, 0.05, 0, sy - 0.02, L.colZ + 0.13, 0.7), box(1.18, 0.035, 0.05, 0, sy + 0.29, L.colZ + 0.13, 0.7));
   if (lod === 0) out.letters.push(...inscribe('LVDVS', sy + 0.06, L.colZ + 0.152, 0.18));
   else if (lod === 1) out.letters.push(box(0.8, 0.14, 0.006, 0, sy + 0.08, L.colZ + 0.15));
-  // Under the portico: a cupboard of the master's rolls, a row of pegs with the boys' satchels, a bench.
-  out.wood.push(box(1.1, 1.55, 0.42, 2.6, L.stepY, back + 0.21, 0.62));
+  // Under the portico (sheltered: no snow): a cupboard of the master's rolls, a row of pegs with the boys' satchels, a bench.
+  out.shelter.push(box(1.1, 1.55, 0.42, 2.6, L.stepY, back + 0.21, 0.62));
   if (lod < 2) {
-    out.wood.push(box(1.0, 0.03, 0.4, 2.6, L.stepY + 1.55, back + 0.22, 0.8));
-    for (const x of [2.33, 2.87]) out.wood.push(box(0.012, 1.3, 0.01, x, L.stepY + 0.15, back + 0.425, 0.4));
-    out.wood.push(box(1.6, 0.05, 0.34, 0.3, L.stepY + 0.42, back + 0.2, 0.78));
-    for (const x of [-0.4, 1.0]) out.wood.push(box(0.06, 0.42, 0.28, x, L.stepY, back + 0.2, 0.7));
-    out.wood.push(box(2.4, 0.05, 0.05, 0.3, L.stepY + 1.5, back + 0.03, 0.75));
+    out.shelter.push(box(1.0, 0.03, 0.4, 2.6, L.stepY + 1.55, back + 0.22, 0.8));
+    for (const x of [2.33, 2.87]) out.shelter.push(box(0.012, 1.3, 0.01, x, L.stepY + 0.15, back + 0.425, 0.4));
+    out.shelter.push(box(1.6, 0.05, 0.34, 0.3, L.stepY + 0.42, back + 0.2, 0.78));
+    for (const x of [-0.4, 1.0]) out.shelter.push(box(0.06, 0.42, 0.28, x, L.stepY, back + 0.2, 0.7));
+    out.shelter.push(box(2.4, 0.05, 0.05, 0.3, L.stepY + 1.5, back + 0.03, 0.75));
   }
 }
 
@@ -231,8 +234,8 @@ function court(lod, seed, out) {
   }
   // The gate's piers, travertine, capped.
   for (const x of [L.gate[0] - 0.12, L.gate[1] + 0.12]) {
-    out.trav.push(slab(0.3, 1.3, 0.3, { bevel: 0.015, seed: seed + x * 10, wobble: 0.002, tone: 0.05, grime: 0.35 }).translate(x, 0, H - 0.15));
-    out.trav.push(slab(0.38, 0.08, 0.38, { bevel: 0.012, seed: seed + x * 10 + 1, wobble: 0, tone: 0, grime: 0 }).translate(x, 1.3, H - 0.15));
+    out.trav.push(slab(0.3, L.lamp[1] - 0.08, 0.3, { bevel: 0.015, seed: seed + x * 10, wobble: 0.002, tone: 0.05, grime: 0.35 }).translate(x, 0, H - 0.15));
+    out.trav.push(slab(0.38, 0.08, 0.38, { bevel: 0.012, seed: seed + x * 10 + 1, wobble: 0, tone: 0, grime: 0 }).translate(x, L.lamp[1] - 0.08, H - 0.15));
   }
 }
 
@@ -310,7 +313,7 @@ function benches(lod, out) {
 }
 
 /** The pupils and the master (only close up): seated with their tablets, one reciting, a slave at the gate. */
-function scholars(mats, out) {
+function scholars(mats) {
   const boy = 0.78;
   // (The benches stand on the ground under the court's earth: their seats are seatY over y 0.)
   const sit = (L.seatY - L.floorY) / boy;
@@ -357,8 +360,8 @@ function scholars(mats, out) {
   things.wood.push(...tb.wood);
   things.wax.push(...tb.wax);
   const [cx, cz] = L.chair;
-  // (On the cushion: the chair's seat 0.42 over the dais and the cushion's 0.05.)
-  people.push(...person(mats, { cloth: 0xd8d0bc, cloth2: 0x6a4e34, hair: 0x6a625a, beard: true, long: true, sit: 0.47, arms: 'teach', lean: 0.04 }, cx, L.dais[4], cz + 0.02, 0));
+  // (On the cushion, his feet on the footstool: the chair's seat 0.42 over the dais, the cushion's 0.05, the stool's 0.1.)
+  people.push(...person(mats, { cloth: 0xd8d0bc, cloth2: 0x6a4e34, hair: 0x6a625a, beard: true, long: true, sit: 0.37, arms: 'teach', lean: 0.04 }, cx, L.dais[4] + 0.1, cz + 0.02, 0));
   // The slave who brought a boy, waiting by the gate with a roll under his arm.
   people.push(...person(mats, { cloth: 0x8a7a62, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, 1.55, L.floorY, 3.2, -Math.PI * 0.85));
   const r = roll(0.3, 0.035, 1.55 - 0.06, L.floorY + 1.1, 3.2 - 0.28, { ry: -Math.PI * 0.85 + Math.PI / 2 });
@@ -369,7 +372,7 @@ function scholars(mats, out) {
 /** Build the school: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
 export function buildSchool({ lod = 0, seed = 211 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['earth', 'floor', 'trav', 'plaster', 'red', 'paint', 'tile', 'wood', 'dark', 'board', 'letters', 'ink', 'wicker', 'marble',
+  const keys = ['earth', 'floor', 'shelter', 'trav', 'plaster', 'red', 'paint', 'tile', 'wood', 'dark', 'board', 'letters', 'ink', 'wicker', 'marble',
     'doorShut', 'curtainOpen', 'poleOpen', 'ropeOpen', 'awningOpen', 'awningShut'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   portico(lod, seed, out);
@@ -378,6 +381,8 @@ export function buildSchool({ lod = 0, seed = 211 } = {}) {
   benches(lod, out);
   awning(lod, out);
   const m = learningMaterials();
+  // (Far out the snow on a cupboard is under a pixel: no part of its own, one draw call fewer.)
+  if (lod === 2) out.wood.push(...out.shelter.splice(0));
   const p = new TaggedParts('school');
   const small = { cast: false };
   p.add('court', m.earth, out.earth, small);
@@ -387,6 +392,8 @@ export function buildSchool({ lod = 0, seed = 211 } = {}) {
   p.add('dado', m.red, out.red, small);
   p.add('roof', m.tile, out.tile);
   p.add('wood', m.wood, out.wood);
+  // (Under the portico's roof: the cupboard, the bench, the pegs take no snow.)
+  p.add('sheltered-wood', m.shelteredWood, out.shelter);
   p.add('wicker', m.wicker, out.wicker);
   p.add('marble', m.marble, out.marble);
   // The whitened boards and the painted things: one plain material, their colours in the vertices.
@@ -403,13 +410,13 @@ export function buildSchool({ lod = 0, seed = 211 } = {}) {
   if (lod < 2) {
     const [lx, ly, lz] = L.lamp;
     const l = lantern(lx, ly, lz, lod);
-    // (Hung from an iron bracket out of the column's face.)
-    p.add('bronze', m.bronze, [...l.bronze, staff([lx, ly + 0.42, L.colZ + 0.1], [lx, ly + 0.42, lz], 0.01, 4), staff([lx, ly + 0.42, lz], [lx, ly + 0.3, lz], 0.008, 4)], small);
+    // (Standing on the pier's cap.)
+    p.add('bronze', m.bronze, l.bronze, small);
     p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
   if (lod === 0) {
-    const { people: folk, things } = scholars(m, out);
+    const { people: folk, things } = scholars(m);
     people(p, m, 'scholars', folk, 'open');
     p.add('tablets', m.wood, things.wood, { when: 'open', cast: false });
     p.add('wax', m.paint, things.wax, { when: 'open', cast: false });

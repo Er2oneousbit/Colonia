@@ -4553,6 +4553,65 @@ try {
         await gm.close();
       }
 
+      // 8a2. The school, the library and the academy as models (render3d/models/education.js):
+      //      the demo city's school and the console's `learning` library and academy; each draws
+      //      as a model (waited for: under a software GL kits are built a few a frame) and a
+      //      click on its footprint opens its panel.
+      {
+        const ge = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const eerrs = [];
+        ge.on('pageerror', (e) => eerrs.push(`pageerror: ${e.message}`));
+        ge.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) eerrs.push(m.text()); });
+        await ge.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await ge.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const EDU = ['school', 'library', 'academy'];
+        const edu = await ge.evaluate((types) => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const said = app.ui.console.run('learning');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = { said };
+          for (const t of types) {
+            const b = [...app.game.buildings.values()].find((v) => v.type === t);
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size } : null;
+          }
+          return out;
+        }, EDU);
+        const learning = [];
+        for (const type of EDU) {
+          const b = edu[type];
+          if (!b) {
+            learning.push({ type, missing: true });
+            continue;
+          }
+          await ge.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await ge.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await ge.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, type);
+          const p = await ge.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await ge.mouse.click(p.x, p.y);
+          await ge.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await ge.evaluate(() => window.colonia.ui.info.target);
+          learning.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
+        }
+        await ge.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await ge.screenshot({ path: path.join(shots, 'smoke-webgl-learning.png') });
+        check('WebGL renderer: the school, the library and the academy are 3D models, and a click picks each',
+          learning.every((m) => !m.missing && m.drawn >= 1 && m.picked), JSON.stringify({ said: edu.said, learning }));
+        check('WebGL renderer, education models: no page errors', eerrs.length === 0, eerrs.join(' | '));
+        await ge.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks

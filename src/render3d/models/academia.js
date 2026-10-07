@@ -86,10 +86,10 @@ function exedra(lod, seed, out) {
   // Its ends: blocks carved as lions' legs, a paw on the step.
   for (const s of [-1, 1]) {
     const cx = s * ((r0 + r1) / 2);
-    out.bench.push(at0(slab(0.22, 0.62, r1 - r0 + 0.06, { bevel: 0.03, seed: seed + s, wobble: 0.003, tone: 0.03, grime: 0.3 }).translate(cx, step, -0.12)));
+    out.bench.push(at0(slab(0.22, 0.62, r1 - r0 + 0.06, { bevel: 0.03, seed: seed + s, wobble: 0.003, tone: 0.03, grime: 0.3 }).translate(cx, step, -0.28)));
     if (lod < 2) {
-      out.bench.push(at0(slab(0.24, 0.12, 0.2, { bevel: 0.04, seed: seed + 3 + s, wobble: 0.004, tone: 0, grime: 0.3 }).translate(cx, step, 0.04)));
-      if (lod === 0) out.bench.push(at0(tintGeometry(boxUV(new CylinderGeometry(0.06, 0.08, 0.1, 8, 1).translate(cx, step + 0.67, -0.12)), () => 0.9)));
+      out.bench.push(at0(slab(0.24, 0.12, 0.2, { bevel: 0.04, seed: seed + 3 + s, wobble: 0.004, tone: 0, grime: 0.3 }).translate(cx, step, -0.1)));
+      if (lod === 0) out.bench.push(at0(tintGeometry(boxUV(new CylinderGeometry(0.06, 0.08, 0.1, 8, 1).translate(cx, step + 0.67, -0.28)), () => 0.9)));
     }
   }
   // The wall: plaster, painted inside (a red dado, ochre above, a dark band between), a moulded cornice.
@@ -97,9 +97,10 @@ function exedra(lod, seed, out) {
   const ochre = [0.86, 0.66, 0.36];
   const dark = [0.12, 0.09, 0.07];
   const red = [RED[0] * 2.2, RED[1] * 2.2, RED[2] * 2.2];
-  const bands = [0.92, 0.92, ochre, ochre, dark, dark, red, red];
+  const bands = [0.92, 0.92, ochre, ochre, dark, dark, red, red, red];
   const paint = (p, th, i) => bands[i];
-  const wall = [[r2, 0], [r2, h], [r1, h], [r1, step + 1.22], [r1, step + 1.22], [r1, step + 1.15], [r1, step + 1.15], [r1, step + 0.45]];
+  const wall = [[r2, 0], [r2, h], [r1, h], [r1, step + 1.22], [r1, step + 1.22], [r1, step + 1.15], [r1, step + 1.15], [r1, step + 0.45], [r1, step]];
+  // (On down to the step behind the bench, so each end's cap, a fan from the outer foot, closes along the bottom.)
   out.plaster.push(at0(arcSweep(wall, a0, a1, { segments: seg, tint: paint })));
   out.trav.push(at0(arcSweep([[r2 + 0.06, h], [r2 + 0.06, h + 0.08], [r2 + 0.02, h + 0.14], [r1 - 0.05, h + 0.14], [r1 - 0.05, h + 0.06], [r1, h]], a0, a1, { segments: seg, tint: () => 0.95 })));
 }
@@ -122,7 +123,8 @@ function room(s, lod, seed, out) {
   for (const [a, b] of [[x0, cx - dw / 2], [cx + dw / 2, x1]]) out.plaster.push(box(b - a, eave - 0.3, t, (a + b) / 2, 0.3, zf - t / 2, 0.92));
   out.plaster.push(box(dw, eave - 0.3 - dh, t, cx, 0.3 + dh, zf - t / 2, 0.92));
   out.dark.push(box(dw, dh, 0.02, cx, 0.3, zf - t + 0.02));
-  out.red.push(box(W - 0.02, 0.7, 0.012, cx, 0.3, zf + 0.006, 0.9));
+  // The dado either side of the door.
+  for (const [a, b] of [[x0 + 0.01, cx - dw / 2 - 0.12], [cx + dw / 2 + 0.12, x1 - 0.01]]) out.red.push(box(b - a, 0.7, 0.012, (a + b) / 2, 0.3, zf + 0.006, 0.9));
   // The door's frame and its two leaves, open (swung in against the jambs) or shut.
   for (const k of [-1, 1]) out.trav.push(slab(0.12, dh + 0.02, t + 0.06, { bevel: 0.01, seed: seed + 3 + k, wobble: 0.002, tone: 0.04, grime: 0.25 }).translate(cx + k * (dw / 2 + 0.06), 0.3, zf - t / 2));
   out.trav.push(slab(dw + 0.4, 0.16, t + 0.08, { bevel: 0.012, seed: seed + 6, wobble: 0, tone: 0.04, grime: 0 }).translate(cx, 0.3 + dh, zf - t / 2));
@@ -141,11 +143,12 @@ function room(s, lod, seed, out) {
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
   for (const zz of [zf - t / 2, z0 + t / 2]) {
-    const g = new BoxGeometry(W - 0.02, 1, t, 2, 1, 1);
-    g.translate(cx, 0.5, zz);
-    const p = g.attributes.position;
-    const half = (W - (s < 0 ? 0.2 : 0.2)) / 2;
+    // (Under the roof's own span, inset 0.2 on the outer side: its apex under the ridge.)
+    const half = (W - 0.2) / 2;
     const mid = cx + (s < 0 ? 0.1 : -0.1);
+    const g = new BoxGeometry(2 * half - 0.02, 1, t, 2, 1, 1);
+    g.translate(mid, 0.5, zz);
+    const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) > 0.5 ? eave + (roof.ridgeY - eave) * Math.max(0, 1 - Math.abs(p.getX(i) - mid) / half) : eave);
     g.computeVertexNormals();
     out.plaster.push(tintGeometry(boxUV(g), () => 0.92));
@@ -160,7 +163,8 @@ function stoa(lod, seed, out) {
   // Its floor a step up, edged in travertine; the back wall.
   out.floor.push(box(cx + H - t, 0.12, z1 - z0, (-H + t + cx) / 2, 0, (z0 + z1) / 2, 0.95));
   out.trav.push(slab(0.34, 0.14, z1 - z0, { bevel: 0.012, seed, wobble: 0, tone: 0.03, grime: 0.3 }).translate(cx, 0, (z0 + z1) / 2));
-  out.plaster.push(box(t, top, z1 - z0 + 0.3, -H + t / 2, 0, (z0 + z1 + 0.3) / 2, 0.92));
+  // (On to the front wall: the corner past the walk's end closed too.)
+  out.plaster.push(box(t, top, H - z0, -H + t / 2, 0, (z0 + H) / 2, 0.92));
   out.red.push(box(0.012, 0.85, z1 - z0, -H + t + 0.006, 0.12, (z0 + z1) / 2, 0.9));
   out.ochre.push(box(0.012, top - 1.3, z1 - z0, -H + t + 0.006, 0.97, (z0 + z1) / 2, 1));
   if (lod < 2) out.paint.push(box(0.014, 0.05, z1 - z0, -H + t + 0.007, 0.95, (z0 + z1) / 2, lin(0x2a1e18)));
@@ -184,8 +188,8 @@ function stoa(lod, seed, out) {
   out.wood.push(...roof.wood);
   // Benches along the wall in its shade.
   for (const z of [-1.6, 1.6]) {
-    out.trav.push(slab(0.4, 0.06, 1.6, { bevel: 0.01, seed: seed + z, wobble: 0, tone: 0.03, grime: 0 }).translate(-H + t + 0.25, 0.5, z));
-    for (const k of [-1, 1]) out.trav.push(slab(0.36, 0.38, 0.14, { bevel: 0.01, seed: seed + z + k, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(-H + t + 0.25, 0.12, z + k * 0.62));
+    out.shelter.push(slab(0.4, 0.06, 1.6, { bevel: 0.01, seed: seed + z, wobble: 0, tone: 0.03, grime: 0 }).translate(-H + t + 0.25, 0.5, z));
+    for (const k of [-1, 1]) out.shelter.push(slab(0.36, 0.38, 0.14, { bevel: 0.01, seed: seed + z + k, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(-H + t + 0.25, 0.12, z + k * 0.62));
   }
 }
 
@@ -198,7 +202,8 @@ function garden(lod, seed, out) {
   // Gravel over the whole court; grass beds on it, their edges in clipped box.
   gravel(xl, xr, zb, zf, out);
   // (Three beds: the fourth quarter, behind the platform, is gravel where the listeners stand.)
-  const beds = [[xl + 0.55, -0.7, A.exedra.z + 0.35, 0.35], [xl + 0.55, -0.7, 1.65, zf - 0.55], [0.7, xr - 0.9, 1.65, zf - 0.55]];
+  // (The front beds end short of the gate's leaves, swung back into the court.)
+  const beds = [[xl + 0.55, -0.7, A.exedra.z + 0.35, 0.35], [xl + 0.55, -0.7, 1.65, zf - 1.25], [0.7, xr - 0.9, 1.65, zf - 1.25]];
   // (And the corner before the covered walk's end.)
   gravel(-H + 0.24, xl, A.stoa.z1 + 0.26, zf, out);
   beds.forEach(([x0, x1, z0, z1], i) => {
@@ -333,6 +338,14 @@ function scholars(mats) {
   list.push(...person(mats, { cloth: 0xb0884a, cloth2: 0xd8d0bc, hair: 0x2e2119, long: true }, rx - 1.35, 0.03, rz - 0.55, Math.PI / 2 - 0.3));
   // A reader on the long bench by the right wall.
   list.push(...person(mats, { cloth: 0x6a7a5a, hair: 0x4a3020, sit: 0.48, arms: 'read', lean: 0.15 }, H - 0.58, 0.0, 3.3, -Math.PI / 2));
+  {
+    const [ox, oz] = at(H - 0.58, 3.3, -Math.PI / 2, 0, 0.32);
+    const sheet = new BoxGeometry(0.34, 0.2, 0.004);
+    sheet.rotateX(-0.5);
+    sheet.rotateY(-Math.PI / 2);
+    sheet.translate(ox, 0.9, oz);
+    things.paper.push(tintGeometry(boxUV(sheet), () => [0.88, 0.78, 0.58]));
+  }
   // Two walking and talking in the covered walk.
   list.push(...person(mats, { cloth: 0xd8d0bc, cloth2: 0x8a3a2a, hair: 0x6a625a, beard: true, long: true, arms: 'reach' }, -4.95, 0.12, 0.6, Math.PI * 0.95));
   list.push(...person(mats, { cloth: 0xc9bca2, hair: 0x2e2119, arms: 'hold' }, -5.15, 0.12, -0.3, Math.PI * 0.05));
@@ -342,7 +355,7 @@ function scholars(mats) {
 /** Build the academy: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
 export function buildAcademia({ lod = 0, seed = 271 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['gravel', 'turf', 'leaf', 'trav', 'bench', 'plaster', 'red', 'ochre', 'paint', 'floor', 'tile', 'wood', 'marble', 'letters', 'bronze', 'dark', 'doorOpen', 'doorShut'];
+  const keys = ['gravel', 'turf', 'leaf', 'trav', 'shelter', 'bench', 'plaster', 'red', 'ochre', 'paint', 'floor', 'tile', 'wood', 'marble', 'letters', 'bronze', 'dark', 'doorOpen', 'doorShut'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   garden(lod, seed, out);
   exedra(lod, seed + 40, out);
@@ -351,13 +364,18 @@ export function buildAcademia({ lod = 0, seed = 271 } = {}) {
   stoa(lod, seed + 100, out);
   gate(lod, seed + 120, out);
   const m = learningMaterials();
-  if (lod === 2) out.letters = out.bronze = [];
+  if (lod === 2) {
+    out.letters = out.bronze = [];
+    // (Far out the snow on a bench is under a pixel: no part of its own, one draw call fewer.)
+    out.trav.push(...out.shelter.splice(0));
+  }
   const p = new TaggedParts('academia');
   const small = { cast: false };
   p.add('walks', m.gravel, out.gravel, small);
   p.add('grass', m.turf, out.turf, small);
   p.add('evergreens', m.leaf, out.leaf);
   p.add('stone', m.trav, [...out.trav, ...out.bench]);
+  p.add('sheltered-stone', m.shelteredStone, out.shelter);
   p.add('walls', m.plaster, out.plaster);
   p.add('dado', m.red, out.red, small);
   p.add('panels', material('stucco-ochre', { surface: 'plaster', color: 0xd8b070, vertexColors: true, snow: 1 }), out.ochre, small);

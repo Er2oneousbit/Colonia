@@ -61,7 +61,7 @@ export const BIBLIOTHECA = Object.freeze({
   colZ: -1.88,
   stepsZ: -0.98,
   /** The hall's back wall's inner face, its eave, the architrave's foot. */
-  backZ: -3.6,
+  backZ: -3.63,
   eave: 3.72,
   archY: 3.34,
   /** Minerva's pedestal (x, z). */
@@ -127,7 +127,8 @@ function hall(lod, seed, out) {
   }
   if (lod < 2) out.paint.push(box(2 * H - 2 * T, 0.04, 0.014, 0, py + 0.75, zi + 0.002, lin(0x2a1e18)));
   // The cupboards of rolls: five along the back wall, one at each end.
-  const cupboards = [[-2.8, 1.0], [-1.4, 1.1], [0, 1.0], [1.4, 1.1], [2.8, 1.0]];
+  // (The outer two narrower and in from the corners, clear of the end ones and their doors.)
+  const cupboards = [[-2.6, 0.8], [-1.35, 1.1], [0, 1.0], [1.35, 1.1], [2.6, 0.8]];
   const hc = 1.72;
   const dc = 0.44;
   const add = (a, m) => {
@@ -137,7 +138,7 @@ function hall(lod, seed, out) {
     add(armarium(w, hc, dc, { shelves: 3, lod, seed: seed + 40 + i, rollsAt: lod ? 1 : 0 }), new Matrix4().makeTranslation(x, py, backZ));
   });
   for (const s of [-1, 1]) {
-    const m = new Matrix4().makeRotationY(-s * Math.PI / 2).setPosition(s * (H - T), py, (colZ + backZ) / 2 - 0.1);
+    const m = new Matrix4().makeRotationY(-s * Math.PI / 2).setPosition(s * (H - T), py, (colZ + backZ) / 2 + 0.25);
     add(armarium(0.9, hc, dc, { shelves: 3, lod, seed: seed + 50 + s, rollsAt: lod ? 1 : 0 }), m);
   }
   // The colonnade: four marble columns and an anta on each end wall, the architrave over them.
@@ -252,8 +253,8 @@ function court(lod, seed, out) {
   const [dx, dz] = [1.95, 0.75];
   out.wood.push(box(0.72, 0.04, 0.46, dx, y0 + 0.7, dz, 0.85));
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) out.wood.push(box(0.05, 0.7, 0.05, dx + sx * 0.31, y0, dz + sz * 0.18, 0.7));
-  out.wood.push(box(0.36, 0.04, 0.32, dx + 0.62, y0 + 0.42, dz, 0.8));
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) out.wood.push(box(0.04, 0.42, 0.04, dx + 0.62 + sx * 0.14, y0, dz + sz * 0.12, 0.7));
+  out.wood.push(box(0.36, 0.04, 0.32, dx + 0.62, y0 + 0.48, dz, 0.8));
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) out.wood.push(box(0.04, 0.48, 0.04, dx + 0.62 + sx * 0.14, y0, dz + sz * 0.12, 0.7));
   if (lod < 2) {
     out.bronze.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.035, 0.06, 8, 1).translate(dx - 0.22, y0 + 0.77, dz - 0.12))));
     for (let k = 0; k < 3; k++) out.wood.push(box(0.18, 0.012, 0.13, dx - 0.18, y0 + 0.74 + k * 0.013, dz + 0.1, 0.8 - k * 0.1));
@@ -285,12 +286,12 @@ function readers(mats) {
   things.paper.push(tintGeometry(boxUV(sheet), () => [0.88, 0.78, 0.58]));
   // The scribe on his stool, copying at the desk (he faces it: -x).
   const [dx, dz] = [1.95, 0.75];
-  list.push(...person(mats, { cloth: 0x9a8a6a, hair: 0x2e2119, skin: 0x9a6c4c, sit: 0.46, arms: 'write', lean: 0.22 }, dx + 0.62, y0, dz, -Math.PI / 2));
+  list.push(...person(mats, { cloth: 0x9a8a6a, hair: 0x2e2119, skin: 0x9a6c4c, sit: 0.52, arms: 'write', lean: 0.22 }, dx + 0.62, y0, dz, -Math.PI / 2));
   const sh = new BoxGeometry(0.3, 0.004, 0.22);
   sh.translate(dx + 0.05, y0 + 0.745, dz);
   things.paper.push(tintGeometry(boxUV(sh), () => [0.88, 0.78, 0.58]));
   things.paper.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.03, 0.24, 6, 1).rotateX(Math.PI / 2).translate(dx - 0.13, y0 + 0.77, dz)), () => [0.78, 0.66, 0.46]));
-  // The library's slave coming down the steps with rolls for the reader, a capsa at his feet.
+  // The library's slave bringing rolls for the reader, a capsa at his feet.
   list.push(...person(mats, { cloth: 0x7a6a52, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, -0.95, y0, 0.9, -Math.PI * 0.72));
   const [hx, hz] = at(-0.95, 0.9, -Math.PI * 0.72, 0, 0.27);
   for (let k = 0; k < 3; k++) things.paper.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.03, 0.3, 6, 1).rotateZ(Math.PI / 2).rotateY(-Math.PI * 0.72 + Math.PI / 2).translate(hx, y0 + 1.12 + k * 0.05, hz)), () => [0.8, 0.68, 0.48]));

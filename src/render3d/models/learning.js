@@ -50,6 +50,7 @@ export function learningMaterials() {
     shelteredFloor: material('cocciopesto-sheltered', { surface: 'cocciopesto', vertexColors: true, snow: 0 }),
     shelteredMarble: material('marble-sheltered', { surface: 'marble', vertexColors: true, snow: 0 }),
     shelteredWood: material('wood-sheltered', { surface: 'wood', vertexColors: true, snow: 0 }),
+    shelteredStone: material('travertine-sheltered', { surface: 'travertine', vertexColors: true, snow: 0 }),
     // Every face and hand one material, every head of hair another: their tones in the vertices.
     skin: material('skin-tones', { color: 0xffffff, roughness: 0.55, vertexColors: true, snow: 0, wet: 0 }),
     hair: material('hair-tones', { color: 0xffffff, roughness: 0.7, vertexColors: true, snow: 0.2 }),
