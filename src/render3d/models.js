@@ -42,6 +42,7 @@
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { buildWell } from './models/well.js';
 import { buildFountain } from './models/fountain.js';
+import { WATER_MODELS } from './models/waterModels.js';
 import { iceMaterial, stagnantMaterial } from './materials.js';
 import { ART_PX } from './projection.js';
 import { COMMERCE_MODELS } from './models/commerce.js';
@@ -120,6 +121,8 @@ export const MODELS = Object.freeze({
       return f.group;
     },
   }),
+  // The aqueducts' tiles and the reservoir (models/waterModels.js says how).
+  ...WATER_MODELS,
   // The market, the forum and the warehouse (models/commerce.js says how).
   ...COMMERCE_MODELS,
   // The prefecture and the engineer's post (models/services.js says how).
