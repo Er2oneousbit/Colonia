@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.17)
+
+* **Aqueducts and the reservoir in 3D** (under WebGL): aqueducts are arcades in the province's stone (tufa and peperino as the Aqua Marcia and Claudia, limestone as the Pont du Gard and Segovia, brick-faced concrete), an arch a tile, joining up as you drag them, with pierced piers at turns and branches; where one crosses a road it springs a wider arch of dressed travertine after the Porta Maggiore. Its open channel on top shows the water running, with leak stains down the piers, or dry silt when it carries none, and it steps down into a reservoir in a stair of falls. The reservoir is a castellum aquae after Pompeii's at the Porta Vesuvio: an open tank lined in pink signinum, the distribution house with three outlets and lead pipes with bronze stopcocks, water towers at its corners and overflows into troughs; full or dry as the sim says, its water's margins freezing in a hard frost
+* Headless sim: identical to v0.20.16 on every difficulty
+* 1252 unit tests, 260 browser checks
+
 ## Done (v0.20.16)
 
 * **The school, the library and the academy in 3D** (under WebGL): a school held under a portico as Roman schools were, the master in his wicker chair under an awning, the alphabet on an easel, boys on benches with wax tablets and rolls; a library behind four marble columns with BIBLIOTHECA cut over them, its cupboards of rolls, Minerva and the herms of Homer, Ennius, Plato and Cicero in its court, a reader and a scribe; an academy round a half-round exedra and a garden with box hedges and a sundial, a speaker declaiming to his listeners and two walking in the covered walk. Staffed, their doors and cupboards stand open and their people are there; idle, all is shut. Console: `learning` builds one of each beside the city
