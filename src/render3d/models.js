@@ -21,6 +21,8 @@
  *               its looks will want: one asked for later would put the
  *               models back to sprites until it is painted)
  *     lamps(b)  optional: its lamps at night (modelLamps)
+ *     fits(b)   optional: false keeps this building's sprite (a fleet
+ *               building of an older save, wholly on land: models/fleet.js)
  *   }
  * and variant() may add `more`: [{ key, n, mats, state }], more kits
  * drawn in the building's frame (n matrices in its metres), each with its
@@ -45,6 +47,7 @@ import { ART_PX } from './projection.js';
 import { COMMERCE_MODELS } from './models/commerce.js';
 import { SERVICE_MODELS } from './models/services.js';
 import { WALL_MODELS } from './models/wallModels.js';
+import { FLEET_MODELS } from './models/fleet.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -122,6 +125,8 @@ export const MODELS = Object.freeze({
   ...SERVICE_MODELS,
   // The town walls' tiles and gates, and the watchtower (models/wallModels.js says how).
   ...WALL_MODELS,
+  // The fleet's waterside buildings: the Navalia, the Statio and the Portus (models/fleet.js says how).
+  ...FLEET_MODELS,
 });
 
 /**
@@ -149,8 +154,10 @@ export function hasModel(type) {
  * A model's own lamps at night, as points [u, v, z] of its footprint at
  * art turn T (tiles, and art px up), for the night's light map
  * (render/renderer.js collectLights): the granary's lanterns. Empty for
- * most. A lamp is [x, y, z, s] in the model's metres, s the way it faces
- * along z (+1 or -1); one on a side facing away from the view is left out,
+ * most. A lamp is [x, y, z, s, sx] in the model's metres, (sx, s) the way
+ * it faces in x and z (sx 0 if not given, s +1 or -1 along z; a fleet
+ * building's lamp turned to its water may face along x: sx +1 or -1, s 0);
+ * one on a side facing away from the view is left out,
  * since the light map has no depth and its glow would show through the
  * building.
  */
@@ -160,9 +167,10 @@ export function modelLamps(b, T) {
   const S = b.size;
   const t = T & 3;
   const out = [];
-  for (const [x, y, z, s = 1] of def.lamps(b)) {
-    // Its facing (0, s) in (u, v) turned as the art turns: the view sees the sides facing +u or +v.
-    const face = [[0, s], [-s, 0], [0, -s], [s, 0]][t];
+  for (const [x, y, z, s = 1, sx = 0] of def.lamps(b)) {
+    // Its facing (sx, s) in (u, v) turned as the art turns: the view sees the sides facing +u or +v.
+    // (A lamp facing along x, sx, is a fleet building's turned to its water: models/fleet.js.)
+    const face = [[sx, s], [-s, sx], [-sx, -s], [s, -sx]][t];
     if (face[0] + face[1] <= 0) continue;
     // Metres from the middle to the art's (u, v) at turn 0, then turned as render/turn.js turns art.
     const u = S / 2 + x / TILE_M;
