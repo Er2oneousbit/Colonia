@@ -35,7 +35,7 @@ import { Matrix4, Group } from 'three';
 import { buildSmallStatue, buildStatue, buildGrandStatue, SIGNA, GRAND_LAMPS } from './signa.js';
 import { buildYard, TOPIARIA } from './topiaria.js';
 import { buildArch } from './fornix.js';
-import { buildPlot, buildHedge, buildHedgeStub, buildHedgePost, buildGardenWarm, DESIGNS, gardenSeason, STUB } from './hortus.js';
+import { buildPlot, buildHedge, buildHedgeStub, buildHedgePost, buildGardenWarm, DESIGNS, SEASONS, gardenSeason, STUB } from './hortus.js';
 
 /** The care step (sim/gardens.js) from which a garden or a statue is drawn neglected: as its sprite (buildingArt.js). */
 export const NEGLECT_STEP = 2;
@@ -88,53 +88,80 @@ const frost = (place) => (place && place.snow) >= 2;
 const SIDE_TURN = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 const SIDE_DIR = [[0, 1], [1, 0], [0, -1], [-1, 0]];
 
-/** A direction (x, z) of a building's own frame on the map, with its turn (render/turn.js: a quarter takes +x to +y). */
-function onMap([dx, dz], turn) {
-  let x = dx;
-  let y = dz;
-  for (let k = 0; k < (turn & 3); k++) [x, y] = [-y, x];
-  return [x, y];
-}
+/**
+ * Where each side (0..3) and each corner (4..7: between side i and side
+ * i + 1) of a building's own frame lies on the map, by its turn (render/
+ * turn.js: a quarter takes +x to +y): [turn][k] -> [dx, dy]. A table, so a
+ * frame's hundreds of gardens read their neighbours without making a thing.
+ */
+const AROUND = [0, 1, 2, 3].map((turn) => {
+  const onMap = ([dx, dz]) => {
+    let x = dx;
+    let y = dz;
+    for (let k = 0; k < turn; k++) [x, y] = [-y, x];
+    return [x, y];
+  };
+  const sides = SIDE_DIR.map(onMap);
+  const corners = sides.map((s, i) => [s[0] + sides[(i + 1) & 3][0], s[1] + sides[(i + 1) & 3][1]]);
+  return Object.freeze([...sides, ...corners]);
+});
 
 /**
- * Which sides of a garden another garden adjoins, in its own frame: a mask
- * of SIDE_DIR's bits (1 +z, 2 +x, 4 -z, 8 -x). Read from the map (`game`:
- * its building layer and buildings); 0 without one (a ghost's has one too).
+ * Which sides and corners of a garden other gardens adjoin, in its own
+ * frame: bits 0..3 the sides (+z, +x, -z, -x), bits 4..7 the corners
+ * between side i and side i + 1. Read from the map (`game`: its building
+ * layer and buildings); 0 without one.
  */
 export function gardenMask(b, game) {
   if (!game || !game.map || !game.buildings) return 0;
   const { map } = game;
+  const around = AROUND[(b.turn || 0) & 3];
   let mask = 0;
-  SIDE_DIR.forEach((d, i) => {
-    const [mx, my] = onMap(d, b.turn || 0);
-    const x = b.x + mx;
-    const y = b.y + my;
-    if (!map.inBounds(x, y)) return;
+  for (let k = 0; k < 8; k++) {
+    const x = b.x + around[k][0];
+    const y = b.y + around[k][1];
+    if (!map.inBounds(x, y)) continue;
     const id = map.building[map.idx(x, y)];
     const n = id ? game.buildings.get(id) : null;
-    if (n && n !== b && n.type === 'garden') mask |= 1 << i;
-  });
+    if (n && n !== b && n.type === 'garden') mask |= 1 << k;
+  }
   return mask;
 }
 
-/** The hedge of a plot with neighbours `mask`: matrices (its own metres) of its runs, its stubs into the next garden, its corner posts. */
+/**
+ * The hedge of a plot with neighbours `mask` (gardenMask): matrices (its
+ * own metres) of its runs, its stubs into the next garden, its corner
+ * posts. A side with a garden beyond it has no run; a run whose next tile
+ * along it is a garden goes on to the tile's edge (a stub), else turns at
+ * a post. An inside corner (gardens on two sides, none on the diagonal
+ * between them: an L of gardens) carries both neighbours' hedges into it,
+ * a stub from each edge meeting under a post, so the hedge round an
+ * irregular group of gardens is unbroken.
+ */
 export function hedgeLayout(mask) {
   const has = (i) => (mask & (1 << (i & 3))) !== 0;
+  const diag = (i) => (mask & (1 << (4 + (i & 3)))) !== 0;
   const runs = [];
   const stubs = [];
   const posts = [];
   const mid = STUB.mid;
+  const turnOf = (i) => new Matrix4().makeRotationY(SIDE_TURN[i & 3]);
+  const along = (i, e) => turnOf(i).multiply(new Matrix4().makeTranslation(e * mid, 0, 0));
   for (let i = 0; i < 4; i++) {
-    if (has(i)) continue;
-    const turn = new Matrix4().makeRotationY(SIDE_TURN[i]);
-    runs.push(turn);
-    // Each end of the run: the next garden along it carries the hedge on (a stub to the tile's edge), else a post.
-    // (The run's local +x end points to the side after it in SIDE_TURN's turning, -x to the one before.)
-    for (const [e, j] of [[1, i + 1], [-1, i + 3]]) {
-      if (has(j)) stubs.push(turn.clone().multiply(new Matrix4().makeTranslation(e * mid, 0, 0)));
+    if (has(i)) {
+      // An inside corner between this side and the next: side i's line comes in from its far edge,
+      // side i + 1's from its own; a post where they meet.
+      // (A run's local +x end points to the side after it in SIDE_TURN's turning, -x to the one before.)
+      if (has(i + 1) && !diag(i)) {
+        stubs.push(along(i, 1), along(i + 1, -1));
+        posts.push(turnOf(i));
+      }
+      continue;
     }
+    runs.push(turnOf(i));
+    for (const [e, j] of [[1, i + 1], [-1, i + 3]]) if (has(j)) stubs.push(along(i, e));
     // The corner between this side and the next, when that side has its hedge too.
-    if (!has(i + 1)) posts.push(turn);
+    if (!has(i + 1)) posts.push(turnOf(i));
   }
   const pack = (list) => {
     const a = new Float32Array(list.length * 16);
@@ -151,19 +178,21 @@ export function gardenPlot(b) {
 }
 
 const ROT = [0, 1, 2, 3].map((r) => new Matrix4().makeRotationY((r * Math.PI) / 2).toArray(new Float32Array(16)));
-/** `more` lists kept by what they show: a few dozen in a city. */
+/** `more` lists kept by what they show (a number packing it all): a few dozen in a city. */
 const GARDEN_MORE = new Map();
 
 function gardenMore(b, place, ctx) {
-  const state = decorState(b);
+  const worn = decorState(b) === 'worn';
   const plain = b.id === null || b.id === undefined;
   const { design, rot } = gardenPlot(b);
   const season = gardenSeason(ctx ? ctx.month : null);
-  const ice = state === 'tended' && frost(place) && (design === 'labrum' || design === 'pool');
+  const ice = !worn && frost(place) && (design === 'labrum' || design === 'pool');
   const mask = plain ? 0 : gardenMask(b, ctx && ctx.game);
-  const sig = `${design}:${season}:${state}${ice ? ':ice' : ''}${plain ? ':plain' : ''}|${rot}|${mask}`;
+  // (Packed in a number: no string made for every garden every frame.)
+  const sig = ((((((DESIGNS.indexOf(design) * 5 + SEASONS.indexOf(season)) * 2 + (worn ? 1 : 0)) * 2 + (ice ? 1 : 0)) * 2 + (plain ? 1 : 0)) * 4 + rot) * 256) + mask;
   let more = GARDEN_MORE.get(sig);
   if (!more) {
+    const state = worn ? 'worn' : 'tended';
     const h = hedgeLayout(mask);
     more = [{ key: `garden:plot:${design}:${season}:${state}${ice ? ':ice' : ''}${plain ? ':plain' : ''}`, n: 1, mats: ROT[rot] }];
     if (h.n[0]) more.push({ key: `garden:hedge:${state}`, n: h.n[0], mats: h.runs });

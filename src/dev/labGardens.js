@@ -9,7 +9,8 @@
  * game draws:
  *
  *   - a block of eight gardens side by side (their hedges join, their walks
- *     run through), a row of four left untended, and two alone
+ *     run through), a row of four left untended, an L of three
+ *     (its inside corner closed), and one alone, untended
  *   - the three small statues, the three statues and the two grand ones,
  *     tended in the front row and neglected behind
  *   - the gardeners' yard at work and shut
@@ -46,10 +47,12 @@ const MONTHS = [
 /** What stands where: [type, x, y, props, label name, note]. */
 const PLAN = [];
 const G = (x, y, care = 0) => PLAN.push(['garden', x, y, { careStep: care }]);
-// A block of eight tended gardens, a row of four untended, two alone.
+// A block of eight tended gardens, a row of four untended, an L of three, one alone untended.
 for (let y = 0; y < 2; y++) for (let x = 0; x < 4; x++) G(x, y);
 for (let x = 0; x < 4; x++) G(x, 3, 4);
 G(0, 5);
+G(1, 5);
+G(0, 6);
 G(2, 5, 3);
 for (const [k, design] of ['herm', 'bust', 'victory'].entries()) {
   PLAN.push(['statue_small', 6 + k, 0, { design }], ['statue_small', 6 + k, 3, { design, careStep: 4 }]);
@@ -68,7 +71,7 @@ const ROADS = [[0, 12, MW - 1, 12], [26, 0, 26, MH - 1]];
 const LABELS = [
   [1.5, 0.5, 2.6, 'Gardens (viridaria)', 'Side by side: one garden, the walks run through'],
   [1.5, 3, 2.4, 'Untended', 'Ragged box, weeds, the basin dry'],
-  [0, 5, 2.4, 'A garden alone', 'Its hedge all round'],
+  [0, 5, 2.4, 'An L of gardens', 'Its hedge runs round the inside corner'],
   [6, 0, 2.8, 'Herm of Liber', 'Small statue'],
   [7, 0, 2.8, 'Portrait bust', 'GENIO COLONIAE'],
   [8, 0, 2.8, 'Victory on a globe', 'Small statue, gilt bronze'],

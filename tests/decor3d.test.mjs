@@ -155,6 +155,29 @@ test('decor3d: gardens side by side join their hedges', () => {
   const d = g2.add('garden', 5, 5);
   g2.add('statue_small', 6, 5);
   assert.equal(gardenMask(d, g2), 0);
+  // An L of three gardens: the inside corner's tile carries both hedges into the corner, under a post.
+  const g3 = fakeGame();
+  const la = g3.add('garden', 2, 2);
+  g3.add('garden', 3, 2);
+  g3.add('garden', 2, 3);
+  const lMask = gardenMask(la, g3);
+  assert.equal(lMask, 0b0011, 'gardens on its +z and +x, none on the diagonal between');
+  const corner = hedgeLayout(lMask);
+  assert.deepEqual(corner.n, [2, 4, 2], 'two runs; their stubs and the corner\'s two; a post outside and one in the corner');
+  const stubBox = (() => {
+    const s0 = modelFor('garden:stub:tended').build('garden:stub:tended', 0);
+    s0.updateMatrixWorld(true);
+    return new Box3().setFromObject(s0);
+  })();
+  const covers = (mats, n, x, z) => Array.from({ length: n }, (_, k) => stubBox.clone().applyMatrix4(new Matrix4().fromArray(mats, k * 16)))
+    .some((bx) => bx.min.x <= x && bx.max.x >= x && bx.min.z <= z && bx.max.z >= z);
+  // (Along the +z edge from the +x tile's edge in, and along the +x edge from the +z tile's edge in.)
+  assert.ok(covers(corner.stubs, corner.n[1], 1.98, 1.74) && covers(corner.stubs, corner.n[1], 1.74, 1.98), 'the corner closed');
+  // A full block's inside tile (every neighbour a garden, the diagonals too) has no hedge at all.
+  const g4 = fakeGame();
+  for (let y = 1; y < 4; y++) for (let x = 1; x < 4; x++) g4.add('garden', x, y);
+  const inner = [...g4.buildings.values()].find((v) => v.x === 2 && v.y === 2);
+  assert.deepEqual(hedgeLayout(gardenMask(inner, g4)).n, [0, 0, 0]);
   // The stubs end at the tile's edge, on the run's line.
   const box = new Box3();
   const stub = modelFor('garden:stub:tended').build('garden:stub:tended', 0);
