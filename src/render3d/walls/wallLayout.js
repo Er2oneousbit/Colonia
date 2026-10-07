@@ -96,13 +96,14 @@ export function gateAxis(map, buildings, x, y) {
   return ns ? 'x' : 'y';
 }
 
-const isGate = (map, x, y) => map.inBounds(x, y) && map.wall[map.idx(x, y)] === Wall.GATE;
+/** Is (x, y) a gate, or one a dragged wall's plan would cut (`extra.gateAt`, wallGame.js wallGhosts)? */
+const isGate = (map, x, y, extra = null) => map.inBounds(x, y) && (map.wall[map.idx(x, y)] === Wall.GATE || !!(extra && extra.gateAt && extra.gateAt(x, y)));
 
 /** Is wall tile (x, y) beside a gate on that gate's own line (a flanking tower's place)? */
-export function flanksGate(map, buildings, x, y) {
+export function flanksGate(map, buildings, x, y, extra = null) {
   for (const b of BITS) {
     const [dx, dy] = STEP[b];
-    if (!isGate(map, x + dx, y + dy)) continue;
+    if (!isGate(map, x + dx, y + dy, extra)) continue;
     if (gateAxis(map, buildings, x + dx, y + dy) === (dx ? 'x' : 'y')) return true;
   }
   return false;
@@ -126,7 +127,7 @@ function nearStrongPoint(map, buildings, x, y, axis, n, extra) {
     const tx = axis === 'x' ? x + k : x;
     const ty = axis === 'y' ? y + k : y;
     if (!map.inBounds(tx, ty)) continue;
-    if (isGate(map, tx, ty) || isTurris(map, buildings, tx, ty)) return true;
+    if (isGate(map, tx, ty, extra) || isTurris(map, buildings, tx, ty)) return true;
     if (map.wall[map.idx(tx, ty)] === Wall.WALL || (extra && extra(tx, ty))) {
       const m = wallMask(map, buildings, tx, ty, extra);
       if (m !== 10 && m !== 5) return true;
@@ -141,7 +142,7 @@ function nearStrongPoint(map, buildings, x, y, axis, n, extra) {
  * as walls (a dragged wall's plan).
  */
 export function towerOf(map, buildings, x, y, mask, extra = null) {
-  if (flanksGate(map, buildings, x, y)) return 'round';
+  if (flanksGate(map, buildings, x, y, extra)) return 'round';
   const bits = BITS.filter((b) => mask & b);
   if (bits.length >= 3) return 'square';
   if (bits.length === 2 && mask !== 10 && mask !== 5) {
@@ -213,7 +214,9 @@ export function wallPiece(map, buildings, x, y, vt, look, hp = null, extra = nul
     const axis = gateAxis(map, buildings, x, y);
     // The canonical gate's wall runs along model x: turn it a quarter where its wall runs along the view's v.
     const along = (axis === 'x') !== ((vt & 1) === 1) ? 0 : 1;
-    return { key: `wall:${look}:gate:${damage}`, T: along, gate: true, shape: 'gate', tower: null, damage, stubs: [] };
+    // A gatehouse ends at its tile's edge: a Turris on its wall's line is reached by a stub, as from a wall.
+    const line = axis === 'x' ? 10 : 5;
+    return { key: `wall:${look}:gate:${damage}`, T: along, gate: true, shape: 'gate', tower: null, damage, stubs: stubs.filter((v) => rotMask(v, -vt & 3) & line) };
   }
   const { shape, T } = shapeOf(rotMask(mask, vt));
   const tower = towerOf(map, buildings, x, y, mask, extra);

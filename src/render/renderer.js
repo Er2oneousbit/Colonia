@@ -76,7 +76,7 @@ import { wallHpOf, TOWER_RANGE } from '../sim/military.js';
 import { waterOf, shoreBerth } from '../sim/navy.js';
 import { farmDormant } from '../sim/production.js';
 import { wallSpec, drawUnit, drawProjectile, drawRallyFlag, drawStandardNumber } from './militaryArt.js';
-import { wallModelPlace, wallCoverKey, wallCoverSpec, wallGhosts, gateTorchPoints } from '../render3d/walls/wallGame.js';
+import { wallModelPlace, wallCoverKey, wallCoverSpec, wallGhosts, gateTorchPoints, noteWalls } from '../render3d/walls/wallGame.js';
 import { roman } from '../sim/fortNumbers.js';
 import { rallyTarget } from '../sim/rallyPoints.js';
 import { Camera, tileOfWorld } from './camera.js';
@@ -994,6 +994,8 @@ export class Renderer {
     this.stats.waterHint = null;
     this.puffBudget = 4;
     this.gates.length = 0;
+    // (Which walls are new, for the 3D ones rising: render3d/walls/wallGame.js. Bookkeeping only.)
+    noteWalls(map, this.time);
     const motion = this.motionOn;
     const glints = motion && cam.zoom >= 1 && env.sun > 0.5 && env.overcast < 0.5;
     const visibleBuildings = [];

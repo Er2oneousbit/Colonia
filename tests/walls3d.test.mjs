@@ -33,7 +33,7 @@ import { buildTurris, TURRIS } from '../src/render3d/models/turris.js';
 import { MODELS, hasModel, modelMatrix, modelLamps, partShows } from '../src/render3d/models.js';
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
-import { wallModelPlace, wallGhosts, gateShut, wallRise, gateTorchPoints, wallCoverSpec } from '../src/render3d/walls/wallGame.js';
+import { wallModelPlace, wallGhosts, gateShut, wallRise, noteWalls, gateTorchPoints, wallCoverSpec } from '../src/render3d/walls/wallGame.js';
 import { damageWall, wallHpOf } from '../src/sim/damage.js';
 import { newGame, build, findFree } from './helpers.mjs';
 
@@ -389,4 +389,35 @@ test('walls3d: a wall\'s click cover is as tall as its model', () => {
   // Art px a metre: 9.8 (render3d/projection.js): the wall's merlons stand about 51 px.
   assert.ok(spec.ay > 48 && spec.ay < 56, spec.ay);
   assert.ok(tower.ay > spec.ay + 30, tower.ay);
+});
+
+test('walls3d: the first wall a game shows rises too (the layer noted every frame, walls in view or not)', () => {
+  const game = newGame({ seed: 'walls3d-first' });
+  const map = game.map;
+  noteWalls(map, 5);
+  const spot = findFree(game, 3, 1, { x: 30, y: 30 });
+  build(game, 'wall', spot.x, spot.y, spot.x + 2, spot.y);
+  noteWalls(map, 6);
+  assert.ok(wallRise(map, map.idx(spot.x, spot.y), 6.1) > 0);
+  assert.equal(wallRise(map, map.idx(spot.x, spot.y), 7), 0);
+});
+
+test('walls3d: a gate reaches a watchtower on its line by a stub; a planned gate flanks itself in the ghost', () => {
+  const map = mapWith([[5, 8], [6, 8, Wall.GATE]], [[6, 7], [6, 8], [6, 9]]);
+  for (const [x, y] of [[7, 7], [8, 7], [7, 8], [8, 8]]) map.building[map.idx(x, y)] = 3;
+  const b = new Map([[3, { id: 3, type: 'tower', def: { kind: 'tower' }, x: 7, y: 7, size: 2 }]]);
+  for (let vt = 0; vt < 4; vt++) assert.deepEqual(wallPiece(map, b, 6, 8, vt, 'tufa').stubs, [rotMask(2, vt)], `turn ${vt}`);
+  // A wall dragged across a road: the plan's gate gets its round towers in the ghost, as when built.
+  const game = newGame({ seed: 'walls3d-ghostgate' });
+  const m = game.map;
+  let at = null;
+  for (let i = 0; i < m.size && !at; i++) {
+    const x = m.xOf(i);
+    const y = m.yOf(i);
+    if (m.road[i] && m.hasRoad(x, y - 1) && m.hasRoad(x, y + 1) && !m.hasRoad(x - 1, y) && !m.hasRoad(x + 1, y) && m.isFree(x - 1, y) && m.isFree(x + 1, y)) at = { x, y };
+  }
+  const plan = { tool: 'wall', kind: 'path', items: [-1, 0, 1].map((d) => ({ x: at.x + d, y: at.y, ok: true, exists: false, gate: d === 0 })) };
+  const ghosts = wallGhosts(fakeRenderer(game), plan);
+  assert.deepEqual(ghosts.map((g) => parseWallKey(g.variant.key).tower), ['round', null, 'round']);
+  assert.equal(parseWallKey(ghosts[1].variant.key).shape, 'gate');
 });

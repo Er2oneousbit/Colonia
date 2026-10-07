@@ -4049,6 +4049,7 @@ try {
           if (free(x - 1, y) && free(x - 2, y) && free(x + 1, y) && free(x + 2, y) && free(x + 3, y) && free(x + 4, y) && free(x + 3, y - 1) && free(x + 4, y - 1)) at = { x, y };
         }
         if (!at) return null;
+        at.free = g.cheats.freeBuild;
         g.cheats.freeBuild = true;
         app.ui.selectTool('wall');
         app.input.drag = { x0: at.x - 2, y0: at.y, x1: at.x + 2, y1: at.y };
@@ -4099,7 +4100,7 @@ try {
           }
           app.input.drag = null;
           app.ui.selectTool(null);
-          app.game.cheats.freeBuild = false;
+          app.game.cheats.freeBuild = at.free;
         }, walls);
       }
       check('WebGL renderer: walls, a gate and a Turris are 3D models; a click on the gate picks its tile, on the Turris the building',

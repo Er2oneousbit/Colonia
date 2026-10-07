@@ -51,8 +51,14 @@ export const GATE_WATCH = 14;
 /** Per map: the wall layer's copy at the last revision, and when each new tile appeared. */
 const TRACK = new WeakMap();
 
-/** Note the map's walls (once a revision): new tiles rise from `time` (the renderer's seconds). */
-function track(map, time) {
+/**
+ * Note the map's walls (once a revision): new tiles rise from `time` (the
+ * renderer's seconds). The renderer calls it every frame, with either back
+ * end and whether a wall is in view or not, so the copy is never stale: the
+ * first wall of a game rises, and walls built under Classic are not new
+ * when the WebGL renderer comes back.
+ */
+export function noteWalls(map, time) {
   let t = TRACK.get(map);
   if (!t) {
     // (A map seen for the first time, a load or a new game: what stands there is not new.)
@@ -72,7 +78,7 @@ function track(map, time) {
 
 /** Art px tile `i` is sunk at `time` while it rises (0 once up). */
 export function wallRise(map, i, time) {
-  const t = track(map, time);
+  const t = noteWalls(map, time);
   const t0 = t.appear.get(i);
   if (t0 === undefined) return 0;
   const p = (time - t0) / RISE_S;
@@ -151,8 +157,15 @@ export function wallGhosts(r, plan) {
   const map = game.map;
   const look = lookOfGame(game);
   const planned = new Set();
-  for (const it of plan.items) if (it.ok && !it.exists) planned.add(map.idx(it.x, it.y));
+  const gates = new Set();
+  for (const it of plan.items) {
+    if (!it.ok || it.exists) continue;
+    planned.add(map.idx(it.x, it.y));
+    if (it.gate) gates.add(map.idx(it.x, it.y));
+  }
   const extra = (x, y) => map.inBounds(x, y) && planned.has(map.idx(x, y));
+  // (The plan's gates flank themselves with round towers and keep square ones off, as built ones do.)
+  extra.gateAt = (x, y) => map.inBounds(x, y) && gates.has(map.idx(x, y));
   const out = [];
   for (const it of plan.items) {
     if (!it.ok || it.exists) continue;
@@ -189,9 +202,17 @@ export function wallCoverSpec(piece) {
       const c = '#808080';
       const wallH = WALL_TOP * PX_M;
       if (piece.gate) {
+        // Its piers and the block over the arch: a walker in the passage is seen through it, and clicked.
         const d = W.gate.depth / TILE_M;
-        if (piece.T & 1) box(ctx, 0.5 - d, 0, 2 * d, 1, 0, top, c);
-        else box(ctx, 0, 0.5 - d, 1, 2 * d, 0, top, c);
+        const p = W.gate.pass / TILE_M;
+        const crown = (W.gate.spring + W.gate.pass) * PX_M;
+        const span = (a0, a1, z0, z1) => {
+          if (piece.T & 1) box(ctx, 0.5 - d, a0, 2 * d, a1 - a0, z0, z1 - z0, c);
+          else box(ctx, a0, 0.5 - d, a1 - a0, 2 * d, z0, z1 - z0, c);
+        };
+        span(0, 0.5 - p, 0, top);
+        span(0.5 - p, 0.5 + p, crown, top);
+        span(0.5 + p, 1, 0, top);
         return;
       }
       // Back arms first (N, W), the middle, then the front ones (E, S): the painter's order.
@@ -217,8 +238,9 @@ const W_GATE_TOP = WALL.gate.top + (WALL.breast - WALL.walk) + WALL.merlonH + WA
 
 /**
  * A gate's torches as the night's light map wants them: [u, v, z] (view
- * tiles and art px up) for the two on the face the view sees, or none if
- * the model is not drawn. The canonical gate (models/townWall.js) has
+ * tiles and art px up) for the two on the face the view sees (the renderer
+ * asks only while the walls are drawn as models; far out, where the model
+ * leaves its brackets off, the glows still mark the gate). The canonical gate (models/townWall.js) has
  * them at (+-x, y, +-z) on its two faces.
  */
 export function gateTorchPoints(r, x, y) {
