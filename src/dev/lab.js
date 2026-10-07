@@ -29,12 +29,14 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'),
+ * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'|'military'),
  * setSeason(name), setSnow(0..3),
  * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
  * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
  * fountainTriangles(lod), setCommerceLod(0..2), commerceTriangles(id, lod)
- * (the Market, Forum, Warehouse and Services scenes, labCommerce.js: K, J, X, S).
+ * (the Market, Forum, Warehouse and Services scenes, labCommerce.js: K, J, X, S;
+ * the Military scene, labMilitary.js: C, with commerceTriangles('military', lod)
+ * giving each of its five buildings' triangles).
  * ----------------------------------------------------------------------------
  */
 
