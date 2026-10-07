@@ -77,6 +77,7 @@ import { waterOf, shoreBerth } from '../sim/navy.js';
 import { farmDormant } from '../sim/production.js';
 import { wallSpec, drawUnit, drawProjectile, drawRallyFlag, drawStandardNumber } from './militaryArt.js';
 import { wallModelPlace, wallCoverKey, wallCoverSpec, wallGhosts, gateTorchPoints, noteWalls } from '../render3d/walls/wallGame.js';
+import { aqueductModelPlace, aqueductGhosts, noteAqueducts } from '../render3d/aqueducts/aqueductGame.js';
 import { roman } from '../sim/fortNumbers.js';
 import { rallyTarget } from '../sim/rallyPoints.js';
 import { Camera, tileOfWorld } from './camera.js';
@@ -996,6 +997,7 @@ export class Renderer {
     this.gates.length = 0;
     // (Which walls are new, for the 3D ones rising: render3d/walls/wallGame.js. Bookkeeping only.)
     noteWalls(map, this.time);
+    noteAqueducts(map, this.time);
     const motion = this.motionOn;
     const glints = motion && cam.zoom >= 1 && env.sun > 0.5 && env.overcast < 0.5;
     const visibleBuildings = [];
@@ -1127,7 +1129,11 @@ export class Renderer {
             items.push({ d: depth + BRIDGE_DEPTH, kind: K_STRIP, spr, wx, wy, full: true });
           }
         }
-        if (map.aqueduct[i]) {
+        if (map.aqueduct[i] && be.hasModel?.('aqueduct')) {
+          // The WebGL back end draws aqueducts as 3D models (render3d/aqueducts/aqueductGame.js).
+          const a3 = aqueductModelPlace(this, x, y, i, vx, vy);
+          be.model(a3.b, a3.place);
+        } else if (map.aqueduct[i]) {
           const mask = rotNibbles(this.aqueductMask(x, y), vt);
           const filled = map.aqueduct[i] === 2;
           const overRoad = map.road[i] ? 1 : 0; // a bridge over the road
@@ -2481,6 +2487,11 @@ export class Renderer {
     // A dragged wall: its pieces as they would stand (render3d/walls/wallGame.js), over the tiles' tint.
     if (plan && plan.tool === 'wall' && be.ghostModel && be.hasModel('wall')) {
       for (const g of wallGhosts(this, plan)) be.ghostModel(g);
+      return;
+    }
+    // A dragged aqueduct likewise (render3d/aqueducts/aqueductGame.js).
+    if (plan && plan.tool === 'aqueduct' && be.ghostModel && be.hasModel('aqueduct')) {
+      for (const g of aqueductGhosts(this, plan)) be.ghostModel(g);
       return;
     }
     if (!plan || plan.kind !== 'building' || !be.ghostModel) return;

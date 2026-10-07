@@ -69,6 +69,8 @@ import { harbourScenes } from './labHarbour.js';
 import { buildMilitaryScene } from './labMilitary.js';
 import { buildLearningScene } from './labLearning.js';
 import { fountainLife } from '../render3d/models/fountain.js';
+import { aqueductLife } from '../render3d/models/aqueduct.js';
+import { buildWaterScene } from './labWater.js';
 import { mapStats } from './texReport.js';
 
 /** Classic's closest zoom (config.js ZOOM_LEVELS' last); WebGL's go on to 6x (ZOOM_LEVELS_3D). */
@@ -308,6 +310,12 @@ async function main() {
   // (The Walls scene, labWalls.js, takes the same calls.)
   const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene(), learning: buildLearningScene() };
   for (const s of Object.values(commerce)) {
+    s.group.visible = false;
+    scene.add(s.group);
+  }
+  // The Water scene (labWater.js): the aqueducts and the castellum, in the same terms.
+  for (const [id, s] of Object.entries(buildWaterScene())) {
+    commerce[id] = s;
     s.group.visible = false;
     scene.add(s.group);
   }
@@ -722,6 +730,7 @@ async function main() {
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
     else if (k === ']' && state.scene === 'types') setCard(state.card + 1);
     else if (k === 'v' && state.scene === 'types') overview();
+    else if (k === '9') setScene('water');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
@@ -810,6 +819,7 @@ async function main() {
     wm.normalMap.offset.set(t * 0.012, t * 0.007);
     wellLife(well, t);
     fountainLife(t);
+    aqueductLife(t);
     rural.life(t);
     woods.life(t);
     for (const g of grounds) g.material.userData.ground.uGTime.value = t;

@@ -50,6 +50,7 @@ import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
+import { aqueductLife } from './models/aqueduct.js';
 import { fountainTier, tierOf } from './fountainTier.js';
 import { WaterBits } from '../world/map.js';
 import { painterFor } from './paint/painter.js';
@@ -487,6 +488,8 @@ export class ModelPass {
     u.uLookTime.value = t;
     waterMaterial().normalMap.offset.set(t * 0.012, t * 0.007);
     fountainLife(t);
+    // (The aqueducts' channels run: models/aqueduct.js.)
+    aqueductLife(t);
   }
 
   dropKit(id) {
