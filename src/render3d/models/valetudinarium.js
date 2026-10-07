@@ -71,8 +71,8 @@ export const VALETUDINARIUM = Object.freeze({
   /** The gate in the street wall: its opening (|x|), its piers' height. */
   gate: 0.8,
   gateH: 2.45,
-  /** The lanterns: on the gate's piers, and one hung by the hall's door (x, y, z), facing the street. */
-  lamps: Object.freeze([Object.freeze([-1.08, 2.53, 5.73]), Object.freeze([1.08, 2.53, 5.73]), Object.freeze([1.16, 2.02, -2.8])]),
+  /** The lanterns: two hung in the gateway from its lintel, and one by the hall's door (x, y, z), facing the street. */
+  lamps: Object.freeze([Object.freeze([-0.45, 1.95, 5.78]), Object.freeze([0.45, 1.95, 5.78]), Object.freeze([1.16, 2.02, -2.8])]),
 });
 
 const V = VALETUDINARIUM;
@@ -494,8 +494,8 @@ export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
   if (lod < 2) {
     for (const [lx, ly, lz] of V.lamps) {
       const l = lantern(lx, ly, lz, lod);
-      // (The hall's hangs from an iron bracket out of its wall; the gate's stand on the piers' caps.)
-      const hung = lz < 0 ? [staff([lx, ly + 0.3, lz], [lx, ly + 0.42, lz], 0.01, 4), staff([lx, ly + 0.42, lz], [lx, ly + 0.42, V.hall.z], 0.012, 4)] : [];
+      // (The hall's hangs from an iron bracket out of its wall; the gate's on rods from the lintel's underside.)
+      const hung = lz < 0 ? [staff([lx, ly + 0.3, lz], [lx, ly + 0.42, lz], 0.01, 4), staff([lx, ly + 0.42, lz], [lx, ly + 0.42, V.hall.z], 0.012, 4)] : [staff([lx, ly + 0.3, lz], [lx, V.gateH + 0.08, lz], 0.01, 4)];
       p.add('lantern', m.bronze, [...l.bronze, ...hung], small);
       p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
       p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });

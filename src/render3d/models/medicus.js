@@ -304,7 +304,8 @@ export function buildMedicus({ lod = 0, seed = 331 } = {}) {
   const m = healthMaterials();
   if (lod === 2) {
     out.wood.push(...out.shelter.splice(0));
-    out.letters = out.iron = out.terracotta = out.instruments = out.stone = out.soil = [];
+    // (The big pots by the door stay, with their herbs: the shelves' small ones are left out already.)
+    out.letters = out.iron = out.instruments = out.stone = out.soil = [];
     out.bronze.push(...out.snake.splice(0));
   }
   const p = new TaggedParts('medicus');

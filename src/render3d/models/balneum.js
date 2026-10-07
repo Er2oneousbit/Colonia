@@ -554,7 +554,8 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
   p.add('pool-paint', material('pool-blue', { surface: 'plaster', color: 0x7aa8b8, vertexColors: true, snow: 0.6 }), out.blue, small);
   if (ice) p.add('pool-water', iceMaterial(), out.ice, { when: 'full', cast: false });
   else p.add('pool-water', shallowWaterMaterial(), out.water, { when: 'full', cast: false });
-  p.add('labrum-water', shallowWaterMaterial(), out.labrumWater, { when: 'full', cast: false });
+  // (The labrum's water freezes with the pool's: the frost's look.)
+  p.add('labrum-water', ice ? iceMaterial() : shallowWaterMaterial(), out.labrumWater, { when: 'full', cast: false });
   p.add('leaves', m.soil, out.leaves, { when: 'dry', cast: false });
   p.add('stain', m.stain, out.stain, { when: 'dry', cast: false });
   p.add('stream', streamMaterial(), out.stream, { when: 'flow', cast: false });

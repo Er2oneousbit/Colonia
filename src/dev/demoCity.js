@@ -804,7 +804,7 @@ export function buildDemoLearning(game, center) {
  * the physician only if it has none), each joined by road to the network
  * that reaches the map entry; the baths inside a reservoir's piped area,
  * water piped to the town first if none reaches (and left dry where no
- * water can be had): the console's `health`, to see the four at work
+ * water can be had): the console's `healing`, to see the four at work
  * (render3d/models/health.js).
  * @returns {{ barber: object|null, clinic: object|null, baths: object|null, hospital: object|null }}
  */
