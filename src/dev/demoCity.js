@@ -799,6 +799,32 @@ export function buildDemoLearning(game, center) {
   };
 }
 
+/** The governor's residences by grade, for buildDemoGovernment. */
+const RESIDENCE_GRADES = Object.freeze({ house: ['governor_house', 3], villa: ['governor_villa', 4], palace: ['governor_palace', 5] });
+
+/**
+ * A senate house near the city (if it has none) and the governor's
+ * residence of a grade ('house', 'villa' or 'palace'), the one standing
+ * taken down first (only one may stand), each joined by road to the
+ * network that reaches the map entry: the console's `government`, to see
+ * them in 3D (render3d/models/government.js).
+ * @returns {{ senate: object|null, residence: object|null }}
+ */
+export function buildDemoGovernment(game, center, grade = 'palace') {
+  const [type, size] = RESIDENCE_GRADES[grade] || RESIDENCE_GRADES.palace;
+  const has = (t) => [...game.buildings.values()].find((b) => b.type === t) || null;
+  const senate = has('senate') || (game.isUnlocked('senate') ? placeNear(game, 'senate', 4, center, 4, 30) : null);
+  let residence = has(type);
+  if (!residence && game.isUnlocked(type)) {
+    for (const b of [...game.buildings.values()]) {
+      if (b.def.kind === 'residence') removeBuilding(game, b, 'undo');
+    }
+    game.onMapEdited();
+    residence = placeNear(game, type, size, center, 4, 34);
+  }
+  return { senate, residence };
+}
+
 /**
  * A Portus on the shore of a naval station's water, near the station, joined
  * by road to the city's streets. @returns {object|null} the Portus

@@ -76,8 +76,8 @@ export const REGIA = Object.freeze({
   /** The two fountains (x, z), their pools' radius. */
   fountains: Object.freeze([Object.freeze([-2.4, 1.9]), Object.freeze([2.4, 1.9])]),
   poolR: 1.25,
-  /** The lampstands' lanterns at the head of the steps (x, y, z), facing the street. */
-  lamps: Object.freeze([Object.freeze([-3.3, 2.55, 7.95]), Object.freeze([3.3, 2.55, 7.95])]),
+  /** The lampstands' lanterns (x, y, z), facing the street: at the head of the steps, and on the hall's porch either side of its door. */
+  lamps: Object.freeze([Object.freeze([-3.3, 2.55, 7.95]), Object.freeze([3.3, 2.55, 7.95]), Object.freeze([-1.85, 3.0, -1.45]), Object.freeze([1.85, 3.0, -1.45])]),
 });
 
 const R = REGIA;
@@ -404,6 +404,8 @@ export function buildRegia({ lod = 0, seed = 491 } = {}) {
   garden(lod, seed + 500, out);
   // Bronze lampstands at the head of the steps.
   for (const [lx, ly, lz] of R.lamps) {
+    // (On the platform at the steps, on the porch's floor at the hall.)
+    const PY = lz > 0 ? REGIA.floorY : HY;
     out.bronze.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.045, ly - PY - 0.1, lod ? 5 : 8, 1).translate(lx, PY + (ly - PY - 0.1) / 2 + 0.05, lz))));
     out.bronze.push(tintGeometry(boxUV(new CylinderGeometry(0.13, 0.07, 0.07, lod ? 5 : 10, 1).translate(lx, ly - 0.07, lz))));
     out.bronze.push(tintGeometry(boxUV(new CylinderGeometry(0.16, 0.2, 0.06, lod ? 5 : 10, 1).translate(lx, PY + 0.03, lz))));

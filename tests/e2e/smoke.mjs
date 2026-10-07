@@ -4706,6 +4706,64 @@ try {
         await ge.close();
       }
 
+      // 8a2g. The senate house and the governor's three residences as models
+      //       (render3d/models/government.js): the console's `government`, a grade at a time
+      //       (only one residence may stand); each draws as a model (waited for: under a
+      //       software GL kits are built a few a frame), its columns as kits of their own, and
+      //       a click on its footprint opens its panel.
+      {
+        const gg = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const gerrs = [];
+        gg.on('pageerror', (e) => gerrs.push(`pageerror: ${e.message}`));
+        gg.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) gerrs.push(m.text()); });
+        await gg.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gg.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        await gg.evaluate(() => { window.colonia.ui.console.run('demo 2'); });
+        const govern = [];
+        for (const grade of ['palace', 'villa', 'house']) {
+          const built = await gg.evaluate((g) => {
+            const app = window.colonia;
+            const said = app.ui.console.run(`government ${g}`);
+            app.paused = true;
+            app.renderer.fixedTime = 0.3;
+            const pick = (b) => (b ? { id: b.id, type: b.type, x: b.x, y: b.y, size: b.size } : null);
+            const all = [...app.game.buildings.values()];
+            return { said, senate: pick(all.find((b) => b.type === 'senate')), residence: pick(all.find((b) => b.def.kind === 'residence')) };
+          }, grade);
+          // (The senate once, with the first grade: it stands through the others.)
+          for (const b of grade === 'palace' ? [built.senate, built.residence] : [built.residence]) {
+            if (!b) {
+              govern.push({ grade, missing: true, said: built.said });
+              continue;
+            }
+            await gg.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+            await gg.waitForFunction((t) => {
+              const r = window.colonia.renderer;
+              const mp = r.stats.modelPass || {};
+              return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+            }, b.type, { timeout: 30000, polling: 100 }).catch(() => {});
+            const drawn = await gg.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, b.type);
+            const p = await gg.evaluate(([x, y]) => {
+              const app = window.colonia;
+              const cam = app.renderer.camera;
+              const w = cam.mapToWorld(x, y);
+              const r = app.canvas.getBoundingClientRect();
+              return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+            }, [b.x + b.size / 2, b.y + b.size / 2]);
+            await gg.mouse.click(p.x, p.y);
+            await gg.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+            const target = await gg.evaluate(() => window.colonia.ui.info.target);
+            govern.push({ type: b.type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
+          }
+        }
+        await gg.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gg.screenshot({ path: path.join(shots, 'smoke-webgl-government.png') });
+        check('WebGL renderer: the senate house and the governor\'s house, villa and palace are 3D models, and a click picks each',
+          govern.length === 4 && govern.every((m) => !m.missing && m.drawn >= 1 && m.picked), JSON.stringify(govern));
+        check('WebGL renderer, government models: no page errors', gerrs.length === 0, gerrs.join(' | '));
+        await gg.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks
