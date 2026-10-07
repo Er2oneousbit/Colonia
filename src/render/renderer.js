@@ -76,6 +76,7 @@ import { wallHpOf, TOWER_RANGE } from '../sim/military.js';
 import { waterOf, shoreBerth } from '../sim/navy.js';
 import { farmDormant } from '../sim/production.js';
 import { wallSpec, drawUnit, drawProjectile, drawRallyFlag, drawStandardNumber } from './militaryArt.js';
+import { wallModelPlace, wallCoverKey, wallCoverSpec, wallGhosts, gateTorchPoints, noteWalls } from '../render3d/walls/wallGame.js';
 import { roman } from '../sim/fortNumbers.js';
 import { rallyTarget } from '../sim/rallyPoints.js';
 import { Camera, tileOfWorld } from './camera.js';
@@ -993,6 +994,8 @@ export class Renderer {
     this.stats.waterHint = null;
     this.puffBudget = 4;
     this.gates.length = 0;
+    // (Which walls are new, for the 3D ones rising: render3d/walls/wallGame.js. Bookkeeping only.)
+    noteWalls(map, this.time);
     const motion = this.motionOn;
     const glints = motion && cam.zoom >= 1 && env.sun > 0.5 && env.overcast < 0.5;
     const visibleBuildings = [];
@@ -1077,7 +1080,14 @@ export class Renderer {
         } else if (terr === Terrain.ROCK && !ownFlora) {
           items.push({ d: depth - 0.01, kind: K_STRIP, spr: this.sprites.get(`k${variant}${this.snowKey}`, () => rocksSpec(variant, pal.snow), this.snowPrev === null ? null : `k${variant}${this.snowPrev}`), wx, wy, full: true });
         }
-        if (map.wall[i]) {
+        if (map.wall[i] && be.hasModel?.('wall')) {
+          // The WebGL back end draws walls, gates and their towers as 3D models (render3d/walls/
+          // wallGame.js); a sprite as tall as the model is kept, not drawn, for clicks (coverDepthAt).
+          if (map.wall[i] === 2) this.gates.push(i);
+          const w3 = wallModelPlace(this, x, y, i, vx, vy);
+          be.model(w3.b, w3.place);
+          this.coverStrips.push({ d: depth, kind: K_STRIP, spr: this.coverSprites.get(wallCoverKey(w3.piece), () => wallCoverSpec(w3.piece)), wx, wy, full: true });
+        } else if (map.wall[i]) {
           const gate = map.wall[i] === 2;
           if (gate) this.gates.push(i);
           let mask = this.wallMask(x, y);
@@ -1544,6 +1554,13 @@ export class Renderer {
         const sy = (c.y - cam.y) * k;
         const f = flick(i);
         L.pool(sx, sy, tile * 2.2, 0.6 * lamps * f, true);
+        if (this.be?.hasModel('wall')) {
+          // The 3D gatehouse's torches, on the face the view sees (render3d/walls/wallGame.js).
+          for (const [u, v, z] of gateTorchPoints(this, map.xOf(i), map.yOf(i))) {
+            L.glow(((u - v) * HALF_W - cam.x) * k, ((u + v) * HALF_H - z - cam.y) * k, 6 * k * f, 0.9 * lamps * f, true);
+          }
+          continue;
+        }
         L.glow(sx - 12 * k, sy - 20 * k, 6 * k * f, 0.9 * lamps * f, true);
         L.glow(sx + 12 * k, sy - 20 * k, 6 * k * f, 0.9 * lamps * f, true);
       }
@@ -2461,6 +2478,11 @@ export class Renderer {
   placeGhostModels(be) {
     this.modelGhosts = null;
     const plan = this.plan;
+    // A dragged wall: its pieces as they would stand (render3d/walls/wallGame.js), over the tiles' tint.
+    if (plan && plan.tool === 'wall' && be.ghostModel && be.hasModel('wall')) {
+      for (const g of wallGhosts(this, plan)) be.ghostModel(g);
+      return;
+    }
     if (!plan || plan.kind !== 'building' || !be.ghostModel) return;
     const type = plan.items[0]?.type || plan.tool;
     if (!be.hasModel(type)) return;

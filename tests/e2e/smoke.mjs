@@ -4032,6 +4032,82 @@ try {
       check("WebGL renderer: the market, the forum, the warehouse, the prefecture and the engineer's post are 3D models, the warehouse shows its loads, a click picks each",
         commerce.every((c) => !c.missing && c.drawn >= 1 && c.picked) && commerce.find((c) => c.type === 'warehouse').wine === 5,
         JSON.stringify(commerce));
+      // The town wall (render3d/walls/, models/townWall.js): a wall dragged across a straight road
+      // makes a gate between round flanking towers, a Turris placed beside its end; drawn as 3D
+      // models, a click on the gate picks its tile and one on the Turris the building. Then cleared
+      // again, so the steps after see the city as it was.
+      const walls = await gp.evaluate(() => {
+        const app = window.colonia;
+        const g = app.game;
+        const m = g.map;
+        const free = (x, y) => m.inBounds(x, y) && m.isFree(x, y);
+        let at = null;
+        for (let i = 0; i < m.size && !at; i++) {
+          const x = m.xOf(i);
+          const y = m.yOf(i);
+          if (!m.road[i] || m.wall[i] || m.building[i] || !m.hasRoad(x, y - 1) || !m.hasRoad(x, y + 1) || m.hasRoad(x - 1, y) || m.hasRoad(x + 1, y)) continue;
+          if (free(x - 1, y) && free(x - 2, y) && free(x + 1, y) && free(x + 2, y) && free(x + 3, y) && free(x + 4, y) && free(x + 3, y - 1) && free(x + 4, y - 1)) at = { x, y };
+        }
+        if (!at) return null;
+        at.free = g.cheats.freeBuild;
+        g.cheats.freeBuild = true;
+        app.ui.selectTool('wall');
+        app.input.drag = { x0: at.x - 2, y0: at.y, x1: at.x + 2, y1: at.y };
+        app.input.refreshPlan();
+        app.applyPlan(app.renderer.plan);
+        app.input.drag = null;
+        // The Turris at the wall's east end, its footprint (x + 3..4, y - 1..y).
+        app.ui.selectTool('tower');
+        app.input.hover = { x: at.x + 3, y: at.y - 1 };
+        app.input.refreshPlan();
+        const plan = app.renderer.plan;
+        if (plan && plan.items.every((it) => it.ok)) app.applyPlan(plan);
+        app.ui.selectTool(null);
+        // (Where the tool put it for that hover: next to the wall's end.)
+        const t = [...g.buildings.values()].find((b) => b.type === 'tower' && Math.abs(b.x - at.x - 3) <= 1 && Math.abs(b.y - at.y + 1) <= 1);
+        app.renderer.camera.zoomIndex = 4;
+        app.renderer.camera.centerOnTile(at.x + 1, at.y);
+        return { ...at, gate: m.wall[m.idx(at.x, at.y)], tower: t ? t.id : null, tx: t ? t.x : 0, ty: t ? t.y : 0 };
+      });
+      // Waiting for the state, not a time: kits are built within a frame's budget, slowly under a software GL.
+      await gp.waitForFunction(() => {
+        const by = window.colonia.renderer.stats.modelPass?.byType || {};
+        return by.wall >= 5 && by.tower >= 1;
+      }, null, { timeout: 30000, polling: 100 }).catch(() => {});
+      const wallDrawn = await gp.evaluate(() => ({ ...(window.colonia.renderer.stats.modelPass?.byType || {}) }));
+      const wallPicks = {};
+      if (walls) {
+        await gp.mouse.move(300, 12);
+        let p = await onPage(walls.x + 0.5, walls.y + 0.5);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        wallPicks.gate = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        p = await onPage(walls.tx + 1, walls.ty + 1);
+        await gp.mouse.click(p.x, p.y);
+        await gp.waitForTimeout(150);
+        wallPicks.tower = await gp.evaluate(() => window.colonia.ui.info.target);
+        await gp.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-walls.png') });
+        await gp.evaluate((at) => {
+          const app = window.colonia;
+          app.ui.selectTool('clear');
+          // (The wall's row, whose gate leaves its road behind, and the Turris's footprint: never the road beside them.)
+          for (const d of [{ x0: at.x - 2, y0: at.y, x1: at.x + 2, y1: at.y }, ...(at.tower ? [{ x0: at.tx, y0: at.ty, x1: at.tx + 1, y1: at.ty + 1 }] : [])]) {
+            app.input.drag = d;
+            app.input.refreshPlan();
+            if (app.renderer.plan) app.applyPlan(app.renderer.plan);
+          }
+          app.input.drag = null;
+          app.ui.selectTool(null);
+          app.game.cheats.freeBuild = at.free;
+        }, walls);
+      }
+      check('WebGL renderer: walls, a gate and a Turris are 3D models; a click on the gate picks its tile, on the Turris the building',
+        !!walls && walls.gate === 2 && !!walls.tower && wallDrawn.wall >= 5 && wallDrawn.tower >= 1
+          && wallPicks.gate?.kind === 'tile' && wallPicks.gate.x === walls.x && wallPicks.gate.y === walls.y
+          && wallPicks.tower?.kind === 'building' && wallPicks.tower.id === walls.tower,
+        JSON.stringify({ walls, wallDrawn, wallPicks }));
       // A walker in view, clicked on its body (painted into the frame's live-art texture).
       await gp.evaluate(() => { const app = window.colonia; app.renderer.camera.zoomIndex = 2; app.game.runDays(1); });
       await gp.waitForTimeout(300);

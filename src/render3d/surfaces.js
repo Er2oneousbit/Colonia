@@ -21,6 +21,7 @@
 import { fbm, ridge, cells } from './paint/recipe.js';
 import { rgb, rgbs, glf } from './paint/glsl.js';
 import { RURAL_SURFACES } from './surfacesRural.js';
+import { WALL_SURFACES } from './surfacesWalls.js';
 import { FLORA_SURFACES } from './surfacesFlora.js';
 
 /**
@@ -560,6 +561,8 @@ export const SURFACES = Object.freeze({
   brick: { metres: 0.96, size: 512, ...brick },
   // The farms' and the granary's (surfacesRural.js).
   ...RURAL_SURFACES,
+  // The town walls' masonry (surfacesWalls.js).
+  ...WALL_SURFACES,
   // The countryside's trees and rocks (surfacesFlora.js): sprays of leaves cut out by their alpha, barks, limestone.
   ...FLORA_SURFACES,
 });

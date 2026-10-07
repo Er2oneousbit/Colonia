@@ -44,6 +44,7 @@ import { iceMaterial, stagnantMaterial } from './materials.js';
 import { ART_PX } from './projection.js';
 import { COMMERCE_MODELS } from './models/commerce.js';
 import { SERVICE_MODELS } from './models/services.js';
+import { WALL_MODELS } from './models/wallModels.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -119,6 +120,8 @@ export const MODELS = Object.freeze({
   ...COMMERCE_MODELS,
   // The prefecture and the engineer's post (models/services.js says how).
   ...SERVICE_MODELS,
+  // The town walls' tiles and gates, and the watchtower (models/wallModels.js says how).
+  ...WALL_MODELS,
 });
 
 /**
