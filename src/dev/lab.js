@@ -29,13 +29,15 @@
  * (firstFrame, wellReady, groundReady, compiled), setMood(name),
  * setView(name), setTurn(t), orbit(azimuth, elevation, distance), stats(),
  * bench(frames) (ms per frame, waiting for the GPU), wells100(on),
- * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'|'harbour'),
+ * setScene('well'|'ground'|'types'|'fountain'|'farms'|'granary'|'market'|'forum'|'warehouse'|'services'|'harbour'|'military'),
  * setSeason(name), setSnow(0..3),
  * setWet(on), aimAt(x, z), cards (the Ground types' cards), setCard(id or
  * index), overview(), fountains (the Fountain scene's), setFountainLod(0..2),
  * fountainTriangles(lod), setCommerceLod(0..2), commerceTriangles(id, lod)
  * (the Market, Forum, Warehouse and Services scenes, labCommerce.js: K, J, X, S), harbour
  * (the Harbour scene, labHarbour.js, D: setLod, items, triangles(type, key, lod)).
+ * (the Military scene, labMilitary.js: C, with commerceTriangles('military', lod)
+ * giving each of its five buildings' triangles).
  * ----------------------------------------------------------------------------
  */
 
@@ -62,6 +64,7 @@ import { buildWoodsScene } from './labWoods.js';
 import { buildCommerceScenes } from './labCommerce.js';
 import { buildWallsScene } from './labWalls.js';
 import { harbourScenes } from './labHarbour.js';
+import { buildMilitaryScene } from './labMilitary.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
@@ -300,7 +303,7 @@ async function main() {
   let harbour = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
   // (The Walls scene, labWalls.js, takes the same calls.)
-  const commerce = { ...buildCommerceScenes(), ...buildWallsScene() };
+  const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene() };
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -708,6 +711,8 @@ async function main() {
     else if (k === 's') setScene('services');
     else if (k === 'a') setScene('walls');
     else if (commerce[state.scene] && commerce[state.scene].onKey && commerce[state.scene].onKey(k)) refreshButtons();
+    // (After the scene's own keys: in the Walls scene C cycles the stone.)
+    else if (k === 'c') setScene('military');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);

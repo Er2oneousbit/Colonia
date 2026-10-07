@@ -4439,6 +4439,106 @@ try {
         await fp.close();
       }
 
+      // 8a. The forts, the barracks and the military academy as models (render3d/models/
+      //     militaryModels.js): the console's garrison and academy build them; each draws as
+      //     a model (waited for: kits are built within a frame's budget, slowly under a
+      //     software GL) and a click on its footprint picks it; a soldier at rest in his
+      //     fort's yard is drawn over the model and a click on him opens his panel.
+      {
+        const gm = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const merrs = [];
+        gm.on('pageerror', (e) => merrs.push(`pageerror: ${e.message}`));
+        gm.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) merrs.push(m.text()); });
+        await gm.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d`);
+        await gm.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const TYPES = ['fort_legion', 'fort_archer', 'fort_cavalry', 'barracks', 'military_academy'];
+        const mil = await gm.evaluate((types) => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          app.ui.console.run('garrison');
+          app.ui.console.run('days 60');
+          app.ui.console.run('academy');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = {};
+          for (const t of types) {
+            const b = [...app.game.buildings.values()].find((v) => v.type === t);
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size } : null;
+          }
+          return out;
+        }, TYPES);
+        const onPageM = (fx, fy) => gm.evaluate(([x, y]) => {
+          const app = window.colonia;
+          const cam = app.renderer.camera;
+          const w = cam.mapToWorld(x, y);
+          const r = app.canvas.getBoundingClientRect();
+          return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+        }, [fx, fy]);
+        const military = [];
+        for (const type of TYPES) {
+          const b = mil[type];
+          if (!b) {
+            military.push({ type, missing: true });
+            continue;
+          }
+          await gm.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gm.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            return ((r.stats.modelPass?.byType || {})[t] || 0) >= 1 && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await gm.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, type);
+          // The footprint's front tile (the view's nearest corner): no man at rest stands there, and
+          // a figure's sprite reaches up the screen from his feet, away from it.
+          const p = await onPageM(b.x + b.size - 0.5, b.y + b.size - 0.5);
+          await gm.mouse.click(p.x, p.y);
+          await gm.waitForTimeout(150);
+          const target = await gm.evaluate(() => window.colonia.ui.info.target);
+          military.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
+        }
+        await gm.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gm.screenshot({ path: path.join(shots, 'smoke-webgl-military.png') });
+        check('WebGL renderer: the forts, the barracks and the military academy are 3D models, and a click picks each',
+          military.every((m) => !m.missing && m.drawn >= 1 && m.picked), JSON.stringify(military));
+        // A man at rest in his fort's yard, over the fort's model: a click on him opens his panel.
+        const man = await gm.evaluate(() => {
+          const app = window.colonia;
+          const g = app.game;
+          const inside = (u) => { const f = g.buildings.get(u.fort); return !!f && u.x >= f.x && u.y >= f.y && u.x < f.x + f.size && u.y < f.y + f.size; };
+          const u = [...g.units.values()].find((v) => v.side === 'rome' && v.fort && v.state === 'idle' && inside(v));
+          if (!u) return null;
+          const f = g.buildings.get(u.fort);
+          app.renderer.camera.zoomIndex = 4;
+          app.renderer.camera.centerOnTile(f.x + f.size / 2, f.y + f.size / 2);
+          return { id: u.id, fort: f.id, type: f.type };
+        });
+        let manPick = null;
+        if (man) {
+          await gm.waitForFunction((t) => ((window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0) >= 1 && !window.colonia.renderer.stats.pending, man.type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const spot = await gm.evaluate((fortId) => {
+            const app = window.colonia;
+            const r = app.renderer;
+            const cam = r.camera;
+            const rect = app.canvas.getBoundingClientRect();
+            for (const s of r.unitSpots) {
+              const u = app.game.units.get(s.id);
+              if (!u || u.fort !== fortId) continue;
+              const q = cam.toScreen(s.wx, s.wy - 8);
+              if (r.pickUnit(q.x / cam.dpr, q.y / cam.dpr) === s.id) return { id: s.id, x: rect.left + q.x / cam.dpr, y: rect.top + q.y / cam.dpr };
+            }
+            return null;
+          }, man.fort);
+          if (spot) {
+            await gm.mouse.click(spot.x, spot.y);
+            await gm.waitForTimeout(150);
+            manPick = { id: spot.id, target: await gm.evaluate(() => window.colonia.ui.info.target) };
+          }
+        }
+        check('WebGL renderer: a soldier at rest in his fort\'s yard shows over the fort\'s model, and a click on him opens his panel',
+          !!manPick && manPick.target?.kind === 'unit' && manPick.target.id === manPick.id, JSON.stringify({ man, manPick }));
+        check('WebGL renderer, military models: no page errors', merrs.length === 0, merrs.join(' | '));
+        await gm.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks
