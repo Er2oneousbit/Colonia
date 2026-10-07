@@ -4023,6 +4023,8 @@ try {
         at.free = g.cheats.freeBuild;
         g.cheats.freeBuild = true;
         app.ui.selectTool('reservoir');
+        // (The hover plans only with the mouse over the map, as the fountain's step sets it: set here, not borrowed.)
+        app.input.mouse.over = true;
         app.input.hover = { x: at.x - 4, y: at.y };
         app.input.refreshPlan();
         if (app.renderer.plan && app.renderer.plan.items.every((it) => it.ok)) app.applyPlan(app.renderer.plan);

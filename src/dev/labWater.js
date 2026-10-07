@@ -25,7 +25,7 @@ import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { buildAqueductPiece, AQ_TOP } from '../render3d/models/aqueduct.js';
 import { buildCastellum, buildInlet, buildIntake } from '../render3d/models/castellum.js';
 import { aqueductPiece, reservoirJoins, AQUEDUCT_LOOKS } from '../render3d/aqueducts/aqueductLayout.js';
-import { inletMatrix } from '../render3d/aqueducts/aqueductGame.js';
+import { inletMatrix, inletKind } from '../render3d/aqueducts/aqueductGame.js';
 import { partShows } from '../render3d/models.js';
 import { buildFigure } from '../render3d/models/figure.js';
 
@@ -164,10 +164,10 @@ export function buildWaterScene() {
   const kit = (key) => {
     const k = `${key}|${lod}`;
     if (!kits.has(k)) {
-      const [kind, lk, what] = key.split(':');
+      const [kind, lk, what = ''] = key.split(':');
       let m;
       if (kind === 'aqueduct') m = buildAqueductPiece(key, lod);
-      else if (what === 'inlet' || what === 'house') m = buildInlet({ look: lk, lod, house: what === 'house' });
+      else if (what.startsWith('inlet') || what === 'house') m = buildInlet({ look: lk, lod, house: what === 'house', off: Number(what.slice(5)) || 0 });
       else if (what === 'intake') m = buildIntake({ look: lk, lod });
       else m = buildCastellum({ look: lk, lod, ice: what === 'ice' });
       kits.set(k, m);
@@ -212,7 +212,7 @@ export function buildWaterScene() {
       const state = b.hasWater ? 'flowing' : 'dry';
       place(kit(`reservoir:${look}${frost ? ':ice' : ''}`), base, state, frost);
       for (const j of reservoirJoins(map, b, (tx, ty) => map.inBounds(tx, ty) && map.terrain[map.idx(tx, ty)] === 4)) {
-        const what = j.kind === 'water' ? 'intake' : j.side === 3 && j.k === 0 ? 'house' : 'inlet';
+        const what = inletKind(j);
         const st = j.kind === 'water' ? state : j.state;
         place(kit(`reservoir:${look}:${what}`), base.clone().multiply(inletMatrix(j.side, j.k)), st, false);
       }

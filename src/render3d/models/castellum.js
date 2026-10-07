@@ -261,21 +261,26 @@ function tank(P, M, lod, seed) {
 function tankStates(P, M, lod, seed) {
   const i = RES.tankIn;
   const z0 = RES.house.z1;
-  P.add('pool', M.pool, flat(-i, i, z0, i, RES.water), { when: 'full', cast: false });
+  const hx = RES.house.x;
+  // The water's plan: the tank before the house, and the two bays either side of it back to the tank's wall.
+  const areas = [[-i, i, z0, i], [hx, i, -i, z0], [-i, -hx, -i, z0]];
+  P.add('pool', M.pool, areas.map(([x0, x1, a, b]) => flat(x0, x1, a, b, RES.water)), { when: 'full', cast: false });
   // Under it the depth: the floor dark and green with the water's weight, lighter toward the walls where
   // it shoals (the pool's own glass is clear enough that the bare floor read as a swimming bath).
+  const shoal = (x, z) => {
+    const house = Math.hypot(Math.max(Math.abs(x) - hx, 0), Math.max(z - z0, 0));
+    const edge = Math.min(i - Math.abs(x), i - Math.abs(z), house);
+    return 0.55 + 0.45 * (1 - smoothstep(0, 1.6, edge));
+  };
   const deep = [];
   const cells = lod === 2 ? 1 : 6;
-  for (let a = 0; a < cells; a++) {
-    for (let b = 0; b < cells; b++) {
-      const x0 = -i + (2 * i * a) / cells;
-      const x1 = -i + (2 * i * (a + 1)) / cells;
-      const za = z0 + ((i - z0) * b) / cells;
-      const zb = z0 + ((i - z0) * (b + 1)) / cells;
-      deep.push(flat(x0, x1, za, zb, RES.floor + 0.006, (x, z) => {
-        const edge = Math.min(i - Math.abs(x), i - z, z - z0);
-        return 0.55 + 0.45 * (1 - smoothstep(0, 1.6, edge));
-      }));
+  for (const [x0, x1, za, zb] of areas) {
+    const nx = Math.max(1, Math.round((cells * (x1 - x0)) / (2 * i)));
+    const nz = Math.max(1, Math.round((cells * (zb - za)) / (2 * i)));
+    for (let a = 0; a < nx; a++) {
+      for (let b = 0; b < nz; b++) {
+        deep.push(flat(x0 + ((x1 - x0) * a) / nx, x0 + ((x1 - x0) * (a + 1)) / nx, za + ((zb - za) * b) / nz, za + ((zb - za) * (b + 1)) / nz, RES.floor + 0.006, shoal));
+      }
     }
   }
   P.add('deep', M.deep, deep, { when: 'full', cast: false });
@@ -289,8 +294,9 @@ function tankStates(P, M, lod, seed) {
     const [ax, az] = a;
     const [bx, bz] = b;
     const len = Math.hypot(bx - ax, bz - az);
-    const nx = -(bz - az) / len;
-    const nz = (bx - ax) / len;
+    // (Inward: the water's outline below runs clockwise seen from above, the water on its right.)
+    const nx = (bz - az) / len;
+    const nz = -(bx - ax) / len;
     const pts = [];
     for (let k = 0; k <= n; k++) {
       const f = k / n;
@@ -302,12 +308,12 @@ function tankStates(P, M, lod, seed) {
     });
     for (let k = 0; k < n; k++) ice.push(flatPoly([pts[k], pts[k + 1], inner[k + 1], inner[k]], y));
   };
-  // (Round the tank's four walls and the house's face, inward: corners go anticlockwise seen from above.)
-  edge([-i, i], [i, i], 0.42);
-  edge([i, i], [i, z0], 0.42);
-  edge([i, z0], [RES.house.x, z0], 0.36);
-  edge([-RES.house.x, z0], [-i, z0], 0.36);
-  edge([-i, z0], [-i, i], 0.42);
+  // Round the water's outline: the tank's walls, and the house's sides and face where it stands in the tank.
+  const outline = [[-i, i], [i, i], [i, -i], [hx, -i], [hx, z0], [-hx, z0], [-hx, -i], [-i, -i]];
+  outline.forEach((p, k) => {
+    const q = outline[(k + 1) % outline.length];
+    edge(p, q, Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.5 ? 0.28 : 0.42);
+  });
   P.add('ice', M.ice, ice, { when: 'ice', cast: false });
   // Dry: silt over the floor in drifts, a puddle in its low corner.
   const silt = [];
@@ -412,7 +418,8 @@ function house(P, M, lod, seed) {
   P.add('dark', M.dark, dark, { cast: false });
   // The three lead pipes out of its back, down to the podium and into the ground, each with a stopcock.
   const lead = [];
-  for (const x of [-0.75, 0, 0.75]) {
+  // (Clear of the house's middle, where an aqueduct may run into its back wall: buildInlet below.)
+  for (const x of [-1.3, -0.95, 1.05]) {
     const r = 0.065;
     const pts = [[x, 1.05, z0 + 0.05], [x, 1.05, z0 - 0.12], [x, RES.plat[1] + r + 0.02, z0 - 0.2], [x, RES.plat[1] + r, -RES.plat[0] + 0.15], [x, RES.plat[1] - 0.05, -RES.plat[0] - 0.08], [x, -0.1, -RES.plat[0] - 0.12]];
     if (lod === 2) {
@@ -526,9 +533,11 @@ export function buildCastellum({ look = 'lime', lod = 0, ice = false, seed = 31 
  * and moves it to its face and tile): the channel at AQ.inlet on a wall
  * from the footprint's edge across the podium to the tank, over its coping
  * and pouring in ('pour'), or (`house`) running into the castellum's house
- * through its back wall. Its water shows while that aqueduct runs.
+ * through its back wall. Its water shows while that aqueduct runs. `off`:
+ * the tile along the face it stands at (-1, 0, 1: aqueductGame.js
+ * reservoirMore), whose pour turns in toward the middle.
  */
-export function buildInlet({ look = 'lime', lod = 0, house: intoHouse = false } = {}) {
+export function buildInlet({ look = 'lime', lod = 0, house: intoHouse = false, off = 0 } = {}) {
   const M = castellumMaterials(look);
   const P = new TaggedParts(`castellum-inlet:${look}`);
   const H = RES.half;
@@ -551,9 +560,17 @@ export function buildInlet({ look = 'lime', lod = 0, house: intoHouse = false } 
     lining.push(box(wallEnd, H, f - bed, f + wallH, sz > 0 ? i : -i - AQ.liner, sz > 0 ? i + AQ.liner : -i, 1, () => 1.05));
     coping.push(box(wallEnd, H, f + wallH, f + wallH + AQ.coping, sz > 0 ? i : -o - AQ.copeOut, sz > 0 ? o + AQ.copeOut : -i));
   }
+  // Off the face's middle (k = +-1) the inlet stands 4 m out, over the tank's corner: its lip turns
+  // toward the middle across the coping so it pours into the water, not onto the next wall.
+  const dz = -off * 0.7;
+  const lo = Math.min(-i, dz - i);
+  const hi = Math.max(i, dz + i);
   // Its floor, on to the lip over the tank (a bed over the coping where the wall is not).
-  lining.push(box(end, H, f - bed, f, -i, i, 1, () => 0.9));
-  if (!intoHouse) lining.push(box(end, RES.tankOut, RES.wallTop + RES.coping, f - bed, -i - 0.06, i + 0.06, 1, () => 0.9));
+  lining.push(box(intoHouse ? end : RES.tankOut, H, f - bed, f, -i, i, 1, () => 0.9));
+  if (!intoHouse) {
+    lining.push(box(end, RES.tankOut, f - bed, f, lo, hi, 1, () => 0.9));
+    lining.push(box(end, RES.tankOut, RES.wallTop + RES.coping, f - bed, lo - 0.06, hi + 0.06, 1, () => 0.9));
+  }
   P.add('body', M.body, body);
   P.add('lining', M.lining, lining);
   P.add('dressed', M.dressed, coping);
@@ -563,13 +580,15 @@ export function buildInlet({ look = 'lime', lod = 0, house: intoHouse = false } 
     P.add('bronze', M.bronze, box(RES.tankOut + 0.14, RES.tankOut + 0.18, f + wallH - 0.05, f + wallH + 0.5, -i, i, 1, () => 0.9));
   }
   // The water along it, and its pour into the tank with the rings where it lands.
-  P.add('water', M.water, flat(end, H, -i, i, f + 0.1), { when: 'full', cast: false });
-  P.add('silt', M.silt, flat(end, H, -i, i, f + 0.004), { when: 'dry', cast: false });
+  const x0 = intoHouse ? end : RES.tankOut;
+  P.add('water', M.water, [flat(x0, H, -i, i, f + 0.1), ...(intoHouse ? [] : [flat(end, RES.tankOut, lo, hi, f + 0.1)])], { when: 'full', cast: false });
+  P.add('silt', M.silt, [flat(x0, H, -i, i, f + 0.004), ...(intoHouse ? [] : [flat(end, RES.tankOut, lo, hi, f + 0.004)])], { when: 'dry', cast: false });
   if (!intoHouse) {
     const g = fall(-end, f + 0.1, RES.water + 0.002, i - 0.03, lod);
     g.rotateY(Math.PI);
+    g.translate(0, 0, dz);
     P.add('pour', M.stream, g, { when: 'flow', cast: false });
-    if (lod < 2) P.add('rings', M.ring, rings(end - 0.16, RES.water + 0.004, 0, 0.05, 0.6, lod), { when: 'flow', cast: false });
+    if (lod < 2) P.add('rings', M.ring, rings(end - 0.16, RES.water + 0.004, dz, 0.05, 0.6, lod), { when: 'flow', cast: false });
   }
   return P.build();
 }

@@ -136,6 +136,17 @@ export function inletMatrix(side, k, out = new Matrix4()) {
   return out.multiply(new Matrix4().makeTranslation(0, 0, k * 4));
 }
 
+/**
+ * The kit a join shows (models/castellum.js): an intake on open water; at
+ * the middle of the back face the inlet into the house; else an inlet, its
+ * pour turned in toward the face's middle off it ('inlet1', 'inlet-1').
+ */
+export function inletKind(j) {
+  if (j.kind === 'water') return 'intake';
+  if (j.side === 3 && j.k === 0) return 'house';
+  return j.k ? `inlet${j.k}` : 'inlet';
+}
+
 /** Per building: its `more` list and the signature it was made for (joins change only with the map). */
 const MORE = new WeakMap();
 
@@ -155,7 +166,7 @@ export function reservoirMore(game, b, look) {
   if (m && m.sig === sig) return m.list;
   const groups = new Map();
   for (const j of joins) {
-    const what = j.kind === 'water' ? 'intake' : j.side === 3 && j.k === 0 ? 'house' : 'inlet';
+    const what = inletKind(j);
     const state = j.kind === 'water' ? (b.hasWater ? 'flowing' : 'dry') : j.state;
     const key = `reservoir:${look}:${what}`;
     const gk = `${key}|${state}`;

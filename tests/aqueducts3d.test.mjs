@@ -115,6 +115,9 @@ test('aqueducts3d: over a road, the road\'s arch, its line across the road at ev
     assert.ok(p.road && p.key === 'aqueduct:lime:----:road');
     assert.equal((p.T & 1) === 0, (vt & 1) === 1, `turn ${vt}`);
   }
+  // An aqueduct that turns over a road (an older city's, before crossingOk) keeps its junction: no arch in the air.
+  const turned = mapWith([[5, 5], [6, 5], [5, 6]], [[4, 5], [5, 5]]);
+  assert.ok(!aqueductPiece(turned, NONE, 5, 5, 0, 'lime').road);
   // The arch clears a cart: its crown over 3.5 m, its opening over 3 m wide.
   assert.ok(AQ.spring + AQ.roadSpan > 3.5 && AQ.roadSpan * 2 > 3);
 });
@@ -242,7 +245,32 @@ test('aqueducts3d: a reservoir\'s inlets stand where its aqueducts reach it at e
   // The aqueduct at the middle of its back (north at turn 0) runs into the house.
   const more = reservoirMore({ map }, b, 'lime');
   const keys = more.map((m) => `${m.key}:${m.state}:${m.n}`);
-  assert.ok(keys.includes('reservoir:lime:house:flowing:1') && keys.includes('reservoir:lime:inlet:flowing:3') && keys.includes('reservoir:lime:inlet:dry:1'), keys.join(' '));
+  // (Off a face's middle, an inlet's pour turns in toward it: 'inlet1', 'inlet-1'.)
+  assert.deepEqual(keys.sort(), ['reservoir:lime:house:flowing:1', 'reservoir:lime:inlet-1:dry:1', 'reservoir:lime:inlet-1:flowing:1', 'reservoir:lime:inlet:flowing:2'], keys.join(' '));
+  // Wherever an inlet stands, its pour lands in the tank's water: before the house or in the bays beside it.
+  const inWater = (x, z) => {
+    const i = RES.tankIn - 0.05;
+    if (Math.abs(x) > i || Math.abs(z) > i) return false;
+    return z > RES.house.z1 + 0.05 || Math.abs(x) > RES.house.x + 0.05;
+  };
+  for (let side = 0; side < 4; side++) {
+    for (const k of [-1, 0, 1]) {
+      if (side === 3 && k === 0) continue;
+      const kit = buildInlet({ lod: 0, off: k });
+      const pour = kit.meshes.find((m) => m.name === 'pour');
+      pour.geometry.computeBoundingBox();
+      const bb = pour.geometry.boundingBox;
+      // Where the sheet meets the water: its lowest point, every corner of the pour's foot.
+      for (const z of [bb.min.z, bb.max.z]) {
+        const p = new Vector3(bb.min.x, RES.water, z).applyMatrix4(inletMatrix(side, k));
+        assert.ok(inWater(p.x, p.z), `side ${side} k ${k}: lands at ${p.x.toFixed(2)}, ${p.z.toFixed(2)}`);
+      }
+    }
+  }
+  // The tank's water reaches its back wall beside the house.
+  const pool = buildCastellum({ lod: 0 }).meshes.find((m) => m.name === 'pool');
+  pool.geometry.computeBoundingBox();
+  assert.ok(pool.geometry.boundingBox.min.z < -RES.tankIn + 1e-6);
   // Every inlet's outer end lands on the middle of the edge it shares with its aqueduct, at every view turn.
   const mid = new Vector3(RES.half, AQ.inlet, 0);
   for (let vt = 0; vt < 4; vt++) {

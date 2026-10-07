@@ -45,8 +45,9 @@ export const WATER_MODELS = Object.freeze({
       return { key: `reservoir:${look}${ice ? ':ice' : ''}`, state: b.hasWater ? 'flowing' : 'dry', ice, more };
     },
     build(key, lod) {
-      const [, look, what] = key.split(':');
-      if (what === 'inlet' || what === 'house') return buildInlet({ look, lod, house: what === 'house' }).group;
+      const [, look, what = ''] = key.split(':');
+      // ('inlet', or 'inlet1' / 'inlet-1' off the face's middle.)
+      if (what.startsWith('inlet') || what === 'house') return buildInlet({ look, lod, house: what === 'house', off: Number(what.slice(5)) || 0 }).group;
       if (what === 'intake') return buildIntake({ look, lod }).group;
       return buildCastellum({ look, lod, ice: what === 'ice' }).group;
     },

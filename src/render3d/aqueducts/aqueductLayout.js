@@ -102,8 +102,10 @@ export function aqueductPiece(map, buildings, x, y, vt, look, extra = null, plan
   const m = aqueductMask(map, buildings, x, y, extra);
   const conn = m & 15;
   const res = (m >> 4) & 15;
-  // (A road beside a reservoir never runs under an aqueduct: sim/construction.js besideReservoir.)
-  const road = map.road[i] !== 0 && !res;
+  // (A road beside a reservoir never runs under an aqueduct: sim/construction.js besideReservoir. One
+  // that turns or branches over a road, from a save before crossingOk, keeps its junction piece: an arch
+  // along one axis would leave the other arm's channel in the air.)
+  const road = map.road[i] !== 0 && !res && !((conn & 10) && (conn & 5));
   let shape;
   let T;
   if (road) {
