@@ -96,6 +96,8 @@ const SIT_HIP = 0.08;
  */
 function wrists(arms, sit, s) {
   const v = (x, y, z) => new Vector3(x, y, z);
+  // (Or the two wrists given outright, [[x, y, z], [x, y, z]]: a barber's razor at a cheek, a hand on a patient's arm.)
+  if (Array.isArray(arms)) return arms.map(([x, y, z]) => v(x, y, z));
   if (sit) {
     switch (arms) {
       case 'read': return [v(-0.16, s + 0.42, 0.3), v(0.16, s + 0.42, 0.3)];

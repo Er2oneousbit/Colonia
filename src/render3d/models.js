@@ -51,6 +51,7 @@ import { WALL_MODELS } from './models/wallModels.js';
 import { FLEET_MODELS } from './models/fleet.js';
 import { MILITARY_MODELS } from './models/militaryModels.js';
 import { EDUCATION_MODELS } from './models/education.js';
+import { HEALTH_MODELS } from './models/health.js';
 import { GOVERNMENT_MODELS } from './models/government.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
@@ -80,6 +81,8 @@ export function partShows(when, state, ice) {
     case 'staffed': return state === 'open' || state === 'out';
     case 'home': return state === 'open' || state === 'shut';
     case 'out': return state === 'out';
+    // The baths' (models/health.js): their furnace out and doors shut, water or none.
+    case 'cold': return state === 'still' || state === 'dry';
     default: return false;
   }
 }
@@ -137,6 +140,8 @@ export const MODELS = Object.freeze({
   ...MILITARY_MODELS,
   // The school, the library and the academy (models/education.js says how).
   ...EDUCATION_MODELS,
+  // The barber, the physician, the baths and the hospital (models/health.js says how).
+  ...HEALTH_MODELS,
   // The senate house and the governor's residences (models/government.js says how).
   ...GOVERNMENT_MODELS,
 });

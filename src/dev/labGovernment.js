@@ -1,7 +1,7 @@
 /**
  * labGovernment.js
  * ----------------------------------------------------------------------------
- * The look lab's Government scene (8): the senate house and the governor's
+ * The look lab's Government scene (6): the senate house and the governor's
  * three residences (render3d/models/curia.js, praetorium.js,
  * praetoriumMaius.js, regia.js) on paved ground between streets, labelled,
  * as the game draws them (models/government.js: the states by the parts'
@@ -49,7 +49,7 @@ platform round two courts, a hall with a gilded ridge and a porch of gilt Corint
 standard at its gate.</p>
 <h3>Controls</h3>
 <ul>
-<li>8: this scene. 1 to 4: day, golden hour, night, winter. L: the level of detail. N: snow; T: rain. M, G, Z: the game's zooms; O: orbit;
+<li>6: this scene. 1 to 4: day, golden hour, night, winter. L: the level of detail. N: snow; T: rain. M, G, Z: the game's zooms; O: orbit;
 Q / E: turn the view.</li>
 </ul>`;
 
@@ -98,7 +98,7 @@ export function buildGovernmentScene() {
   return {
     id: 'government',
     title: 'Government',
-    key: '8',
+    key: '6',
     info: INFO,
     group,
     labels,

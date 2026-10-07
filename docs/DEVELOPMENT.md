@@ -102,6 +102,8 @@ URL flags, appended to the address (for example `dist/colonia.html?debug=1&seed=
 
 The console's `learning` builds a library and an academy beside the city (and a school if it has none): the WebGL renderer's education models at work.
 
+The console's `healing` builds baths (inside a reservoir's piped area, piping water to the town first if none reaches) and a hospital beside the city, and a barber and a physician if it has none: the WebGL renderer's health models at work.
+
 In the browser's dev tools, `window.colonia` is the running app (`colonia.game` is the simulation).
 
 **Art and music tools** (with `npm run dev` running):

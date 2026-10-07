@@ -40,7 +40,9 @@
  * giving each of its five buildings' triangles).
  * (the Learning scene, labLearning.js: 7, the school, the library and the
  * academy, with commerceTriangles('learning', lod)).
- * (the Government scene, labGovernment.js: 8, the senate house and the
+ * (the Health scene, labHealth.js: 8, the barber, the physician, the baths and
+ * the hospital, with commerceTriangles('health', lod)).
+ * (the Government scene, labGovernment.js: 6, the senate house and the
  * governor's residences, with commerceTriangles('government', lod)).
  * ----------------------------------------------------------------------------
  */
@@ -70,6 +72,7 @@ import { buildWallsScene } from './labWalls.js';
 import { harbourScenes } from './labHarbour.js';
 import { buildMilitaryScene } from './labMilitary.js';
 import { buildLearningScene } from './labLearning.js';
+import { buildHealthScene } from './labHealth.js';
 import { buildGovernmentScene } from './labGovernment.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
@@ -311,8 +314,8 @@ async function main() {
   let harbour = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
   // (The Walls scene, labWalls.js, takes the same calls.)
-  const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene(), learning: buildLearningScene() };
-  // The Government scene (labGovernment.js, 8): the senate house and the governor's residences.
+  const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene(), learning: buildLearningScene(), health: buildHealthScene() };
+  // The Government scene (labGovernment.js, 6): the senate house and the governor's residences.
   commerce.government = buildGovernmentScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
@@ -730,13 +733,14 @@ async function main() {
     // (After the scene's own keys: in the Walls scene C cycles the stone.)
     else if (k === 'c') setScene('military');
     else if (k === '7') setScene('learning');
+    else if (k === '8') setScene('health');
     else if (k === 'r') setScene('ground');
     else if (k === 'y') setScene('types');
     else if (k === '[' && state.scene === 'types') setCard(state.card - 1);
     else if (k === ']' && state.scene === 'types') setCard(state.card + 1);
     else if (k === 'v' && state.scene === 'types') overview();
     else if (k === '9') setScene('water');
-    else if (k === '8') setScene('government');
+    else if (k === '6') setScene('government');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
