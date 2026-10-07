@@ -13,6 +13,13 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.18)
+
+* **The barber, the physician, the baths and the hospital in 3D** (under WebGL): the barber's shop open to the street, a client under a linen cloth with the razor at his cheek and neighbours gossiping on the bench; the physician's consulting room under MEDICVS, the doctor taking a patient's pulse, his assistant grinding a remedy, the staff of Asclepius outside; a neighbourhood bath after Pompeii's Stabian and Forum baths, a vaulted hot room and a domed one, the furnace and its stoker, bathers in the exercise yard, steam rising in winter, cold and shut without workers, an empty pool without water; a hospital on the army's plan, wards round a corridor and a court of medicinal herbs, a surgeon at work in the operating hall, convalescents in the sun. Console: `healing` builds them beside the city
+* A browser check fixed: the "ground off" check read the renderer a fixed 400 ms after switching, which with more models drawn under a software GL could still be the frame before; it now waits for the switch
+* Headless sim: identical to v0.20.17 on every difficulty
+* 1260 unit tests, 262 browser checks
+
 ## Done (v0.20.17)
 
 * **Aqueducts and the reservoir in 3D** (under WebGL): aqueducts are arcades in the province's stone (tufa and peperino as the Aqua Marcia and Claudia, limestone as the Pont du Gard and Segovia, brick-faced concrete), an arch a tile, joining up as you drag them, with pierced piers at turns and branches; where one crosses a road it springs a wider arch of dressed travertine after the Porta Maggiore. Its open channel on top shows the water running, with leak stains down the piers, or dry silt when it carries none, and it steps down into a reservoir in a stair of falls. The reservoir is a castellum aquae after Pompeii's at the Porta Vesuvio: an open tank lined in pink signinum, the distribution house with three outlets and lead pipes with bronze stopcocks, water towers at its corners and overflows into troughs; full or dry as the sim says, its water's margins freezing in a hard frost

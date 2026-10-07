@@ -1,7 +1,7 @@
 /**
  * labGardens.js
  * ----------------------------------------------------------------------------
- * The look lab's Gardens scene (8): the gardens, the statues, the gardeners'
+ * The look lab's Gardens scene (0): the gardens, the statues, the gardeners'
  * yard and the triumphal arch (render3d/models/hortus.js, signa.js,
  * topiaria.js, fornix.js), laid out on a small map of their own and drawn
  * through the game's own entries (models/decor.js: every look and every
@@ -135,7 +135,7 @@ spandrels, reliefs of the triumph inside the passage under a coffered vault, the
 bronze letters, and on top the bronze chariot of the triumph drawn by four horses. The road runs on under it.</p>
 <h3>Controls</h3>
 <ul>
-<li>8: this scene. C: the month. L: the level of detail. 1 to 4: day, golden hour, night, winter. N: snow; T: rain.
+<li>0: this scene. C: the month. L: the level of detail. 1 to 4: day, golden hour, night, winter. N: snow; T: rain.
 M, G, Z: the game's zooms; O: orbit; Q / E: turn the view.</li>
 </ul>`;
 
@@ -234,7 +234,7 @@ export function buildGardensScene() {
   const scene = {
     id: 'gardens',
     title: 'Gardens',
-    key: '8',
+    key: '0',
     info: INFO,
     group,
     labels,

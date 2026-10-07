@@ -4706,7 +4706,66 @@ try {
         await ge.close();
       }
 
-      // 8a3. Gardens, statues, the gardeners' yard and the triumphal arch as models (render3d/
+      // 8a3. The barber, the physician, the baths and the hospital as models (render3d/models/
+      //      health.js): the demo city's barber and physician and the console's `healing` baths
+      //      and hospital; each draws as a model (waited for: under a software GL kits are built a
+      //      few a frame) and a click on its footprint opens its panel.
+      {
+        const gh = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const herrs = [];
+        gh.on('pageerror', (e) => herrs.push(`pageerror: ${e.message}`));
+        gh.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) herrs.push(m.text()); });
+        await gh.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gh.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const CARE = ['barber', 'clinic', 'baths', 'hospital'];
+        const care = await gh.evaluate((types) => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const said = app.ui.console.run('healing');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = { said };
+          for (const t of types) {
+            const b = [...app.game.buildings.values()].find((v) => v.type === t);
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size } : null;
+          }
+          return out;
+        }, CARE);
+        const healing = [];
+        for (const type of CARE) {
+          const b = care[type];
+          if (!b) {
+            healing.push({ type, missing: true });
+            continue;
+          }
+          await gh.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gh.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await gh.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, type);
+          const p = await gh.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gh.mouse.click(p.x, p.y);
+          await gh.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gh.evaluate(() => window.colonia.ui.info.target);
+          healing.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
+        }
+        await gh.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gh.screenshot({ path: path.join(shots, 'smoke-webgl-healing.png') });
+        check('WebGL renderer: the barber, the physician, the baths and the hospital are 3D models, and a click picks each',
+          healing.every((m) => !m.missing && m.drawn >= 1 && m.picked), JSON.stringify({ said: care.said, healing }));
+        check('WebGL renderer, health models: no page errors', herrs.length === 0, herrs.join(' | '));
+        await gh.close();
+      }
+
+      // 8a4. Gardens, statues, the gardeners' yard and the triumphal arch as models (render3d/
       //      models/decor.js): the console's `gardens` lays them out beside the demo city; each
       //      draws as a model (waited for: under a software GL kits are built a few a frame) and
       //      a click on its footprint opens its panel (the arch's on a pier, off its road).
@@ -4968,7 +5027,10 @@ try {
       // (Back over the granary, which the next check reads.)
       if (farmSite.gran) await gq.evaluate((v) => window.colonia.renderer.camera.centerOnTile(v.x + 1.5, v.y + 1.5), farmSite.gran);
       await gq.evaluate(() => window.colonia.ui.console.run('ground off'));
-      await gq.waitForTimeout(400);
+      // Waited for, not timed: the stats are the last frame's, and under a software GL with more of
+      // the city drawn as models (the demo's barber and physician are models now)
+      // the 400 ms once waited here read a frame from before the switch (ground "low", 0 objects).
+      await gq.waitForFunction(() => { const s = window.colonia.renderer.stats; return s.ground === 'off' && s.objects > 0; }, null, { timeout: 20000, polling: 100 }).catch(() => {});
       const off = await gq.evaluate(() => ({ ground: window.colonia.renderer.stats.ground, backend: window.colonia.renderer.stats.backend, objects: window.colonia.renderer.stats.objects, flora: window.colonia.renderer.stats.flora }));
       await frames(3);
       const farmsOff = await gq.evaluate(() => window.colonia.renderer.stats.modelPass?.byType || {});
