@@ -59,6 +59,7 @@ import { buildFountainScene } from './labFountain.js';
 import { ruralScenes } from './labRural.js';
 import { buildWoodsScene } from './labWoods.js';
 import { buildCommerceScenes } from './labCommerce.js';
+import { harbourScenes } from './labHarbour.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { mapStats } from './texReport.js';
 
@@ -293,6 +294,8 @@ async function main() {
   let rural = null;
   /** The Woods scene (labWoods.js), made with the lab's buttons below. */
   let woods = null;
+  /** The Harbour scene (labHarbour.js): the fleet's buildings on the game's water. */
+  let harbour = null;
   // The Market, Forum and Warehouse scenes (labCommerce.js), each its own patch of street.
   const commerce = buildCommerceScenes();
   for (const s of Object.values(commerce)) {
@@ -323,6 +326,7 @@ async function main() {
     else if (state.scene === 'ground') LOOK.uniforms.uLookFade.value.set(-2, -2, 42, 48);
     else if (rural && rural.fade(state.scene)) LOOK.uniforms.uLookFade.value.set(...rural.fade(state.scene));
     else if (woods && state.scene === 'woods') LOOK.uniforms.uLookFade.value.set(...woods.fade);
+    else if (harbour && state.scene === 'harbour') LOOK.uniforms.uLookFade.value.set(...harbour.fade);
     else if (commerce[state.scene]) LOOK.uniforms.uLookFade.value.set(...commerce[state.scene].fade);
     else LOOK.uniforms.uLookFade.value.set(0, 0, 1e5, 2e5);
   }
@@ -335,7 +339,7 @@ async function main() {
   const info = el('div', { class: 'info', role: 'dialog', 'aria-label': 'About this scene' }, INFO);
   app.appendChild(info);
   const fillInfo = () => {
-    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO, ...(rural ? rural.info : {}), ...(woods ? { woods: woods.info } : {}) }[state.scene] || commerce[state.scene].info;
+    info.innerHTML = { well: INFO, ground: GROUND_INFO, types: TYPES_INFO, fountain: FOUNTAIN_INFO, ...(rural ? rural.info : {}), ...(woods ? { woods: woods.info } : {}), ...(harbour ? { harbour: harbour.info } : {}) }[state.scene] || commerce[state.scene].info;
     info.querySelector('.close').addEventListener('click', () => info.classList.remove('open'));
   };
   fillInfo();
@@ -351,9 +355,9 @@ async function main() {
       return b;
     });
   };
-  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')], ['Farms', 'H', () => setScene('farms')], ['Granary', 'U', () => setScene('granary')], ['Woods', 'P', () => setScene('woods')],
+  const sceneBtns = group([['Well', 'W', () => setScene('well')], ['Fountain', 'F', () => setScene('fountain')], ['Ground', 'R', () => setScene('ground')], ['Ground types', 'Y', () => setScene('types')], ['Farms', 'H', () => setScene('farms')], ['Granary', 'U', () => setScene('granary')], ['Woods', 'P', () => setScene('woods')], ['Harbour', 'D', () => setScene('harbour')],
     ...Object.values(commerce).map((s) => [s.title, s.key, () => setScene(s.id)])]);
-  const SCENES = ['well', 'fountain', 'ground', 'types', 'farms', 'granary', 'woods', ...Object.keys(commerce)];
+  const SCENES = ['well', 'fountain', 'ground', 'types', 'farms', 'granary', 'woods', 'harbour', ...Object.keys(commerce)];
   const moodBtns = group(Object.entries(MOODS).map(([k, m], i) => [m.label, String(i + 1), () => setMood(k)]));
   const viewBtns = group(Object.entries(VIEWS).map(([k, v]) => [v.label, v.key, () => setView(k)]));
   group([['Turn left', 'Q', () => setTurn(state.turn - 1)], ['Turn right', 'E', () => setTurn(state.turn + 1)]]);
@@ -399,6 +403,8 @@ async function main() {
   woods = buildWoodsScene(look.renderer, groundTex, { el, app, group });
   scene.add(woods.group, woods.ground.group);
   grounds.push(woods.ground);
+  harbour = harbourScenes({ scene, look, groundTex, group, el, app });
+  grounds.push(...harbour.grounds);
   // The commerce scenes' labels, one over each building.
   const cLabels = el('div', { class: 'cardlabels' });
   app.appendChild(cLabels);
@@ -445,6 +451,8 @@ async function main() {
     fountainNoAO();
     // The farms' trees and vines take the season's look.
     if (rural) rural.season(state.season);
+    // (A hard frost freezes the water's margins round the harbour's piles.)
+    if (harbour) harbour.setSnow(Math.max(state.snow, m.ice ? 2 : 0));
     if (state.scene !== 'well') {
       LOOK.uniforms.uLookSnow.value = Math.max(m.snow, snow);
       LOOK.uniforms.uLookWet.value = Math.max(m.wet, state.wet ? 1 : 0);
@@ -470,6 +478,7 @@ async function main() {
     fs.group.visible = name === 'fountain';
     rural.show(name);
     woods.show(name === 'woods');
+    harbour.show(name);
     if (name === 'woods') {
       // (A wider square of the sun's shadow: the whole map of woods.)
       const sc = look.sun.shadow.camera;
@@ -580,6 +589,7 @@ async function main() {
     if (commerce[state.scene]) placeCommerceLabels();
     rural.placeLabels(state.view === 'orbit' ? persp : ortho, canvas.clientWidth, canvas.clientHeight, state.view !== 'game2' && state.view !== 'orbit');
     woods.placeLabels(state.view === 'orbit' ? persp : ortho, canvas.clientWidth, canvas.clientHeight, state.view !== 'game2' && state.view !== 'orbit');
+    harbour.placeLabels(state.view === 'orbit' ? persp : ortho, canvas.clientWidth, canvas.clientHeight, state.view !== 'game2' && state.view !== 'orbit');
     if (state.scene !== 'types') return;
     // (In the overview the names only: the notes would cover each other.)
     labels.classList.toggle('compact', state.overview);
@@ -678,6 +688,8 @@ async function main() {
     else if (k === 'f') setScene('fountain');
     else if (rural.key(k)) refreshButtons();
     else if (woods.key(k)) refreshButtons();
+    else if (harbour.key(k)) refreshButtons();
+    else if (k === 'd') setScene('harbour');
     else if (k === 'p') setScene('woods');
     else if (k === 'l' && state.scene === 'fountain') setFountainLod((fs.lod + 1) % 3);
     else if (k === 'l' && commerce[state.scene]) setFountainLod((commerce[state.scene].lod + 1) % 3);
@@ -832,7 +844,7 @@ async function main() {
   lampsCast(false);
   const warm = look.warm(ortho, {
     mood: 'day',
-    later: [groundGroup, galGroup, fs.group, ...rural.later, ...woods.later, ...Object.values(commerce).map((s) => s.group)],
+    later: [groundGroup, galGroup, fs.group, ...rural.later, ...woods.later, ...harbour.later, ...Object.values(commerce).map((s) => s.group)],
     variants: [() => {
       lampsCast(true);
       return () => lampsCast(look.lamps[0].on > 0);
@@ -897,6 +909,12 @@ async function main() {
       triangles: (sp, lod, lookName) => woods.triangles(sp, lod, lookName),
       stats: () => ({ ...woods.flora.stats }),
       bytes: () => woods.flora.bytes(),
+    },
+    /** The Harbour scene (labHarbour.js): its level of detail, its buildings, a look's triangles as the game builds it. */
+    harbour: {
+      setLod: (n) => harbour.scene.setLod(n),
+      get items() { return harbour.scene.items.map((it) => ({ type: it.type, note: it.note, x: it.holder.position.x, z: it.holder.position.z, triangles: it.tris })); },
+      triangles: (type, key, l) => harbour.scene.triangles(type, key, l),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },
