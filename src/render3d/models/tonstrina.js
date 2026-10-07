@@ -46,7 +46,7 @@ import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin } from './rural.js';
 import { staff, inscribe, people } from './castra.js';
 import { person, roofSlope, box } from './learning.js';
-import { healthMaterials, stool, basinStand, towel, potRow, pot } from './healing.js';
+import { healthMaterials, stool, basinStand, towel, potRow, pot, wallWindow } from './healing.js';
 
 /** The barber's measures (metres): the tests, the lab and the game read them. */
 export const TONSTRINA = Object.freeze({
@@ -138,6 +138,12 @@ function shell(lod, seed, out) {
     out.red.push(box(0.012, 1.0, zi + H - 2 * W, s * (H - W - 0.006), T.floorY, (zi - H + W) / 2, 0.9));
   }
   out.plaster.push(box(2 * H - 2 * W, roofY(-H + W / 2) - 0.04, W, 0, 0, -H + W / 2, 0.93));
+  // The mezzanine's window to the back lane, and one low on the left wall: what the far side shows.
+  for (const win of [wallWindow(0, -H, Math.PI, { x: 0.5, y: 2.85, lod, seed: seed + 13 }), wallWindow(-H, -0.9, -Math.PI / 2, { y: 1.5, w: 0.36, h: 0.4, lod, seed: seed + 14 })]) {
+    out.dark.push(...win.dark);
+    out.trav.push(...win.stone);
+    out.wood.push(...win.wood);
+  }
   // Inside the back wall: red below, a yellow ochre panel above, a dark band between (the Third Style's plain shop walls).
   out.red.push(box(2 * H - 2 * W - 0.02, 1.0, 0.012, 0, T.floorY, -H + W + 0.006, 1));
   out.ochre.push(box(2 * H - 2 * W - 0.02, 1.25, 0.012, 0, T.floorY + 1.06, -H + W + 0.006, 1));

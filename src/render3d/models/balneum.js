@@ -522,7 +522,7 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
     out.trav.push(...out.shelter.splice(0));
     out.flags.push(...out.floor.splice(0));
     out.wood.push(...out.logs.splice(0));
-    out.letters = out.lead = out.iron = out.leaves = out.stain = out.red = out.labrumWater = out.stream = out.coalsLit = out.coalsCold = out.charcoal = out.glass = [];
+    out.letters = out.lead = out.iron = out.leaves = out.red = out.labrumWater = out.stream = out.coalsLit = out.coalsCold = out.charcoal = out.glass = [];
     out.stone.length = 0;
   }
   const p = new TaggedParts('balneum');

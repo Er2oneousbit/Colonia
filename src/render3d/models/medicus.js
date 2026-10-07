@@ -45,7 +45,7 @@ import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, gableRoof, D } from './rural.js';
 import { staff, inscribe, people } from './castra.js';
 import { person, bush, box } from './learning.js';
-import { healthMaterials, lectus, table, potRow, pot, mortar, asclepius, towel, inFrame, coals } from './healing.js';
+import { healthMaterials, lectus, table, potRow, pot, mortar, asclepius, towel, inFrame, coals, wallWindow } from './healing.js';
 
 /** The physician's measures (metres): the tests, the lab and the game read them. */
 export const MEDICUS = Object.freeze({
@@ -105,6 +105,12 @@ function shell(lod, seed, out) {
     out.red.push(box(0.012, 0.95, zi + H - 2 * W, s * (X - W - 0.006), M.floorY, (zi - H + W) / 2, 0.92));
   }
   out.ochre.push(box(2 * X - 2 * W, e, W, 0, 0, -H + W / 2, 0.92));
+  // Windows to the back lane and the left side: what the far side shows.
+  for (const win of [wallWindow(0, -H, Math.PI, { x: -0.6, y: 1.55, lod, seed: seed + 13 }), wallWindow(-X, -1.0, -Math.PI / 2, { y: 1.5, w: 0.36, h: 0.44, lod, seed: seed + 14 })]) {
+    out.dark.push(...win.dark);
+    out.trav.push(...win.stone);
+    out.wood.push(...win.wood);
+  }
   out.red.push(box(2 * X - 2 * W, 0.95, 0.012, 0, M.floorY, -H + W + 0.006, 0.92));
   // The roof: a gable, its ridge running back from the street, the pediment over the front.
   const over = 0.42;

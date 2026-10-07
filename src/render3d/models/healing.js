@@ -400,6 +400,27 @@ export function herbBed(x0, x1, z0, z1, { lod = 0, seed = 1, rows = 3, bloom = 0
 }
 
 /**
+ * A small window on a wall's outer face (the face at z 0 facing +z, before
+ * the turn): its dark on the face, a travertine sill, one wooden shutter
+ * swung back against the wall; `w` x `h`, its sill at y, its middle at x,
+ * turned `ry` about y and moved to (cx, cz). Returns { dark, stone, wood }.
+ */
+export function wallWindow(cx, cz, ry, { x = 0, y = 2.2, w = 0.4, h = 0.42, lod = 0, seed = 1 } = {}) {
+  const out = { dark: [box(w, h, 0.006, x, y, 0.004)], stone: [], wood: [] };
+  if (lod < 2) {
+    // (Proud of the wall by 4 cm at most: a barber's back wall stands 5 cm inside its footprint.)
+    out.stone.push(slab(w + 0.14, 0.05, 0.07, { bevel: 0.008, seed, wobble: 0, tone: 0.03, grime: 0 }).translate(x, y - 0.05, 0.0));
+    out.wood.push(box(w * 0.55, h - 0.02, 0.03, x + w / 2 + w * 0.3, y + 0.01, 0.025, 0.65));
+    if (lod === 0) out.wood.push(box(w + 0.04, 0.04, 0.04, x, y + h, 0.02, 0.55));
+  }
+  for (const g of [...out.dark, ...out.stone, ...out.wood]) {
+    g.rotateY(ry);
+    g.translate(cx, 0, cz);
+  }
+  return out;
+}
+
+/**
  * A bed of coals: lumps of charcoal heaped in a disc of radius r at (x, y, z),
  * some of them glowing. Returns { hot, dark }: the glowing lumps (the
  * embers' material, shown while the fire is in), the rest (charcoal, always).
