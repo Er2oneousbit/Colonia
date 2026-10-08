@@ -86,6 +86,7 @@ import { drawParticle, particleBox } from '../render/effects.js';
 import { drawGulls } from '../render/waterArt.js';
 import { AutoScale, startRung, fixedScale } from './renderScale.js';
 import { gpuOf, isSoftwareGpu } from '../render/perf.js';
+import { WalkerPass } from './walkers/pass.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -201,6 +202,7 @@ export class WebGLBackend {
       this.timer.reset();
       this.models.lose();
       this.flora.lose();
+      this.walkers.restored();
     }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
@@ -223,6 +225,13 @@ export class WebGLBackend {
     // The 3D world's scene and light (the ground and the models share them), and the models.
     this.rig = new SunRig(gl);
     this.models = new ModelPass(gl, this.rig);
+    // The walkers as 3D people while the models draw (walkers/pass.js); their carts' loads are the
+    // warehouses' kits, placed through the model pass.
+    this.walkers = new WalkerPass(this.rig.modelSlot);
+    this.drawsWalkers = false;
+    this.walkersOn = true;
+    this.models.extra = (mp, lod) => this.walkers.placeLoads(mp, lod);
+    this.lastBegin = 0;
     // The trees and rocks as models (flora/floraPass.js), with the 3D ground: `drawsFlora` tells the
     // renderer to leave their sprites out this frame.
     this.flora = new FloraPass(gl, this.rig);
@@ -435,6 +444,28 @@ export class WebGLBackend {
     this.models.warm(this.camera, this.rig.sun.castShadow);
     // (Never waiting silently: a GPU that will not ready them is told to the console and the readout.)
     this.models.watch();
+    // The walkers as 3D people: once the models draw and the walkers' own programs are compiled.
+    const now = performance.now();
+    const dt = this.lastBegin ? (now - this.lastBegin) / 1000 : 0;
+    this.lastBegin = now;
+    if (this.models.ready && this.walkersOn) this.walkers.warm(this.gl, this.camera, this.rig.scene, (fn) => this.rig.withOutput(fn));
+    this.drawsWalkers = this.walkersOn && this.models.ready && this.walkers.compiled;
+    if (this.drawsWalkers) this.walkers.begin(cam.scale, r.motionOn ? r.time || 0 : 0, dt);
+  }
+
+  /** Can walker `w` be drawn as a 3D person this frame (walkers/pass.js canDraw)? `ctx`: its cart's sender, its venue. */
+  canDrawWalker(w, ctx) {
+    return this.drawsWalkers && this.walkers.canDraw(w, ctx);
+  }
+
+  /** Walker `w` drawn as a 3D person this frame: `at` where walkerWorld puts it (walkers/motion.js place). */
+  walker(w, at, ctx) {
+    this.walkers.add(w, at, ctx);
+  }
+
+  /** How far (tiles) what goes with walker `w` reaches along his facing (+ ahead: a cart; - behind: a wagon, a family). */
+  walkerReach(w) {
+    return this.walkers.reachOf(w);
   }
 
   /** The slot of texture `tex` in the batch being filled (a new batch when it is full). */
@@ -762,10 +793,14 @@ export class WebGLBackend {
     const cam = r.camera;
     // This frame's models, instanced, at the level of detail of this zoom (modelPass.js).
     // (Low takes the simpler model a zoom step sooner: it is the quality picked for speed.)
+    // The walkers first (their places, and their carts' loads for the model pass to place).
+    let walkers = 0;
+    if (this.drawsWalkers) walkers = this.walkers.end();
+    else this.walkers.hide();
     const built = this.models.update(r, this.placed, lodFor(this.groundMode === 'low' ? cam.scale / 2 : cam.scale), this.ghosts);
     // The trees and rocks in view (or, while they cannot draw yet, their kits and programs prepared).
     const flora = this.flora.update(r, this.camera, this.drawsFlora, this.groundMode);
-    const models = built + flora;
+    const models = built + flora + walkers;
     if (this.drawsGround || models || this.ghosts.length) {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
@@ -776,6 +811,7 @@ export class WebGLBackend {
       const shadows = this.rig.fitShadow(Math.min(...c.map((q) => q.x)), Math.min(...c.map((q) => q.y)), Math.max(...c.map((q) => q.x)), Math.max(...c.map((q) => q.y)), models);
       this.models.setCasting(shadows);
       this.flora.setCasting(shadows);
+      this.walkers.setCasting(shadows);
     }
     if (this.drawsGround) {
       const gp = this.groundPass;
@@ -808,6 +844,8 @@ export class WebGLBackend {
     st.models = built;
     // (By type, their triangles, the level of detail: the smoke test and the console read them.)
     st.modelPass = this.models.stats;
+    // (The walkers drawn as 3D people: how many, their figures, draws, triangles, writes, CPU ms.)
+    st.walkers3d = this.drawsWalkers ? this.walkers.stats : null;
     st.flora = this.drawsFlora ? flora : 0;
     st.floraPass = this.flora.stats;
     st.drawCalls = gl.info.render.calls;
@@ -836,6 +874,7 @@ export class WebGLBackend {
     for (const m of this.materials) m.dispose();
     this.geometry.dispose();
     this.models.dispose();
+    this.walkers.dispose();
     this.flora.dispose();
     resetFloraMaterials();
     if (this.groundPass) this.groundPass.dispose();

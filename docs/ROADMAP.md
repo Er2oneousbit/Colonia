@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.24)
+
+* **Walkers in 3D** (under WebGL): every walker is an animated 3D person dressed for the work: the prefect in red with his bucket (running to a fire, throwing water), the engineer with his measuring rod, the veiled priest, teachers, librarians and scholars with rolls, the barber, the physician with his case, the bath attendant, actors, gladiators and the charioteer with his pair, the gardener, the tax collector, market women with baskets on their heads, cart pushers with handcarts loaded with what they carry, ox wagons from the farms, drovers leading horses, settlers with their families and bundles or a pack mule, caravans of mules, recruits marching, protesters, thieves and rioters with torches. Their steps match the ground they cover (no sliding), they turn at corners and stop when the game pauses; clicking one opens its panel as before. Soldiers, raiders, wolves and ships keep their sprites for now. Lab: the Walkers scene (`=` key)
+* Headless sim: identical to v0.20.23 on every difficulty
+* 1313 unit tests, 271 browser checks
+
 ## Done (v0.20.23)
 
 * **Animated 3D people** (under WebGL): the people in the temples, the oracle, the mission post, the school, the forum, the senate and the prefecture are now detailed figures that move: a face, hands, hair and beards, Roman dress as separate pieces (tunic with clavi, toga with its folds, stola and palla, cloak, mail, veil, wreath), men, women and children in a city's varied dyes. Twenty-three motions animated on the graphics card (walking short rounds, talking, praying, sacrificing, playing the pipes, writing, reading, teaching, pumping, counting coin, cheering, standing guard, among others), no two in step; snow settles on their heads and shoulders. Lab: the People scene (minus key)

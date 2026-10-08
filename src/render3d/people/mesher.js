@@ -55,9 +55,11 @@ export const SLOTS = Object.freeze({
   WHITE: { i: 21, col: -1, rgb: 0xeee8dc, rough: 0.88, metal: 0, tex: 1, snow: 0.8, wet: 1 },
   PURPLE: { i: 22, col: -1, rgb: 0x5a1838, rough: 0.85, metal: 0, tex: 0.9, snow: 0.6, wet: 1 },
   BROW: { i: 23, col: 3, rough: 0.7, metal: 0, tex: 0.2, snow: 0, wet: 0.4 },
+  // A torch's flame (a rioter's): bright, unwoven, never wet or snowed on.
+  FLAME: { i: 24, col: -1, rgb: 0xffb347, rough: 1, metal: 0, tex: 0, snow: 0, wet: 0 },
 });
 
-export const SLOT_COUNT = 24;
+export const SLOT_COUNT = 25;
 
 /** Bone weights from a list of [bone (name or index), weight]: the four biggest, normalised. */
 export function weights(list) {

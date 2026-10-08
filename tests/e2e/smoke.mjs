@@ -4993,6 +4993,70 @@ try {
         await gt.close();
       }
 
+      // 8a2. The walkers as 3D people (render3d/walkers/): while the models draw, a walker in view
+      //      is drawn by the walkers' pass (its click spot then reaches over what goes with him),
+      //      not as a sprite; a click on him opens his panel. Waited for by state: his pieces are
+      //      built a few a frame, and the programs compile in the background under the software GL.
+      {
+        const gw = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const werrs = [];
+        gw.on('pageerror', (e) => werrs.push(`pageerror: ${e.message}`));
+        gw.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) werrs.push(m.text()); });
+        await gw.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gw.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const pickOne = () => gw.evaluate(() => {
+          const app = window.colonia;
+          const g = app.game;
+          // A roamer on a road with plenty of walk left, in the middle of the view.
+          const w = [...g.walkers.values()].filter((v) => v.kind === 'roamer' && g.map.road[g.map.idx(v.x, v.y)] && (v.roamLeft ?? 0) > 10)[0]
+            || [...g.walkers.values()].find((v) => v.kind !== 'ship' && g.map.road[g.map.idx(v.x, v.y)]);
+          if (!w) return null;
+          app.renderer.camera.zoomIndex = 5;
+          app.renderer.camera.centerOnTile(w.x, w.y);
+          return { id: w.id, type: w.type };
+        });
+        await gw.evaluate(() => { const app = window.colonia; app.ui.console.run('demo 2'); app.game.runDays(40); app.paused = true; });
+        let wk = await pickOne();
+        // Drawn in 3D: the walkers' pass ready, his spot one of the 3D walkers' (it has a reach), his pieces built.
+        const in3d = (id) => gw.waitForFunction((v) => {
+          const r = window.colonia.renderer;
+          const s = r.walkerSpots.find((q) => q.id === v);
+          return !!s && s.reachX !== undefined && r.stats.walkers3d && r.stats.walkers3d.walkers >= 1 && !r.stats.walkers3d.deferred;
+        }, id, { timeout: 60000, polling: 100 }).then(() => true, () => false);
+        let drawn3d = wk ? await in3d(wk.id) : false;
+        if (wk && !drawn3d) {
+          // (He may have gone home meanwhile: another.)
+          wk = await pickOne();
+          drawn3d = wk ? await in3d(wk.id) : false;
+        }
+        let wpanel = null;
+        let wstats = null;
+        if (wk && drawn3d) {
+          wstats = await gw.evaluate((id) => {
+            const r = window.colonia.renderer;
+            return { ...r.stats.walkers3d, sprite: r.walkers3d.some((it) => it.w.id === id) ? 'none' : 'sprite' };
+          }, wk.id);
+          const p = await gw.evaluate((id) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const s = app.renderer.walkerSpots.find((q) => q.id === id);
+            const q = cam.toScreen(s.wx, s.wy - 9);
+            const rect = app.canvas.getBoundingClientRect();
+            return { x: rect.left + q.x / cam.dpr, y: rect.top + q.y / cam.dpr };
+          }, wk.id);
+          await gw.mouse.click(p.x, p.y);
+          await gw.waitForFunction((id) => window.colonia.ui.info.target?.id === id, wk.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          wpanel = await gw.evaluate(() => ({ target: window.colonia.ui.info.target, ring: window.colonia.renderer.selectedWalker }));
+        }
+        if (shots) await gw.screenshot({ path: path.join(shots, 'smoke-webgl-walkers.png') });
+        check('WebGL renderer: walkers are drawn as 3D people (instanced, not sprites), and a click on one opens his panel',
+          !!wk && drawn3d && wstats.walkers >= 1 && wstats.figures >= 1 && wstats.draws >= 1 && wstats.triangles > 0 && wstats.sprite === 'none'
+            && wpanel?.target?.kind === 'walker' && wpanel.target.id === wk.id && wpanel.ring === wk.id,
+          JSON.stringify({ wk, drawn3d, wstats, wpanel }));
+        check('WebGL renderer, 3D walkers: no page errors', werrs.length === 0, werrs.join(' | '));
+        await gw.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks

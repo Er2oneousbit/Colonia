@@ -314,13 +314,18 @@ function swap(text, what, by, where) {
   return text.replace(what, by);
 }
 
-/** Patch a shader (already through patchLook for the colour one) for the people: `depth` for a shadow caster's. */
-export function patchPeopleShader(shader, depth) {
-  Object.assign(shader.uniforms, shared(), depth ? { uLookTime: LOOK.uniforms.uLookTime } : {});
+/**
+ * Patch a shader (already through patchLook for the colour one) for the people: `depth` for a shadow caster's.
+ * `variant` (the walkers', render3d/walkers/material.js) may bring its own uniforms, declarations (`pars`), the
+ * top of main() in place of the route's (`main`: it must set pYaw, pAdv and pSkin) and lines after the rest
+ * pose is placed (`begin`: `transformed` may be moved further).
+ */
+export function patchPeopleShader(shader, depth, variant = null) {
+  Object.assign(shader.uniforms, shared(), depth ? { uLookTime: LOOK.uniforms.uLookTime } : {}, variant ? variant.uniforms : {});
   let v = shader.vertexShader;
-  v = swap(v, '#include <common>', `#include <common>\n${depth ? '#define PEOPLE_DEPTH\nuniform float uLookTime;\n' : ''}${VERT_PARS()}`, 'vertex');
-  v = swap(v, 'void main() {', VERT_MAIN, 'vertex');
-  v = swap(v, '#include <begin_vertex>', VERT_BEGIN, 'vertex');
+  v = swap(v, '#include <common>', `#include <common>\n${depth ? '#define PEOPLE_DEPTH\nuniform float uLookTime;\n' : ''}${VERT_PARS()}${variant ? variant.pars : ''}`, 'vertex');
+  v = swap(v, 'void main() {', variant ? variant.main : VERT_MAIN, 'vertex');
+  v = swap(v, '#include <begin_vertex>', VERT_BEGIN + (variant ? variant.begin : ''), 'vertex');
   if (!depth) v = swap(v, '#include <beginnormal_vertex>', VERT_NORMAL, 'vertex');
   shader.vertexShader = v;
   if (!depth) {

@@ -78,6 +78,22 @@ export const WALK_DUR = 1.05;
 export const WALK_SPEED = WALK_STRIDE / WALK_DUR;
 
 /**
+ * The walkers' stride (metres a loop of the stride and the clips like it) and how much lower their hips go
+ * for it; a run's stride and the share of its loop each foot is down (the rest is flight). A walker's clip
+ * plays at its distance walked over these (walkers/motion.js), so the feet hold the ground.
+ */
+export const WALKER_STRIDE = 1.6;
+export const STRIDE_DROP = 0.065;
+export const RUN_STRIDE = 2.0;
+export const RUN_STANCE = 0.3;
+/** Where the push clip's hands hold a handcart's handles (the right's x is minus this): the cart is built to them. */
+export const HANDCART = Object.freeze({ handle: [0.23, 0.93, 0.38] });
+/** The height (chest frame) a load carried on the head sits at: the top of the head and a pad. */
+export const HEAD_LOAD_Y = 1.725;
+/** Where the lead clip's right hand holds the rope (actor frame): the beast's rope is made to reach it. */
+export const LEAD_HAND = Object.freeze([-0.24, 0.92, -0.2]);
+
+/**
  * The pump the pump clip works (models/prefecture.js PUMP_BEAM): its beam's
  * pivot `ahead` of the man and `height` over his feet, its arm, its tilt at
  * rest (the near end down).
@@ -624,6 +640,196 @@ export const CLIPS = Object.freeze({
       fingers(P, 1, 0.9);
     },
   },
+
+  // --- The walkers' clips (render3d/walkers/). The city's walkers cover 3.2 m a second at 1x, past a
+  // stroll's pace, so they stride out: WALKER_STRIDE a loop on hips held STRIDE_DROP lower (the feet must
+  // stay within the legs' reach), the arms swinging wider. Each is played by the distance walked
+  // (walkers/motion.js), so the feet hold the ground at any game speed and stand still while paused.
+
+  // Striding through the streets, the arms swinging.
+  stride: {
+    dur: 0.8, fps: 30, toga: true, walk: true, stride: WALKER_STRIDE,
+    pose(P, t, m) {
+      strideLegs(P, t, 0.03);
+      walkArms(P, t, m.toga ? [-1] : [1, -1], 1.35);
+      if (m.toga) togaArm(P, t);
+    },
+  },
+  // Running (a prefect to a fire): a flight between the strides, low hips, leaning in, the arms bent and pumping.
+  run: {
+    dur: 0.62, fps: 40, walk: true, stride: RUN_STRIDE,
+    pose(P, t) {
+      runLegs(P, t);
+      for (const s of [1, -1]) {
+        const k = s > 0 ? 'L' : 'R';
+        const sw = sn(t, 1, s > 0 ? 0.75 : 0.25);
+        P.rot(`arm${k}`, -0.6 * sw - 0.12, 0, s * 0.14);
+        P.rot(`fore${k}`, -1.3 - 0.25 * sw, s * 0.15, 0);
+        P.rot(`hand${k}`, 0, 0, s * 0.1);
+        fingers(P, s, 0.85);
+      }
+      P.rot('neck', -0.1, 0, 0);
+    },
+  },
+  // Pushing a handcart: both hands on its handles (HANDCART.handle), leaning into it.
+  push: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0.16);
+      const [hx, hy, hz] = HANDCART.handle;
+      for (const s of [1, -1]) {
+        P.hand(s, s * hx, hy, hz, { pole: [s * 0.55, -0.7, -0.45] });
+        P.rot(s > 0 ? 'handL' : 'handR', 0.3, 0, s * 0.35);
+        fingers(P, s, 0.95);
+      }
+      P.rot('neck', -0.14, 0, 0);
+      P.rot('head', -0.06, 0, 0);
+    },
+  },
+  // A basket carried on the head (a market woman's) on its pad, steadied at the rim by the left hand.
+  headCarry: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0);
+      walkArms(P, t, [-1], 1.2);
+      // (The head held level and still under its load: the walk's own nod taken back.)
+      P.rot('neck', -0.02, 0.05 * sn(t, 1, 0.25), 0);
+      P.rot('head', -0.02 - 0.015 * sn(t, 2, 0.4), 0.03 * sn(t, 1, 0.25), 0);
+      P.prop(1, 0, HEAD_LOAD_Y, 0.005, 0, 0, 0, { chest: true });
+      P.hand(1, 0.17, HEAD_LOAD_Y + 0.02, 0.02, { chest: true, pole: [0.9, 0.25, -0.2] });
+      P.rot('handL', 0, 0, 1.3);
+      fingers(P, 1, 0.5);
+    },
+  },
+  // A basket on the left hip in the crook of the arm (a buyer back from the market), leaning from its weight.
+  hipCarry: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0);
+      walkArms(P, t, [-1], 1.2);
+      P.rot('spine', 0, 0, -0.06);
+      P.prop(1, 0.27, 0.98, 0.05, 0, 0, -0.18, { chest: true });
+      P.hand(1, 0.21, 0.96, 0.19, { chest: true, pole: [0.8, -0.3, -0.45] });
+      P.rot('handL', 0.5, 0, 0.8);
+      fingers(P, 1, 0.75);
+    },
+  },
+  // A bundle on the back, its strap held at the left shoulder (newcomers, the leaving, the homeless), bent under it.
+  bundle: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0.07);
+      walkArms(P, t, [-1], 1.15);
+      P.prop(1, 0, 1.2, -0.17, 0.12, 0, 0, { chest: true });
+      P.hand(1, 0.1, 1.26, 0.14, { chest: true, pole: [0.5, -0.85, 0.1] });
+      P.rot('handL', 0.4, 0, 0.9);
+      fingers(P, 1, 0.95);
+    },
+  },
+  // Leading an animal on a rope: the right hand a little behind him at LEAD_HAND, the left arm swinging.
+  lead: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0.04);
+      walkArms(P, t, [1], 1.2);
+      P.hand(-1, LEAD_HAND[0], LEAD_HAND[1] + 0.015 * sn(t, 2), LEAD_HAND[2] + 0.02 * sn(t, 1, 0.25), { pole: [-0.5, -0.3, -0.8] });
+      P.rot('handR', -0.3, 0, -0.4);
+      fingers(P, -1, 0.95);
+      // A look back at the beast now and then.
+      P.rot('head', 0, -0.25 * Math.max(0, hold(t, 1, 0.2, 3)), 0);
+    },
+  },
+  // A recruit marching: the spear upright in his right hand, the shield on his left arm, the arms held, not swung.
+  march: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0);
+      P.prop(-1, -0.25, 1.3, 0.16, 0.12, 0, 0);
+      P.hand(-1, -0.24, 1.26, 0.13, { pole: [-0.6, -0.7, -0.3] });
+      P.rot('handR', 0, 0, -1.4);
+      fingers(P, -1, 0.95);
+      P.prop(1, 0.31, 0.92, 0.02, 0, 1.25, 0, { chest: true });
+      P.hand(1, 0.27, 0.9, 0.02, { chest: true, pole: [0.8, -0.5, -0.3] });
+      P.rot('handL', 0, 0, 1.2);
+      fingers(P, 1, 0.9);
+    },
+  },
+  // Walking with something held up high in the right hand (a rioter's torch, a protester's placard), shaking it.
+  brandish: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0.02);
+      walkArms(P, t, [1], 1.2);
+      const at = [-0.2, 1.62 + 0.06 * sn(t, 2), 0.14 + 0.04 * sn(t, 2, 0.25)];
+      P.prop(-1, ...at, 0.1 * sn(t, 2, 0.1), 0, -0.12, { chest: true });
+      P.hand(-1, at[0], at[1] - 0.06, at[2] - 0.02, { chest: true, pole: [-0.9, -0.15, -0.3] });
+      fingers(P, -1, 0.95);
+    },
+  },
+  // A load on the left shoulder at the walkers' stride (a measuring rod, a towel, a thief's sack, a plank).
+  haul: {
+    dur: 0.8, fps: 30, walk: true, stride: WALKER_STRIDE,
+    pose(P, t) {
+      strideLegs(P, t, 0.02);
+      walkArms(P, t, [-1], 1.2);
+      P.rot('spine', 0, 0, 0.05);
+      P.prop(1, 0.11, 1.5, -0.03, 0, 0.1, 0.25, { chest: true });
+      P.hand(1, 0.2, 1.53, 0.1, { chest: true, pole: [0.8, -0.6, 0] });
+      P.rot('handL', 0, 0, 0.6);
+      fingers(P, 1, 0.6);
+      P.rot('head', 0, 0, -0.08);
+    },
+  },
+  // Throwing water from a bucket at a fire before him: swung back, then up and forward and emptied, brought back.
+  douse: {
+    dur: 1.6, fps: 20,
+    pose(P, t) {
+      stand(P, t, { shift: 0.3, ph: 0.7, look: 0, lean: 0.05 });
+      const k = track(t, [[0, 0], [0.28, -1], [0.48, 1], [0.6, 1], [0.84, 0]]);
+      const rest = [0, 0.9, 0.32];
+      const at = k < 0 ? lerp3(rest, [0, 0.95, 0.15], -k) : lerp3(rest, [0, 1.28, 0.42], k);
+      P.prop(-1, at[0], at[1], at[2], -1.7 * Math.max(0, k), 0, 0);
+      for (const s of [1, -1]) {
+        P.hand(s, at[0] + s * 0.08, at[1] + 0.05, at[2] - 0.02, { pole: [s * 0.6, -0.6, -0.4] });
+        P.rot(s > 0 ? 'handL' : 'handR', 0.4, 0, s * 0.6);
+        fingers(P, s, 0.9);
+      }
+      P.rot('spine', 0.12 * k, 0, 0);
+      P.rot('neck', 0.1, 0, 0);
+    },
+  },
+  // Protesting in the street: the placard (or a torch) raised and shaken, the left fist too, shouting.
+  protest: {
+    dur: 2.4, fps: 15,
+    pose(P, t) {
+      stand(P, t, { shift: 0.8, ph: 0.2, look: 0.5 });
+      const up = 0.5 + 0.5 * sn(t, 3);
+      const at = [-0.16, 1.6 + 0.16 * up, 0.17];
+      P.prop(-1, ...at, 0.12 * sn(t, 3, 0.2), 0, 0.1 * sn(t, 3), { chest: true });
+      P.hand(-1, at[0], at[1] - 0.06, at[2] - 0.02, { chest: true, pole: [-0.9, -0.2, -0.3] });
+      fingers(P, -1, 0.95);
+      P.hand(1, 0.2, 1.28 + 0.16 * (0.5 + 0.5 * sn(t, 3, 0.5)), 0.24, { chest: true, pole: [0.8, -0.5, -0.3] });
+      fingers(P, 1, 1);
+      P.rot('neck', -0.12, 0, 0);
+      P.rot('head', -0.1 + 0.06 * sn(t, 6), 0, 0);
+    },
+  },
+  // Driving a racing chariot: braced on its floor, knees bent, leaning in, the reins in both hands, swaying with the car.
+  drive: {
+    dur: 2, fps: 12,
+    pose(P, t) {
+      P.root(0.02 * sn(t, 1), -0.09 + 0.02 * sn(t, 4), 0, 0.2, 0.04 * sn(t, 1, 0.3), 0.03 * sn(t, 1));
+      P.rot('spine', 0.1, 0, 0.02 * sn(t, 2));
+      for (const s of [1, -1]) P.foot(s, s * 0.15, 0.085, s > 0 ? 0.14 : -0.1, 0, s * 0.25);
+      for (const s of [1, -1]) {
+        P.hand(s, s * 0.11, 1.08 + 0.03 * sn(t, 4, s > 0 ? 0 : 0.2), 0.46, { pole: [s * 0.6, -0.6, -0.4] });
+        P.rot(s > 0 ? 'handL' : 'handR', 0.3, 0, s * 0.5);
+        fingers(P, s, 1);
+      }
+      P.rot('neck', -0.16, 0, 0);
+      P.rot('head', -0.04, 0.08 * sn(t, 1, 0.1), 0);
+    },
+  },
   // Rowing at a frame (ROW), the oar out on his left: the catch, the drive leaning back, the blade out and
   // feathered, the recovery swinging forward. Its loop is the hortator's stroke (beat).
   row: { dur: 2.4, fps: 15, pose(P, t) { rowPose(P, t, 1); } },
@@ -964,12 +1170,68 @@ function rowPose(P, t, so) {
   P.rot('head', -0.15 * lean, 0, 0);
 }
 
-/** The walk's legs: each foot planted while its contact point moves back at the stride's speed, then swung ahead. */
-function walkLegs(P, t, stride = 1) {
+/** The walkers' legs: the walk at WALKER_STRIDE on hips STRIDE_DROP lower, leaning `lean` in. */
+function strideLegs(P, t, lean = 0) {
+  walkLegs(P, t, WALKER_STRIDE / WALK_STRIDE, STRIDE_DROP, lean);
+}
+
+/** A point `k` (0..1) of the way from a to b. */
+function lerp3(a, b, k) {
+  return [lerp(a[0], b[0], k), lerp(a[1], b[1], k), lerp(a[2], b[2], k)];
+}
+
+/**
+ * A run's legs (RUN_STRIDE a loop): each foot down RUN_STANCE of the loop, a flight between, the hips lowest at
+ * each mid-stance (twice a loop) and leaning in; the swinging foot's heel kicked up behind.
+ */
+function runLegs(P, t) {
+  const bob = -0.1 + 0.045 * (0.5 - 0.5 * cs(t, 2, -RUN_STANCE));
+  P.root(0.012 * sn(t, 1, 0.25), bob, 0, 0.16, -0.08 * sn(t, 1, 0.25), -0.03 * sn(t, 1, 0.25));
+  P.rot('spine', 0.06, 0.07 * sn(t, 1, 0.25), 0.02 * sn(t, 1, 0.25));
+  P.rot('chest', 0.01 * sn(t, 2, 0.3), 0.06 * sn(t, 1, 0.25), 0);
+  P.rot('neck', 0, -0.07 * sn(t, 1, 0.25), 0);
+  P.rot('head', 0.02 * sn(t, 2, 0.4), -0.04 * sn(t, 1, 0.25), 0);
+  for (const s of [1, -1]) {
+    const f = runFoot((t + (s > 0 ? 0 : 0.5)) % 1, RUN_STRIDE);
+    P.foot(s, s * 0.09, f.y, f.z, f.pitch, s * 0.05);
+  }
+}
+
+/**
+ * A running foot at phase p of its own cycle (0 as it lands): stance (RUN_STANCE of the loop) on the flat of the
+ * foot under the hips, its ground moving back at S a loop, then rolled onto the ball; the swing kicks the heel up
+ * behind and brings the foot forward to land again.
+ */
+export function runFoot(p, S) {
+  const ST = RUN_STANCE;
+  const fromBall = (z, th) => ({ y: 0.018 + 0.067 * Math.cos(th) + 0.147 * Math.sin(th), z: z - 0.147 * Math.cos(th) + 0.067 * Math.sin(th), pitch: th });
+  const OFF = 0.85;
+  if (p < ST) {
+    const g = S * (ST / 2 - p);
+    const k = p / ST;
+    if (k < 0.55) return { y: 0.085, z: g, pitch: 0 };
+    return fromBall(g + 0.147, OFF * smooth((k - 0.55) / 0.45));
+  }
+  const a = fromBall(S * (ST / 2 - ST) + 0.147, OFF);
+  const u = (p - ST) / (1 - ST);
+  const kz = smooth(u);
+  return {
+    y: lerp(a.y, 0.085, smooth(u)) + 0.32 * Math.sin(Math.PI * Math.min(1, u * 1.25)) * (1 - 0.5 * u),
+    z: lerp(a.z, S * ST / 2, kz) - 0.12 * Math.sin(Math.PI * u),
+    pitch: lerp(OFF, 0, smooth(Math.min(1, u * 1.3))),
+  };
+}
+
+/**
+ * The walk's legs: each foot planted while its contact point moves back at the stride's speed, then swung ahead.
+ * `drop` lowers the hips (a longer stride needs it: the feet must stay within the legs' reach), `lean` leans
+ * the body forward (a man pushing, hurrying).
+ */
+function walkLegs(P, t, stride = 1, drop = 0, lean = 0) {
   const S = WALK_STRIDE * stride;
   // Highest at mid-stance, lowest as both feet are down; the hips over the standing foot, turned with the leg ahead.
-  const bob = -0.044 + 0.026 * (0.5 - 0.5 * cs(t, 2));
-  P.root(0.02 * sn(t, 1, 0.25), bob, 0, 0.04, -0.07 * sn(t, 1, 0.25), -0.035 * sn(t, 1, 0.25));
+  const bob = -0.044 + 0.026 * (0.5 - 0.5 * cs(t, 2)) - drop;
+  P.root(0.02 * sn(t, 1, 0.25), bob, 0, 0.04 + lean, -0.07 * sn(t, 1, 0.25), -0.035 * sn(t, 1, 0.25));
   P.rot('spine', 0.03, 0.05 * sn(t, 1, 0.25), 0.025 * sn(t, 1, 0.25));
   P.rot('chest', 0.012 * sn(t, 2, 0.3), 0.05 * sn(t, 1, 0.25), 0);
   P.rot('neck', 0.02, -0.05 * sn(t, 1, 0.25), 0);
@@ -982,13 +1244,13 @@ function walkLegs(P, t, stride = 1) {
 }
 
 /** The arms of a walk: each swinging against its leg, the elbow bending as it comes forward. */
-function walkArms(P, t, sides) {
+function walkArms(P, t, sides, amp = 1) {
   for (const s of sides) {
     const k = s > 0 ? 'L' : 'R';
     // The left arm forward as the right leg is.
     const sw = sn(t, 1, s > 0 ? 0.75 : 0.25);
-    P.rot(`arm${k}`, -0.28 * sw - 0.02, 0, s * 0.08);
-    P.rot(`fore${k}`, -0.22 - 0.2 * Math.max(0, sw), s * 0.1, 0);
+    P.rot(`arm${k}`, (-0.28 * sw - 0.02) * amp, 0, s * 0.08);
+    P.rot(`fore${k}`, (-0.22 - 0.2 * Math.max(0, sw)) * (amp > 1 ? 1 + (amp - 1) * 0.6 : 1), s * 0.1, 0);
     P.rot(`hand${k}`, 0, 0, s * 0.05);
     fingers(P, s, 0.4);
   }
