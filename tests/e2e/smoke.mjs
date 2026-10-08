@@ -4884,6 +4884,68 @@ try {
         await gg.close();
       }
 
+      // 8a6. The temples, the oracle and the mission post as models (render3d/models/religion.js):
+      //      the console's `temples` in a sandbox with native villages (the mission post is
+      //      built only there); each draws as a model (waited for: under a software GL kits
+      //      are built a few a frame) and a click on its footprint opens its panel (the shared
+      //      kits are tests/religion3d.test.mjs's).
+      {
+        const gt = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const terrs = [];
+        gt.on('pageerror', (e) => terrs.push(`pageerror: ${e.message}`));
+        gt.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) terrs.push(m.text()); });
+        await gt.goto(`${url}?skipmenu=1&natives=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gt.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const KINDS = ['temple_ceres', 'temple_neptune', 'temple_mercury', 'temple_mars', 'temple_venus', 'temple_large_ceres', 'temple_large_neptune', 'temple_large_mercury', 'temple_large_mars', 'temple_large_venus', 'oracle', 'mission_post'];
+        const laidT = await gt.evaluate((kinds) => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const said = app.ui.console.run('temples');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = { said };
+          // (The newest of each kind: the one `temples` built, joined to the road, whatever the demo built.)
+          for (const t of kinds) {
+            const all = [...app.game.buildings.values()].filter((v) => v.type === t);
+            const b = all[all.length - 1];
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size } : null;
+          }
+          return out;
+        }, KINDS);
+        const sacred = [];
+        for (const type of KINDS) {
+          const b = laidT[type];
+          if (!b) {
+            sacred.push({ type, missing: true });
+            continue;
+          }
+          await gt.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gt.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await gt.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, type);
+          const p = await gt.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gt.mouse.click(p.x, p.y);
+          await gt.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gt.evaluate(() => window.colonia.ui.info.target);
+          sacred.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
+        }
+        await gt.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gt.screenshot({ path: path.join(shots, 'smoke-webgl-temples.png') });
+        check('WebGL renderer: the five small temples, the five grand temples, the oracle and the mission post are 3D models, and a click picks each',
+          sacred.length === KINDS.length && sacred.every((m) => !m.missing && m.drawn >= 1 && m.picked), JSON.stringify({ said: laidT.said, sacred }));
+        check('WebGL renderer, religious models: no page errors', terrs.length === 0, terrs.join(' | '));
+        await gt.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks
@@ -4938,7 +5000,9 @@ try {
         const d = r.composedImage().data;
         const seen = new Set();
         for (let i = 0; i < d.length; i += 4 * 997) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
-        return { ground: r.stats.ground, backend: r.stats.backend, colours: seen.size, redraws: r.stats.groundRedraws, objects: r.stats.objects };
+        // (The city's things: its sprites and its 3D models. A building drawn as a model has no sprite
+        // in the list, so with the demo city's temples drawn as models the sprites alone fell under 50.)
+        return { ground: r.stats.ground, backend: r.stats.backend, colours: seen.size, redraws: r.stats.groundRedraws, objects: r.stats.objects + (r.stats.models || 0) };
       });
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d.png') });
       check('3D ground: the console\'s "ground low" draws the 3D ground under the city', lowDrawn.ground === 'low' && lowDrawn.backend === 'webgl' && lowDrawn.colours > 50 && lowDrawn.redraws >= 1 && lowDrawn.objects > 50, JSON.stringify(lowDrawn));

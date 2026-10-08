@@ -848,4 +848,4 @@ export function carve(text, y, z, h, { depth = 0.006 } = {}) {
   return out;
 }
 
-export { ellipsoid, member, skirt, drape, staffOf, gauss };
+export { ellipsoid, member, skirt, drape, staffOf, gauss, torso, arm, leg, hand };

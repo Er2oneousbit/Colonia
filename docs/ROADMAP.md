@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.22)
+
+* **The temples, the oracle and the mission post in 3D** (under WebGL): the small temple a podium temple in miniature after the Temple of Portunus and the Maison Carree, four columns across its porch, bronze doors, the god's statue inside and the altar before the steps; the grand temple a marble temple of six columns across after Mars Ultor and the Capitolium of Brescia, in a court of porticoes round its great altar. Each god in its own order, colours and gilt dedication: Ceres Tuscan with sheaves and torches (CERERI), Neptune Ionic in sea blue with tridents and dolphins (NEPTVNO), Mercury Corinthian with the caduceus and roosters (MERCVRIO), Mars in crimson with trophies and shields (MARTI·VLTORI), Venus with doves, shells, myrtle and roses (VENERI·GENETRICI). The oracle a round tholos over a smoking cleft and a spring, tripods burning; the mission post a walled sacellum of Pax with the envoys' lodging and gifts for the villages. Staffed, the doors stand open and the altar fire burns; in a festival month garlands, a crowd in wreaths, a flute player and the victim; an angry god's altar sends up black smoke; unstaffed, shut and cold. Console: `temples [n]`
+* Headless sim: identical to v0.20.21 on every difficulty
+* 1292 unit tests, 268 browser checks
+
 ## Done (v0.20.21)
 
 * **Woods trimmed** (under WebGL): trees at about two thirds of their species' size, so a wood stands about twice a house's height instead of three times, with fewer second trees and shrubs (about 1.3 plants a tile, from nearly 2) and lone trees off their tile's middle, so woods no longer hide the streets or stand in rows. Far trees lost the patches of sky blue in their crowns (leaf cards baked facing away from the camera, lit as mirrors)

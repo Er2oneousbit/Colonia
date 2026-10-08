@@ -1796,7 +1796,8 @@ export class Renderer {
     } else if (kind === 'venue' && showOn(b)) {
       items.push({ d: front + 0.0003, kind: K_EXTRA, b, wx, wy, live: 'crowd' });
     } else if (b.type.startsWith('temple_')) {
-      items.push({ d: front + 0.0004, kind: K_EXTRA, b, wx, wy, live: 'altar' });
+      // (A temple drawn as a model burns its own fire on its altar: the sprite's flame would hang beside it.)
+      if (!model) items.push({ d: front + 0.0004, kind: K_EXTRA, b, wx, wy, live: 'altar' });
     } else if (b.type === 'weapons_ws' && b.efficiency > 0 && b.progress > 0 && this.motionOn && Math.random() < 0.035) {
       // The smith hammers: sparks fly out of the forge door (workshopArt door, left face).
       const [u, v] = turnUV(0.6, 1.07, b.size, T);

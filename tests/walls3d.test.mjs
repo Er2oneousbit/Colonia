@@ -289,7 +289,10 @@ test('walls3d: in the game\'s pass, walls built, damaged, broken and cleared cha
   assert.equal(mp.stats.byType.wall, 10);
   const look = wallLookOf(game);
   assert.equal(c[`wall:${look}:end:0`], 2, 'two ends');
-  const kitsBefore = mp.kits.size;
+  // (Kits at the level drawn: the pass also builds the next level of a kit in view when a frame has
+  // time left (modelPass.js prefetch), so the count of every level depends on how fast the machine is.)
+  const drawnKits = () => [...mp.kits.values()].filter((k) => k.lod === 2).length;
+  const kitsBefore = drawnKits();
   // Raiders batter a tile: under half its hit points it shows cracked; under a quarter, breaching.
   const i = map.idx(spot.x + 3, y);
   damageWall(game, i, 120);
@@ -313,7 +316,7 @@ test('walls3d: in the game\'s pass, walls built, damaged, broken and cleared cha
   build(game, 'clear', spot.x, y, spot.x + 2, y);
   mp.update(r, placed(r), 2);
   assert.equal(total(counts(mp)), 6);
-  assert.ok(mp.kits.size <= kitsBefore + 4, `${mp.kits.size} kits`);
+  assert.ok(drawnKits() <= kitsBefore + 4, `${drawnKits()} kits`);
   mp.dispose();
 });
 

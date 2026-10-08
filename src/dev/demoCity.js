@@ -1547,3 +1547,30 @@ export function buildDemoMonument(game, center, type) {
   }
   return { ok: !!(site && camp && warehouse), site, camp, warehouse, well };
 }
+
+/**
+ * The religious buildings beside the city: a small temple of each god, a
+ * grand temple of each, the oracle and (where there are native villages)
+ * the mission post, each joined by road to the network that reaches the map
+ * entry; the marble waived (withDemoMarble). The console's `temples`, to see
+ * them drawn as models (render3d/models/religion.js) and to measure many.
+ * `count` sets of the five small temples (default 1).
+ * @returns {{ built: object[], missing: string[] }}
+ */
+export function buildDemoTemples(game, center, { count = 1 } = {}) {
+  const gods = ['ceres', 'neptune', 'mercury', 'mars', 'venus'];
+  const plan = [];
+  for (let k = 0; k < count; k++) for (const g of gods) plan.push([`temple_${g}`, 2]);
+  for (const g of gods) plan.push([`temple_large_${g}`, 3]);
+  plan.push(['oracle', 2], ['mission_post', 2]);
+  const built = [];
+  const missing = [];
+  withDemoMarble(game, () => {
+    for (const [type, size] of plan) {
+      const b = game.isUnlocked(type) ? placeNear(game, type, size, center, 3, 50) : null;
+      if (b) built.push(b);
+      else missing.push(type);
+    }
+  });
+  return { built, missing };
+}
