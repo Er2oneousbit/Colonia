@@ -630,16 +630,23 @@ export function buildTempleGod(M, god, { lod = 0 } = {}) {
   p.add('bronze', m.bronze, out.bronze, small);
   p.add('statue', m.marble, out.marble, small);
   p.add('terracotta', m.terracotta, out.terracotta, small);
-  p.add('wood', m.wood, out.wood, small);
-  p.add('iron', m.iron, out.iron, small);
-  p.add('leaf', m.leaf, out.leaf, small);
-  p.add('flowers', m.flowers, out.flowers, { cast: false });
-  p.add('letters', m.letters, out.letters, { cast: false });
-  p.add('straw', m.straw, out.straw, small);
-  p.add('wicker', m.wicker, out.wicker, small);
-  p.add('pots', m.clay, out.clay, small);
-  p.add('cloth', m.cloth, out.cloth, small);
+  // The god's small things (a plough, an anchor, sheaves, baskets, pots and their plants, a herm's
+  // name) in one part of plain colours: temples are many, and each part is a draw call (and one more
+  // in the sun's shadow pass) for every kind of temple in view. Their colours go into their vertices.
+  const props = [];
+  for (const [key, hex] of [['wood', 0x6b4a2e], ['iron', 0x4c4c50], ['straw', 0xd8b860], ['wicker', 0x9a7a4a], ['clay', 0xa4552e], ['cloth', 0x8a3a2a], ['letters', 0x6a1e14], ['leaf', 0xffffff], ['flowers', 0xffffff]]) {
+    for (const g of out[key]) props.push(dye(g, lin(hex)));
+  }
+  p.add('props', m.paint, props, small);
   return p.build();
+}
+
+/** Multiply a geometry's vertex colours (white if it has none) by `rgb`. */
+function dye(g, rgb) {
+  if (!g.attributes.color) return tintGeometry(g, () => rgb);
+  const c = g.attributes.color;
+  for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * rgb[0], c.getY(i) * rgb[1], c.getZ(i) * rgb[2]);
+  return g;
 }
 
 /** A temple's column in `order` ('tuscan', 'ionic', 'corinthian'), its height `h`, standing on y 0: { group }. */
