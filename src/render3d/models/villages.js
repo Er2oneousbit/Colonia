@@ -291,8 +291,8 @@ function thingsOf(h) {
  *   pen     the goats' corner [x0, z0, x1, z1]
  */
 export const YARD = Object.freeze({
-  quern: [-1.62, 1.12, Q], door: [0.72, 1.42, -2.6], a: [1.45, -1.5, Math.PI * 0.75], b: [-1.42, -1.55, -Math.PI * 0.75],
-  c: [1.5, 0.92, -Q], child: [0.15, 1.72, Math.PI], pen: [0.9, 1.0, 1.9, 1.9], herd: [1.0, 1.55, -2.2],
+  quern: [-1.56, 1.12, Q], door: [0.72, 1.42, -2.6], a: [1.18, -1.22, Math.PI * 0.75], b: [-1.18, -1.26, -Math.PI * 0.75],
+  c: [1.5, 0.92, -Q], child: [0.15, 1.72, Math.PI], pen: [0.75, 0.95, 1.4, 1.4], herd: [1.0, 1.55, -2.2],
 });
 
 /** Every look's hut kit at the hut's turn, its things, the hearth's smoke over the apex. */
@@ -435,8 +435,8 @@ export function meetingActors(people, state, seed) {
     out.push(villager('elder', p, seed + 2, { clip: 'sit', ...seat(0, 0.32) }));
     out.push(villager('crone', p, seed + 3, { clip: 'listen', ...seat(1, 0.1) }));
     // The cook at the cauldron, stirring (the clips' MORTAR: she stands its `ahead` from its middle).
-    const cx = hx - 0.62;
-    const cz = hz + 0.5;
+    const cx = hx - 0.5;
+    const cz = hz + 0.4;
     out.push(villager('woman', p, seed + 4, { clip: 'stir', props: { R: 'pestle' }, at: [cx, 0, cz], ry: toFire(cx, cz) }));
     // The herdsman by the fold, children at play by the fire, a woman bringing water.
     out.push(villager('man', p, seed + 5, { clip: 'lean', props: { R: 'crook' }, at: [1.1, 0, 1.25], ry: 0.6 }));
@@ -552,7 +552,7 @@ const HUT_ENTRY = Object.freeze({
   warm: ['tugurium:ligurian:round:0', 'tugurium:native:capanna:0', 'tugx:quern', 'tugx:loom', 'tugx:skep', 'vsmoke:hut', 'pecus:goat:0:stand'],
   variant(b, place, ctx) {
     const game = ctx ? ctx.game : null;
-    const people = ctx && ctx.people ? ctx.people : villagePeople(game);
+    const people = ctx && ctx.villagePeople ? ctx.villagePeople : villagePeople(game);
     const state = villageState(b, game);
     const L = hutLook(b, game, people);
     const seed = seedOf(b);
@@ -591,7 +591,7 @@ const MEETING_ENTRY = Object.freeze({
   warm: ['concilium:ligurian', 'concilium:native', 'vfire:great', 'vcauldron', 'varms:native', 'vgoods', 'voak:leaf', 'vsmoke:fire', 'pecus:sheep:0:stand'],
   variant(b, place, ctx) {
     const game = ctx ? ctx.game : null;
-    const people = ctx && ctx.people ? ctx.people : villagePeople(game);
+    const people = ctx && ctx.villagePeople ? ctx.villagePeople : villagePeople(game);
     const state = villageState(b, game);
     const q = meetingTurn(b);
     const month = ctx ? ctx.month : null;
@@ -626,7 +626,7 @@ const CROPS_ENTRY = Object.freeze({
   warm: ['arvum:ligurian:spelt:green', 'arvum:native:beans:green'],
   variant(b, place, ctx) {
     const game = ctx ? ctx.game : null;
-    const people = ctx && ctx.people ? ctx.people : villagePeople(game);
+    const people = ctx && ctx.villagePeople ? ctx.villagePeople : villagePeople(game);
     const state = villageState(b, game);
     const L = plotLook(b, people, ctx ? ctx.month : null);
     const more = PLOT_MORE.get(`${people}|${L.crop}|${L.stage}|${L.q}`) || plotMore(L);
@@ -689,7 +689,7 @@ export const VILLAGE_PARTS = Object.freeze(Object.fromEntries(['tugurium', 'conc
  */
 export function villageLook(b, lod, { game = null, people = null, month = null, clock = 0 } = {}) {
   const g = new Group();
-  const v = VILLAGE_MODELS[b.type].variant(b, { snow: 0 }, { game, people, month, clock, frame: 1 });
+  const v = VILLAGE_MODELS[b.type].variant(b, { snow: 0 }, { game, villagePeople: people, month, clock, frame: 1 });
   for (const e of v.more || []) {
     const kit = buildPart(e.key, lod);
     for (let j = 0; j < e.n; j++) {

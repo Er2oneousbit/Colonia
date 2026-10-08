@@ -97,7 +97,7 @@ function villagesOf() {
     if (state === 'trade') buildings.set(5 + k, { id: 5 + k, type: 'mission_post', efficiency: 1, accessRoad: 0 });
     const game = { city: { natives: { people } }, buildings, time: { totalTicks: 1 } };
     for (const b of pieces) b.def = BUILDINGS[b.type];
-    return { people, state, pieces, game, m, ctx: { game, people, month: MONTHS[0], clock: 0, frame: 1 } };
+    return { people, state, pieces, game, m, ctx: { game, villagePeople: people, month: MONTHS[0], clock: 0, frame: 1 } };
   });
 }
 
@@ -302,7 +302,7 @@ export function buildVillagesScene(groundTex) {
       const out = {};
       for (const v of villages.filter((x) => x.state === 'calm')) {
         for (const b of v.pieces) {
-          const res = VILLAGE_MODELS[b.type].variant(b, { snow: 0 }, { game: v.game, people: v.people, month: MONTHS[monthAt] });
+          const res = VILLAGE_MODELS[b.type].variant(b, { snow: 0 }, { game: v.game, villagePeople: v.people, month: MONTHS[monthAt] });
           let n = 0;
           for (const e of res.more || []) {
             buildPart(e.key, l).traverse((o) => { if (o.isMesh) n += e.n * (o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3); });

@@ -52,7 +52,7 @@ export const CONCILIUM = Object.freeze({
   fireR: 0.45,
   ring: 2.35,
   /** The oak's trunk [x, z] and its scale. */
-  oak: Object.freeze([-1.62, -1.62, 0.72]),
+  oak: Object.freeze([-2.2, -2.2, 0.5]),
   /** The fold [x0, z0, x1, z1] (its inside, where the flock wanders). */
   fold: Object.freeze([1.55, 1.75, 3.55, 3.6]),
   /** The logs to sit on: [x, z, turn] each (their tops at the clips' SEAT_H). */
@@ -352,8 +352,8 @@ export function buildArms(people, { lod = 0 } = {}) {
   const x0 = people === 'ligurian' ? 0.6 : 0.7;
   for (let k = 0; k < n; k++) {
     const x = x0 + k * 0.32 + (rnd() - 0.5) * 0.08;
-    const foot = [x, 0, -2.0 + (rnd() - 0.5) * 0.1];
-    const tip = [x + (rnd() - 0.5) * 0.25, 2.15 + rnd() * 0.2, -2.42];
+    const foot = [x, 0, -1.5 + (rnd() - 0.5) * 0.1];
+    const tip = [x + (rnd() - 0.5) * 0.25, 1.42 + rnd() * 0.06, -2.4];
     out.wood.push(log(foot, tip, 0.016, lod));
     if (lod < 2) {
       const dx = tip[0] - foot[0];
@@ -372,10 +372,10 @@ export function buildArms(people, { lod = 0 } = {}) {
     const g = new CylinderGeometry(ligur ? 0.3 : 0.28, ligur ? 0.3 : 0.28, 0.03, seg, 1);
     g.rotateX(Math.PI / 2 - 0.22);
     if (!ligur) g.scale(1, 1.75, 1);
-    g.translate(x, ligur ? 0.32 : 0.5, -1.92);
+    g.translate(x, ligur ? 0.32 : 0.5, -1.62);
     const col = [lin(0x7a5434), lin(0x6a4a30), lin(0x8a6a3a), lin(0x5a4430)][k % 4];
     out.hide.push(paint(boxUV(g), col, (px, py) => 0.85 + 0.15 * Math.sin(py * 20)));
-    out.bronze.push(tintGeometry(boxUV(new SphereGeometry(0.06, 8, 4, 0, TAU, 0, Math.PI / 2).rotateX(Math.PI / 2 - 0.22).translate(x, ligur ? 0.32 : 0.5, -1.9)), () => 0.9));
+    out.bronze.push(tintGeometry(boxUV(new SphereGeometry(0.06, 8, 4, 0, TAU, 0, Math.PI / 2).rotateX(Math.PI / 2 - 0.22).translate(x, ligur ? 0.32 : 0.5, -1.6)), () => 0.9));
   }
   return partsOf(`concilium-arms-${people}`, out);
 }

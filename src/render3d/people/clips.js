@@ -1347,7 +1347,7 @@ function spinPose(P, t) {
   stand(P, t, { shift: 0.6, ph: 0.2, look: 0.25 });
   // The distaff: its foot in the left hand at the waist, its head of wool over the left shoulder.
   const dFoot = [0.15, 1.0, 0.2];
-  const dHead = [0.2, 1.66, 0.02];
+  const dHead = [0.34, 1.6, 0.16];
   propAlong(P, 1, dFoot, dHead, 0, { chest: true });
   P.hand(1, dFoot[0] + 0.01, dFoot[1] + 0.02, dFoot[2], { chest: true, pole: [0.8, -0.5, -0.2] });
   P.rot('handL', 0.4, 0, 1.0);

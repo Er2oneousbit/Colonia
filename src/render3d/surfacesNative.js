@@ -38,7 +38,7 @@ const daub = {
     },
     glsl: `
       // Cracks: where the ridged noise peaks, a thin dark line.
-      float c = sstep( 0.86, 0.97, crack );
+      float c = sstep( 0.92, 0.985, crack );
       float h = 0.5 + ( lump - 0.5 ) * 0.5 + ( sweep - 0.5 ) * 0.25 + fine * 0.05 - c * 0.35;
       float s = sstep( 0.7, 0.82, straw );
       return vec4( h + s * 0.04, c, s, lump );`,
@@ -54,11 +54,10 @@ const daub = {
       // Straw ends pressed into it.
       col = mix( col, ${rgb('#c9b07a')}, F.z * 0.55 );
       // The cracks and the hollows.
-      col = mix( col, ${rgb('#3e2f22')}, max( F.y * 0.7, cav * 0.55 ) );
-      // Splash and damp low on the wall (v up it from the ground: the bottom 40 cm of a repeat).
-      float low = sstep( 0.4, 0.0, uv.y ) * ( 0.45 + damp * 0.4 );
-      col = mix( col, ${rgb('#5c4834')}, low * 0.5 );
-      orm = vec3( 1.0 - max( F.y * 0.6, cav * 0.45 ), 0.93, 0.0 );`,
+      col = mix( col, ${rgb('#5a4632')}, max( F.y * 0.38, cav * 0.25 ) );
+      // Damp in soft patches (the wall's foot is darkened by the walls' vertex colours: the texture repeats up it).
+      col = mix( col, ${rgb('#7a6248')}, sstep( 0.55, 0.85, damp ) * 0.25 );
+      orm = vec3( 1.0 - max( F.y * 0.5, cav * 0.3 ), 0.93, 0.0 );`,
   },
   normal: { depth: 0.01 / 1.2 },
 };
@@ -72,14 +71,14 @@ const drystone = {
   fields: {
     noise: {
       warpU: fbm(3, 3, 41), warpV: fbm(5, 3, 42),
-      stone: cells(7, 40, 0.9, { sy: 2.2, warp: { u: ['warpU', 0.07, -0.5], v: ['warpV', 0.05, -0.5] } }),
+      stone: cells(5, 40, 0.9, { sy: 2.4, warp: { u: ['warpU', 0.07, -0.5], v: ['warpV', 0.05, -0.5] } }),
       chip: cells(26, 43, 0.9), split: fbm(14, 3, 44), grain: fbm(45, 2, 45),
     },
     glsl: `
       // A stone's face bulges, split and pitted; the gap between stones is deep (no mortar fills it),
       // small chips wedged in it here and there.
       float face = 0.62 + ( split - 0.5 ) * 0.35 + grain * 0.06 - dot( stone.d, stone.d ) * 0.5;
-      float edge = sstep( 0.015, 0.09, stone.edge );
+      float edge = sstep( 0.008, 0.05, stone.edge );
       float wedge = sstep( 0.05, 0.12, chip.edge ) * sstep( 0.7, 0.8, hash2( int( chip.id ), 3, uSeed ) );
       float h = mix( 0.05 + wedge * 0.35, face, edge );
       return vec4( h, edge, stone.id, wedge );`,
@@ -93,7 +92,7 @@ const drystone = {
       vec3 s = stones[int( hash2( int( F.z ), 2, uSeed ) * 6.0 )];
       s *= 0.84 + hash2( int( F.z ), 5, uSeed ) * 0.26;
       // The gaps: shadow and earth.
-      col = mix( ${rgb('#2a2620')}, s, F.y );
+      col = mix( ${rgb('#3c362c')}, s, F.y );
       col = mix( col, s * 0.92, F.w );
       // Lichen in pale grey-green crusts and orange spots on the old faces; moss low and in the gaps.
       col = mix( col, ${rgb('#b9bba0')}, sstep( 0.66, 0.78, lichenN ) * F.y * 0.55 );

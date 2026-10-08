@@ -417,7 +417,7 @@ function quern(out, lod) {
 function pots(out, lod) {
   for (const [x, z, s] of [[-0.18, -0.1, 0.42], [0.18, -0.14, 0.36], [-0.02, 0.18, 0.3]]) out.clay.push(jar({ lod, seed: Math.round(x * 50) }).scale(s, s, s).translate(x, 0, z));
   if (lod < 2) {
-    const cx = 0.55;
+    const cx = 0.42;
     const cz = 0.25;
     for (let k = 0; k < 3; k++) {
       const a = (k / 3) * Math.PI * 2;
@@ -521,9 +521,24 @@ function skep(out, lod) {
   }
 }
 
+/**
+ * A thing made smaller than its maker builds it (a yard's corner is small, and
+ * a tall thing must stay under a hut's eave): built into its own bins, scaled
+ * about its origin.
+ */
+function smaller(make, k) {
+  return (out, lod) => {
+    const own = bins();
+    make(own, lod);
+    for (const [name, list] of Object.entries(own)) for (const g of list) out[name].push(g.scale(k, k, k));
+  };
+}
+
 const THINGS = {
-  quern, pots, rack, loom, chop, hurdle, skep,
-  woodpile: (out, lod) => out.bark.push(...woodpile(1.1, 0.55, 3, lod)),
+  quern, pots, chop, hurdle, skep,
+  rack: smaller(rack, 0.74),
+  loom: smaller(loom, 0.72),
+  woodpile: (out, lod) => out.bark.push(...woodpile(0.9, 0.5, 3, lod)),
 };
 
 /** Build a yard thing (YARD_THINGS) at the origin, facing +z. Returns { group, meshes, triangles }. */

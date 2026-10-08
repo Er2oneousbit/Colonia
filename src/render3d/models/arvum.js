@@ -29,7 +29,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { CylinderGeometry, ConeGeometry } from 'three';
+import { CylinderGeometry, SphereGeometry, Matrix4, Vector3 } from 'three';
 import { boxUV, tintGeometry, merge } from '../shapes.js';
 import { artRng } from '../texgen.js';
 import { material, LOOK_KIND } from '../materials.js';
@@ -82,7 +82,7 @@ function colours(crop, stage) {
     case 'ripe':
       if (crop === 'beans') return [lin(0x6a6236), lin(0x2a2420)];
       if (crop === 'millet') return [lin(0xa08a48), lin(0xc0a050)];
-      if (crop === 'barley') return [lin(0xc8b070), lin(0xdac690)];
+      if (crop === 'barley') return [lin(0xbaa264), lin(0xc4a868)];
       return [lin(0xb89650), lin(0xb87a3e)];
     default: return [lin(0xb8a060), lin(0xc8b070)];
   }
@@ -111,18 +111,19 @@ function blade(list, x, z, h, w, a, lean, c, rnd) {
   }
 }
 
-/** An ear (or a millet's head, a bean's pod cluster) at (x, y, z): a small spindle along its stalk's lean. */
+/** An ear (or a millet's head, a bean's pod cluster) at (x, y, z): a slender spindle bent over `droop` toward angle `a`. */
 function ear(list, x, y, z, len, r, a, droop, c, lod, awns = 0) {
-  const g = new ConeGeometry(r, len, lod === 0 ? 5 : 3, 1);
-  // (A cone pointed up; its base rounded off by squashing: an ear's spindle.)
-  g.translate(0, len / 2, 0);
-  g.rotateX(droop * Math.cos(a));
-  g.rotateZ(-droop * Math.sin(a));
-  g.translate(x, y, z);
-  list.push(tintGeometry(boxUV(g), () => c));
+  const g = new SphereGeometry(r, 4, lod === 0 ? 3 : 2);
+  // (A spindle: the sphere drawn out along its stalk, its foot at the origin, bent over about the axis across its lean.)
+  g.scale(1, len / (2 * r), 1).translate(0, len / 2, 0);
+  const rot = new Matrix4().makeRotationAxis(new Vector3(Math.cos(a), 0, -Math.sin(a)), droop);
+  g.applyMatrix4(rot).translate(x, y, z);
+  const shade = (py) => 0.72 + 0.28 * Math.min(1, Math.max(0, (py - y) / len));
+  list.push(tintGeometry(boxUV(g), (px, py) => [c[0] * shade(py), c[1] * shade(py), c[2] * shade(py)]));
   if (awns && lod === 0) {
-    const tip = [x + Math.sin(a) * droop * len, y + len, z + Math.cos(a) * droop * len];
-    const s = new CylinderGeometry(0.001, 0.003, awns, 3, 1).translate(tip[0], tip[1] + awns / 2, tip[2]);
+    // The awns: on along the ear's line from its tip.
+    const dir = new Vector3(0, 1, 0).applyMatrix4(rot);
+    const s = new CylinderGeometry(0.0008, 0.004, awns, 3, 1).translate(0, awns / 2, 0).applyMatrix4(rot).translate(x + dir.x * len, y + dir.y * len, z + dir.z * len);
     list.push(tintGeometry(boxUV(s), () => c));
   }
 }
@@ -134,7 +135,7 @@ function plants(crop, stage, lod, seed, x0, x1, z0, z1) {
   const rnd = artRng(seed);
   const [leaf, earC] = colours(crop, stage);
   const rowGap = crop === 'beans' ? 0.42 : 0.3;
-  const step = (crop === 'beans' ? 0.24 : 0.16) * (lod === 0 ? 1 : 2.2);
+  const step = (crop === 'beans' ? 0.24 : 0.17) * (lod === 0 ? 1 : 2.2);
   const rows = Math.floor((z1 - z0) / rowGap);
   const H = { shoot: 0.12, green: crop === 'beans' ? 0.35 : 0.42, tall: crop === 'beans' ? 0.55 : crop === 'millet' ? 0.95 : 0.85, ripe: crop === 'beans' ? 0.5 : crop === 'millet' ? 0.9 : 0.82, stubble: 0.1 }[stage];
   if (lod === 2) {
@@ -169,13 +170,13 @@ function plants(crop, stage, lod, seed, x0, x1, z0, z1) {
       }
       // Grain: a tuft of blades leaning out; in ear, stalks with their ears (barley's awns long).
       const inEar = stage === 'tall' || stage === 'ripe';
-      const n = stage === 'shoot' ? 3 : lod === 0 ? (inEar ? 3 : 5) : 2;
+      const n = stage === 'shoot' ? 3 : lod === 0 ? (inEar ? 2 : 5) : 2;
       for (let k = 0; k < n; k++) {
         const a = rnd() * TAU;
         blade(out, px, pz, h * (stage === 'tall' || stage === 'ripe' ? 0.6 : 1) * (0.7 + rnd() * 0.3), crop === 'millet' ? 0.018 : 0.009, a, (stage === 'shoot' ? 0.03 : 0.1) + rnd() * 0.06, leaf, rnd);
       }
       if (stage === 'tall' || stage === 'ripe') {
-        const stalks = lod === 0 ? 2 : 1;
+        const stalks = lod === 0 ? 3 : 1;
         for (let k = 0; k < stalks; k++) {
           const a = rnd() * TAU;
           const lean = 0.04 + rnd() * 0.05;
@@ -183,7 +184,7 @@ function plants(crop, stage, lod, seed, x0, x1, z0, z1) {
           const sz = pz + Math.cos(a) * lean;
           blade(out, px, pz, h, 0.004, a, lean, mixc(leaf, earC, 0.5), rnd);
           const droop = crop === 'millet' ? 1.6 : stage === 'ripe' ? (crop === 'barley' ? 0.9 : 0.45) : 0.15;
-          ear(out, sx, h - 0.02, sz, crop === 'millet' ? 0.13 : 0.08, crop === 'millet' ? 0.025 : 0.014, a, droop, earC, lod, crop === 'barley' ? 0.09 : crop === 'spelt' ? 0.03 : 0);
+          ear(out, sx, h - 0.02, sz, crop === 'millet' ? 0.13 : 0.08, crop === 'millet' ? 0.022 : 0.0105, a, droop, earC, lod, crop === 'barley' ? 0.09 : crop === 'spelt' ? 0.03 : 0);
         }
       }
     }
