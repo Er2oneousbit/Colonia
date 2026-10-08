@@ -168,7 +168,7 @@ export function crewOf(kind, m, { people = null, throwing = false } = {}) {
     list.push({ ...sailor(702), clip: 'haulLine', at: [0.5, on(P, mt + 0.08), at(kind, mt + 0.08, 0, 0)[2]], ry: Math.PI + 0.5 });
     if (big) {
       list.push({ ...sailor(703), clip: 'haulLine', at: [-0.55, on(P, mt + 0.13), at(kind, mt + 0.13, 0, 0)[2]], ry: Math.PI - 0.5 });
-      list.push({ body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'crop', beard: 'short', seed: 704, clip: 'talk', at: [0.2, on(P, 0.33) + 0.75, at(kind, 0.22, 0, 0)[2]], ry: 0, colours: { tunic: DYES.weld, mantle: DYES.walnut } });
+      list.push({ body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'crop', beard: 'short', seed: 704, clip: 'talk', at: [0.35, on(P, 0.34), at(kind, 0.34, 0, 0)[2]], ry: 0.3, colours: { tunic: DYES.weld, mantle: DYES.walnut } });
     }
     return list;
   }
@@ -179,8 +179,9 @@ export function crewOf(kind, m, { people = null, throwing = false } = {}) {
     if (mode === 'fishing') {
       // One casting the net over the side (the throw: douse, both hands), one hauling it in.
       // (Both at the starboard side, where the net is: hulls.js and pass.js put it there.)
-      list.push({ ...sailor(712), clip: 'douse', at: [0.05, P.point(0.8, 0.3)[1], at(kind, 0.8, 0, 0)[2]], ry: Math.PI / 2 + 0.3, phase: 0.3 });
-      list.push({ ...sailor(713), clip: 'haulLine', at: [0.12, P.point(0.42, 0.3)[1], at(kind, 0.42, 0, 0)[2]], ry: Math.PI / 2 });
+      list.push({ ...sailor(712), clip: 'douse', at: [0.25, P.point(0.78, 0.3)[1], at(kind, 0.78, 0, 0)[2]], ry: Math.PI / 2 + 0.3, phase: 0.3 });
+      // (Close to the side, so his hands reach out over the gunwale to the net's line.)
+      list.push({ ...sailor(713), clip: 'haulLine', at: [0.36, P.point(0.42, 0.3)[1], at(kind, 0.42, 0, 0)[2]], ry: Math.PI / 2 });
       return list;
     }
     // Out and home: the two at the oars (or easy on their thwarts while it lies still).
