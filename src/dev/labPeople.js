@@ -32,8 +32,8 @@ import { DYES } from '../render3d/people/actors.js';
 const DRESS = [
   ['Citizen', 'tunic to the knee, belted; short crop', { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'idle', colours: { tunic: DYES.oatmeal } }],
   ['Senator', 'toga over the tunic with the broad stripe (latus clavus)', { body: 'm', dress: ['tunic:knee:broad', 'toga'], hair: 'crop', clip: 'idle', colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.purple } }],
-  ['Magistrate', 'toga praetexta, its purple border', { body: 'm', dress: ['tunic:knee', 'toga'], hair: 'crop', clip: 'orate', old: true, colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.murex } }],
-  ['Priest', 'capite velato, the patera', { body: 'm', dress: ['tunic:long', 'toga:velato'], hair: 'bald', beard: 'short', props: { R: 'patera' }, clip: 'sacrifice', old: true, colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.candida } }],
+  ['Magistrate', 'toga praetexta, its purple border', { body: 'm', dress: ['tunic:knee', 'toga'], hair: 'crop', clip: 'orate', old: true, colours: { tunic: DYES.white, mantle: DYES.candida, accent: DYES.murex } }],
+  ['Priest', 'capite velato, the patera', { body: 'm', dress: ['tunic:long', 'toga:velato'], hair: 'bald', props: { R: 'patera' }, clip: 'sacrifice', old: true, colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.candida } }],
   ['Matron', 'stola with its instita, palla over it', { body: 'f', dress: ['tunic:long:stola', 'palla'], hair: 'bun', clip: 'idle', colours: { tunic: DYES.saffron, mantle: DYES.woad, trim: DYES.oxblood } }],
   ['Veiled', 'the palla over her head', { body: 'f', dress: ['tunic:long:stola', 'palla:veil'], hair: 'bun', clip: 'pray', colours: { tunic: DYES.white, mantle: DYES.madder, trim: DYES.white } }],
   ['Boy', 'a freeborn boy: his bulla', { body: 'c', dress: ['tunic:knee', 'bulla'], hair: 'curls', clip: 'idle', colours: { tunic: DYES.white, trim: DYES.white } }],

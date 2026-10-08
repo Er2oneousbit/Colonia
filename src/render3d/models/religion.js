@@ -41,8 +41,9 @@ import { Group, Matrix4, Vector3 } from 'three';
 import { BUILDINGS } from '../../data/buildings.js';
 import { NUMEN, GODS } from './numina.js';
 import { buildSmoke } from './sacra.js';
-import { buildAedesBody, buildAedesGod, buildAedesColumn, AEDES_COLUMNS, AEDES_LAMPS, aedesHearth } from './aedes.js';
-import { buildTemplumBody, buildTemplumGod, buildTemplumColumn, buildPorticoColumn, TEMPLUM_COLUMNS, TEMPLUM_LAMPS, PORTICO_COLUMNS, templumHearth } from './templum.js';
+import { buildAedesBody, buildAedesGod, buildAedesColumn, AEDES_COLUMNS, AEDES_LAMPS, aedesHearth, AEDES, templeActors } from './aedes.js';
+import { buildTemplumBody, buildTemplumGod, buildTemplumColumn, buildPorticoColumn, TEMPLUM_COLUMNS, TEMPLUM_LAMPS, PORTICO_COLUMNS, templumHearth, TEMPLUM } from './templum.js';
+import { cast, NOBODY } from '../people/actors.js';
 import { buildTholus, buildTholusColumn, THOLUS_COLUMNS, THOLUS_LAMPS, tholusVents } from './tholus.js';
 import { buildSacellum, SACELLUM_LAMPS, SACELLUM_TREE, SACELLUM_GIFTS } from './sacellum.js';
 
@@ -104,10 +105,10 @@ function mats(places, y = 0) {
  * where the victim stands at a festival, its lamps.
  */
 const SIZES = {
-  aedes: { body: buildAedesBody, god: buildAedesGod, column: buildAedesColumn, cols: AEDES_COLUMNS, floor: () => 1.35, hearth: aedesHearth, victim: [1.12, 3.62, -Math.PI / 2 - 0.25], lamps: AEDES_LAMPS, extra: [] },
+  aedes: { measures: AEDES, body: buildAedesBody, god: buildAedesGod, column: buildAedesColumn, cols: AEDES_COLUMNS, floor: () => 1.35, hearth: aedesHearth, victim: [1.12, 3.62, -Math.PI / 2 - 0.25], lamps: AEDES_LAMPS, extra: [] },
   // (The grand temple's court has its portico's columns too: a kit of their own, instanced.)
   templum: {
-    body: buildTemplumBody, god: buildTemplumGod, column: buildTemplumColumn, cols: TEMPLUM_COLUMNS, floor: () => TEMPLUM_COLUMNS.floor, hearth: templumHearth, victim: [1.85, 5.2, -Math.PI / 2 - 0.25], lamps: TEMPLUM_LAMPS,
+    measures: TEMPLUM, body: buildTemplumBody, god: buildTemplumGod, column: buildTemplumColumn, cols: TEMPLUM_COLUMNS, floor: () => TEMPLUM_COLUMNS.floor, hearth: templumHearth, victim: [1.85, 5.2, -Math.PI / 2 - 0.25], lamps: TEMPLUM_LAMPS,
     extra: [Object.freeze({ key: 'templum:porticus', n: PORTICO_COLUMNS.length, mats: mats(PORTICO_COLUMNS, 0.05), state: 'always' })],
   },
 };
@@ -142,6 +143,19 @@ function templeMore(size, god, state, angry) {
   return list;
 }
 
+/** A temple's people by its size and state (models/aedes.js templeActors), packed once (people/actors.js). */
+const CASTS = new Map();
+export function templeCast(size, state) {
+  const sig = `${size}|${state}`;
+  let c = CASTS.get(sig);
+  if (!c) {
+    const list = templeActors(SIZES[size].measures, state);
+    c = list.length ? cast(list) : NOBODY;
+    CASTS.set(sig, c);
+  }
+  return c;
+}
+
 /** One temple's entry of MODELS (`size` 'aedes' or 'templum'). */
 function templeEntry(size, god) {
   const S = SIZES[size];
@@ -151,7 +165,7 @@ function templeEntry(size, god) {
       const game = ctx ? ctx.game : null;
       const state = templeState(b, game);
       const angry = state !== 'shut' && b.id !== null && b.id !== undefined && godAngry(game, god);
-      return { key: type, state, ice: false, more: templeMore(size, god, state, angry) };
+      return { key: type, state, ice: false, more: templeMore(size, god, state, angry), actors: templeCast(size, state) };
     },
     // Every material the temples draw is in these: the god's own kit, the shared body and its order's
     // columns, the smoke (one program for the three kinds).

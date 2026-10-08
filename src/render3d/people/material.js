@@ -33,7 +33,7 @@
  *   aActRoute  length (m, 0 for none), speed (m/s), pause at its end, at its start (s)
  *   aActCol0   tunic, mantle, skin, hair    (24-bit sRGB each)
  *   aActCol1   trim, leather, accent, metal
- *   aActMisc   head scale, -, -, -
+ *   aActMisc   head scale, the facing at a route's end and at its start (rad, the actor's frame), -
  * ----------------------------------------------------------------------------
  */
 
@@ -205,13 +205,16 @@ void main() {
         pAdv = v * t;
         prev = walk; since = 1e3;
       } else if ( t < tw + pb ) {
+        // At the end: turned to what it does there (an altar beside the way), then that clip.
+        float k = min( 1.0, ( t - tw ) / FADE );
         pAdv = L;
+        pYaw = aActMisc.y * k * k * ( 3.0 - 2.0 * k );
         cur = clipB; curT = tc;
         prev = walk; prevT = tw * rate; since = t - tw;
       } else if ( t < tw + pb + TURN ) {
         float k = ( t - tw - pb ) / TURN;
         pAdv = L;
-        pYaw = 3.14159265 * k * k * ( 3.0 - 2.0 * k );
+        pYaw = mix( aActMisc.y, 3.14159265, k * k * ( 3.0 - 2.0 * k ) );
         cur = walk; curT = t * rate * 0.6;
         prev = clipB; prevT = tc; since = t - tw - pb;
       } else if ( t < 2.0 * tw + pb + TURN ) {
@@ -219,12 +222,13 @@ void main() {
         pAdv = L - v * s;
         pYaw = 3.14159265;
       } else if ( t < 2.0 * tw + pb + TURN + pa ) {
-        pYaw = 3.14159265;
+        float k = min( 1.0, ( t - 2.0 * tw - pb - TURN ) / FADE );
+        pYaw = mix( 3.14159265, aActMisc.z, k * k * ( 3.0 - 2.0 * k ) );
         cur = clipA; curT = tc;
         prev = walk; prevT = t * rate; since = t - 2.0 * tw - pb - TURN;
       } else {
         float k = ( t - 2.0 * tw - pb - TURN - pa ) / TURN;
-        pYaw = 3.14159265 * ( 1.0 + k * k * ( 3.0 - 2.0 * k ) );
+        pYaw = mix( aActMisc.z, 6.2831853, k * k * ( 3.0 - 2.0 * k ) );
         cur = walk; curT = t * rate * 0.6;
         prev = clipA; prevT = tc; since = t - 2.0 * tw - pb - TURN - pa;
       }

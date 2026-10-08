@@ -115,9 +115,9 @@ function drapeLoft(m, { kind, rows, cols, hem, top, off, fold, slot, tone = null
       // Below the hips: the hips' oval, widening as it falls (it must clear a stride), flaring to the hem.
       const s = trunkSection(0.9, kind);
       const k = smooth(0.9, 0.2, y);
-      const a = s.a + o + 0.03 * k;
-      const bf = s.bf + o + 0.06 * k;
-      const bb = s.bb + o + 0.05 * k;
+      const a = s.a + o + 0.018 + 0.03 * k;
+      const bf = s.bf + o + 0.03 + 0.05 * k;
+      const bb = s.bb + o + 0.012 + 0.04 * k;
       const sx = Math.sin(phi);
       const cz = Math.cos(phi);
       p = [a * Math.sign(sx) * Math.abs(sx) ** 0.9, y, s.zc + (cz > 0 ? bf : bb) * Math.sign(cz) * Math.abs(cz) ** 0.9];
@@ -171,7 +171,8 @@ export function tunic(kind, lod, { len = 'knee', belt = null, clavi = 'narrow', 
   const by = belt ?? (kind === 'f' ? 1.2 : 1.0);
   const high = by > 1.1;
   const w = clavi === 'broad' ? 0.034 : 0.012;
-  const stripes = lod === 2 ? [] : [[phiAt(0.06 - w / 2, 1.2, kind), phiAt(0.06 + w / 2, 1.2, kind)], [phiAt(-0.06 - w / 2, 1.2, kind), phiAt(-0.06 + w / 2, 1.2, kind)],
+  // (A woman's tunic and stola carry no clavi: the stripes were a man's mark of rank.)
+  const stripes = lod === 2 || kind === 'f' ? [] : [[phiAt(0.06 - w / 2, 1.2, kind), phiAt(0.06 + w / 2, 1.2, kind)], [phiAt(-0.06 - w / 2, 1.2, kind), phiAt(-0.06 + w / 2, 1.2, kind)],
     [phiAt(0.06 + w / 2, 1.2, kind, true), phiAt(0.06 - w / 2, 1.2, kind, true)], [phiAt(-0.06 + w / 2, 1.2, kind, true), phiAt(-0.06 - w / 2, 1.2, kind, true)]]
     .map(([a, b]) => (a < b ? [a, b] : [b, a]));
   const long = len === 'long';
@@ -183,7 +184,7 @@ export function tunic(kind, lod, { len = 'knee', belt = null, clavi = 'narrow', 
       const blouse = 0.018 * gauss((y - (by + 0.05)) / 0.05);
       const pinch = -0.006 * gauss((y - by) / 0.012);
       const neck = y > 1.43 ? 0.01 : 0;
-      return 0.012 + 0.07 * sh + blouse + pinch + neck;
+      return 0.012 + 0.052 * sh + blouse + pinch + neck;
     },
     fold: (y, phi) => {
       if (lod === 2) return 0;
@@ -299,7 +300,7 @@ export function toga(kind, lod, { velato = false, pallium = false } = {}) {
       const oz = Math.cos(phi);
       const p = [c[0] + ox * Math.cos(a) * rr, c[1] + Math.sin(a) * rr, c[2] + oz * Math.cos(a) * rr];
       const outer = Math.cos(a) > 0.3 && Math.sin(a) > -0.2;
-      return { p, c, uv: [phi * 0.2, a * 0.02], w: trunkWeights(p[0], p[1], p[2], { arms: p[0] > 0 ? 1 : 0.3 }), slot: outer ? SLOTS.TRIM : SLOTS.MANTLE, tone: 0.8 + 0.2 * Math.cos(a) };
+      return { p, c, uv: [phi * 0.2, a * 0.02], w: trunkWeights(p[0], p[1], p[2], { arms: p[0] > 0 ? 1 : 0.3 }), slot: outer ? SLOTS.ACCENT : SLOTS.MANTLE, tone: 0.8 + 0.2 * Math.cos(a) };
     });
   }
   if (!pallium) {
@@ -310,7 +311,7 @@ export function toga(kind, lod, { velato = false, pallium = false } = {}) {
       const s = j / cols;
       const v = i / rows;
       const topY = 1.2 + 0.2 * s;
-      const lowY = 1.2 + 0.2 * s - 0.58 * Math.sin(Math.PI * Math.min(1, s * 1.15)) ** 1.1;
+      const lowY = 1.2 + 0.2 * s - 0.52 * Math.sin(Math.PI * Math.min(1, s * 1.12)) ** 0.55;
       const y = topY + (lowY - topY) * v;
       const x = -0.19 + 0.33 * s;
       const phi = Math.atan2(x, 0.12);
@@ -318,7 +319,7 @@ export function toga(kind, lod, { velato = false, pallium = false } = {}) {
       const bulge = 0.04 * Math.sin(Math.PI * v) + 0.02 * v + (lod === 0 ? 0.01 * Math.sin(s * 14 + v * 3) * v : 0);
       const p = [base[0] * 1.02, y, Math.max(base[2], 0.14) + bulge];
       const edge = i === rows;
-      return { p, c: [p[0] * 0.5, y, 0], uv: [s * 0.4, y], w: y > 1.0 ? trunkWeights(p[0], y, p[2], { arms: 0.2 }) : skirtWeights(p[0], y, p[2], { long: true }), slot: edge && lod === 0 ? SLOTS.TRIM : SLOTS.MANTLE, tone: 0.8 + 0.2 * Math.sin(Math.PI * v) };
+      return { p, c: [p[0] * 0.5, y, 0], uv: [s * 0.4, y], w: y > 1.0 ? trunkWeights(p[0], y, p[2], { arms: 0.2 }) : skirtWeights(p[0], y, p[2], { long: true }), slot: edge && lod === 0 ? SLOTS.ACCENT : SLOTS.MANTLE, tone: 0.8 + 0.2 * Math.sin(Math.PI * v) };
     });
     // The umbo: the pouch pulled out over the balteus.
     if (lod < 2) {
@@ -480,7 +481,7 @@ export function lorica(kind, lod) {
     weightsAt: (x, y, z) => (y > 0.98 ? trunkWeights(x, y, z, { legs: 0.2 }) : skirtWeights(x, y, z)),
     slot: SLOTS.METAL,
     // The mail's rows catch the light in bands.
-    tone: (y) => 0.78 + 0.12 * Math.sin(y * 260),
+    tone: (y) => 0.62 + 0.1 * Math.sin(y * 260),
     hemWave: 0,
   });
   // The doubled shoulders (humeralia): a short cape of mail over them.

@@ -21,9 +21,11 @@
  *   clip     what it does (clips.js); a toga wearer plays the clip's toga
  *            variant where there is one
  *   phase, speed  its own offset (s) and rate; else from its seed
- *   route    { length, speed, pauseEnd, pauseStart, clipEnd, clipStart }:
- *            walks `length` metres ahead (+z of its facing) and back, at
- *            `speed` m/s, pausing at each end doing that end's clip
+ *   route    { length, speed, pauseEnd, pauseStart, clipEnd, clipStart,
+ *            faceEnd, faceStart }: walks `length` metres ahead (+z of its
+ *            facing) and back, at `speed` m/s, pausing at each end doing
+ *            that end's clip turned to face that end's way (a facing in the
+ *            model's frame, as ry; by default the way it came)
  *   colours  { tunic, mantle, skin, hair, trim, leather, accent, metal }
  *            (sRGB hex; any not given from the palette by its seed)
  *   seed     a number: its colours and phase when not given
@@ -108,6 +110,7 @@ export function pack(spec, index = 0) {
   const body = spec.body || 'm';
   const scale = spec.scale ?? (body === 'c' ? 0.78 : 1);
   const toga = (spec.dress || []).some((d) => d.startsWith('toga'));
+  const wrapped = toga || (spec.dress || []).some((d) => d.startsWith('pallium'));
   const pieces = [`body:${body}`];
   for (const d of spec.dress || []) {
     const m = GARMENT.exec(d);
@@ -133,7 +136,8 @@ export function pack(spec, index = 0) {
     // (No stripe to be seen unless given one: the trim takes the tunic's own colour.)
     col.trim ?? tunicC,
     colour('leather', [0x5a3a24, 0x6e4a2e, 0x4a3020, 0x7a5434], 5),
-    colour('accent', [DYES.madder, DYES.weld, DYES.woad, DYES.white, DYES.green], 6),
+    // (A toga's border is the accent: the toga's own white unless given, a magistrate's purple.)
+    col.accent ?? (wrapped ? col.mantle ?? DYES.candida : pick([DYES.madder, DYES.weld, DYES.woad, DYES.white, DYES.green], seed, 6)),
     colour('metal', [0x8a8c90, 0xb08848], 7),
   ];
   const route = spec.route;
@@ -146,6 +150,11 @@ export function pack(spec, index = 0) {
     r[3] = route.pauseStart ?? 3;
     pauses = CLIP_INDEX[clipFor(route.clipEnd || 'idle', toga)] + 64 * CLIP_INDEX[clipFor(route.clipStart || 'idle', toga)];
   }
+  // The facings at the route's ends in the actor's own frame: the end's within a half turn of 0 (the
+  // way it arrived), the start's within a half turn of pi (the way it came back).
+  const wrap = (a, mid) => mid + (((((a - mid + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI);
+  const faceEnd = route && route.faceEnd !== undefined ? wrap(route.faceEnd - (spec.ry || 0), 0) : 0;
+  const faceStart = route && route.faceStart !== undefined ? wrap(route.faceStart - (spec.ry || 0), Math.PI) : Math.PI;
   const phase = spec.phase ?? hash01(seed, 9) * def.dur * 3;
   const speed = spec.speed ?? 1;
   // (Head scale: a child's head is bigger for its body than a man's.)
@@ -158,7 +167,7 @@ export function pack(spec, index = 0) {
     route: r,
     col0: new Float32Array(cols.slice(0, 4)),
     col1: new Float32Array(cols.slice(4, 8)),
-    misc: new Float32Array([head, 0, 0, 0]),
+    misc: new Float32Array([head, faceEnd, faceStart, 0]),
     at: Object.freeze((spec.at || [0, 0, 0]).slice()),
     ry: spec.ry || 0,
     scale,

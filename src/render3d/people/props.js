@@ -130,7 +130,7 @@ const PROPS = {
         const rim = i === 0 || i === rows || j === 0 || j === cols;
         const band = lod === 0 && (Math.abs(y - 0.2) < 0.03 || Math.abs(y + 0.2) < 0.03);
         return { p, uv: [a, y], w: W, slot: face < 0 ? SLOTS.LEATHER : rim ? SLOTS.BRONZE : band ? SLOTS.GOLD : SLOTS.ACCENT, tone: face > 0 ? 1 : 0.6 };
-      }, { flip: face < 0 });
+      }, { flip: face > 0 });
     }
     lathe(m, [0, 0, 0.07], [0, 0, 1], [[0.07, 0], [0.06, 0.02], [0.03, 0.04], [0.001, 0.045]], SEG[lod], SLOTS.BRONZE, b);
   },

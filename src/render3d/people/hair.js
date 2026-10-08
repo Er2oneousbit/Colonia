@@ -89,7 +89,9 @@ export function beard(style, kind, lod) {
     // Round the face from ear to ear, from the cheeks down under the chin.
     const phi = -1.75 + (3.5 * j) / cols;
     const v = i / rows;
-    const th = 1.72 + (Math.PI - 0.3 - 1.72) * v;
+    // Its top edge: from the sideburns by the ears down the cheeks to under the lower lip.
+    const th0 = 2.3 - 0.68 * smooth(0.25, 1.35, Math.abs(phi));
+    const th = th0 + (Math.PI - 0.3 - th0) * v;
     const side = Math.abs(phi);
     // (Not over the lips: the beard parts round the mouth.)
     let off = (full ? 0.014 : 0.006) * (1 - smooth(1.3, 1.75, side) * 0.8) * smooth(0, 0.15, v);

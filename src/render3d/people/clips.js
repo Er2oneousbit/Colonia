@@ -192,8 +192,9 @@ export const CLIPS = Object.freeze({
     pose(P, t, m) {
       stand(P, t, { shift: 0.6, ph: 0.3, look: 0.4 });
       P.rot('head', 0.1 * Math.max(0, sn(t, 4, 0.1)) ** 3, 0, 0);
-      if (!m.toga) P.hand(1, 0.035, 0.93, 0.13, { chest: true, pole: [0.6, -0.3, -0.6] });
-      P.hand(-1, -0.025, 0.95, 0.14, { chest: true, pole: [-0.6, -0.3, -0.6] });
+      // (The wrists apart, the fingers of the right over the back of the left: hands clasped, not crossed.)
+      if (!m.toga) P.hand(1, 0.07, 0.93, 0.12, { chest: true, pole: [0.6, -0.3, -0.6] });
+      P.hand(-1, -0.055, 0.95, 0.13, { chest: true, pole: [-0.6, -0.3, -0.6] });
       fingers(P, -1, 0.6);
       if (m.toga) togaArm(P, t);
       else fingers(P, 1, 0.6);
@@ -374,13 +375,13 @@ export const CLIPS = Object.freeze({
       stand(P, t, { shift: 0.4, ph: 0.6, look: 0 });
       P.rot('spine', 0.03 * sn(t, 3), 0.03 * sn(t, 1.5 * 2), 0.03 * sn(t, 3, 0.25));
       // The pipes from the lips (chest frame: the head held still on the chest), forward and down, apart.
-      P.prop(-1, 0, 1.548, 0.1, 0.95 + 0.04 * sn(t, 3), 0, 0, { chest: true });
+      P.prop(-1, 0, 1.536, 0.1, 0.95 + 0.04 * sn(t, 3), 0, 0, { chest: true });
       for (const s of [1, -1]) {
         const a = 0.16 * s;
         // A point along each pipe (the pipes part at 2 x 0.16 rad): where the fingers stop the holes.
         const d = 0.24;
         const pitch = 0.95 + 0.04 * sn(t, 3);
-        P.hand(s, Math.sin(a) * d, 1.548 - Math.sin(pitch) * Math.cos(a) * d - 0.02, 0.1 + Math.cos(pitch) * Math.cos(a) * d, { chest: true, pole: [s * 0.8, -0.5, -0.2] });
+        P.hand(s, Math.sin(a) * d, 1.536 - Math.sin(pitch) * Math.cos(a) * d - 0.02, 0.1 + Math.cos(pitch) * Math.cos(a) * d, { chest: true, pole: [s * 0.8, -0.5, -0.2] });
         P.rot(s > 0 ? 'handL' : 'handR', 0.2, 0, s * 0.5);
         fingers(P, s, 0.45 + 0.15 * sn(t, 24, s > 0 ? 0 : 0.3));
       }

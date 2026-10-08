@@ -37,9 +37,9 @@ const sp = (v, n) => Math.sign(v) * Math.abs(v) ** (2 / n);
 
 /** Rows and columns by level of detail. */
 const RES = [
-  { trunkR: 12, trunkC: 16, limbR: 10, limbC: 10, handC: 8, handR: 4, footR: 8, footC: 8, headR: 26, headC: 34, ear: 6, eye: 7, thumb: true, sandal: true },
-  { trunkR: 6, trunkC: 8, limbR: 5, limbC: 6, handC: 5, handR: 2, footR: 4, footC: 5, headR: 10, headC: 12, ear: 0, eye: 0, thumb: true, sandal: true },
-  { trunkR: 3, trunkC: 5, limbR: 3, limbC: 3, handC: 4, handR: 1, footR: 2, footC: 4, headR: 5, headC: 6, ear: 0, eye: 0, thumb: false, sandal: false },
+  { trunkR: 10, trunkC: 14, limbR: 9, limbC: 9, handC: 8, handR: 3, footR: 7, footC: 8, headR: 22, headC: 30, ear: 5, eye: 6, thumb: true, sandal: true },
+  { trunkR: 5, trunkC: 7, limbR: 4, limbC: 5, handC: 4, handR: 1, footR: 3, footC: 4, headR: 9, headC: 10, ear: 0, eye: 0, thumb: false, sandal: true },
+  { trunkR: 2, trunkC: 5, limbR: 2, limbC: 3, handC: 3, handR: 1, footR: 2, footC: 3, headR: 4, headC: 6, ear: 0, eye: 0, thumb: false, sandal: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -194,7 +194,7 @@ export function armRadius(u, kind) {
 export function legRadius(u, kind) {
   const k = kind === 'f' ? 0.94 : kind === 'c' ? 0.9 : 1;
   const r = u < 1
-    ? 0.084 - 0.03 * smooth(0.1, 1, u) + 0.004 * gauss((u - 0.3) / 0.3)
+    ? 0.074 - 0.022 * smooth(0.1, 1, u) + 0.004 * gauss((u - 0.3) / 0.3)
     : 0.05 + 0.01 * gauss((u - 1.32) / 0.2) - 0.016 * smooth(1.4, 2, u);
   return r * k;
 }
@@ -233,7 +233,7 @@ function legs(m, kind, R) {
 function neck(m, kind, R) {
   const rows = Math.max(2, Math.round(R.limbR / 2));
   const cols = R.limbC;
-  const r = kind === 'f' ? 0.044 : kind === 'c' ? 0.045 : 0.052;
+  const r = kind === 'f' ? 0.047 : kind === 'c' ? 0.048 : 0.056;
   m.grid(rows, cols, (i, j) => {
     const y = 1.41 + (0.16 * i) / rows;
     const phi = -Math.PI + (TAU * j) / cols;
@@ -429,7 +429,7 @@ export function sandal(m, s, kind, lod) {
 // ---------------------------------------------------------------------------
 
 /** The head's middle at rest. */
-export const HEAD_C = Object.freeze([0, 1.612, 0.014]);
+export const HEAD_C = Object.freeze([0, 1.6, 0.014]);
 
 /**
  * The face's shape by body kind: the brow's ridge, the nose's length and
@@ -565,8 +565,8 @@ function eyes(m, kind, R) {
   const n = R.eye;
   for (const s of [1, -1]) {
     // Where the socket's floor is: the ball sits in it, its front just behind the lids' line.
-    const c = [HEAD_C[0] + s * 0.031, HEAD_C[1] + 0.012, HEAD_C[2] + 0.064];
-    const r = 0.0118;
+    const c = [HEAD_C[0] + s * 0.031, HEAD_C[1] + 0.012, HEAD_C[2] + 0.061];
+    const r = 0.0115;
     m.grid(n, n + 2, (i, j) => {
       const theta = (Math.PI * i) / n;
       const phi = (TAU * j) / (n + 2);
@@ -584,7 +584,7 @@ function ears(m, kind, R) {
   const n = R.ear;
   const sc = kind === 'm' ? 1 : 0.9;
   for (const s of [1, -1]) {
-    const c = [HEAD_C[0] + s * 0.071, HEAD_C[1] + 0.0, HEAD_C[2] - 0.012];
+    const c = [HEAD_C[0] + s * 0.068, HEAD_C[1] + 0.0, HEAD_C[2] - 0.012];
     m.grid(n, n, (i, j) => {
       const u = i / n;
       const v = j / n;
@@ -592,8 +592,8 @@ function ears(m, kind, R) {
       const a = (u - 0.5) * 2;
       const b = (v - 0.5) * 2;
       const rr = Math.hypot(a, b);
-      const h = 0.03 * sc;
-      const w = 0.017 * sc;
+      const h = 0.026 * sc;
+      const w = 0.0145 * sc;
       const cup = 0.004 * (1 - Math.min(1, rr) ** 2) - 0.003 * Math.max(0, rr - 0.75) * 4;
       const y = a * h * (1 - 0.15 * Math.abs(b));
       const z = b * w - 0.004 * a;
@@ -604,8 +604,8 @@ function ears(m, kind, R) {
     m.grid(n, n, (i, j) => {
       const a = (i / n - 0.5) * 2;
       const b = (j / n - 0.5) * 2;
-      const h = 0.03 * sc;
-      const w = 0.017 * sc;
+      const h = 0.026 * sc;
+      const w = 0.0145 * sc;
       const y = a * h * (1 - 0.15 * Math.abs(b));
       const z = b * w - 0.004 * a;
       const x = s * (0.0 + 0.004 * (b + 1) * 0.5);
