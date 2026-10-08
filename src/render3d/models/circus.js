@@ -56,7 +56,7 @@ import { boxUV, tintGeometry } from '../shapes.js';
 import { TaggedParts } from './masonry.js';
 import { lin, figureMass } from './domus.js';
 import {
-  venueMaterials, sweep, ellipseCurves, lineCurves, caveaProfile, box, staff, gates, sandFloor, rakeLines, rowSeats, tinted, lampstand, sheet,
+  venueMaterials, flatParts, sweep, ellipseCurves, lineCurves, caveaProfile, box, staff, gates, sandFloor, rakeLines, rowSeats, tinted, lampstand, sheet,
 } from './venue.js';
 import { RACE } from './venueShow.js';
 
@@ -322,7 +322,11 @@ function carceres(lod, p, M) {
   p.add('trav', M.trav, box(0.4, 0.25, 2 * C.track, X + 0.1, H - 0.25, 0, 1));
   for (const z of zs) {
     // Each stall's opening (dark) and its gate, swung open for a race, shut otherwise.
-    p.add('dark', M.dark, box(0.02, 1.7, 1.0, X - 0.08, 0, z, 1));
+    p.add('dark', M.dark, box(0.02, 1.4, 1.0, X - 0.08, 0, z, 1));
+    const head = new CylinderGeometry(0.5, 0.5, 0.02, lod ? 6 : 12, 1, false, 0, Math.PI);
+    head.rotateZ(Math.PI / 2);
+    head.translate(X - 0.08, 1.4, z);
+    p.add('dark', M.dark, tintGeometry(boxUV(head)));
     for (const [st, open] of [['open', true], ['home', false]]) {
       if (st === 'home') {
         for (const w of ['out', 'shut']) {
@@ -406,7 +410,7 @@ export function buildCircus(k, { lod = 0 } = {}) {
   sand(k, lod, p, M);
   spina(a, b, lod, p, M);
   lights(k, lod, p, M);
-  const g = p.build();
+  const g = flatParts(p.build());
   // From track metres to the section's own (its middle at the origin).
   for (const m of g.meshes) m.geometry.translate(-(a + 10), 0, 0);
   return g;
@@ -430,7 +434,7 @@ export function buildLapCounter(kind, { lod = 0 } = {}) {
       p.add('bronze', M.bronze, box(0.06, 0.07, 0.02, 0.0, 0.2, 0, 1));
     }
   }
-  return p.build();
+  return flatParts(p.build());
 }
 
 /** Where the seven eggs and the seven dolphins stand on their frames (section 1's metres), and how a counted lap shows. */

@@ -57,7 +57,8 @@ export function venueMaterials() {
   return {
     ...m,
     // The arena's and the track's sand (harena): fine, pale, raked.
-    sand: material('arena-sand', { surface: 'earth', color: 0xfbe9c2, vertexColors: true, snow: 1 }),
+    // (On the plaster's fine grain, tinted: the earth's cracks and pebbles read as a dry field, not sand.)
+    sand: material('arena-sand', { surface: 'plaster', color: 0xe9cf9c, vertexColors: true, snow: 1 }),
     // The seats: travertine steps, their tones in the vertices.
     seats: m.trav,
     tufa: material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }),
@@ -320,7 +321,7 @@ function spectator(x, d, pose, arms, lod, rise) {
   cloth.push(blob([x, shY - 0.01, hipZ + lean], 0.19, 0.07, 0.115, R, Math.max(2, R / 2), d.body, 0.95, [0, Math.PI / 2]));
   // A toga's sinus and balteus: the fold across the chest from the left shoulder to the right hip.
   if (d.toga && lod === 0) {
-    const g = box(0.06, 0.62, 0.035, 0, 0, 0);
+    const g = box(0.045, 0.6, 0.03, 0, 0, 0);
     g.rotateZ(-0.62);
     g.translate(x + 0.01, (hipY + shY) / 2 - 0.12, hipZ + 0.115 + lean * 0.5);
     cloth.push(tintGeometry(g, () => rgb(d.border || d.body, d.border ? 1 : 0.86)));
@@ -330,7 +331,6 @@ function spectator(x, d, pose, arms, lod, rise) {
   // The head, the hair or a palla over it.
   const hz = hipZ + 0.02 + lean;
   skin.push(blob([x, headY, hz], 0.095, 0.115, 0.105, R, Math.max(3, R - 2), d.skin));
-  if (lod === 0) skin.push(paint(box(0.03, 0.04, 0.03, x, headY - 0.03, hz + 0.1), d.skin, 0.9));
   if (d.veil) cloth.push(blob([x, headY + 0.01, hz - 0.015], 0.115, 0.135, 0.125, R, Math.max(3, R - 2), d.palla, 0.95, [0, Math.PI * 0.62]));
   else skin.push(blob([x, headY + 0.015, hz - 0.012], 0.103, 0.115, 0.112, R, Math.max(2, R / 2), d.hair, 1, [0, Math.PI * 0.5]));
   // The arms: hanging to the lap seated, raised on his feet.
@@ -402,8 +402,10 @@ export function buildCrowdGroup(pose, band, variant, lod = 0, rise = 0.33) {
   }
   const M = venueMaterials();
   // (Far out a crowd's shadow is a few pixels: none, a draw saved in the sun's pass.)
-  p.add('cloth', M.crowdCloth, cloth, { cast: lod < 2 });
-  p.add('skin', M.crowdSkin, skin, { cast: lod < 2 });
+  // (Their shadows only close up: from the middle distance a seated man's is a few pixels on the step
+  // behind him, and the crowd's parts were a third of the sun's pass's draws.)
+  p.add('cloth', M.crowdCloth, cloth, { cast: lod === 0 });
+  p.add('skin', M.crowdSkin, skin, { cast: lod === 0 });
   return p.build().group;
 }
 
@@ -537,7 +539,8 @@ export function sheet(pos, cols, quads, stride) {
     for (const [i, j, k] of [[a, c, b], [b, c, d], [a, b, c], [b, d, c]]) {
       for (const v of [i, j, k]) {
         P.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
-        C.push(cols[v * 3], cols[v * 3 + 1], cols[v * 3 + 2]);
+        // (Each quad the colour of its first corner: stripes with sharp edges, not blended across the quad.)
+        C.push(cols[a * 3], cols[a * 3 + 1], cols[a * 3 + 2]);
       }
     }
   }
@@ -589,6 +592,14 @@ export function velarium(p, M, at, { ts, dm, dIn, y0, yTop, drop = 0.3, lod = 0,
   }
   for (let i = 0; i < n; i++) for (let j = 0; j < rows; j++) quads.push(i * (rows + 1) + j);
   p.add('velum', M.velum, sheet(pos, cols, quads, rows + 1), { when: 'open' });
+}
+
+/** Parts that lie flat or are painted on a face, whose shadows nobody sees: they cast none (a draw saved each in the sun's pass). */
+const FLAT = new Set(['dark', 'sand', 'paving', 'water', 'fresco', 'flame', 'embers']);
+/** A built model ({ group, meshes }) with its flat parts casting no shadow. */
+export function flatParts(built) {
+  for (const m of built.meshes) if (FLAT.has(m.name)) m.castShadow = false;
+  return built;
 }
 
 /** A stone at the full detail (masonry.js slab) or a plain box far out. */

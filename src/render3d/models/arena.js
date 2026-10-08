@@ -51,7 +51,7 @@ import { boxUV, tintGeometry } from '../shapes.js';
 import { TaggedParts } from './masonry.js';
 import { lin, figureMass } from './domus.js';
 import {
-  venueMaterials, sweep, ellipseCurves, caveaProfile, box, staff, gates, sandFloor, rakeLines, rowSeats, tinted, velarium, lampstand,
+  venueMaterials, flatParts, sweep, ellipseCurves, caveaProfile, box, staff, gates, sandFloor, rakeLines, rowSeats, tinted, velarium, lampstand,
 } from './venue.js';
 
 /** The Great Arena's measures (metres): the tests, the lab and the game read them. */
@@ -267,7 +267,7 @@ export function buildArenaBay(kind, { lod = 0 } = {}) {
     if (key === 'statue') p.add('statue', M.marble, list);
     else p.add(key, M[key], list);
   }
-  return p.build();
+  return flatParts(p.build());
 }
 
 /** The façade's own parts (the bays are kits of their own: ARENA_BAYS): the steps, the ambulatory's back, the porch. */
@@ -413,7 +413,7 @@ export function buildArena({ lod = 0 } = {}) {
   // The masts on the attic's corbels, and the awning over the top tier on show days.
   const masts = lod === 2 ? 16 : 32;
   velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: FACE + 0.08, dIn: FACE - 0.85, y0: S3 + 0.14, yTop: S4 + 0.95, drop: 0.22, lod, closed: true, stripes: 96 });
-  return p.build();
+  return flatParts(p.build());
 }
 
 /** Where the crowd sits: [[x, y, z, ry, band, rise], ...]: the togate in the first tier, the people in the second, the women and the poor in the third. */

@@ -49,7 +49,7 @@ import { boxUV, tintGeometry } from '../shapes.js';
 import { TaggedParts } from './masonry.js';
 import { lin } from './domus.js';
 import {
-  venueMaterials, sweep, ellipseCurves, caveaProfile, box, staff, gates, sandFloor, rakeLines, rowSeats, tinted, velarium, lampstand,
+  venueMaterials, flatParts, sweep, ellipseCurves, caveaProfile, box, staff, gates, sandFloor, rakeLines, rowSeats, tinted, velarium, lampstand,
 } from './venue.js';
 
 /** The amphitheatre's measures (metres): the tests, the lab and the game read them. */
@@ -218,7 +218,7 @@ export function buildAmphitheatrumStage({ lod = 0 } = {}) {
   // A painted backdrop on two posts behind it (the scaena's doors painted on boards).
   p.add('paintBoard', M.paintBoard, tinted(box(0.05, 1.0, 1.4, x - 0.43, h, 0), lin(0x9e7a4a)));
   if (lod < 2) for (const z of [-0.4, 0.4]) p.add('dark', M.dark, box(0.02, 0.6, 0.26, x - 0.4, h, z, 1));
-  return p.build();
+  return flatParts(p.build());
 }
 
 /** Torches round the top (lit at night while a show runs: the lamps) and lampstands by the gates inside. */
@@ -247,7 +247,7 @@ export function buildAmphitheatrum({ lod = 0 } = {}) {
   velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: OUT - 0.06, dIn: OUT - 0.75, y0: TOP.y - 0.5, yTop: TOP.y + TOP.par + 0.95, drop: 0.2, lod, closed: true, stripes: 64 });
   // The ground round it: flags at the stair's foot.
   p.add('paving', M.flags, box(7.2, 0.025, 6 - zFront - 0.02, 0, 0, (6 + zFront) / 2, 0.96));
-  return p.build();
+  return flatParts(p.build());
 }
 
 /** Where the crowd sits: [[x, y, z, ry, band, rise], ...] round the oval, clear of the gates and the editor's box. */

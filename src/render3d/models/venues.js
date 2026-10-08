@@ -176,8 +176,9 @@ export function crowdMore(type, section, fill, m) {
     if (hash01(i, 3) * FILL_STEPS >= fill) return;
     const pose = standing(type, i, s, m, section) ? 'up' : 'sit';
     const variant = Math.floor(hash01(i, 5) * CROWD_VARIANTS) % CROWD_VARIANTS;
-    const rise = s[5] ?? 0.33;
-    const key = `crowd:${pose}:${s[4]}:${variant}:${Math.round(rise * 100)}`;
+    // (One kit for every venue's rows: their steps differ by a few centimetres, too little to see in a
+    // seated man's shins, and a kit a step was three times the crowd's draw calls.)
+    const key = `crowd:${pose}:${s[4]}:${variant}`;
     let e = by.get(key);
     if (!e) {
       e = [];
@@ -308,7 +309,7 @@ function circusEntry() {
       }
       return { key: `hippodrome:s${k}`, state, ice: false, more, actors: venueCast('hippodrome', state, acts, k) };
     },
-    warm: ['hippodrome:s0', 'hippodrome:s1', 'hippodrome:s2', 'hippodrome:egg', 'hippodrome:dolphin', 'crowd:sit:toga:0:32', 'crowd:up:plebs:1:32'],
+    warm: ['hippodrome:s0', 'hippodrome:s1', 'hippodrome:s2', 'hippodrome:egg', 'hippodrome:dolphin', 'crowd:sit:toga:0', 'crowd:up:plebs:1'],
     lamps: (b) => (venueState(b, lastGame) === 'open' ? lamps[sectionOf(b)] : []),
     build: (key, lod) => (builds[key] || builds['hippodrome:s0'])({ lod }).group,
   });
@@ -325,7 +326,7 @@ function entry(type, builds, lamps, warm = []) {
       return { key: type, state, ice: false, more: moreOf(type, 0, state, acts, game, ctx), actors: venueCast(type, state, acts) };
     },
     // The building's own kit, its parts, and a crowd group of each pose (the crowd's two materials).
-    warm: [type, ...warm, 'crowd:sit:toga:0:30', 'crowd:up:plebs:1:30'],
+    warm: [type, ...warm, 'crowd:sit:toga:0', 'crowd:up:plebs:1'],
     lamps: (b) => (venueState(b, lastGame) === 'open' ? lamps : []),
     build: (key, lod) => (builds[key] || builds[type])({ lod }).group,
   });
@@ -339,10 +340,10 @@ export const VENUE_MODELS = Object.freeze({
   hippodrome_part: circusEntry(),
 });
 
-/** A crowd group by its key: `crowd:<pose>:<band>:<variant>:<rise cm>`. */
+/** A crowd group by its key: `crowd:<pose>:<band>:<variant>` (its rows' step the venues' 0.32 m). */
 function buildCrowdPart(key, lod) {
-  const [, pose, band, variant, rise] = key.split(':');
-  return buildCrowdGroup(pose, band, Number(variant), lod, Number(rise) / 100);
+  const [, pose, band, variant] = key.split(':');
+  return buildCrowdGroup(pose, band, Number(variant), lod, 0.32);
 }
 
 /** The venues' parts for models.js MODEL_PARTS, by their key's first word. */

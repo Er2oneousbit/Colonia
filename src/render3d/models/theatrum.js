@@ -55,12 +55,12 @@
  * ----------------------------------------------------------------------------
  */
 
-import { CylinderGeometry, ConeGeometry, BufferGeometry, Float32BufferAttribute } from 'three';
+import { CylinderGeometry, ConeGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { TaggedParts } from './masonry.js';
 import { column, statue, lin, D } from './domus.js';
 import {
-  venueMaterials, sweep, ellipseCurves, caveaProfile, box, staff, lampstand, torch, gates, stone, rowSeats,
+  venueMaterials, flatParts, sweep, ellipseCurves, caveaProfile, box, staff, lampstand, torch, gates, stone, rowSeats, sheet,
 } from './venue.js';
 
 /** The theatre's measures (metres): the tests, the lab and the game read them. */
@@ -90,7 +90,7 @@ const AT = ellipseCurves(T.orchestra, T.orchestra, 0, Math.PI, 0, T.cz);
 
 /** The masts round the top of the cavea (angles), and their height. */
 const MASTS = [0, 1, 2, 3, 4, 5, 6].map((k) => (k * Math.PI) / 6);
-const MAST_H = 1.35;
+const MAST_H = 1.7;
 
 /** The front door of each vomitorium (angle of the cavea): the stairs up to the walkway. */
 const VOMITORIA = [D(38), D(90), D(142)];
@@ -435,46 +435,23 @@ function velarium(lod, p, M) {
     for (let j = 0; j <= rows; j++) {
       const s = j / rows;
       const r = R + (inR - R) * s;
-      const y = top - 0.06 - s * 0.32 - sag * (0.5 + s) - 0.03 * Math.sin(Math.PI * s);
+      const y = top - 0.06 - s * 0.22 - sag * (0.5 + s) - 0.03 * Math.sin(Math.PI * s);
       pos.push(r * Math.cos(th), y, T.cz + r * Math.sin(th));
-      const stripe = Math.floor(t * 24) % 2;
+      const stripe = Math.floor(t * 48) % 4 === 0;
       cols.push(...(stripe ? lin(0xa83a2a) : lin(0xeee2c8)));
     }
   }
   for (let i = 0; i < n; i++) for (let j = 0; j < rows; j++) quads.push(i * (rows + 1) + j);
-  p.add('velum', M.velum, cloth(pos, cols, quads, rows + 1), { when: 'open' });
+  p.add('velum', M.velum, sheet(pos, cols, quads, rows + 1), { when: 'open' });
   // Its ropes from each mast's top down in to the inner edge.
   if (lod < 2) {
     for (const th of MASTS) {
       const [x, z] = AT(TOP.d + TOP.wall * 0.5, th / Math.PI);
       const ix = inR * Math.cos(th);
       const iz = T.cz + inR * Math.sin(th);
-      p.add('rope', M.rope, staff([x, top, z], [ix, top - 0.62, iz], 0.012, 4), { when: 'open', cast: false });
+      p.add('rope', M.rope, staff([x, top, z], [ix, top - 0.3, iz], 0.012, 4), { when: 'open', cast: false });
     }
   }
-}
-
-/** A sheet of quads (both faces) from a grid of points: `quads` the first corner of each, `stride` the grid's row. */
-function cloth(pos, cols, quads, stride) {
-  const P = [];
-  const C = [];
-  for (const q of quads) {
-    const a = q;
-    const b = q + 1;
-    const c = q + stride;
-    const d = q + stride + 1;
-    for (const [i, j, k] of [[a, c, b], [b, c, d], [a, b, c], [b, d, c]]) {
-      for (const v of [i, j, k]) {
-        P.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
-        C.push(cols[v * 3], cols[v * 3 + 1], cols[v * 3 + 2]);
-      }
-    }
-  }
-  const g = new BufferGeometry();
-  g.setAttribute('position', new Float32BufferAttribute(P, 3));
-  g.setAttribute('color', new Float32BufferAttribute(C, 3));
-  g.computeVertexNormals();
-  return boxUV(g);
 }
 
 /** Torches on the outer wall by the vomitoria (lit on a show day). */
@@ -509,7 +486,7 @@ export function buildTheatrum({ lod = 0 } = {}) {
   chair(TRIBUNAL[0], TRIBUNAL[1], TRIBUNAL[2], TRIBUNAL[3], lod, p, M, true);
   // The ground round it: flags along the front and the sides.
   p.add('paving', M.flags, box(2 * T.half - 0.02, 0.025, T.half - (T.cz + OUTER) - 0.02, 0, 0, (T.half + T.cz + OUTER) / 2, 0.96));
-  return p.build();
+  return flatParts(p.build());
 }
 
 /**

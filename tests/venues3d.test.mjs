@@ -181,7 +181,7 @@ test('venues3d: the crowd: none without a show, as many as the city fills, a fif
   game.city.population = 5000;
   game.time.totalTicks = 2;
   assert.equal(venueFill(game, 'theater'), 5);
-  const sit = (lod) => tris(modelFor('crowd:sit:toga:0:30').build('crowd:sit:toga:0:30', lod));
+  const sit = (lod) => tris(modelFor('crowd:sit:toga:0').build('crowd:sit:toga:0', lod));
   assert.ok(sit(0) > sit(1) && sit(1) > sit(2) * 3 && sit(2) < 150, `${sit(0)} / ${sit(1)} / ${sit(2)}`);
 });
 
