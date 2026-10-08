@@ -264,9 +264,9 @@ const PROPS = {
     const W = rigid(b);
     for (const face of [1, -1]) {
       m.grid(2, 4, (i, j) => {
-        const x = (0.24 * j) / 4;
-        const top = 1.1 + 0.06 * (j / 4) ** 1.5;
-        const bot = 0.98 - 0.08 * (j / 4) ** 1.5;
+        const x = (0.18 * j) / 4;
+        const top = 1.1 + 0.05 * (j / 4) ** 1.5;
+        const bot = 1.0 - 0.06 * (j / 4) ** 1.5;
         const y = bot + (top - bot) * (i / 2);
         return { p: [face * 0.01 * (1 - j / 4), y, -0.02 - x], uv: [x, y], w: W, slot: SLOTS.IRON, tone: j === 4 ? 1.2 : 0.9 };
       }, { flip: face < 0 });

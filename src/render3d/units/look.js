@@ -80,15 +80,15 @@ const hex = (css, fallback) => (typeof css === 'string' && /^#[0-9a-f]{6}$/i.tes
 /** Skins: Italians, fair northerners, Iberians, Numidians and Syrians. */
 const SKIN = {
   italian: [0xc8956c, 0xb88560, 0xa87452, 0xbf8b62, 0xd2a17a],
-  fair: [0xe0b896, 0xdcb08c, 0xd8a888, 0xe6c2a2],
+  fair: [0xcf9f7c, 0xc69676, 0xd3a483, 0xbf8f6e],
   iberian: [0xb88560, 0xa87452, 0xbf8b62, 0xc8956c],
   numidian: [0x8c5e40, 0x75492f, 0x9a6a4a, 0x6a4430],
   syrian: [0xa87452, 0x9a6a4a, 0xb88560],
 };
 const HAIR = {
   dark: [0x1d1612, 0x2a1e16, 0x3a2a1c, 0x1d1612],
-  fair: [0x9a7a4a, 0xb89060, 0x7a3a20, 0x8a5a30, 0xc8a878, 0x6a4428],
-  limed: [0xd8c8a0, 0xc8b080, 0xb89a68, 0x9a7a4a],
+  fair: [0x8a6a3e, 0xa07c4c, 0x7a3a20, 0x8a5a30, 0xa88a5a, 0x6a4428],
+  limed: [0xc4a46a, 0xb08a52, 0x9e7a46, 0xa86a3a],
   brown: [0x4a3424, 0x3a2a1c, 0x6a4428, 0x2a1e16],
 };
 /** Northern cloth: bright dyes, the checks of their trousers and cloaks. */
@@ -346,7 +346,7 @@ const LOOKS = {
     driver.at = [0, 0.3, 0.12];
     const fighter = warrior(u, seed + 1, 'gaul', 'spear');
     fighter.clips = { ...fighter.clips, move: 'guard', run: 'guard', stand: 'guard', ready: 'guard' };
-    fighter.at = [0.15, 0.3, -0.2];
+    fighter.at = [0.1, 0.3, -0.3];
     const ponies = [0.42, -0.42].map((x) => {
       const h = horse(seed + x * 10, 'yoke', 0x6b4a32, [x, 0, 2.05]);
       h.scale = 0.88;
@@ -356,7 +356,7 @@ const LOOKS = {
     return [driver, car, fighter, ...ponies];
   },
   elephant: (u, seed) => {
-    const el = beast('quad:elephant:tower', { skin: pick([0x7a746c, 0x6e6860, 0x857e74], seed, 30), hair: 0x3a3630, trim: pick([0xa3352b, 0xd9b65a, 0x3f5a85], seed, 31), accent: pick([0x7a2a24, 0x5a1838, 0x3f5a85], seed, 32) },
+    const el = beast('quad:elephant:tower', { skin: pick([0x847a6e, 0x786e64, 0x8c8276], seed, 30), hair: 0x3a3630, trim: pick([0xa3352b, 0xd9b65a, 0x3f5a85], seed, 31), accent: pick([0x7a2a24, 0x5a1838, 0x3f5a85], seed, 32) },
       { stand: 'elephant:stand', slow: 'elephant:walk', fast: 'elephant:walk', walk: 'elephant:walk', attack: 'elephant:fight', fall: 'elephant:fall' });
     const mahout = man(seed + 2, { dress: ['tunic:short'], hair: 'curls', colours: { tunic: DYES.white, skin: pick(SKIN.numidian, seed, 33) } }, [], { R: 'uprop:javelin' }, RIDER, { mount: 0, seat: 'seat' });
     mahout.clips = { ...mahout.clips, attack: 'mounted' };

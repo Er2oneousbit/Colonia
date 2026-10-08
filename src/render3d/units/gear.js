@@ -329,7 +329,7 @@ const BODY = {
     // Girth hoops from the waist to the chest, each overlapping the one under it; a dark seam between them.
     shell(m, kind, lod, {
       y0: 0.94, y1: 1.42, rows: lod === 0 ? 24 : lod === 1 ? 8 : 3,
-      off: (y) => 0.026 + 0.006 * fract((y - 0.94) / 0.06),
+      off: (y) => 0.034 + 0.006 * fract((y - 0.94) / 0.06),
       slot: () => SLOTS.METAL,
       tone: (y) => (lod === 2 ? 0.85 : 0.55 + 0.45 * smooth(0, 0.25, fract((y - 0.94) / 0.06))),
     });
@@ -521,13 +521,13 @@ const HAIR = {
   moustache(m, kind, lod) {
     for (const s of [1, -1]) {
       const pts = [];
+      // Over the upper lip from the middle out to the mouth's corner, then drooping past it to the jaw.
       for (let k = 0; k <= 4; k++) {
         const u = k / 4;
-        const { p } = headPoint(2.08 + 0.35 * u, s * (0.12 + 0.3 * u), kind, 0.007 + 0.004 * Math.sin(Math.PI * u), 1);
-        p[1] -= 0.02 * u * u;
+        const { p } = headPoint(2.12 + 0.3 * u * u, s * (0.06 + 0.32 * u), kind, 0.004, 1);
         pts.push(p);
       }
-      tube(m, pts, (i) => 0.007 - 0.0012 * i, { w: rigid('head'), slot: SLOTS.HAIR, seg: lod === 0 ? 5 : 3, tone: () => 0.8 });
+      tube(m, pts, (i) => 0.0055 - 0.001 * i, { w: rigid('head'), slot: SLOTS.HAIR, seg: lod === 0 ? 5 : 3, tone: () => 0.8, flat: 0.6 });
     }
   },
   knot(m, kind, lod) {
