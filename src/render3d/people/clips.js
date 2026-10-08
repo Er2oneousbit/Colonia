@@ -76,6 +76,13 @@ export const WALK_STRIDE = 1.25;
 export const WALK_DUR = 1.05;
 export const WALK_SPEED = WALK_STRIDE / WALK_DUR;
 
+/**
+ * The pump the pump clip works (models/prefecture.js PUMP_BEAM): its beam's
+ * pivot `ahead` of the man and `height` over his feet, its arm, its tilt at
+ * rest (the near end down).
+ */
+export const PUMP = Object.freeze({ ahead: 1.0, height: 1.1, arm: 0.62, tilt: 0.12 });
+
 /** A seat's height for the seated clips (a bench, a chair): the actor stands its feet on the floor under it. */
 export const SEAT_H = 0.45;
 
@@ -388,7 +395,7 @@ export const CLIPS = Object.freeze({
       P.rot('neck', 0, 0, 0);
     },
   },
-  // Working a pump's beam (a force pump, a windlass): both hands on the handle, the back bending into each stroke.
+  // Working a pump's beam (the watch house's force pump): both hands on its handle, the back bending into each stroke.
   pump: {
     dur: 2.2, fps: 30,
     pose(P, t) {
@@ -397,15 +404,14 @@ export const CLIPS = Object.freeze({
       P.rot('spine', 0.08 + 0.18 * down, 0, 0);
       P.rot('chest', 0.06 * down, 0, 0);
       for (const s of [1, -1]) P.foot(s, s * 0.14, 0.085, s > 0 ? 0.08 : -0.08, 0, s * 0.2);
-      // The beam's handle swings about its pivot (actor frame), the hands on it.
-      const ang = 0.35 - 0.7 * down;
-      const piv = [0, 0.95, 0.75];
-      const arm = 0.42;
-      const hx = piv[1] + Math.sin(ang) * arm;
-      const hz = piv[2] - Math.cos(ang) * arm;
-      P.prop(-1, 0, hx, hz, ang, 0, 0);
+      // The beam rocks about its pivot (PUMP, ahead of him), its near end down a stroke and up again; the
+      // prop is the beam from its near handle (people/props.js beam), the hands on the handle.
+      const ang = PUMP.tilt - 0.2 + 0.4 * down;
+      const hy = PUMP.height - Math.sin(ang) * PUMP.arm;
+      const hz = PUMP.ahead - Math.cos(ang) * PUMP.arm;
+      P.prop(-1, 0, hy, hz, -ang, 0, 0);
       for (const s of [1, -1]) {
-        P.hand(s, s * 0.11, hx + 0.01, hz - 0.03, { pole: [s * 0.6, -0.7, -0.3] });
+        P.hand(s, s * 0.11, hy + 0.03, hz - 0.01, { pole: [s * 0.6, -0.7, -0.3] });
         P.rot(s > 0 ? 'handL' : 'handR', 0.8, 0, s * 0.5);
         fingers(P, s, 0.9);
       }
@@ -457,16 +463,17 @@ export const CLIPS = Object.freeze({
   count: {
     dur: 5, fps: 20,
     pose(P, t) {
-      stand(P, t, { shift: 0.3, ph: 0.9, look: 0.05, lean: 0.12 });
+      stand(P, t, { shift: 0.3, ph: 0.9, look: 0.05, lean: 0.2 });
       P.rot('neck', 0.3, 0, 0);
       P.rot('head', 0.22, 0, 0);
       const k = (t * 5) % 1;
       const x = lerp(-0.14, 0.04, smooth(clamp01((k - 0.15) / 0.4))) - lerp(0, 0.18, smooth(clamp01((k - 0.7) / 0.3)));
       const lift = 0.04 * Math.sin(Math.PI * clamp01((k - 0.15) / 0.4));
-      P.hand(-1, x, 0.99 + lift, 0.34, { pole: [-0.6, -0.6, -0.4] });
+      // (A counting table's top about 0.86 high, the coin on it.)
+      P.hand(-1, x, 0.92 + lift, 0.33, { pole: [-0.6, -0.6, -0.4] });
       P.rot('handR', 0.9, 0, -0.2);
       fingers(P, -1, 0.6);
-      P.hand(1, 0.16, 0.97, 0.34, { pole: [0.6, -0.6, -0.4] });
+      P.hand(1, 0.16, 0.9, 0.32, { pole: [0.6, -0.6, -0.4] });
       P.rot('handL', 0.9, 0, 0.3);
       fingers(P, 1, 0.4);
     },

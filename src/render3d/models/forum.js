@@ -41,6 +41,7 @@ import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube } from 
 import { material } from '../materials.js';
 import { slab, paving, tuscanColumn, tiledRoof, wallWithOpenings, lantern, lanternPane, inscription } from './masonry.js';
 import { figureParts } from './figure.js';
+import { DYES } from '../people/actors.js';
 import { artRng } from '../texgen.js';
 
 /** The forum's key measures (metres): tests and the lab read them. */
@@ -380,14 +381,7 @@ export function buildForum({ lod = 0, seed = 61 } = {}) {
   add(co.cloth, material('cloth-dyed', { surface: 'wool', vertexColors: true, snow: 0.7 }), 'seat');
   add(co.leatherOpen, material('leather', { color: 0x3b2a1e, roughness: 0.65, snow: 0.2 }), 'purse', 'open');
   add(co.tablet, material('wax-tablet', { color: 0x2a2018, roughness: 0.5, snow: 0.3 }), 'tablet', 'open');
-  // People: the clerk counting at the table and a citizen paying (open); the statue on its base (always).
-  if (lod === 0) {
-    const people = [
-      ...figureParts({ cloth: 0xd8d0bc, reach: 0.7 }, -0.55, y0, 0.75, 0.0),
-      ...figureParts({ cloth: 0x7a5a3a, cloth2: 0x5a4a38, reach: 0.5 }, -0.85, y0, 2.15, Math.PI + 0.3),
-    ];
-    for (const p of people) add([p.g], p.material, `person-${p.material.name}`, 'open');
-  }
+  // The statue on its base (always). The people are actors (forumActors).
   if (lod < 2) {
     const statue = figureParts({ long: true, cloth2: 0xffffff, reach: 0.45 }, 2.65, y0 + 1.34, 2.75, 0.25, 0.98).map((p) => p.g);
     add(statue, material('marble', { surface: 'marble', vertexColors: true, snow: 1 }), 'statue');
@@ -395,6 +389,21 @@ export function buildForum({ lod = 0, seed = 61 } = {}) {
   let tris = 0;
   for (const m of meshes) tris += triangles(m.geometry);
   return { group, meshes, triangles: tris };
+}
+
+/**
+ * The forum's people while it is open (people/actors.js specs, its metres):
+ * the clerk at the counting table counting coin from the heap into stacks,
+ * a citizen paying from his purse across it, another waiting his turn.
+ */
+export function forumActors(state) {
+  if (state !== 'open') return [];
+  const y0 = FORUM.podium;
+  return [
+    { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'count', props: { R: 'coin' }, at: [-0.55, y0, 0.8], ry: 0, seed: 71, colours: { tunic: DYES.white, trim: DYES.purple } },
+    { body: 'm', dress: ['tunic:knee', 'toga'], hair: 'crop', clip: 'give', props: { R: 'purse' }, at: [-0.85, y0, 2.12], ry: Math.PI + 0.3, seed: 72 },
+    { body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'curls', clip: 'listen', at: [0.35, y0, 2.55], ry: Math.PI - 0.5, seed: 73, colours: { mantle: DYES.walnut } },
+  ];
 }
 
 /** Show a state on a built forum (the lab): 'open' or 'shut'. */

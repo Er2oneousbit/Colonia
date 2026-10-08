@@ -17,7 +17,8 @@
  * ----------------------------------------------------------------------------
  */
 
-import { buildSchool, LUDUS } from './ludus.js';
+import { buildSchool, LUDUS, schoolActors } from './ludus.js';
+import { cast, NOBODY } from '../people/actors.js';
 import { buildLibrary, BIBLIOTHECA } from './bibliotheca.js';
 import { buildAcademia, ACADEMIA } from './academia.js';
 
@@ -29,11 +30,19 @@ export function educationState(b) {
 /** Lamps for models.js modelLamps: the lanterns' panes, each facing the way it is given (+1 the street, +z). */
 const lampsAt = (list) => Object.freeze(list.map(([x, y, z, s = 1]) => Object.freeze([x, y + 0.11, z, s])));
 
-/** One entry: a look, its state, its lamps while staffed. */
-function entry(type, build, lamps) {
+/**
+ * One entry: a look, its state, its lamps while staffed; `actors(state)` its
+ * people as actors (people/actors.js), packed once a state.
+ */
+function entry(type, build, lamps, actors = null) {
   const lit = lampsAt(lamps);
+  const casts = {};
+  const castOf = (state) => (casts[state] ??= actors ? cast(actors(state)) : NOBODY);
   return Object.freeze({
-    variant: (b) => ({ key: type, state: educationState(b), ice: false }),
+    variant: (b) => {
+      const state = educationState(b);
+      return { key: type, state, ice: false, actors: castOf(state) };
+    },
     warm: [type],
     lamps: (b) => (b.efficiency > 0 ? lit : []),
     build: (key, lod) => build({ lod }).group,
@@ -41,7 +50,7 @@ function entry(type, build, lamps) {
 }
 
 export const EDUCATION_MODELS = Object.freeze({
-  school: entry('school', buildSchool, [LUDUS.lamp]),
+  school: entry('school', buildSchool, [LUDUS.lamp], schoolActors),
   library: entry('library', buildLibrary, BIBLIOTHECA.lamps),
   academy: entry('academy', buildAcademia, ACADEMIA.lamps),
 });

@@ -44,8 +44,8 @@ import { buildSmoke } from './sacra.js';
 import { buildAedesBody, buildAedesGod, buildAedesColumn, AEDES_COLUMNS, AEDES_LAMPS, aedesHearth, AEDES, templeActors } from './aedes.js';
 import { buildTemplumBody, buildTemplumGod, buildTemplumColumn, buildPorticoColumn, TEMPLUM_COLUMNS, TEMPLUM_LAMPS, PORTICO_COLUMNS, templumHearth, TEMPLUM } from './templum.js';
 import { cast, NOBODY } from '../people/actors.js';
-import { buildTholus, buildTholusColumn, THOLUS_COLUMNS, THOLUS_LAMPS, tholusVents } from './tholus.js';
-import { buildSacellum, SACELLUM_LAMPS, SACELLUM_TREE, SACELLUM_GIFTS } from './sacellum.js';
+import { buildTholus, buildTholusColumn, THOLUS_COLUMNS, THOLUS_LAMPS, tholusVents, tholusActors } from './tholus.js';
+import { buildSacellum, SACELLUM_LAMPS, SACELLUM_TREE, SACELLUM_GIFTS, sacellumActors } from './sacellum.js';
 
 /** A hard frost: the sprites' deep snow (levels 2 and 3 of 0..3), as models.js reads it. */
 const frost = (place) => ((place && place.snow) || 0) >= 2;
@@ -181,9 +181,15 @@ const ORACLE_MORE = Object.freeze([
   ...tholusVents().map(([x, y, z, kind]) => Object.freeze({ key: `sacra:smoke:${kind}`, n: 1, mats: at(x, y, z), state: 'always' })),
 ]);
 
+/** The oracle's and the mission post's people (tholus.js, sacellum.js), packed once. */
+let ORACLE_CAST = null;
+const oracleCast = () => (ORACLE_CAST ??= cast(tholusActors()));
+const MISSION_CASTS = {};
+const missionCast = (state) => (MISSION_CASTS[state] ??= cast(sacellumActors(state)));
+
 const ORACLE = Object.freeze({
   // No staff: always at work. In a hard frost its spring is ice.
-  variant: (b, place) => ({ key: frost(place) ? 'oracle:ice' : 'oracle', state: 'open', ice: false, more: ORACLE_MORE }),
+  variant: (b, place) => ({ key: frost(place) ? 'oracle:ice' : 'oracle', state: 'open', ice: false, more: ORACLE_MORE, actors: oracleCast() }),
   warm: ['oracle', 'oracle:col'],
   lamps: () => THOLUS_LAMPS,
   build: (key, lod) => (key.startsWith('oracle:col') ? buildTholusColumn({ lod }).group : buildTholus({ lod, ice: key.endsWith(':ice') }).group),
@@ -197,7 +203,10 @@ const MISSION_MORE = Object.freeze([
 ]);
 
 const MISSION = Object.freeze({
-  variant: (b) => ({ key: 'mission_post', state: missionState(b), ice: false, more: MISSION_MORE }),
+  variant: (b) => {
+    const state = missionState(b);
+    return { key: 'mission_post', state, ice: false, more: MISSION_MORE, actors: missionCast(state) };
+  },
   warm: ['mission_post'],
   lamps: (b) => (b.efficiency > 0 ? SACELLUM_LAMPS : []),
   build: (key, lod) => buildSacellum({ lod }).group,

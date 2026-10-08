@@ -13,27 +13,23 @@
  *     thin smoke rising; unstaffed: cold ash), and the smoke as a kit of its
  *     own (an angry god's is dark and heavy).
  *   - Garlands (festoons) of leaves and flowers hung between the columns on
- *     a festival day, and the people of a sacrifice after the reliefs (the
- *     Ara Pacis's procession, the altar of Vicus Aesculeti, the relief of
- *     the suovetaurilia in the Louvre): the priest sacrificing with his
- *     toga drawn over his head (capite velato), a boy attendant (camillus)
- *     with the incense box, the flute player (tibicen) whose music covered
- *     any ill-omened sound, the victimarius with his axe; the crowd in
- *     their best, wreathed.
+ *     a festival day. The people of a sacrifice (after the reliefs: the Ara
+ *     Pacis's procession, the altar of Vicus Aesculeti, the suovetaurilia
+ *     in the Louvre) are actors of the 3D look's people (people/; their
+ *     places by state: aedes.js templeActors).
  *
  * Metres, y up, facing +z, as the other models.
  * ----------------------------------------------------------------------------
  */
 
-import { BoxGeometry, CylinderGeometry, SphereGeometry, TorusGeometry, Matrix4, Vector3, Quaternion } from 'three';
+import { BoxGeometry, CylinderGeometry, SphereGeometry, TorusGeometry } from 'three';
 import { revolve, profileOf, frameSweep, boxUV, tintGeometry, tube } from '../shapes.js';
 import { material, surfaceTextures, LOOK } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, TaggedParts } from './masonry.js';
 import { lin, D } from './rural.js';
 import { box } from './castra.js';
-import { govMaterials, togate } from './domus.js';
-import { person } from './learning.js';
+import { govMaterials } from './domus.js';
 import { healthMaterials, coals, plume, steamMaterial } from './healing.js';
 
 export { box, D, lin };
@@ -246,98 +242,6 @@ export function festoon(a, b, { sag = 0.35, r = 0.06, lod = 0, seed = 1, colours
     }
   }
   return { leaf, flowers };
-}
-
-// ---------------------------------------------------------------------------
-// The people of a rite
-// ---------------------------------------------------------------------------
-
-/** Parts placed at (x, y, z) facing ry: [geometry, material] pairs built in a figure's own frame. */
-function placed(list, x, y, z, ry, s = 1) {
-  const m = new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), ry), new Vector3(s, s, s));
-  return list.map(([g, material]) => ({ g: g.applyMatrix4(m), material }));
-}
-
-/**
- * The priest sacrificing, his toga drawn up over his head (capite velato:
- * the Roman way, where the Greek sacrificed bareheaded), a dish (patera) in
- * his right hand held out over the fire. Returns person parts.
- */
-export function priest(mats, x, y, z, ry, { praetexta = true, arms = 'reach' } = {}) {
-  const parts = togate(mats, x, y, z, ry, { praetexta, arms, hair: 0x8a8070 });
-  const own = [];
-  // The fold of the toga over his head and down his back: a hood of the toga's wool.
-  const hood = new SphereGeometry(0.14, 10, 7, 0, Math.PI * 2, 0, Math.PI * 0.62);
-  hood.scale(1, 1.05, 1.08);
-  hood.translate(0, 1.64, -0.02);
-  own.push([tintGeometry(boxUV(hood), () => lin(0xf0eadf)), mats.cloth]);
-  own.push([box(0.3, 0.42, 0.05, 0, 1.18, -0.16, () => lin(0xece6da)), mats.cloth]);
-  // The patera: a shallow dish in the outstretched hand.
-  if (arms === 'reach') {
-    const dish = new CylinderGeometry(0.075, 0.05, 0.02, 10, 1);
-    dish.translate(0.2, 1.32, 0.44);
-    own.push([tintGeometry(boxUV(dish)), mats.bronze]);
-  }
-  return [...parts, ...placed(own, x, y, z, ry)];
-}
-
-/** The boy attendant (camillus) in a short white tunic, the incense box (acerra) held before him. */
-export function camillus(mats, x, y, z, ry) {
-  const parts = person(mats, { cloth: 0xf2eee4, cloth2: null, skin: 0xb08060, hair: 0x2e2119, arms: 'hold' }, x, y, z, ry, 0.78);
-  return [...parts, ...placed([[box(0.2, 0.12, 0.14, 0, 0.84, 0.25, 0.9), mats.wood]], x, y, z, ry)];
-}
-
-/** The flute player (tibicen), the two pipes of the tibia at his lips. */
-export function tibicen(mats, x, y, z, ry) {
-  const parts = person(mats, { cloth: 0xd8cfb8, cloth2: 0x8a3a2a, long: true, skin: 0xa07050, hair: 0x2a1e14, arms: [[-0.06, 1.38, 0.3], [0.06, 1.36, 0.32]] }, x, y, z, ry);
-  const pipes = [];
-  for (const s of [-1, 1]) {
-    const g = new CylinderGeometry(0.008, 0.012, 0.5, 5, 1);
-    g.translate(0, 0.25, 0);
-    g.rotateX(1.25);
-    g.rotateY(s * 0.22);
-    g.translate(0, 1.55, 0.12);
-    pipes.push([tintGeometry(boxUV(g)), mats.wood]);
-  }
-  return [...parts, ...placed(pipes, x, y, z, ry)];
-}
-
-/** The victimarius: stripped to the waist in his apron (limus), the axe on his shoulder. */
-export function victimarius(mats, x, y, z, ry) {
-  const parts = person(mats, { cloth: 0xe8e0cc, cloth2: null, skin: 0x9a6a48, hair: 0x241a12, arms: 'hold' }, x, y, z, ry);
-  const axe = [];
-  axe.push([box(0.035, 0.85, 0.035, 0.16, 1.0, 0.18, 0.7), mats.wood]);
-  axe.push([box(0.02, 0.16, 0.2, 0.16, 1.78, 0.24, 0.85), mats.iron]);
-  return [...parts, ...placed(axe, x, y, z, ry)];
-}
-
-/**
- * Worshippers (a festival's crowd: their best tunics and mantles, wreaths
- * on their heads), `n` of them at the places [x, z, ry] on y. Returns person
- * parts.
- */
-export function crowd(mats, places, y, { seed = 1, wreaths = true } = {}) {
-  const rnd = artRng(seed);
-  const cloths = [0xc9bca2, 0x8a6a4a, 0xa8322b, 0x5a6f88, 0xe6d8bc, 0x6f7a4a, 0xb88a5a];
-  const out = [];
-  places.forEach(([x, z, ry, yy], k) => {
-    const y0 = yy ?? y;
-    const woman = k % 3 === 1;
-    const c = cloths[Math.floor(rnd() * cloths.length)];
-    const opts = woman
-      ? { cloth: 0xe6d8bc, cloth2: [0x4f6f86, 0x8a3a5a, 0x6a8a5a][k % 3], long: true, skin: 0xc49272, hair: 0x2c1a10 }
-      : { cloth: c, cloth2: k % 2 ? null : 0xe8e2d4, long: k % 2 === 0, skin: [0xa87a58, 0x9a6c4c, 0xb08060][k % 3], hair: [0x2e2119, 0x4a3828, 0x6a6058][k % 3] };
-    const arms = ['down', 'hold', 'orate', 'down'][k % 4];
-    out.push(...person(mats, { ...opts, arms }, x, y0, z, ry, woman ? 0.95 : 1));
-    if (wreaths) {
-      const s = woman ? 0.95 : 1;
-      const w = new TorusGeometry(0.1 * s, 0.022 * s, 4, 12);
-      w.rotateX(Math.PI / 2);
-      w.translate(0, 1.67 * s, 0.0);
-      out.push(...placed([[tintGeometry(boxUV(w), () => [0.06, 0.15, 0.05]), mats.leaf]], x, y0, z, ry));
-    }
-  });
-  return out;
 }
 
 /** A plain box geometry helper re-exported for the builders: a BoxGeometry turned about y. */

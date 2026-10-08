@@ -169,9 +169,10 @@ const PROPS = {
     lathe(m, [0, -0.02, 0.01], [1, 0, 0], [[0.011, 0], [0.011, 0.003]], 8, SLOTS.GOLD, b);
   },
   beam(m, lod, b) {
-    // The crossbar the hands hold, and the beam from it to its pivot (+z).
-    lathe(m, [-0.2, 0, 0], [1, 0, 0], [[0.018, 0], [0.018, 0.4]], SEG[lod], SLOTS.WOOD, b);
-    lathe(m, [0, 0, 0], [0, 0, 1], [[0.03, 0], [0.034, 0.44]], Math.max(4, SEG[lod] - 2), SLOTS.WOOD, b, { tone: () => 0.85 });
+    // The handle the hands hold (a crossbar), the beam from it over its pivot (0.62 on, +z) to the far
+    // handle, as the watch house's kit has them (models/prefecture.js).
+    for (const z of [0, 1.24]) lathe(m, [-0.17, 0, z], [1, 0, 0], [[0.035, 0], [0.035, 0.34]], SEG[lod], SLOTS.WOOD, b);
+    lathe(m, [0, 0, 0], [0, 0, 1], [[0.055, 0], [0.055, 1.24]], Math.max(4, SEG[lod] - 2), SLOTS.WOOD, b, { tone: () => 0.85 });
   },
   sack(m, lod, b) {
     const n = lod === 0 ? 10 : 5;

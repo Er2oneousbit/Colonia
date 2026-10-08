@@ -38,8 +38,9 @@
 import { CylinderGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { slab, paving, TaggedParts, lantern, lanternPane } from './masonry.js';
-import { gable, gableTri, rake, wallAlong, doubleDoor, standard, FRESCO, addPeople, togate, servant, threshold } from './domus.js';
-import { person } from './learning.js';
+import { gable, gableTri, rake, wallAlong, doubleDoor, standard, FRESCO, threshold } from './domus.js';
+import { DYES } from '../people/actors.js';
+
 import { sacraMaterials, ara, hearthFire, box, D, lin } from './sacra.js';
 import { cultStatue, caduceus, placeBins } from './numina.js';
 import { castraMaterials } from './castra.js';
@@ -170,14 +171,19 @@ function lodge(lod, seed, out) {
   return { door: [x1 - t / 2, z0 + 0.6 + (door.a + door.b) / 2, door.b - door.a, door.hi] };
 }
 
-/** The envoy and a villager come to trade at the gate, a servant with an amphora (close up only). */
-function envoys(mats) {
-  const list = [];
-  list.push(...togate(mats, 0.35, 0.03, 1.55, 2.6, { arms: 'orate', hair: 0x3a2a1c }));
-  // A man of the villages: a cloak over a tunic, trousers, his hair and beard long and fair.
-  list.push(...person(mats, { cloth: 0x6a6a3a, cloth2: 0x8a3a24, long: false, skin: 0xc49272, hair: 0xa06a3a, beard: true, arms: 'hold' }, -0.25, 0.03, 2.25, 2.6 + Math.PI));
-  list.push(...servant(mats, 1.65, 0.03, 1.3, -0.9, { arms: 'hold' }));
-  return list;
+/**
+ * The mission post's people while it is kept (people/actors.js specs, its
+ * metres): Rome's envoy in the toga speaking with a man of the villages (a
+ * cloak over his tunic, his hair and beard long and fair), a servant
+ * carrying the gifts out to the gate and back. Nobody when it is not kept.
+ */
+export function sacellumActors(state) {
+  if (state !== 'open') return [];
+  return [
+    { body: 'm', dress: ['tunic:knee', 'toga'], hair: 'crop', clip: 'talk', at: [0.35, 0.03, 1.55], ry: 2.6, seed: 121, colours: { tunic: DYES.white, mantle: DYES.candida } },
+    { body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'curls', beard: 'full', clip: 'listen', at: [-0.25, 0.03, 2.25], ry: 2.6 + Math.PI, seed: 122, colours: { tunic: DYES.olive, mantle: DYES.oxblood, hair: 0xa06a3a, skin: 0xd2a17a } },
+    { body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'carry', props: { L: 'sack' }, at: [1.75, 0.03, 0.6], ry: 0.2, seed: 123, route: { length: 1.6, speed: 0.75, pauseEnd: 3, pauseStart: 4, clipEnd: 'shoulder', clipStart: 'idle' }, colours: { tunic: DYES.fawn } },
+  ];
 }
 
 /** Build the mission post: { group, meshes, triangles }, its meshes tagged in userData.when ('open', 'shut'). */
@@ -248,7 +254,7 @@ export function buildSacellum({ lod = 0, seed = 901 } = {}) {
   p.add('standard', m.gilt, [...sd.gilt, ...Object.values(placeBins(caduceus(lod, 'gilt', 0.4), 1.35, 3.08, 2.85)).flat()], { when: 'open' });
   p.add('standard-cloth', m.cloth, sd.cloth, { when: 'open', cast: lod === 0 });
   p.add('standard-pole', m.wood, [box(0.05, 3.0, 0.05, 1.35, 0.03, 2.85, 0.7)], { when: 'shut' });
-  if (lod === 0) addPeople(p, m, 'envoys', envoys(m), 'open');
+  // (The envoy, the villager and the servant are actors: sacellumActors.)
   return p.build();
 }
 

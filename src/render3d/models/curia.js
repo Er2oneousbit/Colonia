@@ -49,8 +49,10 @@ import { boxUV, tintGeometry, frameSweep, revolve, profileOf } from '../shapes.j
 import { slab, paving, wallWithOpenings, TaggedParts } from './masonry.js';
 
 import {
-  govMaterials, guard, box, D, gable, slope, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, statue, victory, togate, lictor, addPeople, lantern, lanternPane,
+  govMaterials, box, D, gable, slope, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, statue, victory, lantern, lanternPane,
 } from './domus.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H } from '../people/clips.js';
 
 /** The curia's measures (metres): the tests, the lab and the game read them. */
 export const CURIA = Object.freeze({
@@ -307,27 +309,53 @@ function statues(lod, seed, out) {
   }
 }
 
-/** The senators and the magistrate's lictors (staffed, close up only). */
-function senators(mats) {
+/**
+ * The senate's people (people/actors.js specs, the curia's metres), by
+ * state: in session ('open') senators in the toga over the tunic of the
+ * broad purple stripe on the steps and in the porch, talking, two seated on
+ * the bench, one pacing before the steps; the magistrate at the door in the
+ * toga praetexta addressing them; his lictors at the foot of the steps with
+ * the fasces on their shoulders. Under threat ('out'): soldiers of the guard
+ * at the door and the foot of the steps, the doors barred. Nobody while it
+ * stands empty.
+ */
+export function curiaActors(state) {
   const [, sz, n] = C.steps;
   const rise = PY / n;
   const tread = (sz - C.podium[1]) / n;
+  const onStep = (i) => [rise * i, sz - i * tread + 0.18];
+  if (state === 'out') {
+    const guard = { body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', clip: 'guard', props: { R: 'spear', L: 'scutum' }, colours: { tunic: DYES.madder, accent: DYES.madder, metal: 0x8a8c90 } };
+    return [
+      { ...guard, at: [-1.05, PY, C.podium[1] - 0.15], ry: 0, seed: 81 },
+      { ...guard, at: [1.05, PY, C.podium[1] - 0.15], ry: 0, seed: 82 },
+      { ...guard, at: [-C.steps[0] - 0.5, 0.06, sz + 0.4], ry: 0.2, seed: 83 },
+      { ...guard, at: [C.steps[0] + 0.5, 0.06, sz + 0.4], ry: -0.2, seed: 84 },
+    ];
+  }
+  if (state !== 'open') return [];
+  const senator = (seed, extra) => ({ body: 'm', dress: ['tunic:knee:broad', 'toga'], hair: seed % 3 ? 'crop' : 'bald', old: seed % 3 === 0, colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.purple }, seed, ...extra });
   const list = [];
-  // Coming up the steps, and one arriving at their foot.
-  list.push(...togate(mats, -1.15, rise * 3, sz - 3 * tread + 0.18, Math.PI + 0.1, { hair: 0x8a8070 }));
-  list.push(...togate(mats, 0.9, rise * 1, sz - 1 * tread + 0.18, Math.PI - 0.15, { hair: 0x2e2119 }));
-  list.push(...togate(mats, 1.9, 0.06, sz + 0.75, Math.PI - 0.5, { hair: 0x4a3828, arms: 'hold' }));
+  // On the steps: two talking, one listening, going up to the session.
+  const [y3, z3] = onStep(3);
+  const [y1, z1] = onStep(1);
+  list.push(senator(91, { clip: 'talk', at: [-1.15, y3, z3], ry: Math.PI + 0.5 }));
+  list.push(senator(92, { clip: 'listen', at: [-0.55, y3, z3 - 0.1], ry: Math.PI - 0.9 }));
+  list.push(senator(93, { clip: 'idle', at: [0.9, y1, z1], ry: Math.PI - 0.15 }));
+  // Pacing before the steps, stopping to look up at the door.
+  list.push(senator(94, { clip: 'walk', at: [-2.4, 0.06, sz + 0.95], ry: Math.PI / 2, route: { length: 4.6, speed: 0.8, pauseEnd: 5, pauseStart: 6, clipEnd: 'listen', clipStart: 'idle', faceEnd: Math.PI, faceStart: Math.PI } }));
   // Two talking in the porch.
-  list.push(...togate(mats, -3.05, PY, 2.25, 0.85, { hair: 0xb8b0a0, arms: 'orate' }));
-  list.push(...togate(mats, -2.35, PY, 2.75, -2.3, { hair: 0x2a1e14 }));
-  // Two seated on the bench to the right.
-  list.push(...togate(mats, 2.6, PY, HZ1 + 0.42, 0.1, { sit: 0.46, arms: 'lap', hair: 0x6a6058 }));
-  list.push(...togate(mats, 3.65, PY, HZ1 + 0.42, -0.25, { sit: 0.46, arms: 'teach', hair: 0x2a1e14 }));
-  // The magistrate at the door, in the toga with its purple border.
-  list.push(...togate(mats, 0.35, PY, HZ1 + 0.95, 0.2, { praetexta: true, arms: 'orate', hair: 0x3a2a1c }));
-  // His lictors waiting at the foot of the steps, the fasces on their shoulders.
-  list.push(...lictor(mats, -2.55, 0.06, sz + 0.55, 0.2));
-  list.push(...lictor(mats, -1.75, 0.06, sz + 0.7, -0.1));
+  list.push(senator(95, { clip: 'talk', at: [-3.05, PY, 2.25], ry: 0.85 }));
+  list.push(senator(96, { clip: 'listen', at: [-2.35, PY, 2.75], ry: -2.3 }));
+  // Two seated on the bench to the right, one making his point.
+  list.push(senator(97, { clip: 'sit', at: [2.6, PY + 0.46 - SEAT_H, HZ1 + 0.42], ry: 0.1 }));
+  list.push(senator(98, { clip: 'teach', at: [3.65, PY + 0.46 - SEAT_H, HZ1 + 0.42], ry: -0.25 }));
+  // The magistrate at the door in the toga praetexta, addressing them.
+  list.push(senator(99, { clip: 'orate', dress: ['tunic:knee:broad', 'toga'], at: [0.35, PY, HZ1 + 0.95], ry: 0.2, colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.purple, accent: DYES.murex } }));
+  // His lictors at the foot of the steps, the fasces on their shoulders.
+  const lictor = { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'shoulder', props: { L: 'fasces' }, colours: { tunic: DYES.madder, accent: DYES.madder } };
+  list.push({ ...lictor, at: [-2.55, 0.06, sz + 0.55], ry: 0.2, seed: 101 });
+  list.push({ ...lictor, at: [-1.75, 0.06, sz + 0.7], ry: -0.1, seed: 102 });
   return list;
 }
 
@@ -369,10 +397,7 @@ export function buildCuria({ lod = 0, seed = 401 } = {}) {
   // The lanterns' panes: lit while there is anyone there (in session, or the guard), dark when idle.
   p.add('lamp', lanternPane(), out.pane, { when: 'staffed', cast: false });
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
-  if (lod === 0) {
-    addPeople(p, m, 'senators', senators(m), 'open');
-    for (const s of [-1, 1]) addPeople(p, m, 'guard', guard(m, s * 1.05, PY, C.podium[1] - 0.15, 0), 'out');
-  }
+  // (The senators, the magistrate, his lictors and the guard are actors: curiaActors.)
   return p.build();
 }
 

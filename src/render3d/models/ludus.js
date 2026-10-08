@@ -47,8 +47,10 @@ import { boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, tuscanColumn, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin } from './rural.js';
-import { staff, inscribe, people, clothBothSides } from './castra.js';
-import { learningMaterials, person, at, tablet, capsa, arcSweep, roofSlope, roll, box } from './learning.js';
+import { staff, inscribe, clothBothSides } from './castra.js';
+import { learningMaterials, at, capsa, arcSweep, roofSlope, box } from './learning.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H } from '../people/clips.js';
 
 /** The school's measures (metres): the tests, the lab and the game read them. */
 export const LUDUS = Object.freeze({
@@ -316,61 +318,50 @@ function benches(lod, out) {
   }
 }
 
-/** The pupils and the master (only close up): seated with their tablets, one reciting, a slave at the gate. */
-function scholars(mats) {
-  const boy = 0.78;
-  // (The benches stand on the ground under the court's earth: their seats are seatY over y 0.)
-  const sit = (L.seatY - L.floorY) / boy;
-  const tunics = [0xd8cdb4, 0xb88a52, 0x9a4a3a, 0xc9bca2, 0x6a7a5a, 0xd0c4a0, 0x8a5a3a];
-  const hairs = [0x2e2119, 0x4a3020, 0x1e1812, 0x6a4a2a, 0x2e2119, 0x3a2a1a, 0x5a3a20];
-  const skins = [0xa87a58, 0xb88a64, 0x9a6c4c, 0xc49a74, 0x8a5e40, 0xb08060, 0xa47456];
-  const people = [];
-  const things = { wood: [], wax: [], leather: [], paper: [], strap: [] };
-  // Seated on the benches, facing the middle: two each side, three on the front bench with their backs to the street.
-  const seats = [[-2.42, 0.25, Math.PI / 2], [-2.42, 1.45, Math.PI / 2], [2.42, 0.2, -Math.PI / 2], [2.42, 1.4, -Math.PI / 2], [-0.85, 2.82, Math.PI], [0.05, 2.82, Math.PI], [0.95, 2.82, Math.PI]];
-  seats.forEach(([x, z, ry], i) => {
-    const arms = ['lap', 'write', 'lap', 'read', 'write', 'lap', 'read'][i];
-    people.push(...person(mats, { cloth: tunics[i], hair: hairs[i], skin: skins[i], sit, arms, lean: 0.14 }, x, L.floorY, z, ry + (i % 2 ? 0.12 : -0.1), boy));
-    if (arms !== 'read') {
-      // The tablet on his knees, tipped toward him.
-      const [tx, tz] = at(x, z, ry, 0, 0.3 * boy);
-      const tb = tablet(tx, L.floorY + (sit + 0.19) * boy, tz, ry, 0.19, 0.13, -0.25);
-      things.wood.push(...tb.wood);
-      things.wax.push(...tb.wax);
-    } else {
-      // An open roll held up before him.
-      const [rx, rz] = at(x, z, ry, 0, 0.32 * boy);
-      const y = L.floorY + (sit + 0.42) * boy;
-      for (const s of [-1, 1]) {
-        const [qx, qz] = at(rx, rz, ry, s * 0.12 * boy, 0);
-        const g = new CylinderGeometry(0.022, 0.022, 0.2, 6, 1);
-        g.translate(qx, y, qz);
-        things.paper.push(tintGeometry(boxUV(g), () => [0.78, 0.66, 0.46]));
-      }
-      const sheet = new BoxGeometry(0.22 * boy, 0.16, 0.004);
-      sheet.rotateY(ry);
-      sheet.translate(rx, y, rz);
-      things.paper.push(tintGeometry(boxUV(sheet), () => [0.86, 0.76, 0.56]));
-    }
-    // His capsa on the ground beside him.
+/** The boys' places on the benches [x, z, facing]: two each side, three on the front bench with their backs to the street. */
+const SEATS = [[-2.42, 0.25, Math.PI / 2], [-2.42, 1.45, Math.PI / 2], [2.42, 0.2, -Math.PI / 2], [2.42, 1.4, -Math.PI / 2], [-0.85, 2.82, Math.PI], [0.05, 2.82, Math.PI], [0.95, 2.82, Math.PI]];
+
+/** What lies on the ground while the school is at work: each boy's capsa beside him (the rolls and tablets are in their hands). */
+function capsae() {
+  const things = { leather: [], paper: [], strap: [] };
+  SEATS.forEach(([x, z, ry], i) => {
     const [cx, cz] = at(x, z, ry, 0.38, -0.05);
     const c = capsa(cx, L.floorY, cz, { r: 0.1, h: 0.26, open: i % 3 !== 2, seed: 30 + i });
     for (const k of ['leather', 'paper', 'strap']) things[k].push(...c[k]);
   });
-  // A boy before the master, reciting from his tablet; the master, teaching, his hand raised.
-  people.push(...person(mats, { cloth: 0xe0d6c0, hair: 0x2e2119, arms: 'hold' }, 0.32, L.floorY, -0.5, Math.PI + 0.15, boy));
-  const [hx, hz] = at(0.32, -0.5, Math.PI + 0.15, 0, 0.3 * boy);
-  const tb = tablet(hx, L.floorY + 1.12 * boy, hz, Math.PI + 0.15, 0.19, 0.13, -1.2);
-  things.wood.push(...tb.wood);
-  things.wax.push(...tb.wax);
+  return things;
+}
+
+/**
+ * The school's people while it is open (people/actors.js specs, the
+ * school's metres): the boys on the benches writing on their tablets,
+ * reading their rolls, listening; a boy before the master reciting from his
+ * tablet; the master in his chair teaching, his hand raised; the slave who
+ * brought a boy (the paedagogus) walking at the gate and waiting. Nobody
+ * while it is shut.
+ */
+export function schoolActors(state) {
+  if (state !== 'open') return [];
+  const boy = 0.78;
+  const tunics = [DYES.undyed, DYES.ochre, DYES.madder, DYES.oatmeal, DYES.green, DYES.weld, DYES.walnut];
+  const acts = ['write', 'write', 'sit', 'read', 'write', 'listen', 'read'];
+  const list = SEATS.map(([x, z, ry], i) => {
+    const clip = acts[i] === 'listen' ? 'sit' : acts[i];
+    const props = clip === 'write' ? { L: 'tablet', R: 'stylus' } : clip === 'read' ? { R: 'rollOpen' } : {};
+    // (The seated clips sit SEAT_H high: a boy's bench is his seat at his scale, his feet on the court.)
+    return { body: 'c', scale: boy, dress: ['tunic:knee', 'bulla'], hair: i % 2 ? 'crop' : 'curls', clip, props, at: [x, L.seatY - SEAT_H * boy, z], ry: ry + (i % 2 ? 0.12 : -0.1), seed: 50 + i, colours: { tunic: tunics[i] } };
+  });
+  list.push({ body: 'c', scale: boy, dress: ['tunic:knee', 'bulla'], hair: 'crop', clip: 'recite', props: { L: 'tablet' }, at: [0.32, L.floorY, -0.5], ry: Math.PI + 0.15, seed: 58, colours: { tunic: DYES.white, trim: DYES.white } });
+  // The master on his chair's cushion (its top 0.47 over the dais), his feet on the stool.
   const [cx, cz] = L.chair;
-  // (On the cushion, his feet on the footstool: the chair's seat 0.42 over the dais, the cushion's 0.05, the stool's 0.1.)
-  people.push(...person(mats, { cloth: 0xd8d0bc, cloth2: 0x6a4e34, hair: 0x6a625a, beard: true, long: true, sit: 0.37, arms: 'teach', lean: 0.04 }, cx, L.dais[4] + 0.1, cz + 0.02, 0));
-  // The slave who brought a boy, waiting by the gate with a roll under his arm.
-  people.push(...person(mats, { cloth: 0x8a7a62, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, 1.55, L.floorY, 3.2, -Math.PI * 0.85));
-  const r = roll(0.3, 0.035, 1.55 - 0.06, L.floorY + 1.1, 3.2 - 0.28, { ry: -Math.PI * 0.85 + Math.PI / 2 });
-  things.paper.push(...r.paper);
-  return { people, things };
+  list.push({ body: 'm', dress: ['tunic:knee', 'pallium'], hair: 'bald', beard: 'full', old: true, clip: 'teach', at: [cx, L.dais[4] + 0.47 - SEAT_H, cz + 0.02], ry: 0, seed: 59, colours: { tunic: DYES.oatmeal, mantle: DYES.walnut } });
+  // The paedagogus: in from the gate a few steps and back, a roll under his arm for his boy.
+  list.push({
+    body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'walk', props: { L: 'roll' }, at: [1.45, L.floorY, 3.45], ry: Math.PI + 0.25, seed: 60,
+    colours: { tunic: DYES.fawn, skin: 0x8c5e40 },
+    route: { length: 1.5, speed: 0.7, pauseEnd: 7, pauseStart: 4, clipEnd: 'listen', clipStart: 'idle', faceEnd: Math.PI, faceStart: Math.PI },
+  });
+  return list;
 }
 
 /** Build the school: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
@@ -420,10 +411,8 @@ export function buildSchool({ lod = 0, seed = 211 } = {}) {
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
   if (lod === 0) {
-    const { people: folk, things } = scholars(m);
-    people(p, m, 'scholars', folk, 'open');
-    p.add('tablets', m.wood, things.wood, { when: 'open', cast: false });
-    p.add('wax', m.paint, things.wax, { when: 'open', cast: false });
+    // (The people are actors: schoolActors. Their capsae lie by them.)
+    const things = capsae();
     p.add('capsae', m.leather, [...things.leather, ...things.strap], { when: 'open', cast: false });
     p.add('rolls', m.papyrus, things.paper, { when: 'open', cast: false });
   }

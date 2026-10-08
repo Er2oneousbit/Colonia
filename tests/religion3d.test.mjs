@@ -27,8 +27,9 @@ import { Box3, Group } from 'three';
 import { MODELS, hasModel, modelMatrix, modelLamps, partShows, modelFor } from '../src/render3d/models.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import {
-  RELIGION_TYPES, TEMPLE_TYPES, GRAND_TYPES, religionLook, templeState, festivalNow, godAngry, missionState,
+  RELIGION_TYPES, TEMPLE_TYPES, GRAND_TYPES, religionLook, templeState, festivalNow, godAngry, missionState, templeCast,
 } from '../src/render3d/models/religion.js';
+import { buildPiece } from '../src/render3d/people/pieces.js';
 import { NUMEN, GODS } from '../src/render3d/models/numina.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 
@@ -149,16 +150,23 @@ test('religion3d: every part shows in some state; the doors, the fire, the peopl
     assert.deepEqual(by('flames'), ['open', 'out'], key);
     assert.deepEqual(by('ash'), ['shut'], key);
     assert.deepEqual(by('garlands'), ['out'], key);
-    const people = (s, lod = 0) => partsOf(key, lod).filter((p) => /^(rite|feast)-/.test(p.name) && p.states.includes(s)).length;
-    assert.ok(people('open') >= 2 && people('out') >= 3, key);
-    assert.equal(people('shut'), 0, `${key}: nobody when unstaffed`);
-    assert.equal(people('open', 1), 0, `${key}: people only close up`);
+    // The people of the rites are actors (people/), not the body's parts.
+    assert.equal(partsOf(key).filter((p) => /^(rite|feast)-/.test(p.name)).length, 0, `${key}: no people in the kit`);
+    const size = key.split(':')[0];
+    const people = (s) => templeCast(size, s).actors;
+    assert.ok(people('open').length >= 2 && people('out').length >= 8, key);
+    assert.equal(people('shut').length, 0, `${key}: nobody when unstaffed`);
+    // The priest walks between the steps and the altar while the temple is kept; at a festival he sacrifices.
+    assert.ok(people('open').some((a) => a.routeLength > 0 && a.pieces.includes('prop:patera:R')), `${key}: the priest's way`);
+    assert.ok(['sacrifice@toga', 'flute', 'shoulder', 'cheer'].every((c) => people('out').some((a) => a.clipName === c)), `${key}: the festival's rite`);
   }
   // The mission post: the gate open while kept, the standard flying, the envoys at the gate.
   const mp = partsOf('mission_post');
   assert.deepEqual(mp.filter((p) => p.name === 'gate').map((p) => p.states.join()).sort(), ['open', 'shut']);
   assert.ok(mp.some((p) => p.name === 'standard-cloth' && p.states.join() === 'open'));
-  assert.ok(mp.some((p) => /^envoys-/.test(p.name) && p.states.join() === 'open'));
+  // The envoys are actors (people/): at the gate while it is kept, gone when not.
+  assert.ok(MODELS.mission_post.variant(building('mission_post')).actors.actors.length >= 2);
+  assert.equal(MODELS.mission_post.variant(building('mission_post', { efficiency: 0 })).actors.actors.length, 0);
 });
 
 test('religion3d: the body and the columns are shared: every god\'s temple of a size draws the same body, an order the same columns', () => {
@@ -175,7 +183,9 @@ test('religion3d: the body and the columns are shared: every god\'s temple of a 
       for (const m of v.more) assert.ok(MODELS[type].warm.includes(m.key) || /^(sacra:smoke:(thick|wrath)|pig:)/.test(m.key), `${type}: ${m.key} warmed`);
       // The god's own kit is the lesser part of the look: most of it is shared.
       const own = drawnKit(type, 0, 'open');
-      assert.ok(own < drawnKit(`${word}:body`, 0, 'open') + drawnKit(cols.key, 0, 'always') * cols.n, `${type}: ${own}`);
+      // (The shared side: the body, its columns, and the people of the rite, instanced pieces too.)
+      const people = v.actors.actors.reduce((n, a) => n + a.pieces.reduce((m, k) => m + buildPiece(k, 0).index.count / 3, 0), 0);
+      assert.ok(own < drawnKit(`${word}:body`, 0, 'open') + drawnKit(cols.key, 0, 'always') * cols.n + people, `${type}: ${own}`);
     }
     assert.deepEqual([...bodies], [`${word}:body`]);
   }

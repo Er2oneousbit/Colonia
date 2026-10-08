@@ -42,6 +42,7 @@ import { column, darkIn, FRESCO } from './domus.js';
 import { cypress, bush } from './learning.js';
 import { pot } from './healing.js';
 import { sacraMaterials, hearthFire, festoon, box, D } from './sacra.js';
+import { DYES } from '../people/actors.js';
 import { cultStatue } from './numina.js';
 
 /** The oracle's measures (metres). */
@@ -72,6 +73,18 @@ const O = THOLUS;
 const PY = O.floorY;
 const AB = PY + O.colH;
 const ENT = 0.62;
+
+/**
+ * The oracle's people (people/actors.js specs, its metres; it has no staff:
+ * always so): one come to consult the god praying on the approach before the
+ * steps, a woman veiled waiting her turn.
+ */
+export function tholusActors() {
+  return [
+    { body: 'm', dress: ['tunic:knee', 'toga'], hair: 'crop', clip: 'pray', at: [0.45, 0.03, 3.62], ry: Math.PI - 0.15, seed: 131, colours: { mantle: DYES.candida } },
+    { body: 'f', dress: ['tunic:long:stola', 'palla:veil'], hair: 'bun', clip: 'listen', at: [-0.55, 0.03, 3.68], ry: Math.PI + 0.35, seed: 132 },
+  ];
+}
 
 /** The columns' places [x, z, ry] (each turned to face out from the middle) and the floor they stand on. */
 export const THOLUS_COLUMNS = Object.freeze({
