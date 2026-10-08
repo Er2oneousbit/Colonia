@@ -34,6 +34,8 @@ import { UnitMotion, CORPSE_S, SINK_S } from './motion.js';
 import { ThreatGrid } from './threat.js';
 import { toView } from '../../render/view.js';
 import { HALF_W, HALF_H } from '../../config.js';
+import { UNIT_TYPES } from '../../data/units.js';
+import { ART_PX } from '../projection.js';
 
 const FIRST_ROOM = 32;
 const KEEP_FRAMES = 900;
@@ -309,6 +311,12 @@ export class UnitPass {
     this.stats.figures = base;
     this.stats.ms = performance.now() - t0;
     return this.used;
+  }
+
+  /** How high (world px) over unit `u`'s feet its health bar sits: over its head, its rider's, its tower. */
+  topOf(u) {
+    const m = u.type === 'wolf' ? 1.1 : u.type === 'elephant' ? 4.3 : u.type === 'chariot' ? 2.4 : UNIT_TYPES[u.type]?.mounted ? 2.9 : 2.05;
+    return m / 4 / ART_PX;
   }
 
   /** How far (tiles) unit `u`'s figures reach ahead of its place (a horse's head, a chariot's ponies). */

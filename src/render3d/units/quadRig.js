@@ -111,7 +111,7 @@ export const SPECIES = Object.freeze({
   wolf: {
     root: [0, 0.66, -0.34], spine: [0, 0.7, -0.12], chest: [0, 0.73, 0.16], neck: [0, 0.73, 0.33], neck2: [0, 0.8, 0.45], head: [0, 0.86, 0.55], jaw: [0, 0.8, 0.6],
     ear: [0.045, 0.93, 0.555], tail: [[0, 0.67, -0.49], [0, 0.6, -0.62], [0, 0.49, -0.74]], tailEnd: [0, 0.36, -0.83],
-    fore: [[0.085, 0.6, 0.27], [0.095, 0.4, 0.2], [0.085, 0.14, 0.23], [0.085, 0.05, 0.245]], foreToe: 0.075,
+    fore: [[0.085, 0.53, 0.27], [0.095, 0.35, 0.19], [0.085, 0.13, 0.24], [0.085, 0.05, 0.25]], foreToe: 0.075,
     hind: [[0.08, 0.62, -0.36], [0.09, 0.43, -0.27], [0.085, 0.2, -0.41], [0.085, 0.05, -0.385]], hindToe: 0.07,
     trunk: null,
     seat: null, deck: null,
@@ -119,7 +119,7 @@ export const SPECIES = Object.freeze({
   horse: {
     root: [0, 1.1, -0.52], spine: [0, 1.18, -0.18], chest: [0, 1.24, 0.3], neck: [0, 1.3, 0.56], neck2: [0, 1.52, 0.78], head: [0, 1.68, 0.92], jaw: [0, 1.52, 1.0],
     ear: [0.055, 1.79, 0.9], tail: [[0, 1.2, -0.76], [0, 1.08, -0.86], [0, 0.86, -0.92]], tailEnd: [0, 0.55, -0.95],
-    fore: [[0.15, 1.04, 0.44], [0.16, 0.8, 0.33], [0.145, 0.47, 0.37], [0.145, 0.15, 0.39]], foreToe: 0.1,
+    fore: [[0.15, 0.98, 0.44], [0.16, 0.76, 0.3], [0.145, 0.47, 0.38], [0.145, 0.16, 0.4]], foreToe: 0.1,
     hind: [[0.145, 1.06, -0.54], [0.16, 0.8, -0.37], [0.145, 0.53, -0.64], [0.145, 0.15, -0.6]], hindToe: 0.1,
     trunk: null,
     seat: { bone: 'spine', at: [0, 1.38, -0.02] }, deck: null,
@@ -265,8 +265,8 @@ export class QPose {
         // The shoulder blade swings about its top over the withers: the shoulder joint goes forward with
         // a leg reaching forward and back with one pushing back (most of a forelimb's reach in a stride).
         const lean = Math.atan2(t.z - A[2], A[1] - t.y);
-        const s = Math.max(-0.5, Math.min(0.5, lean * 0.45));
-        const r = (A[1] - t.y) * 0.4;
+        const s = Math.max(-0.6, Math.min(0.6, lean * 0.8));
+        const r = (A[1] - t.y) * 0.45;
         A[1] += r * (1 - Math.cos(s)) * -1;
         A[2] += r * Math.sin(s);
       }
@@ -358,12 +358,12 @@ export const GAITS = Object.freeze({
   // (A foot's ground while it is down, stride x duty, is held within what its leg reaches: about 0.5 m a
   // wolf's, 0.9 m a horse's, 1.3 m an elephant's, whose straight legs swing like a pendulum's.)
   'wolf:walk': { stride: 0.9, phase: [0.25, 0.75, 0, 0.5], duty: 0.6, lift: 0.07, fold: [-0.9, 0.7], bob: 0.012 },
-  'wolf:trot': { stride: 1.6, phase: [0, 0.5, 0.5, 0], duty: 0.32, lift: 0.1, fold: [-1.2, 0.95], bob: 0.02 },
-  'wolf:lope': { stride: 1.75, phase: [0.42, 0.52, 0, 0.1], duty: 0.25, lift: 0.12, fold: [-1.5, 1.2], bob: 0.05, flex: 0.2 },
+  'wolf:trot': { stride: 1.6, phase: [0, 0.5, 0.5, 0], duty: 0.28, lift: 0.1, fold: [-1.2, 0.95], bob: 0.02 },
+  'wolf:lope': { stride: 1.75, phase: [0.42, 0.52, 0, 0.1], duty: 0.24, bias: [-0.08, -0.02], lift: 0.12, fold: [-1.5, 1.2], bob: 0.03, flex: 0.12 },
   'wolf:stalk': { stride: 0.6, phase: [0.25, 0.75, 0, 0.5], duty: 0.7, lift: 0.06, fold: [-1.0, 0.8], bob: 0.006, low: 0.13 },
   'horse:walk': { stride: 1.6, phase: [0.25, 0.75, 0, 0.5], duty: 0.58, lift: 0.1, fold: [-1.0, 0.8], bob: 0.02 },
-  'horse:canter': { stride: 2.9, phase: [0.3, 0.55, 0, 0.3], duty: 0.3, lift: 0.16, fold: [-1.5, 1.1], bob: 0.05, flex: 0.06 },
-  'horse:gallop': { stride: 3.4, phase: [0.38, 0.5, 0, 0.12], duty: 0.26, lift: 0.18, fold: [-1.6, 1.2], bob: 0.06, flex: 0.08 },
+  'horse:canter': { stride: 2.9, phase: [0.3, 0.55, 0, 0.3], duty: 0.26, bias: [-0.03, 0], lift: 0.16, fold: [-1.5, 1.1], bob: 0.05, flex: 0.06 },
+  'horse:gallop': { stride: 3.4, phase: [0.38, 0.5, 0, 0.12], duty: 0.22, bias: [-0.04, 0], lift: 0.18, fold: [-1.6, 1.2], bob: 0.06, flex: 0.08 },
   'elephant:walk': { stride: 2.0, phase: [0.25, 0.75, 0, 0.5], duty: 0.62, lift: 0.14, fold: [-0.35, 0.3], bob: 0.03, low: 0.08 },
 });
 
@@ -377,18 +377,20 @@ export function gaitFoot(G, l, t) {
   const D = G.duty;
   const S = G.stride;
   const fore = l < 2;
+  // (A gait's stance may sit back of the leg's rest: a galloper's fore feet land nearer under it.)
+  const bias = G.bias ? G.bias[fore ? 0 : 1] : 0;
   if (p < D) {
     const s = p / D;
     // Back at the stride's speed: S a loop, so S x D while down. Rolled onto the toe as it leaves.
     const roll = smooth(clamp01((s - 0.75) / 0.25));
-    return { y: 0, z: S * D * (0.5 - s), cannon: (fore ? -0.12 : 0.1) * roll, pitch: 0.35 * roll, down: 1 };
+    return { y: 0, z: S * D * (0.5 - s) + bias, cannon: (fore ? -0.12 : 0.1) * roll, pitch: 0.35 * roll, down: 1 };
   }
   const u = (p - D) / (1 - D);
   const k = smooth(u);
   const fold = fore ? G.fold[0] : G.fold[1];
   return {
     y: G.lift * Math.sin(Math.PI * u) * (fore ? 1 : 0.85),
-    z: S * D * (-0.5 + k) + 0.04 * S * Math.sin(Math.PI * u) * (fore ? 1 : -0.5),
+    z: S * D * (-0.5 + k) + bias + 0.04 * S * Math.sin(Math.PI * u) * (fore ? 1 : -0.5),
     cannon: fold * Math.sin(Math.PI * Math.min(1, u * 1.15)),
     pitch: (fore ? 0.9 : 0.6) * Math.sin(Math.PI * u) * (1 - u * 0.5),
     down: 0,
