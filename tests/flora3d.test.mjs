@@ -27,7 +27,7 @@ import { Group, Box3 } from 'three';
 import { GameMap, Terrain, Road } from '../src/world/map.js';
 import { generateMap } from '../src/world/mapgen.js';
 import { SPECIES, SPECIES_IDS, CLIMATES, lookOf, looksOf, climateOf, ROCKS } from '../src/render3d/flora/species.js';
-import { treesOfTile, rocksOfTile, habitatOf, standField } from '../src/render3d/flora/layout.js';
+import { treesOfTile, rocksOfTile, habitatOf, standField, WOOD_SCALE } from '../src/render3d/flora/layout.js';
 import { Flora, floraLod, tileFlora, FLORA_LOD0_PX, FLORA_LOD1_PX, CHUNK } from '../src/render3d/flora/flora.js';
 import { buildTree } from '../src/render3d/flora/treeModel.js';
 import { buildRock } from '../src/render3d/flora/rockModel.js';
@@ -65,9 +65,24 @@ test('flora3d: a tile\'s plants come from the variant layer and its place: the s
       assert.ok(SPECIES[p.sp], p.sp);
       assert.ok(p.x > 0 && p.x < 1 && p.z > 0 && p.z < 1, JSON.stringify(p));
       assert.ok(p.v === 0 || p.v === 1);
-      assert.ok(p.s > 0.5 && p.s < 1.3);
+      assert.ok(p.s / WOOD_SCALE > 0.5 && p.s / WOOD_SCALE < 1.3);
     }
   }
+});
+
+test('flora3d: a wood stays below the town: trees about twice a house high, and room between the crowns', () => {
+  const wood = woodOf(riverMap());
+  let plants = 0;
+  let tallest = 0;
+  for (const list of wood.values()) {
+    plants += list.length;
+    for (const p of list) if (SPECIES[p.sp].form !== 'shrub') tallest = Math.max(tallest, SPECIES[p.sp].size.h * p.s);
+  }
+  // A one-storey house is about 3 m to its ridge: no tree past 7.5 m, the slim cypress the tallest (at nature's size they reached 11).
+  assert.ok(tallest < 7.5, `the tallest tree ${tallest.toFixed(1)} m`);
+  // About one plant and a third a tile (it was nearer two: a thicket that hid the streets).
+  const per = plants / wood.size;
+  assert.ok(per > 1 && per < 1.45, `${per.toFixed(2)} plants a tile`);
 });
 
 test('flora3d: the banks take the riparian trees, dry ground the pines and holm oaks; woods grow in stands', () => {

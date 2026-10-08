@@ -71,6 +71,7 @@ uniform int mode;
 uniform vec3 axR;
 uniform vec3 axY;
 uniform vec3 axB;
+uniform vec3 toCam;
 varying vec2 vUv;
 varying vec3 vColor;
 varying vec3 vNormalW;
@@ -83,7 +84,12 @@ void main() {
   if ( mode == 0 ) {
     gl_FragColor = vec4( t.rgb * vColor * tint, 1.0 );
   } else {
+    // A leaf card seen from behind shows its back: its normal turned toward the camera, as three
+    // does for the full model. (Left facing away, the game lit it as a mirror at a grazing angle:
+    // patches of the sky's blue in the crowns. By the camera's direction, not gl_FrontFacing:
+    // the cards' winding is not to be trusted.)
     vec3 n = normalize( vNormalW );
+    if ( dot( n, toCam ) < 0.0 ) n = -n;
     // In the card's own axes (along the screen, up, toward the camera across the ground).
     vec3 c = vec3( dot( n, axR ), dot( n, axY ), dot( n, axB ) );
     gl_FragColor = vec4( normalize( c ) * 0.5 + 0.5, 1.0 );
@@ -106,6 +112,7 @@ function bakeMaterial(src) {
       axR: { value: CAM_R.clone() },
       axY: { value: new Vector3(0, 1, 0) },
       axB: { value: new Vector3(CAM_B.x, 0, CAM_B.z).normalize() },
+      toCam: { value: CAM_B.clone() },
     },
     side: DoubleSide,
   });

@@ -19,7 +19,8 @@
  *     about two trees in five are drawn from the whole mix instead, and the
  *     accents (the cypress) only that way.
  *   - Each tile has a main tree near its middle; some a second, smaller one
- *     (a big tree's crown fills a tile: 4 m) and some a shrub under them.
+ *     (a big tree's crown fills a tile: 4 m) and some a shrub under them,
+ *     all at WOOD_SCALE of their species' size.
  *
  * Rocks: an outcrop, boulders and scree by the tile's byte; on a volcanic
  * province's map (Puteoli, Volsinii) some boulders are dark lava.
@@ -35,6 +36,13 @@ import { SPECIES, SPECIES_IDS, CLIMATES, ACCENTS, ROCKS, TREE_VARIANTS } from '.
 export const STAND_CELL = 6;
 /** The share of trees drawn from the stand's species (the rest from the whole mix). */
 const STAND_SHARE = 0.62;
+/**
+ * Every tree's scale on top of its species' size. At nature's size a wood
+ * rose three times a house's height and closed into one canopy that hid the
+ * streets beside it; at this scale a tree stands about twice a house's
+ * height, and each crown reads on its own.
+ */
+export const WOOD_SCALE = 0.68;
 
 /** A stable 0..1 from integers (a 32-bit hash: the same tree on every machine). */
 export function hashUnit(a, b = 0, c = 0) {
@@ -103,9 +111,12 @@ export function treesOfTile(map, i, ctx) {
   const out = [];
   const main = pick(1);
   const big = SPECIES[main].size.r >= 2.4;
-  // The main tree near the tile's middle; a big crown alone, a smaller one with a second tree.
-  const second = !big && (vb & 3) < 2;
-  const spread = second ? 0.17 : 0.1;
+  // The main tree near the tile's middle; a big crown alone, a smaller one with a second
+  // tree on one tile in four (more made a thicket that read as one mass).
+  const second = !big && (vb & 3) === 0;
+  // (A lone tree wanders further from the middle: smaller than its tile, in a row of tiles they
+  // stood in lines like an orchard's.)
+  const spread = second ? 0.17 : 0.22;
   const a = h(3) * Math.PI * 2;
   out.push(plant(main, 0.5 + Math.cos(a) * spread * h(4), 0.5 + Math.sin(a) * spread * h(4), 0.88 + h(5) * 0.26, h(6), h(7)));
   if (second) {
@@ -115,7 +126,7 @@ export function treesOfTile(map, i, ctx) {
     out.push(plant(sp, 0.5 - Math.cos(a) * r, 0.5 - Math.sin(a) * r, 0.62 + h(10) * 0.18, h(11), h(12)));
   }
   // A shrub under them on drier ground (never on the banks: reeds and grass there).
-  if (habitatOf(map.waterDist[i]) !== 'wet' && ((vb >> 2) & 7) < 3 && clim.shrub) {
+  if (habitatOf(map.waterDist[i]) !== 'wet' && ((vb >> 2) & 7) < 2 && clim.shrub) {
     const b = a + Math.PI * (0.5 + h(13));
     out.push(plant(clim.shrub, 0.5 + Math.cos(b) * 0.3, 0.5 + Math.sin(b) * 0.3, 0.7 + h(14) * 0.4, h(15), h(16)));
   }
@@ -124,7 +135,7 @@ export function treesOfTile(map, i, ctx) {
 
 /** A plant record: species `sp` at (x, z) on its tile, scale s, its shape and turn from two hashes. */
 function plant(sp, x, z, s, hv, hy) {
-  return { sp, v: Math.floor(hv * TREE_VARIANTS) % TREE_VARIANTS, x, z, yaw: hy * Math.PI * 2, s };
+  return { sp, v: Math.floor(hv * TREE_VARIANTS) % TREE_VARIANTS, x, z, yaw: hy * Math.PI * 2, s: s * WOOD_SCALE };
 }
 
 /**
