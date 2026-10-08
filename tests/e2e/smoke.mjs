@@ -4832,6 +4832,66 @@ try {
         await gh.close();
       }
 
+      // 8a3b. The training buildings of the shows as models (render3d/models/training.js): the console's
+      //       `training` puts an actor troupe, a gladiator school, a menagerie and a chariot stable by
+      //       the demo city; each draws as a model (waited for), its people and beasts with it, and a
+      //       click on its footprint opens its panel.
+      {
+        const gt = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const terrs = [];
+        gt.on('pageerror', (e) => terrs.push(`pageerror: ${e.message}`));
+        gt.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) terrs.push(m.text()); });
+        await gt.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gt.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const SHOWS = ['actor_troupe', 'gladiator_school', 'menagerie', 'chariot_maker'];
+        const placed = await gt.evaluate((types) => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const said = app.ui.console.run('training');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = { said };
+          for (const t of types) {
+            const b = [...app.game.buildings.values()].find((v) => v.type === t);
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size } : null;
+          }
+          return out;
+        }, SHOWS);
+        const trained = [];
+        for (const type of SHOWS) {
+          const b = placed[type];
+          if (!b) {
+            trained.push({ type, missing: true });
+            continue;
+          }
+          await gt.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gt.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await gt.evaluate((t) => { const mp = window.colonia.renderer.stats.modelPass || {}; return { n: (mp.byType || {})[t] || 0, people: mp.people || 0 }; }, type);
+          const p = await gt.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gt.mouse.click(p.x, p.y);
+          await gt.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gt.evaluate(() => window.colonia.ui.info.target);
+          trained.push({ type, drawn: drawn.n, people: drawn.people, picked: target?.kind === 'building' && target.id === b.id, target });
+        }
+        await gt.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gt.screenshot({ path: path.join(shots, 'smoke-webgl-training.png') });
+        // (The menagerie's beasts and the stable's horses are actors: people > 0 even with the staff away.)
+        check('WebGL renderer: the actor troupe, the gladiator school, the menagerie and the chariot stable are 3D models with their people and beasts, and a click picks each',
+          trained.every((m) => !m.missing && m.drawn >= 1 && m.people >= 1 && m.picked), JSON.stringify({ said: placed.said, trained }));
+        check('WebGL renderer, training models: no page errors', terrs.length === 0, terrs.join(' | '));
+        await gt.close();
+      }
+
       // 8a4. Gardens, statues, the gardeners' yard and the triumphal arch as models (render3d/
       //      models/decor.js): the console's `gardens` lays them out beside the demo city; each
       //      draws as a model (waited for: under a software GL kits are built a few a frame) and

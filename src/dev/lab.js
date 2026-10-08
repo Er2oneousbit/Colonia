@@ -57,6 +57,9 @@
  * walkers.closeUp(i), walkers.loops, walkers.stats(), walkers.setLod(n)).
  * (the Ships scene, labShips.js: Shift+B, every vessel in 3D on the game's water, with
  * ships.closeUp(i), ships.where(i), ships.ships, ships.stats(), ships.setLod(n)).
+ * (the Training scene, labTraining.js: Shift+T, the actor troupe, the gladiator
+ * school, the menagerie and the chariot stable in their states, with
+ * training.items, training.triangles(lod) and commerceTriangles('training', lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -92,6 +95,7 @@ import { buildPeopleScene } from './labPeople.js';
 import { buildWalkersScene } from './labWalkers.js';
 import { buildShipsScene } from './labShips.js';
 import { buildArmyScene } from './labUnits.js';
+import { buildTrainingScene } from './labTraining.js';
 import { buildVenuesScene } from './labVenues.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
@@ -347,6 +351,8 @@ async function main() {
   commerce.ships = buildShipsScene(groundTex, look);
   // The Army scene (labUnits.js, the backslash key): every fighting unit drawn in 3D, in cells of open ground.
   commerce.army = buildArmyScene();
+  // The Training scene (labTraining.js, Shift+T): the troupe, the gladiators, the menagerie, the stable.
+  commerce.training = buildTrainingScene();
   // The Venues scene (labVenues.js, Shift+E): the theatre, the amphitheatre, the Great Arena and the hippodrome, with a show on and idle.
   commerce.venues = buildVenuesScene();
   for (const s of Object.values(commerce)) {
@@ -753,6 +759,11 @@ async function main() {
       setScene('ships');
       return;
     }
+    // Shift+T: the Training scene (T alone is rain).
+    if (e.shiftKey && k === 't') {
+      setScene('training');
+      return;
+    }
     // Shift+E: the Venues scene (E alone turns the view).
     if (e.shiftKey && k === 'e') {
       setScene('venues');
@@ -1068,6 +1079,12 @@ async function main() {
       get units() { return commerce.army.figures; },
       where: (i) => commerce.army.where(i),
       stats: () => commerce.army.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Training scene (labTraining.js): the buildings and their states, their triangles, the level of detail. */
+    training: {
+      get items() { return commerce.training.items.map((it) => ({ ...it })); },
+      triangles: (l) => commerce.training.triangles(l),
       setLod: (n) => setFountainLod(n),
     },
     /** The Venues scene (labVenues.js): a venue close up, the venues, where each is, triangles, the passes' stats. */

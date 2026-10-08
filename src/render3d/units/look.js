@@ -407,8 +407,8 @@ const FACTION = [0xa3352b, 0xece6d8, 0x3f8a4a, 0x3a62a8];
  *            middle and the two trace horses outside
  *   venator  the beast hunter: a short tunic, bound legs, the arm guard,
  *            the hunting spear
- *   lion     a lion of the hunts: the wolf's frame half again its size, a
- *            tawny coat and the dark mane (quadMesh.js `mane`)
+ *   lion     a lion of the hunts: the menagerie's maned lion (quadMesh.js),
+ *            stalking at a walk, roaring as it rushes in
  */
 const SHOW_LOOKS = {
   racer: (u, seed) => {
@@ -424,10 +424,7 @@ const SHOW_LOOKS = {
     return [driver, car, ...team];
   },
   venator: (u, seed) => [man(seed, { dress: ['tunic:short', 'caligae'], hair: 'crop', beard: 'short', colours: { tunic: pick([DYES.ochre, DYES.saffron, DYES.madder], seed, 1), metal: 0xb4b8be, leather: 0x5a3a24, skin: pick(SKIN.italian, seed, 3), hair: pick(HAIR.dark, seed, 4) } }, ['manica', 'wraps', 'belt'], { R: 'prop:spear' }, { ...SPEARMAN, ready: 'guard' })],
-  lion: (u, seed) => {
-    const lion = beast('quad:wolf:mane', { skin: 0xc0904e, mantle: 0xc49452, hair: 0xb08040, trim: 0xe2c89a, accent: 0xc89a3a, leather: 0x5e3a1c },
-      { stand: 'wolf:stand', slow: 'wolf:trot', fast: 'wolf:lope', walk: 'wolf:walk', attack: 'wolf:bite', fall: 'wolf:fall', rest: 'wolf:lie', stalk: 'wolf:stalk' });
-    lion.scale = 1.45;
-    return [lion];
-  },
+  // (The lion of the menagerie's, quadRig.js: its stalk round the hunter a walk, its rush a roar on its hind legs' spring.)
+  lion: () => [beast('quad:lion', { mantle: 0xc0904e, skin: 0xc0904e, hair: 0x7a5228, trim: 0xe6d0a8, leather: 0x8a5a4a, accent: 0xc8962e },
+    { stand: 'lion:stand', slow: 'lion:walk', fast: 'lion:walk', walk: 'lion:walk', attack: 'lion:roar', fall: 'lion:lie', rest: 'lion:lie', stalk: 'lion:walk' })],
 };

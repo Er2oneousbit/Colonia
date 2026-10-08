@@ -273,13 +273,17 @@ test('venues3d: the shows\' looks build: a quadriga, a venator, a lion, the acto
   assert.equal(racer.figures.filter((f) => f.species === 'horse').length, 4, 'four horses');
   assert.ok(racer.figures.some((f) => f.rigid === 'cart:chariot'));
   const lion = unitLook({ id: -6, type: 'wolf', look: 'lion' }, {});
-  assert.equal(lion.figures[0].quad, 'quad:wolf:mane');
-  const plain = buildUnitPiece('quad:wolf', 1);
-  const maned = buildUnitPiece('quad:wolf:mane', 1);
-  assert.ok(maned.index.count > plain.index.count, 'the mane');
+  assert.equal(lion.figures[0].quad, 'quad:lion');
+  assert.ok(buildUnitPiece('quad:lion', 1).index.count > 0, 'the lion');
   const v = unitLook({ id: -7, type: 'gladiator', look: 'venator' }, {});
   assert.equal(v.figures.length, 1);
   for (const kit of [0, 1, 2]) assert.ok(unitLook({ id: -8, type: 'gladiator', kit }, {}).key.endsWith(`|${kit}`), 'a gladiator\'s kit in his look\'s key');
-  for (const k of ['prop:persona:L', 'prop:personaComic:L', 'prop:rudis:R']) for (let lod = 0; lod < 3; lod++) assert.ok(buildPiece(k, lod).index.count > 0, k);
+  // The actors' masks and the referee's rod are the training buildings' (people/showProps.js), named by the actors.
+  for (const t of ['theater', 'colosseum']) {
+    const { b, game } = scene(t);
+    const keys = MODELS[t].variant(b, {}, { game }).actors.actors.flatMap((a) => a.pieces);
+    for (const k of keys) for (let lod = 0; lod < 3; lod++) assert.ok(buildPiece(k, lod).index.count > 0, k);
+    assert.ok(keys.some((k) => k.startsWith(t === 'theater' ? 'sprop:tragic' : 'sprop:virga')), `${t}: ${keys}`);
+  }
   void VENUE_MODELS;
 });

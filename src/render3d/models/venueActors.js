@@ -26,7 +26,7 @@ import { CIRCUS_SPOTS, CIRCUS } from './circus.js';
 function player(at, ry, seed, { clip = 'orate', comic = false, colours = {} } = {}) {
   return {
     body: 'm', dress: comic ? ['tunic:short', 'pallium'] : ['tunic:long', 'pallium'], hair: 'curls', at, ry, seed, clip,
-    props: { L: comic ? 'personaComic' : 'persona' },
+    props: { L: comic ? 'sprop:comic' : 'sprop:tragic' },
     colours: { tunic: DYES.saffron, mantle: DYES.madder, ...colours },
   };
 }
@@ -69,7 +69,7 @@ export function theaterActors(state, acts = {}) {
 
 /** The summa rudis: the referee of the bouts in his white tunic with its stripes, his staff upright. */
 function referee(at, ry, seed) {
-  return { body: 'm', dress: ['tunic:knee:broad'], hair: 'bald', beard: 'short', old: true, at, ry, seed, clip: 'guard', props: { R: 'rudis' }, colours: { tunic: DYES.white, trim: DYES.purple } };
+  return { body: 'm', dress: ['tunic:knee:broad'], hair: 'bald', beard: 'short', old: true, at, ry, seed, clip: 'guard', props: { R: 'sprop:virga' }, colours: { tunic: DYES.white, trim: DYES.purple } };
 }
 
 /** An attendant of the arena (a slave of the games), raking the sand between the shows. */

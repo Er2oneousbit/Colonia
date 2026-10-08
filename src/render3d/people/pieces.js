@@ -14,6 +14,13 @@
  *   caligae:<kind>  helmet:<kind>  bulla:<kind>  wreath:<kind>
  *   hair:<crop|curls|bun|bald>:<kind>      beard:<full|short>:<kind>
  *   prop:<name>:<L|R>
+ * and, for the buildings of the shows (people/actors.js: a spec's `gear`,
+ * `beast`, `rigid`, and props given by their full key):
+ *   ugear:<name>[:opt]  uprop:<name>:<L|R>   (units/gear.js, units/props.js)
+ *   wprop:<name>:<L|R>                       (walkers/props.js)
+ *   sprop:<name>:<L|R>                       (showProps.js: masks, a rudis...)
+ *   quad:<species>[:opt]                     (units/quadMesh.js: a beast)
+ *   cart:<kind>                              (walkers/beasts.js: a chariot)
  * ----------------------------------------------------------------------------
  */
 
@@ -21,6 +28,12 @@ import { buildBody } from './body.js';
 import { tunic, toga, palla, paenula, lorica, limus, caligae, helmet, bulla, wreath } from './garments.js';
 import { hair, beard } from './hair.js';
 import { prop } from './props.js';
+import { showProp } from './showProps.js';
+import { unitGear } from '../units/gear.js';
+import { unitProp } from '../units/props.js';
+import { quadMesher } from '../units/quadMesh.js';
+import { walkerProp } from '../walkers/props.js';
+import { rigidMesher } from '../walkers/beasts.js';
 
 /** The Mesher of a piece by its key at level `lod`. */
 export function pieceMesher(key, lod) {
@@ -45,6 +58,14 @@ export function pieceMesher(key, lod) {
     case 'hair': return hair(a, b || 'm', lod);
     case 'beard': return beard(a, b || 'm', lod);
     case 'prop': return prop(a, b || 'R', lod);
+    // (Appended: what a building's actors may also wear, hold or be, from the units', the walkers' and the
+    // shows' pieces: a gladiator's helmet and net, a keeper's haunch of meat, a beast, a racing chariot.)
+    case 'ugear': return unitGear(a, 'm', lod, new Set([b, ...rest].filter(Boolean)));
+    case 'uprop': return unitProp(a, b || 'R', lod);
+    case 'wprop': return walkerProp(a, b || 'R', lod);
+    case 'sprop': return showProp(a, b || 'R', lod);
+    case 'quad': return quadMesher(key, lod);
+    case 'cart': return rigidMesher(key, lod);
     default: throw new Error(`No people piece ${key}`);
   }
 }

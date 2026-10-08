@@ -34,9 +34,6 @@
  *   shears    a gardener's spring shears
  *   sweep     a ship's long oar (clips.js ROW_SHIP), rocked about its thole
  *             by clips.js rowShip
- *   rudis     the referee's staff at the bouts (models/venueActors.js)
- *   persona, personaComic  an actor's mask worn over the head, tragic or
- *             comic: on the head's bone, not a hand's (wornMask)
  * ----------------------------------------------------------------------------
  */
 
@@ -310,45 +307,6 @@ const PROPS = {
     boxAt(m, [0, L - 0.33, 0], 0.15, 0.66, 0.018, SLOTS.WOOD, b, 0.88);
   },
 };
-
-/**
- * An actor's mask (persona), worn over the whole head as the Roman stage's
- * were (linen and plaster, painted, with the hair on it): carried by the
- * head's bone, not a hand's, so it is made in the head's frame at rest and
- * moved back by the prop bone's place, which prop() adds. 'tragic': the
- * tall onkos of hair over the brow, the mouth open and turned down;
- * 'comic': the wide trumpet mouth of the comedy's slaves and old men.
- */
-function wornMask(m, lod, b, kind) {
-  const W = rigid('head');
-  const at = BONES[BONE[b]].at;
-  const C = [0, 1.615, 0.014];
-  const off = (p) => [p[0] - at[0], p[1] - at[1], p[2] - at[2]];
-  const rows = lod === 0 ? 12 : lod === 1 ? 7 : 4;
-  const cols = lod === 0 ? 16 : lod === 1 ? 9 : 6;
-  const tragic = kind === 'tragic';
-  m.grid(rows, cols, (i, j) => {
-    const th = Math.PI * (i / rows);
-    const ph = TAU * (j / cols);
-    // The onkos: the hair piled high over the brow and the crown.
-    const lift = tragic && th < Math.PI * 0.45 ? 0.07 * Math.cos((th / (Math.PI * 0.45)) * (Math.PI / 2)) : 0;
-    const p = [C[0] + Math.sin(th) * Math.sin(ph) * 0.1, C[1] + Math.cos(th) * (0.138 + lift), C[2] + Math.sin(th) * Math.cos(ph) * 0.118];
-    // The face is the front below the hairline; the rest is the mask's hair.
-    const front = Math.cos(ph) > 0.35 && th > Math.PI * (tragic ? 0.33 : 0.3);
-    return { p: off(p), c: off(C), uv: [ph * 0.05, th * 0.05], w: W, slot: front ? SLOTS.PAPYRUS : SLOTS.HAIR, tone: front ? 1.12 : 1 };
-  });
-  if (lod === 2) return;
-  // The eyes, cut through (dark), and the mouth: open and drawn down (tragic) or a wide grin (comic).
-  for (const s of [1, -1]) boxAt(m, off([s * 0.036, 1.632, 0.128]), 0.026, tragic ? 0.012 : 0.016, 0.012, SLOTS.DARK, 'head');
-  boxAt(m, off([0, 1.548, 0.127]), tragic ? 0.034 : 0.07, tragic ? 0.03 : 0.024, 0.014, SLOTS.DARK, 'head');
-  // The brows: painted dark, raised in grief or in a comic leer.
-  for (const s of [1, -1]) boxAt(m, off([s * 0.036, tragic ? 1.656 : 1.664, 0.124]), 0.034, 0.007, 0.01, SLOTS.BROW, 'head');
-}
-
-// The summa rudis's staff (the referee of the bouts, a retired gladiator): a long light rod, held upright.
-PROPS.rudis = (m, lod, b) => lathe(m, [0, -0.85, 0], [0, 1, 0], [[0.011, 0], [0.012, 1.5], [0.008, 1.62]], Math.max(4, SEG[lod] - 4), SLOTS.WOOD, b, { tone: () => 0.95 });
-PROPS.persona = (m, lod, b) => wornMask(m, lod, b, 'tragic');
-PROPS.personaComic = (m, lod, b) => wornMask(m, lod, b, 'comic');
 
 export const PROP_NAMES = Object.freeze(Object.keys(PROPS));
 

@@ -226,8 +226,7 @@ export function huntAt(cx, cz, tick, idBase) {
   out.push({ u: hunter, x: cx, z: cz, dx: 0, dz: 0, foe: [lx - cx, lz - cz] });
   const lion = unit(idBase - 1, 'wolf', { look: 'lion', state: rushing ? 'fight' : 'hunt' });
   lion.moving = !rushing || r > 0.91;
-  // (The lion is drawn half again a wolf's size: its legs keep pace with the ground at that size.)
-  lion.walked = ((1.4 * Math.min(t, 72) / 72 * Math.PI * 1.6 + (rushing ? (1.4 - r) : 0)) / TILE_M / 1.45) % 100;
+  lion.walked = ((1.4 * Math.min(t, 72) / 72 * Math.PI * 1.6 + (rushing ? (1.4 - r) : 0)) / TILE_M) % 100;
   const dx = rushing ? -Math.cos(a) : -Math.sin(a);
   const dz = rushing ? -Math.sin(a) : Math.cos(a);
   if (rushing && r <= 0.91) lion.strikeTick = lastBeat(tick, tick - t + 81, 16);
