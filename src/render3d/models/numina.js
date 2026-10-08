@@ -445,7 +445,7 @@ export function acroterion(god, where, lod = 0, w = 4.6, side = 1) {
     }
     case 'neptune': return placeBins(dolphin(lod, key, 0.75), 0, 0.28 * s, 0, { s, ry: side > 0 ? Math.PI : 0 });
     case 'mercury': return placeBins(petasus(lod, key, 0.42), 0, 0.02, 0, { s });
-    case 'mars': return placeBins(clipeus(lod, key, 0.24), 0, 0.26 * s, 0, { s, ry: side * 0.6 });
+    case 'mars': return placeBins(clipeus(lod, key, 0.16), 0, 0.18 * s, 0, { s, ry: side * 0.6 });
     default: return placeBins(dove(lod, key, 0.38), 0, 0, 0, { s, ry: side > 0 ? Math.PI : 0 });
   }
 }

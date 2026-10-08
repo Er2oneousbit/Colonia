@@ -89,10 +89,12 @@ function walls(lod, seed, out) {
   const ph = 2.45;
   for (const s of [-1, 1]) out.trav.push(slab(0.55, ph, 0.62, { bevel: 0.02, seed: seed + 30 + s, wobble: 0, tone: 0.03, grime: 0.3 }).translate(s * (g + 0.275), 0, OUT - t / 2));
   out.trav.push(box(2 * g + 1.2, 0.26, 0.62, 0, ph, OUT - t / 2, 0.92));
-  const r = gable({ x0: -g - 0.62, x1: g + 0.62, z0: OUT - t / 2 - 0.36, z1: OUT - t / 2 + 0.36, eaveY: ph + 0.26, pitch: D(24), along: 'z', over: 0.12, gableOver: 0.1, lod, seed: seed + 40 });
+  // (Its ridge across the wall, the slopes to the street and the yard: a canopy over the passage.)
+  const gz = OUT - t / 2;
+  const r = gable({ x0: -g - 0.6, x1: g + 0.6, z0: gz - 0.32, z1: gz + 0.32, eaveY: ph + 0.26, pitch: D(26), along: 'x', over: 0.1, gableOver: 0.08, lod, seed: seed + 40 });
   out.tile.push(...r.tile);
   out.wood.push(...r.wood);
-  out.stucco.push(gableTri(-g - 0.6, g + 0.6, OUT - t / 2 + 0.38, 0.06, ph + 0.26, r.ridgeY - 0.03));
+  for (const s of [-1, 1]) out.stucco.push(gableTri(-0.32, 0.32, 0.05, 0.1, ph + 0.26, r.ridgeY - 0.02).rotateY(Math.PI / 2).translate(s * (g + 0.55), 0, gz));
   // A word of welcome in the threshold's mosaic: PAX.
   out.tesserae.push(...threshold('PAX', 0, 0.03, OUT - t / 2, 2 * g - 0.1, 0.5, lod));
 }

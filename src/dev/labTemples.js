@@ -56,7 +56,7 @@ Mars Ultor, crimson (a trophy of arms, a crested helmet on the gable, shields of
 Venus as Caesar's Venus Genetrix, pale blue and rose (a shell between doves, myrtles and roses).</p>
 <p><b>The grand temple</b> (<i>templum</i>): after Mars Ultor in the Forum of Augustus and Apollo's temple at Pompeii: marble, six columns
 across the front and four down each side, the back a solid wall; a big altar in a court ringed by porticoes, the precinct's wall closing
-it. <b>The oracle</b>: a tholos (Athena Pronaia below Delphi, Vesta at Tivoli) of ten Corinthian columns on three steps, garlands and
+it. <b>The oracle</b>: a tholos (Athena Pronaia below Delphi, the round temple on the cliff at Tivoli) of ten Corinthian columns on three steps, garlands and
 ox skulls on its frieze, the cleft in the rock breathing vapour over its spring, the tripod over the omphalos inside, Apollo's laurel,
 bronze tripods burning. <b>The mission post</b>: a sacellum of Pax, her statue between two columns, the envoys' lodging, gifts of wine,
 cloth and pottery for the villages, an olive, the white standard with the herald's caduceus.</p>

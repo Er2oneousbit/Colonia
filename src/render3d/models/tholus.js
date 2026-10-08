@@ -6,7 +6,7 @@
  *
  *   - The tholos: the round temple the Greeks built in their sanctuaries
  *     (the tholos of Athena Pronaia below Delphi, on three steps) and the
- *     Romans after them (the temple of Vesta at Tivoli on its cliff over
+ *     Romans after them (the round temple at Tivoli on its cliff over
  *     the falls, eighteen Corinthian columns round a cella with a door and
  *     two windows, garlands and ox skulls carved on its frieze; the round
  *     temple by the Tiber). Here ten Corinthian columns (kits of their
@@ -128,8 +128,10 @@ function shrine(lod, seed, out) {
     for (const [y0, y1] of spans) out.marble.push(arcPiece(R, R - O.wall, y0, y1, a0, a1));
   }
   // The door's frame and lintel; the windows' sills; the dark inside the windows.
-  for (const s of [-1, 1]) out.marble.push(box(0.16, dh + 0.05, 0.14, s * (dw + 0.08), PY, R + 0.02, 0.97));
-  out.marble.push(box(2 * dw + 0.42, 0.2, 0.18, 0, PY + dh, R + 0.03, 0.97));
+  // (Set into the curve of the drum: each jamb's back in the wall where it stands, the lintel's ends too.)
+  const onWall = (x) => Math.sqrt(R * R - x * x);
+  for (const s of [-1, 1]) out.marble.push(box(0.13, dh + 0.04, 0.14, s * (dw + 0.065), PY, onWall(dw + 0.13) + 0.04, 0.97));
+  out.marble.push(box(2 * dw + 0.3, 0.17, 0.22, 0, PY + dh, onWall(dw + 0.15) + 0.09, 0.97));
   for (const s of [-1, 1]) {
     out.marble.push(box(0.12, 0.08, 0.7, s * (R + 0.04), PY + 1.46, 0, 0.95));
     if (lod < 2) out.dark.push(box(0.05, 0.9, 0.62, s * (R - O.wall - 0.03), PY + 1.5, 0));

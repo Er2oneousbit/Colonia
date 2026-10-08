@@ -15,6 +15,7 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
 import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoLearning, buildDemoHealth, buildDemoGardens, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
 import { buildDemoGovernment } from '../dev/demoCity.js';
+import { buildDemoTemples } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -75,6 +76,7 @@ export const CONSOLE_HELP = [
   ['learning', 'Build a library and an academy near the city (and a school if it has none)'],
   ['government [house|villa|palace]', 'Build a senate house near the city (if it has none) and the governor\'s residence of that grade (default: palace), taking down the one standing'],
   ['gardens [n] [wild]', 'Lay out n gardens (default 24) in blocks beside the city, statues of each size, a gardeners\' yard and a triumphal arch across a road; "wild" leaves every garden and statue untended'],
+  ['temples [n]', 'Build a small temple of each god (n of each, default 1), a grand temple of each, the oracle and (where there are native villages) the mission post near the city'],
   ['healing', 'Build baths (piping water to the town if none reaches) and a hospital near the city, and a barber and a physician if it has none'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
   ['searaid [n]', 'Launch a raid of n warriors by sea right now (river/coast maps; default: normal size)'],
@@ -461,6 +463,15 @@ export class DebugConsole {
         return built
           ? `Gardens: ${built.gardens} gardens, ${built.statues} statues, ${built.yard ? 'a gardeners\' yard' : 'no yard'}, ${built.arch ? `an arch at ${built.arch.x},${built.arch.y}` : 'no arch (no straight road it fits)'}${wild ? '; all left untended' : ''}.`
           : 'Every garden and statue left untended.';
+      }
+      case 'temples': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const n = Math.max(1, Math.min(20, Number(args[0]) || 1));
+        const { built, missing } = buildDemoTemples(g, center, { count: n });
+        if (built.length) app.renderer.camera.centerOnTile(built[0].x + built[0].size / 2, built[0].y + built[0].size / 2);
+        return `Temples: built ${built.length} (${[...new Set(built.map((b) => b.type))].join(', ')})${missing.length ? `; no room or locked: ${missing.join(', ')}` : ''}.`;
       }
       case 'healing': {
         need();
