@@ -49,6 +49,9 @@
  * governor's residences, with commerceTriangles('government', lod)).
  * (the Temples scene, labTemples.js: 5, the temples, the oracle and the
  * mission post, with commerceTriangles('temples', lod)).
+ * (the People scene, labPeople.js: the minus key, every body, garment and
+ * clip of the 3D look's people, with people.closeUp(i), people.figures,
+ * people.stats(), people.triangles(lod)).
  * ----------------------------------------------------------------------------
  */
 
