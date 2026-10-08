@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.27)
+
+* **Ships in 3D** (under WebGL): the Roman merchantman (corbita) with its swan's-neck stern, square sail in the partner's colours and steering oars, a smaller coaster, the fleet's liburnian with fourteen rowers pulling to the hortator's mallet and marines on the bow, raider ships by people (the light lembos, the black Punic galley with its horse's-head stem, the Venetic ship with its sail of hides), and fishing boats casting and hauling their net. Sails fill with the wind and furl at the quay or to fight, hulls heave, pitch and roll on the waves and heel under sail, wakes and bow waves trail them, a stern lantern burns at night, sunk ships settle and roll over. Frame time level with the sprites. Lab: the Ships scene (Shift+B)
+* Headless sim: identical to v0.20.26 (nothing it reads changed)
+* 1335 unit tests, 276 browser checks
+
 ## Done (v0.20.26)
 
 * **Soldiers, raiders and wolves in 3D** (under WebGL): legionaries in crested bronze helmets and mail behind the painted curved scutum, throwing the pilum and fighting with the gladius, a signifer with each fort's standard; Syrian archers in conical helmets; cavalry in the four-horned saddle at a four-beat gallop; Caesar's legions in plate with the eagle; each raiding people as history shows them (Gauls and Boii with long swords, axes and a war chariot, Ligurian hillmen and slingers, Carthaginian foot, Numidian riders and the war elephant, Lusitanians with the falcata, Cimbri and Teutones), rebel gladiators, villagers with farm tools, and grey wolves at the trot and lope. They march in step, close into a shield wall, strike on the sim's blow, flinch when hit, fall and lie a while. A 300-unit battle draws faster than the sprites did (2x: 49 to 31 ms). Lab: the Army scene (backslash key)
