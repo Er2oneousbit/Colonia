@@ -5057,6 +5057,64 @@ try {
         await gw.close();
       }
 
+      // 8a3. The land units as 3D figures (render3d/units/): while the models draw, a soldier in
+      //      view is drawn by the units' pass (no sprite), and a click on him still picks him.
+      //      Waited for by state: his pieces are built a few a frame, the programs compile in the
+      //      background under the software GL.
+      {
+        const gu = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const uerrs = [];
+        gu.on('pageerror', (e) => uerrs.push(`pageerror: ${e.message}`));
+        gu.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) uerrs.push(m.text()); });
+        await gu.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gu.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const sol = await gu.evaluate(() => {
+          const app = window.colonia;
+          app.paused = true;
+          const c = app.ui.console;
+          c.run('demo 2');
+          c.run('garrison');
+          let u = null;
+          for (let d = 0; d < 120 && !u; d++) {
+            c.run('days 1');
+            u = [...app.game.units.values()].find((v) => v.side === 'rome' && !v.moving);
+          }
+          if (!u) return null;
+          app.renderer.camera.zoomIndex = 5;
+          app.renderer.camera.centerOnTile(u.x, u.y);
+          return { id: u.id, type: u.type };
+        });
+        // Drawn in 3D: the units' pass ready, his figure among those it drew, its pieces built.
+        const drawn = sol ? await gu.waitForFunction((id) => {
+          const r = window.colonia.renderer;
+          const p = r.backend.units;
+          const s = r.stats.units3d;
+          return !!s && s.units >= 1 && !s.deferred && r.unitSpots.some((q) => q.id === id) && p.list.slice(0, p.used).some((it) => it.u && it.u.id === id);
+        }, sol.id, { timeout: 90000, polling: 100 }).then(() => true, () => false) : false;
+        let upanel = null;
+        let ustats = null;
+        if (drawn) {
+          ustats = await gu.evaluate(() => ({ ...window.colonia.renderer.stats.units3d }));
+          const p = await gu.evaluate((id) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const s = app.renderer.unitSpots.find((q) => q.id === id);
+            const q = cam.toScreen(s.wx, s.wy - 9);
+            const rect = app.canvas.getBoundingClientRect();
+            return { x: rect.left + q.x / cam.dpr, y: rect.top + q.y / cam.dpr };
+          }, sol.id);
+          await gu.mouse.click(p.x, p.y);
+          await gu.waitForFunction((id) => window.colonia.ui.info.target?.id === id, sol.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          upanel = await gu.evaluate(() => window.colonia.ui.info.target);
+        }
+        if (shots) await gu.screenshot({ path: path.join(shots, 'smoke-webgl-units.png') });
+        check('WebGL renderer: land units are drawn as 3D figures (instanced, not sprites), and a click on one picks him',
+          !!sol && drawn && ustats.figures >= 1 && ustats.draws >= 1 && ustats.triangles > 0 && upanel?.kind === 'unit' && upanel.id === sol.id,
+          JSON.stringify({ sol, drawn, ustats, upanel }));
+        check('WebGL renderer, 3D units: no page errors', uerrs.length === 0, uerrs.join(' | '));
+        await gu.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks
