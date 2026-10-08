@@ -717,6 +717,22 @@ function drawChariot(ctx, u, def, sx, sy, k, face, stride, striking, tick) {
   if (u.hp < u.maxHp) drawHealth(ctx, u, sx, sy - 22 * k, k, tick);
 }
 
+/**
+ * What is still painted over a unit the WebGL back end draws as a 3D figure
+ * (render3d/units/): the ring at its feet when its fort is selected (or it
+ * is), and its health bar `top` world px over its feet when it is wounded.
+ */
+export function drawUnitMarks(ctx, u, sx, sy, k, tick, highlight, top) {
+  if (highlight) {
+    ctx.strokeStyle = 'rgba(255,230,120,0.9)';
+    ctx.lineWidth = 1.2 * k;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, (u.type === 'elephant' || u.type === 'chariot' ? 11 : 7) * k, 3 * k, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  if (u.hp < u.maxHp) drawHealth(ctx, u, sx, sy - top * k, k, tick);
+}
+
 /** Health bar over a wounded unit; flashes white for a moment after a hit. */
 function drawHealth(ctx, u, sx, y, k, tick) {
   const w = 12 * k;

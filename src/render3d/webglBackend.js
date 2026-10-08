@@ -88,6 +88,7 @@ import { AutoScale, startRung, fixedScale } from './renderScale.js';
 import { gpuOf, isSoftwareGpu } from '../render/perf.js';
 import { WalkerPass } from './walkers/pass.js';
 import { ShipPass } from './ships/pass.js';
+import { UnitPass } from './units/pass.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -205,6 +206,7 @@ export class WebGLBackend {
       this.flora.lose();
       this.walkers.restored();
       this.ships.restored();
+      this.units.restored();
     }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
@@ -242,6 +244,11 @@ export class WebGLBackend {
       walkersExtra(mp, lod);
       if (this.drawsShips) this.ships.placeKits(mp, lod);
     };
+    // The land units as 3D figures while the models draw (units/pass.js): soldiers, raiders, wolves.
+    this.units = new UnitPass(this.rig.modelSlot);
+    this.drawsUnits = false;
+    // (Off: the units' sprites, as before; the console and the measurements compare the two.)
+    this.unitsOn = true;
     this.lastBegin = 0;
     // The trees and rocks as models (flora/floraPass.js), with the 3D ground: `drawsFlora` tells the
     // renderer to leave their sprites out this frame.
@@ -466,6 +473,39 @@ export class WebGLBackend {
     if (this.models.ready && this.shipsOn) this.ships.warm(this.gl, this.camera, this.rig.scene, (fn) => this.rig.withOutput(fn));
     this.drawsShips = this.shipsOn && this.models.ready && this.ships.compiled;
     if (this.drawsShips) this.ships.begin(r, r.motionOn ? r.time || 0 : 0, dt);
+    // The units as 3D figures: likewise, their own programs compiled first.
+    if (this.models.ready && this.walkersOn) this.units.warm(this.gl, this.camera, this.rig.scene, (fn) => this.rig.withOutput(fn));
+    this.drawsUnits = this.walkersOn && this.unitsOn && this.models.ready && this.units.compiled;
+  }
+
+  /** The units' frame (units/pass.js begin): the game's ticks (with the frame's share), every unit, the view. */
+  unitsFrame(tick, units, view) {
+    if (this.drawsUnits) this.units.begin(this.r.camera.scale, tick, units, view);
+  }
+
+  /** Can land unit `u` be drawn as a 3D figure this frame? `ctx` its people, `foe` [dx, dy] to whom it fights. */
+  canDrawUnit(u, ctx, foe) {
+    return this.drawsUnits && this.units.canDraw(u, ctx, foe);
+  }
+
+  /** Unit `u` drawn as a 3D figure this frame: `at` as units/motion.js place. */
+  unit(u, at) {
+    this.units.add(u, at);
+  }
+
+  /** How high (world px) over a 3D unit's feet its health bar goes. */
+  unitTop(u) {
+    return this.units.topOf(u);
+  }
+
+  /** A unit died (the sim's 'unitDied'; `alive` the sim's units): its 3D figure falls and lies there a while. */
+  unitDied(e, alive) {
+    if (this.drawsUnits) this.units.died(e, alive);
+  }
+
+  /** A new or loaded game: the units' pass forgets the last one's figures and its dead. */
+  unitsReset() {
+    this.units.reset();
   }
 
   /** Can walker `w` be drawn as a 3D person this frame (walkers/pass.js canDraw)? `ctx`: its cart's sender, its venue. */
@@ -819,6 +859,8 @@ export class WebGLBackend {
     let ships = 0;
     if (this.drawsShips) ships = this.ships.end();
     else this.ships.hide();
+    if (this.drawsUnits) walkers += this.units.end();
+    else this.units.hide();
     const built = this.models.update(r, this.placed, lodFor(this.groundMode === 'low' ? cam.scale / 2 : cam.scale), this.ghosts);
     // The trees and rocks in view (or, while they cannot draw yet, their kits and programs prepared).
     const flora = this.flora.update(r, this.camera, this.drawsFlora, this.groundMode);
@@ -835,6 +877,7 @@ export class WebGLBackend {
       this.flora.setCasting(shadows);
       this.walkers.setCasting(shadows);
       this.ships.setCasting(shadows);
+      this.units.setCasting(shadows);
     }
     if (this.drawsGround) {
       const gp = this.groundPass;
@@ -871,6 +914,8 @@ export class WebGLBackend {
     st.walkers3d = this.drawsWalkers ? this.walkers.stats : null;
     // (The ships drawn in 3D: how many, their kits, crews, wrecks, CPU ms.)
     st.ships3d = this.drawsShips ? this.ships.stats : null;
+    // (The land units drawn as 3D figures: how many, the dead, their figures, draws, triangles, writes, CPU ms.)
+    st.units3d = this.drawsUnits ? this.units.stats : null;
     st.flora = this.drawsFlora ? flora : 0;
     st.floraPass = this.flora.stats;
     st.drawCalls = gl.info.render.calls;
@@ -901,6 +946,7 @@ export class WebGLBackend {
     this.models.dispose();
     this.walkers.dispose();
     this.ships.dispose();
+    this.units.dispose();
     this.flora.dispose();
     resetFloraMaterials();
     if (this.groundPass) this.groundPass.dispose();

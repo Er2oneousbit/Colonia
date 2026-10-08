@@ -29,7 +29,7 @@
  *     with a head nearer a grown man's).
  *
  * Instance attributes (actors.js packs them):
- *   aActClip   clip index, phase (s), speed, the route's pause clips (b + 64 a)
+ *   aActClip   clip index, phase (s), speed, the route's pause clips (b + 128 a)
  *   aActRoute  length (m, 0 for none), speed (m/s), pause at its end, at its start (s)
  *   aActCol0   tunic, mantle, skin, hair    (24-bit sRGB each)
  *   aActCol1   trim, leather, accent, metal
@@ -191,8 +191,8 @@ void main() {
       float pa = aActRoute.w;
       float C = 2.0 * tw + pa + pb + 2.0 * TURN;
       float t = mod( uLookTime * speed + aActClip.y, C );
-      float clipB = mod( aActClip.w, 64.0 );
-      float clipA = floor( aActClip.w / 64.0 );
+      float clipB = mod( aActClip.w, 128.0 );
+      float clipA = floor( aActClip.w / 128.0 );
       float walk = aActClip.x;
       // The walk played so its feet keep the ground at this speed: its own stride over its loop (a laden
       // man's is shorter: clips.js carry).

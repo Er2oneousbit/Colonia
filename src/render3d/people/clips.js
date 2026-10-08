@@ -33,6 +33,7 @@
 import { Euler, Quaternion, Vector3 } from 'three';
 import { Pose } from './pose.js';
 import { BONE, BONE_COUNT, BONE_FLOATS } from './rig.js';
+import { unitClips } from '../units/clips.js';
 
 const TAU = Math.PI * 2;
 /** A wave of k whole cycles a loop. */
@@ -1153,6 +1154,10 @@ export const CLIPS = Object.freeze({
       fingers(P, -1, 0.4);
     },
   },
+
+  // --- The fighting men's clips (render3d/units/clips.js), made with these helpers, appended last.
+  ...unitClips({ sn, cs, hold, smooth, lerp, lerp3, clamp01, track, stand, armsDown, fingers, propAlong, along, walkLegs, walkArms, strideLegs, runLegs, WALKER_STRIDE, RUN_STRIDE }),
+
   // The ships' rowers (ships/: the liburnian's and the raiders' benches, a fishing boat's oars): rowing at a
   // ship's bench (ROW_SHIP), the sweep out on his left, and on his right. Their loop is the ship's stroke,
   // its clock the ship's own (the distance it rows), so every bench pulls together.

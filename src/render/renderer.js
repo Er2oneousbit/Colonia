@@ -75,7 +75,7 @@ import { UNIT_TYPES } from '../data/units.js';
 import { wallHpOf, TOWER_RANGE } from '../sim/military.js';
 import { waterOf, shoreBerth } from '../sim/navy.js';
 import { farmDormant } from '../sim/production.js';
-import { wallSpec, drawUnit, drawProjectile, drawRallyFlag, drawStandardNumber } from './militaryArt.js';
+import { wallSpec, drawUnit, drawUnitMarks, drawProjectile, drawRallyFlag, drawStandardNumber } from './militaryArt.js';
 import { wallModelPlace, wallCoverKey, wallCoverSpec, wallGhosts, gateTorchPoints, noteWalls } from '../render3d/walls/wallGame.js';
 import { aqueductModelPlace, aqueductGhosts, noteAqueducts } from '../render3d/aqueducts/aqueductGame.js';
 import { roman } from '../sim/fortNumbers.js';
@@ -563,6 +563,7 @@ export class Renderer {
     this.follow = null; // { id } of a walker the view follows (until the map is moved)
     this.walkerSpots = []; // where each walker was drawn this frame, for clicks (pickWalker)
     this.walkers3d = []; // this frame's walkers drawn as 3D people (their items: lanterns, the ring)
+    this.units3d = []; // this frame's land units drawn as 3D figures (their items: torches; the ring and health bar when shown)
     this.walkerAt = { fx: 0, fy: 0, lift: 0, stride: 0, vt: 0, W: 0, H: 0, aim: null }; // (handed to the back end, copied)
     this.walkerCtx = { origin: null, venue: null };
     this.coverStrips = []; // the building strips drawn this frame, for clicks (coverDepthAt: what hides a figure)
@@ -836,6 +837,8 @@ export class Renderer {
     this.flagDrag = null;
     this.selectedUnit = 0;
     this.headings.clear();
+    // (The 3D units' pass forgets the last game's figures and its fallen.)
+    if (this.backend && this.backend.unitsReset) this.backend.unitsReset();
     // A new or loaded game opens unturned (a save's camera state turns it back, Camera.restore).
     this.camera.turn = 0;
     this.camera.setMapBounds(game.map.w, game.map.h);
@@ -863,9 +866,12 @@ export class Renderer {
       const w = this.worldAt(x + size / 2, y + size / 2);
       this.effects.dust(w.x, w.y, size);
     }));
-    this.unsub.push(game.events.on('unitDied', ({ x, y }) => {
-      const w = this.worldAt(x, y);
+    this.unsub.push(game.events.on('unitDied', (e) => {
+      const w = this.worldAt(e.x, e.y);
       this.effects.dust(w.x, w.y, 0.3);
+      // (A unit drawn in 3D falls and lies there a while: the back end keeps it, the sim having let it go.)
+      // (The sim's units handed along: one still alive there is never taken for the fallen.)
+      if (this.backend && this.backend.unitDied) this.backend.unitDied(e, game.units);
     }));
   }
 
@@ -1218,6 +1224,12 @@ export class Renderer {
     const inView = (wx, wy) => wx >= x0w && wx <= x1w && wy >= y0w && wy <= vr.y + vr.h + 40;
     this.shipSpots = [];
     this.unitSpots = [];
+    // (The WebGL back end drawing the buildings as models draws the land units as 3D figures,
+    // render3d/units/: those are handed to it; their item keeps the ring, the health bar and the torch.)
+    const u3 = !!be.drawsUnits;
+    (this.units3d ||= []).length = 0;
+    const selFortNow = this.selectedId && game.buildings.get(this.selectedId)?.def.kind === 'fort' ? this.selectedId : 0;
+    if (u3) be.unitsFrame(tick + alpha, game.units.values(), { vt, W: map.w, H: map.h, x0: x0w, x1: x1w, y0: y0w, y1: vr.y + vr.h + 40 });
     for (const u of game.units.values()) {
       const fx = u.px + (u.x - u.px) * alpha;
       const fy = u.py + (u.y - u.py) * alpha;
@@ -1232,6 +1244,16 @@ export class Renderer {
       const face = this.unitFace(u, vt); // (before the view test: it keeps the heading of units out of view too)
       if (!inView(wx, wy) && !(naval && inView(wx, wy - 60))) continue;
       const d = this.yardDepth(u, fx, fy) ?? span.d ?? ux + uy + 0.004;
+      if (u3 && !naval && this.unit3d(u, be, fx, fy, span.lift, stride, vt)) {
+        const it = { d, kind: K_UNIT, u, wx, wy, stride, face, clipY: null, marks: be.unitTop(u) };
+        // (Its item paints only a ring or a health bar: queued only then, so a battle of 3D units takes no
+        // cell of the live art each; the night's torches read the kept list.)
+        this.units3d.push(it);
+        it.queued = u.hp < u.maxHp || u.id === this.selectedUnit || (selFortNow !== 0 && u.fort === selFortNow);
+        if (it.queued) items.push(it);
+        this.unitSpots.push({ id: u.id, wx, wy, d });
+        continue;
+      }
       const cut = naval && span.d !== undefined ? mastClip(map, fx, fy, vt) : null; // (a ship under a deck, as a walker's)
       if (!cut) items.push({ d, kind: K_UNIT, u, wx, wy, stride, face, clipY: null });
       else for (const c of cut) items.push({ d: c.front ? d + SHIP_IN_FRONT : d, kind: K_UNIT, u, wx, wy, stride, face, clipY: c.region, front: c.front });
@@ -1599,7 +1621,7 @@ export class Renderer {
         for (const side of [1, -1]) L.glow(sx + side * mg.ox * k, sy + (side * mg.oy - GATE_H - 2) * k, 5.5 * k * f, 0.9 * lamps * f, true);
       }
       // Lanterns and torches on the move (the walkers drawn in 3D too).
-      for (const it of this.walkers3d && this.walkers3d.length ? items.concat(this.walkers3d) : items) {
+      for (const it of this.walkers3d.length || this.units3d.length ? items.concat(this.walkers3d, this.units3d.filter((q) => !q.queued)) : items) {
         if (it.kind === K_WALKER && !it.ringOnly) {
           const w = it.w;
           const ship = w.type === 'ship';
@@ -1688,6 +1710,8 @@ export class Renderer {
         this.drawExtra(it, ctx);
         break;
       case K_UNIT:
+        // (A unit drawn in 3D: its ring and its health bar alone.)
+        if (it.marks !== undefined) { drawUnitMarks(ctx, it.u, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, tick, (selFort !== 0 && it.u.fort === selFort) || it.u.id === this.selectedUnit, it.marks); break; }
         if (it.clipY != null) this.clipTo(it.clipY, ctx);
         drawUnit(ctx, it.u, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, tick, (selFort !== 0 && (it.u.fort === selFort || it.u.station === selFort)) || it.u.id === this.selectedUnit, it.stride, it.face);
         if (it.clipY != null) ctx.restore();
@@ -2398,6 +2422,27 @@ export class Renderer {
     if (!w.moving || (!du && !dv)) [du, dv] = last >= 0 ? FACING[last] : [0, 0];
     const reach = be.walkerReach(w); // (tiles along his facing: + ahead, - behind)
     this.walkerSpots.push({ id: w.id, wx, wy, d, ship: false, reachX: (du - dv) * HALF_W * reach, reachY: (du + dv) * HALF_H * reach });
+    return true;
+  }
+
+  /**
+   * Hand land unit `u` to a back end that draws units as 3D figures
+   * (render3d/units/), if it can draw this one now (its pieces built; else its
+   * sprite this frame): (fx, fy) where it is between ticks, `lift` a bridge's
+   * deck, `stride` the tiles it has walked. Its foe (whom it fights: a unit,
+   * a wolf's prey) turns it to face him; its people (the raid it came with)
+   * dress it. True: drawn in 3D.
+   */
+  unit3d(u, be, fx, fy, lift, stride, vt) {
+    const game = this.game;
+    const m = game.military;
+    const inv = m && m.active;
+    const ctx = this.unitCtx || (this.unitCtx = { people: '' });
+    ctx.people = (inv && u.invasion && inv.id === u.invasion && inv.people) || (m && m.people) || '';
+    const foe = u.target ? game.units.get(u.target) : u.prey ? game.walkers.get(u.prey) : null;
+    const fv = foe ? [foe.x - u.x, foe.y - u.y] : null;
+    if (!be.canDrawUnit(u, ctx, fv)) return false;
+    be.unit(u, Object.assign(this.unitAt || (this.unitAt = {}), { fx, fy, lift, stride, vt, W: game.map.w, H: game.map.h, dx: u.x - u.px, dy: u.y - u.py, foe: fv }));
     return true;
   }
 
