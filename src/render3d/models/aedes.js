@@ -35,7 +35,8 @@
  * States (meshes tagged in userData.when, models.js partShows; the state
  * from models/religion.js templeState):
  *   'open'  staffed: the doors open, the fire lit on the altar, the priest
- *           offering at it with his attendant, a worshipper on the steps
+ *           offering at it with his attendant, a worshipper praying (the
+ *           people are actors, people/: templeActors)
  *   'shut'  unstaffed: the doors shut, cold ash on the altar, nobody
  *   'out'   a festival of this god this month: the doors open, garlands
  *           hung between the columns and over the altar, a big fire, a
@@ -50,10 +51,11 @@
 import { CylinderGeometry } from 'three';
 import { frameSweep, revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { slab, paving, TaggedParts, tuscanColumn } from './masonry.js';
-import { column, gable, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, textWidth, FRESCO, addPeople } from './domus.js';
-import { sacraMaterials, ara, hearthFire, festoon, priest, camillus, tibicen, victimarius, crowd, box, D, lin } from './sacra.js';
+import { column, gable, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, textWidth, FRESCO } from './domus.js';
+import { sacraMaterials, ara, hearthFire, festoon, box, D, lin } from './sacra.js';
+import { DYES } from '../people/actors.js';
 import { NUMEN, placeBins, pourBins, acroterion, pedimentRelief, cultStatue, wheatSheaf, plough, anchor, trophy, clipeus, dove, rooster, trident, caduceus, shell } from './numina.js';
-import { herm, bush, person } from './learning.js';
+import { herm, bush } from './learning.js';
 
 /** The small temple's measures (metres): the game, the lab and the tests read them. */
 export const AEDES = Object.freeze({
@@ -317,39 +319,72 @@ function lampstands(M, T, lod, out) {
 }
 
 /** A step's top (y) and the middle of its tread (z): `i` counted from the foot, 1 the lowest. */
-function stepAt(M, i) {
+export function stepAt(M, i) {
   const [, sz, n] = M.steps;
   const tread = (sz - M.podium[1]) / n;
   return [(M.floorY / n) * i, sz - i * tread + tread / 2];
 }
 
-/** The people of the rite at the altar: the priest and his boy while the temple is kept, and a worshipper. */
-function attendance(M, mats) {
+/**
+ * The people of the rite (people/actors.js specs, in the temple's metres), by
+ * state: while the temple is kept ('open') the priest, his head veiled,
+ * walks between the foot of the steps (praying toward the god, his hands
+ * raised) and the altar (pouring from the patera over the fire), his boy
+ * with the incense box by the altar, a woman veiled praying by the way; at
+ * a festival ('out') the priest sacrificing, the boy, the flute player whose
+ * music covered any ill-omened sound, the victimarius with his axe by the
+ * victim, the crowd in their wreaths on the paving and the steps; nobody
+ * while it is not kept.
+ */
+export function templeActors(M, state) {
+  if (state !== 'open' && state !== 'out') return [];
   const [ax, az, aw] = M.altar;
+  const k = M.k;
+  const y = 0.05;
   const list = [];
-  const off = aw / 2 + 0.32;
-  list.push(...priest(mats, ax - off, 0.05, az - 0.05, Math.PI / 2 - 0.2));
-  list.push(...camillus(mats, ax - off - 0.43, 0.05, az + 0.42, Math.PI / 2 + 0.3));
-  // A worshipper coming down the steps.
-  const [y, z] = stepAt(M, 2);
-  list.push(...person(mats, { cloth: 0x8a6a4a, cloth2: 0xe6d8bc, long: true, skin: 0xa87a58, hair: 0x4a3828, arms: 'hold' }, 0.55 * M.k, y, z, 0.3));
+  const priestDress = { body: 'm', dress: ['tunic:long', 'toga:velato'], hair: 'bald', old: true, props: { R: 'patera' }, colours: { tunic: DYES.white, mantle: DYES.candida, skin: 0xb88560, hair: 0x8a8478 } };
+  // At the altar's left, facing it (+x), clear of its step: the patera held out over its top.
+  const at = [ax - aw / 2 - 0.45, y, az];
+  const boy = { body: 'c', dress: ['tunic:knee', 'bulla'], hair: 'curls', props: { R: 'acerra' }, clip: 'hold', at: [at[0] - 0.42, y, az + 0.5], ry: Math.PI / 2 + 0.35, colours: { tunic: DYES.white, trim: DYES.white } };
+  if (state === 'open') {
+    // The priest's way: from the foot of the steps (where he prays toward the god) to the altar and back.
+    const [, sz] = stepAt(M, 0);
+    // (Straight along z: his way passes beside the altar, never through it or its step.)
+    const foot = [at[0], y, sz + 0.28];
+    const dx = at[0] - foot[0];
+    const dz = at[2] - foot[2];
+    list.push({
+      ...priestDress, clip: 'walk', at: foot, ry: Math.atan2(dx, dz), seed: 11,
+      route: { length: Math.hypot(dx, dz), speed: 0.75, pauseEnd: 9, pauseStart: 5, clipEnd: 'sacrifice', clipStart: 'pray', faceEnd: Math.PI / 2, faceStart: Math.PI },
+    });
+    list.push({ ...boy, seed: 12 });
+    // A woman praying by the way, her palla over her head.
+    list.push({ body: 'f', dress: ['tunic:long:stola', 'palla:veil'], hair: 'bun', clip: 'pray', at: [ax + aw / 2 + 0.55, y, az - 0.15], ry: Math.PI + 0.35, seed: 13 });
+    return list;
+  }
+  list.push({ ...priestDress, clip: 'sacrifice', at, ry: Math.PI / 2, seed: 21 });
+  list.push({ ...boy, seed: 22 });
+  list.push({ body: 'm', dress: ['tunic:long', 'wreath'], hair: 'crop', props: { R: 'tibiae' }, clip: 'flute', at: [at[0] - 0.4, y, az - 0.6], ry: Math.PI / 2 + 0.5, seed: 23, colours: { tunic: DYES.white } });
+  list.push({ body: 'm', dress: ['limus', 'wreath'], hair: 'crop', props: { L: 'axe' }, clip: 'shoulder', at: [ax + aw / 2 + 0.6 * k, y, az + 0.45], ry: -Math.PI / 2 - 0.3, seed: 24, colours: { tunic: DYES.white, trim: DYES.purple } });
+  // The crowd: men, women and children in their best, wreathed; cheering, praying, talking.
+  const acts = ['cheer', 'pray', 'talk', 'listen', 'cheer', 'idle', 'pray', 'cheer'];
+  const place = [...M.crowd.map(([x, z, ry]) => [x, y, z, ry]), ...M.crowdSteps.map(([x, i, ry]) => {
+    const [sy, sz] = stepAt(M, i);
+    return [x, sy, sz, ry];
+  })];
+  // (Kept a body's breadth inside the footprint: a person never stands over the street.)
+  const inside = (v) => Math.sign(v) * Math.min(Math.abs(v), M.half - 0.35);
+  place.forEach(([x, yy, z, ry], i) => list.push(worshipper(i, [inside(x), yy, inside(z)], ry, acts[i % acts.length])));
   return list;
 }
 
-/** A festival: the priest and his boy, the flute player, the victimarius by the victim, the crowd in their wreaths. */
-function festival(M, mats) {
-  const [ax, az, aw] = M.altar;
-  const off = aw / 2 + 0.32;
-  const list = [];
-  list.push(...priest(mats, ax - off, 0.05, az - 0.05, Math.PI / 2 - 0.2));
-  list.push(...camillus(mats, ax - off - 0.43, 0.05, az + 0.42, Math.PI / 2 + 0.3));
-  list.push(...tibicen(mats, ax - off - 0.73, 0.05, az - 0.55, Math.PI / 2 + 0.5));
-  list.push(...victimarius(mats, ax + off + 0.93, 0.05, az + 0.1, -Math.PI / 2 - 0.2));
-  list.push(...crowd(mats, [...M.crowd, ...M.crowdSteps.map(([x, i, ry]) => {
-    const [y, z] = stepAt(M, i);
-    return [x, z, ry, y];
-  })], 0.05, { seed: 31 }));
-  return list;
+/** One of a festival's crowd: a man, a woman or a child by turns, wreathed, their colours by their seed. */
+function worshipper(i, at, ry, clip) {
+  const seed = 40 + i * 3.7;
+  const kind = i % 5 === 3 ? 'c' : i % 3 === 1 ? 'f' : 'm';
+  if (kind === 'f') return { body: 'f', dress: ['tunic:long:stola', i % 2 ? 'palla:veil' : 'palla'], hair: 'bun', clip: clip === 'cheer' ? 'cheer' : 'pray', at, ry, seed };
+  if (kind === 'c') return { body: 'c', dress: ['tunic:knee', 'bulla', 'wreath'], hair: 'curls', clip: 'cheer', at, ry, seed };
+  return { body: 'm', dress: i % 4 === 0 ? ['tunic:knee', 'toga', 'wreath'] : ['tunic:knee', 'wreath'], hair: i % 2 ? 'crop' : 'curls', clip, at, ry, seed };
 }
 
 /** Garlands for a festival: festoons between the front columns and back along the porch's sides, one on the altar. */
@@ -442,10 +477,6 @@ export function buildTempleBody(M, { lod = 0, seed = 601, extra = null, skipPavi
     garlands(M, T, lod, out);
     p.add('garlands', m.garland, out.garland, { when: 'out', cast: false });
     if (out.flowers.length) p.add('blooms', m.flowers, out.flowers, { when: 'out', cast: false });
-  }
-  if (lod === 0) {
-    addPeople(p, m, 'rite', attendance(M, m), 'open');
-    addPeople(p, m, 'feast', festival(M, m), 'out');
   }
   return p.build();
 }

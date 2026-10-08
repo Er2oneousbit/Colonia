@@ -49,6 +49,9 @@
  * governor's residences, with commerceTriangles('government', lod)).
  * (the Temples scene, labTemples.js: 5, the temples, the oracle and the
  * mission post, with commerceTriangles('temples', lod)).
+ * (the People scene, labPeople.js: the minus key, every body, garment and
+ * clip of the 3D look's people, with people.closeUp(i), people.figures,
+ * people.stats(), people.triangles(lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -80,6 +83,7 @@ import { buildLearningScene } from './labLearning.js';
 import { buildHealthScene } from './labHealth.js';
 import { buildGovernmentScene } from './labGovernment.js';
 import { buildTemplesScene } from './labTemples.js';
+import { buildPeopleScene } from './labPeople.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -326,6 +330,8 @@ async function main() {
   commerce.government = buildGovernmentScene();
   // The Temples scene (labTemples.js, 5): the small and grand temples, the oracle, the mission post.
   commerce.temples = buildTemplesScene();
+  // The People scene (labPeople.js, the minus key): every body, garment and clip of the people.
+  commerce.people = buildPeopleScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -349,6 +355,8 @@ async function main() {
     look.noAO.push(...baseNoAO);
     for (const o of fs.fountains) for (const m of o.f.meshes) if (m.material.transparent) look.noAO.push(m);
     for (const s of Object.values(commerce)) s.group.traverse((m) => { if (m.isMesh && m.material.transparent) look.noAO.push(m); });
+    // (The people are posed on the GPU: GTAO's normal pass would see them at rest, so they throw no AO.)
+    for (const s of Object.values(commerce)) if (s.noAO) look.noAO.push(...s.noAO);
   };
 
   const state = { scene: 'well', mood: 'day', view: 'game1', turn: 0, season: 'summer', snow: 0, wet: false, card: 0, overview: false };
@@ -744,7 +752,7 @@ async function main() {
     else if (k === 'x') setScene('warehouse');
     else if (k === 's') setScene('services');
     else if (k === 'a') setScene('walls');
-    else if (commerce[state.scene] && commerce[state.scene].onKey && commerce[state.scene].onKey(k)) refreshButtons();
+    else if (commerce[state.scene] && commerce[state.scene].onKey && commerce[state.scene].onKey(k, { closeUp })) refreshButtons();
     // (After the scene's own keys: in the Walls scene C cycles the stone.)
     else if (k === 'c') setScene('military');
     else if (k === '7') setScene('learning');
@@ -758,6 +766,7 @@ async function main() {
     else if (k === '0') setScene('gardens');
     else if (k === '6') setScene('government');
     else if (k === '5') setScene('temples');
+    else if (k === '-') setScene('people');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
@@ -771,6 +780,20 @@ async function main() {
   copies.visible = false;
   scene.add(copies);
   let copiesBuilt = false;
+  /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
+  function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
+    const f = commerce.people.figures[i];
+    if (!f) {
+      setView('game1');
+      return;
+    }
+    setView('orbit');
+    const a = (az * Math.PI) / 180;
+    const e = (el * Math.PI) / 180;
+    controls.target.set(f.x, ty, f.z);
+    persp.position.set(f.x + Math.sin(a) * Math.cos(e) * dist, ty + Math.sin(e) * dist, f.z + Math.cos(a) * Math.cos(e) * dist);
+    controls.update();
+  }
   function wells100(on) {
     if (on && !copiesBuilt) {
       copiesBuilt = true;
@@ -838,8 +861,10 @@ async function main() {
   // The loop.
   let last = performance.now();
   const clockStart = last;
+  /** The clock held at a time (s) for a sequence of stills (setClock), or null: running. */
+  let heldClock = null;
   function life(now) {
-    const t = (now - clockStart) / 1000;
+    const t = heldClock ?? (now - clockStart) / 1000;
     LOOK.uniforms.uLookTime.value = t;
     // The water's ripples drift; the bucket and rope swing a little.
     const wm = waterMaterial();
@@ -942,6 +967,8 @@ async function main() {
     /** When the first frame was drawn and the well's and the ground's textures were all in (performance.now()). */
     timings,
     setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
+    /** Hold the look's clock at `t` seconds (frames of a motion, 0.2 s apart), or let it run again (null). */
+    setClock(t) { heldClock = t; },
     gallery: gal.ground, cards: gal.cards.map((c) => ({ id: c.id, name: c.name, note: c.note })), setCard, overview,
     /** The Fountain scene's fountains (tier, state, where), its level of detail, and each tier's triangles at one. */
     get fountains() { return fs.fountains.map((o) => ({ tier: o.tier, name: o.name, state: o.state, x: o.x, z: o.z, triangles: o.f.triangles })); },
@@ -974,6 +1001,14 @@ async function main() {
       setLod: (n) => harbour.setLod(n),
       get items() { return harbour.scene.items.map((it) => ({ type: it.type, note: it.note, x: it.holder.position.x, z: it.holder.position.z, triangles: it.tris })); },
       triangles: (type, key, l) => harbour.scene.triangles(type, key, l),
+    },
+    /** The People scene (labPeople.js): a figure close up, the figures, the batch's stats, the level of detail. */
+    people: {
+      closeUp: (i, o) => closeUp(i, o),
+      get figures() { return commerce.people.figures.map((f) => ({ ...f })); },
+      stats: () => commerce.people.stats(),
+      triangles: (l) => commerce.people.triangles(l),
+      setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
     aimAt(x, z) { target.set(x, 0.4, z); aim(); },

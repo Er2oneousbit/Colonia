@@ -22,6 +22,7 @@ import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { modelFor, partShows } from '../render3d/models.js';
 import { RELIGION_MODELS, RELIGION_TYPES } from '../render3d/models/religion.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { PeopleBatch } from '../render3d/people/batch.js';
 
 /** What stands where (metres: its footprint's middle), in which state, its label. */
 const ITEMS = [
@@ -92,6 +93,8 @@ export function buildTemplesScene() {
   group.add(ground(-40, 40, -20, 18));
   const built = new Group();
   group.add(built);
+  // The people of the rites, as the game draws them (each temple's variant's actors: people/).
+  const people = new PeopleBatch(group);
   let lod = 0;
   let frost = false;
   let override = 0;
@@ -128,7 +131,8 @@ export function buildTemplesScene() {
     for (const g of kits.values()) g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
     kits.clear();
     const o = OVERRIDES[override];
-    for (const it of ITEMS) {
+    people.begin(lod);
+    ITEMS.forEach((it, n) => {
       const state = o && it.type.startsWith('temple_') ? o.state : it.state;
       const angry = o && it.type.startsWith('temple_') ? !!o.angry : !!it.angry;
       const god = BUILDINGS[it.type].god;
@@ -140,7 +144,9 @@ export function buildTemplesScene() {
       for (const e of v.more || []) {
         for (let j = 0; j < e.n; j++) place(e.key, m.clone().multiply(_l.fromArray(e.mats, j * 16)), e.state || 'always');
       }
-    }
+      if (v.actors) people.add(v.actors, m, n + 1);
+    });
+    people.end();
   }
   let ready = false;
   const ensure = () => {
@@ -164,6 +170,8 @@ export function buildTemplesScene() {
     // The torch's light by the Temple of Mercury's altar.
     lamp: [-10, 1.6, 9.5 + 3.22],
     shadowBox: 46,
+    noAO: [people.group],
+    people,
     get lod() { return lod; },
     setLod(n) {
       if (n === lod) return;

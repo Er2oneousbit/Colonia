@@ -25,7 +25,7 @@ import { MODELS, hasModel, modelMatrix, modelLamps, partShows } from '../src/ren
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { prefectureState, engineerState, crewOut } from '../src/render3d/models/services.js';
-import { PUMP_WATER } from '../src/render3d/models/prefecture.js';
+import { PUMP_WATER, prefectureActors } from '../src/render3d/models/prefecture.js';
 import { ENGINEER } from '../src/render3d/models/engineer.js';
 import { iceMaterial } from '../src/render3d/materials.js';
 
@@ -114,9 +114,12 @@ test('services3d: every part shows in some state, and each state shows what it s
   // Doors open while staffed, shut when not; the lantern lit while staffed.
   assert.deepEqual(p.filter((v) => v.name === 'doors').map((v) => v.states.join('+')).sort(), ['open+out', 'shut']);
   assert.deepEqual(p.filter((v) => v.name === 'lamp' && v.mesh.material.name === 'lantern-pane').flatMap((v) => v.states).sort(), ['open', 'out']);
-  // Two men when all are home, one left at the door while the others are out, none when shut.
-  const men = (s) => new Set(p.filter((v) => /^(watchman|pumpman)-/.test(v.name) && v.states.includes(s)).map((v) => v.name.split('-')[0])).size;
+  // Two men when all are home, one left at the door while the others are out, none when shut (actors: people/).
+  const men = (s) => prefectureActors(s).length;
   assert.deepEqual([men('open'), men('out'), men('shut')], [2, 1, 0]);
+  // The pump's beam: the pumpman rocks his own while he works it; the kit's stands still otherwise.
+  assert.deepEqual(p.filter((v) => v.name === 'beam').map((v) => v.states.join('+')).sort(), ['out', 'shut']);
+  assert.ok(prefectureActors('open').some((a) => a.clip === 'pump' && a.props.R === 'beam'));
   // The yard: the block hoisted and two men working, or let down onto rollers and nobody.
   const e = [...shownIn('engineer_post').values()];
   assert.deepEqual(e.filter((v) => v.name === 'block').map((v) => v.states.join()).sort(), ['open', 'shut']);

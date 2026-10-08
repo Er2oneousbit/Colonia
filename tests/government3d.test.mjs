@@ -24,6 +24,7 @@ import assert from 'node:assert/strict';
 
 import { Box3, Group } from 'three';
 import { MODELS, hasModel, modelMatrix, modelLamps, partShows, modelFor } from '../src/render3d/models.js';
+import { curiaActors } from '../src/render3d/models/curia.js';
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { governmentState, alarmed, governmentLook, ALARM_TILES, GOVERNMENT_TYPES } from '../src/render3d/models/government.js';
@@ -127,7 +128,18 @@ function shownIn(type, lod = 0) {
 test('government3d: every part shows in some state, and each state shows what it should', () => {
   for (const type of TYPES) for (const p of shownIn(type)) assert.ok(p.states.length, `${type} ${p.name}|${p.when} shows in no state`);
   const peopleIn = (type, s, lod = 0) => shownIn(type, lod).filter((p) => /^(senators|household|guard|guard-more)-/.test(p.name) && p.states.includes(s)).length;
+  // The senate's people are actors (people/): senators in session, soldiers of the guard on the alert, nobody idle.
+  const senate = (s) => curiaActors(s);
+  assert.ok(senate('open').length >= 8 && senate('open').every((a) => a.dress.some((d) => d.startsWith('toga')) || a.props), 'the senate in session');
+  assert.ok(senate('out').length >= 2 && senate('out').every((a) => a.clip === 'guard'), 'the guard on the alert');
+  assert.equal(senate('shut').length, 0, 'nobody in an empty senate');
   for (const type of TYPES) {
+    // (The doors and lamps below for every type; the kits' people for the residences.)
+    if (type === 'senate') {
+      const doors = shownIn(type).filter((p) => p.name === 'doors').map((p) => p.states.join('+')).sort();
+      assert.deepEqual(doors, ['open', 'out', 'shut'], type);
+      continue;
+    }
     assert.ok(peopleIn(type, 'open') >= 3, `${type}: people at work`);
     assert.equal(peopleIn(type, 'shut'), 0, `${type}: nobody when shut`);
     assert.ok(peopleIn(type, 'out') >= 1, `${type}: guards on the alert`);

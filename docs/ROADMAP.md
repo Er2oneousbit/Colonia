@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.23)
+
+* **Animated 3D people** (under WebGL): the people in the temples, the oracle, the mission post, the school, the forum, the senate and the prefecture are now detailed figures that move: a face, hands, hair and beards, Roman dress as separate pieces (tunic with clavi, toga with its folds, stola and palla, cloak, mail, veil, wreath), men, women and children in a city's varied dyes. Twenty-three motions animated on the graphics card (walking short rounds, talking, praying, sacrificing, playing the pipes, writing, reading, teaching, pumping, counting coin, cheering, standing guard, among others), no two in step; snow settles on their heads and shoulders. Lab: the People scene (minus key)
+* Headless sim: identical to v0.20.22 (nothing under src/sim changed)
+* 1302 unit tests, 269 browser checks
+
 ## Done (v0.20.22)
 
 * **The temples, the oracle and the mission post in 3D** (under WebGL): the small temple a podium temple in miniature after the Temple of Portunus and the Maison Carree, four columns across its porch, bronze doors, the god's statue inside and the altar before the steps; the grand temple a marble temple of six columns across after Mars Ultor and the Capitolium of Brescia, in a court of porticoes round its great altar. Each god in its own order, colours and gilt dedication: Ceres Tuscan with sheaves and torches (CERERI), Neptune Ionic in sea blue with tridents and dolphins (NEPTVNO), Mercury Corinthian with the caduceus and roosters (MERCVRIO), Mars in crimson with trophies and shields (MARTI·VLTORI), Venus with doves, shells, myrtle and roses (VENERI·GENETRICI). The oracle a round tholos over a smoking cleft and a spring, tripods burning; the mission post a walled sacellum of Pax with the envoys' lodging and gifts for the villages. Staffed, the doors stand open and the altar fire burns; in a festival month garlands, a crowd in wreaths, a flute player and the victim; an angry god's altar sends up black smoke; unstaffed, shut and cold. Console: `temples [n]`

@@ -514,6 +514,20 @@ export function material(key, opts = {}) {
   return m;
 }
 
+/**
+ * A material made by `make` once and kept by `key` with the look's own
+ * (freed with them by resetLook): for one that patches the look's shader
+ * further (people/material.js: the people's skinning).
+ */
+export function cachedMaterial(key, make) {
+  let m = CACHE.get(key);
+  if (m) return m;
+  m = make();
+  m.name ||= key;
+  CACHE.set(key, m);
+  return m;
+}
+
 /** A clear coat too faint to see, which gives the water the ice's features (one program for both). */
 const ICE_SHARE = 1e-4;
 

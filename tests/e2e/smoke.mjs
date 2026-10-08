@@ -4938,6 +4938,28 @@ try {
           const target = await gt.evaluate(() => window.colonia.ui.info.target);
           sacred.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id, target });
         }
+        // The people of the rites (render3d/people/): the small temple of Ceres staffed and close up draws
+        // its priest, his boy and a worshipper as instanced meshes skinned on the GPU: drawn alone at two
+        // clock times, their pixels change. (Waited for: their pieces are built within a frame's budget.)
+        const pb = laidT.temple_ceres;
+        let peopleProbe = null;
+        if (pb) {
+          await gt.evaluate((v) => {
+            const app = window.colonia;
+            app.game.buildings.get(v.id).efficiency = 1;
+            app.ui.info.close();
+            app.renderer.camera.zoomIndex = 7;
+            app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2);
+          }, pb);
+          await gt.waitForFunction(() => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return mp.people >= 3 && !mp.deferred && !r.stats.pending;
+          }, null, { timeout: 30000, polling: 100 }).catch(() => {});
+          peopleProbe = await gt.evaluate(() => window.colonia.renderer.backend.probePeople([0.4, 1.3]));
+        }
+        check('WebGL renderer: a staffed temple\'s people are instanced meshes animated on the GPU (their pose changes with the clock)',
+          !!peopleProbe && peopleProbe.people >= 3 && peopleProbe.covered.every((n) => n > 20) && peopleProbe.changed > 5, JSON.stringify(peopleProbe));
         await gt.evaluate(() => window.colonia.ui.info.close());
         if (shots) await gt.screenshot({ path: path.join(shots, 'smoke-webgl-temples.png') });
         check('WebGL renderer: the five small temples, the five grand temples, the oracle and the mission post are 3D models, and a click picks each',

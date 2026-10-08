@@ -89,7 +89,11 @@ function shownIn(type, lod = 0) {
 test('education3d: every part shows in some state, and each state shows what it should', () => {
   for (const type of TYPES) for (const p of shownIn(type)) assert.ok(p.states.length, `${type} ${p.name}|${p.when} shows in no state`);
   const peopleIn = (type, s) => shownIn(type).filter((p) => /^(scholars|readers)-/.test(p.name) && p.states.includes(s)).length;
-  for (const type of TYPES) {
+  // The school's people are actors (people/): the boys, the master, the slave at the gate, while it is open.
+  const school = (efficiency) => MODELS.school.variant({ efficiency }).actors.actors;
+  assert.ok(school(1).length >= 8, 'the school at its lessons');
+  assert.equal(school(0).length, 0, 'nobody when the school is shut');
+  for (const type of TYPES.filter((t) => t !== 'school')) {
     assert.ok(peopleIn(type, 'open') >= 3, `${type}: people at work`);
     assert.equal(peopleIn(type, 'shut'), 0, `${type}: nobody when shut`);
     // People only close up: a dozen figures are thousands of triangles under a pixel each further out.

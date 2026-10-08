@@ -49,7 +49,7 @@ import { material, waterMaterial } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, paving, wallWithOpenings, lantern, lanternPane, inscription, TaggedParts } from './masonry.js';
 import { gableRoof, ladder, doorLeaf, beam, lin, D } from './rural.js';
-import { figureParts } from './figure.js';
+import { PUMP } from '../people/clips.js';
 
 /** The watch house's measures (metres): the tests, the lab and the game read them. */
 export const PREFECTURE = Object.freeze({
@@ -104,6 +104,35 @@ export function hama(lod = 0) {
     bail = tube([[-0.12, 0.25, 0], [-0.1, 0.34, 0], [-0.04, 0.41, 0], [0.04, 0.41, 0], [0.1, 0.34, 0], [0.12, 0.25, 0]], 0.009, { radial: lod ? 3 : 5, segments: lod ? 6 : 12, around: 0.06 });
   }
   return { body, bail };
+}
+
+/**
+ * The pump's beam: its pivot (x, y, z: over the block, between the bores),
+ * its arm from the pivot to a handle, its tilt at rest (the near end down).
+ * The pumpman stands where his clip's beam (people/clips.js PUMP) has this
+ * pivot, facing along the beam.
+ */
+export const PUMP_BEAM = Object.freeze({
+  pivot: Object.freeze([(P.tank[0] + P.tank[1]) / 2, P.tank[4] - 0.07 + 0.34 + 0.42 - 0.03, (P.tank[2] + P.tank[3]) / 2 - 0.02]),
+  arm: 0.62,
+});
+
+/**
+ * The watch house's people (people/actors.js specs, its metres): a man of
+ * the vigiles at the door while staffed (he stays when the others run to a
+ * fire), his axe on his shoulder; one working the pump while the crew is
+ * home ('open'). Nobody when unstaffed.
+ */
+export function prefectureActors(state) {
+  if (state === 'shut') return [];
+  const vigil = { body: 'm', dress: ['tunic:knee'], hair: 'crop', colours: { tunic: 0x7a3326, leather: 0x4a3020 } };
+  const list = [{ ...vigil, clip: 'shoulder', props: { L: 'axe' }, at: [0.24, P.floorY, P.z1 + 0.78], ry: 0.25, seed: 111 }];
+  if (state === 'open') {
+    // Facing along the beam toward the pivot (-x), his clip's pivot (PUMP.ahead, PUMP.height) on the beam's.
+    const [px, py, pz] = PUMP_BEAM.pivot;
+    list.push({ ...vigil, dress: ['tunic:short'], clip: 'pump', props: { R: 'beam' }, at: [px + PUMP.ahead, py - PUMP.height, pz], ry: -Math.PI / 2, seed: 112, colours: { tunic: 0x8a3a2a } });
+  }
+  return list;
 }
 
 /** The pump's water, kept by name so the game can freeze it in a hard frost (models/services.js). */
@@ -401,14 +430,16 @@ function pump(lod, seed, out) {
   const arm = 0.62;
   const a = [cx - arm * Math.cos(tilt), py + arm * Math.sin(tilt), cz - 0.02];
   const b = [cx + arm * Math.cos(tilt), py - arm * Math.sin(tilt), cz - 0.02];
-  out.wood.push(beam(a, b, 0.055, seed + 10, lod));
+  // (The beam and its handles stand still only while nobody works them: the pumpman's clip rocks his own,
+  // people/props.js beam, so the kit's are shown in the other states.)
+  out.beam.push(beam(a, b, 0.055, seed + 10, lod));
   if (lod < 2) {
     for (const s of [-1, 1]) {
       const ry = py - s * 0.1 * Math.sin(tilt) * 1;
       out.iron.push(cyl(0.01, 0.01, ry - top - 0.01, 5, cx + s * 0.1, top + 0.01, cz - 0.02));
     }
     // The handles: cross-bars at the beam's ends, worn smooth.
-    for (const p of [a, b]) out.wood.push(beam([p[0], p[1], p[2] - 0.17], [p[0], p[1], p[2] + 0.17], 0.035, seed + 11, lod));
+    for (const p of [a, b]) out.beam.push(beam([p[0], p[1], p[2] - 0.17], [p[0], p[1], p[2] + 0.17], 0.035, seed + 11, lod));
     out.iron.push(cyl(0.012, 0.012, 0.12, 5, cx, py - 0.06, cz - 0.075));
   }
   // The delivery pipe up the block's front, a swivel and the nozzle aimed out over the forecourt.
@@ -423,7 +454,7 @@ export function buildPrefecture({ lod = 0, seed = 41 } = {}) {
   const out = {
     trav: [], brick: [], tile: [], wood: [], dark: [], iron: [], bronze: [], marble: [], letters: [], red: [], plaster: [],
     doorOpen: [], doorShut: [], studsOpen: [], studsShut: [], bucketsHome: [], bailsHome: [], ladder: [], hook: [], hookIron: [],
-    axeWood: [], axeIron: [], rope: [], centones: [], water: [], buckets: [], bails: [], flags: [],
+    axeWood: [], axeIron: [], rope: [], centones: [], water: [], buckets: [], bails: [], flags: [], beam: [],
   };
   const H = P.half - 0.02;
   // Limestone flags round the house to the tile's edge: the forecourt, the strip along the side wall,
@@ -504,12 +535,9 @@ export function buildPrefecture({ lod = 0, seed = 41 } = {}) {
     p.add('lamp', lanternPane(), [l.pane], { when: 'staffed', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
-  // The vigiles: one at the door (staying while the others are out at a fire), one working the pump.
-  if (lod === 0) {
-    const guard = figureParts({ cloth: 0x7a3326, cloth2: 0x4a3a2c }, 0.24, P.floorY, P.z1 + 0.78, 0.25);
-    for (const f of guard) p.add(`watchman-${f.material.name}`, f.material, [f.g], { when: 'staffed' });
-    const pumpman = figureParts({ cloth: 0x7a3326, reach: 0.9 }, -0.28, P.floorY, P.tank[3] - 0.1, -Math.PI / 2 + 0.15);
-    for (const f of pumpman) p.add(`pumpman-${f.material.name}`, f.material, [f.g], { when: 'open' });
-  }
+  // The pump's beam at rest: shut, or the crew out at a fire (at work the pumpman rocks his own).
+  p.add('beam', mats.wood, out.beam, { when: 'shut' });
+  p.add('beam', mats.wood, out.beam.map((g) => g.clone()), { when: 'out' });
+  // (The vigiles are actors: prefectureActors.)
   return p.build();
 }

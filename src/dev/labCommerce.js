@@ -23,11 +23,12 @@ import { Group, Mesh, Matrix4, PlaneGeometry } from 'three';
 import { material } from '../render3d/materials.js';
 import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { buildMarket, marketWares, setMarketState, MARKET_GOODS, buildTholosFish } from '../render3d/models/market.js';
-import { buildForum, setForumState } from '../render3d/models/forum.js';
+import { buildForum, setForumState, forumActors } from '../render3d/models/forum.js';
+import { labCrowd } from './labPeople.js';
 import { buildWarehouse, warehouseLoads, setWarehouseState } from '../render3d/models/warehouse.js';
 import { buildLoad, buildDisplay, displayShows, WARE_GOODS } from '../render3d/models/wares.js';
 import { buildFigure } from '../render3d/models/figure.js';
-import { buildPrefecture, PREFECTURE, PUMP_WATER } from '../render3d/models/prefecture.js';
+import { buildPrefecture, PREFECTURE, PUMP_WATER, prefectureActors } from '../render3d/models/prefecture.js';
 import { buildEngineerPost } from '../render3d/models/engineer.js';
 import { partShows } from '../render3d/models.js';
 import { iceMaterial, waterMaterial } from '../render3d/materials.js';
@@ -242,7 +243,7 @@ function makeScene(id, L) {
     group.add(h);
     return { ...it, h };
   });
-  // Figures for scale: by the first market's stalls, at the forum's table, at a warehouse's gate.
+  // Figures for scale: by the first market's stalls, at a warehouse's gate.
   const figs = new Group();
   group.add(figs);
   const fig = (opts, x, z, ry) => {
@@ -257,9 +258,8 @@ function makeScene(id, L) {
   } else if (id === 'warehouse') {
     fig({ cloth: 0xb9a888 }, -13.6, -7.5 + 6.6, 0.3);
     fig({ cloth: 0x8a4434, reach: 0.6 }, -12.2, -7.5 + 6.8, -0.6);
-  } else {
-    fig({ cloth: 0x6f5a8a, cloth2: 0xc2a46a, long: true, skin: 0xb08664, hair: 0x221812 }, 6.5, 4.6, Math.PI);
   }
+  // (The forum and the watch house have people of their own: their models' actors, below.)
 
   let lod = 0;
   let turn = 0;
@@ -275,6 +275,9 @@ function makeScene(id, L) {
     return kits.get(k);
   };
   const built = [];
+  // The forum's and the watch house's people, as the game draws them (their models' actors).
+  const crowd = labCrowd(group);
+  const ACTORS = { forum: forumActors, prefecture: prefectureActors };
   function build() {
     for (const b of built) {
       b.h.remove(b.model.group);
@@ -296,6 +299,7 @@ function makeScene(id, L) {
       it.h.add(extras);
       built.push({ h: it.h, model, extras, it });
     }
+    crowd.fill(lod, holders.filter((it) => ACTORS[it.kind || id]).map((it) => [ACTORS[it.kind || id](it.state || 'open'), it.x, it.z]));
     placeWares();
   }
   /** The goods at the view's turn (the most visible stalls and bays filled first). */
@@ -334,6 +338,8 @@ function makeScene(id, L) {
     info: INFO[id],
     group,
     labels,
+    // (The people are posed on the GPU: GTAO's normal pass would see them at rest.)
+    noAO: [crowd.batch.group],
     /** Where the world fades into the backdrop: past the scene's patch. */
     fade: [0, 0, Math.max(w, d) / 2 + 4, Math.max(w, d) / 2 + 9],
     /** Where the lab's one lamp light hangs at night: a lantern of one of the buildings (its light, its shadows). */

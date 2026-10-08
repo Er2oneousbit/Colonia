@@ -17,9 +17,14 @@
  * ----------------------------------------------------------------------------
  */
 
-import { buildPrefecture, PREFECTURE, PUMP_WATER } from './prefecture.js';
+import { buildPrefecture, PREFECTURE, PUMP_WATER, prefectureActors } from './prefecture.js';
+import { cast } from '../people/actors.js';
 import { buildEngineerPost, ENGINEER } from './engineer.js';
 import { iceMaterial } from '../materials.js';
+
+/** The watch house's people by state (prefecture.js prefectureActors), packed once each. */
+const PREFECTURE_CASTS = {};
+const prefectureCast = (state) => (PREFECTURE_CASTS[state] ??= cast(prefectureActors(state)));
 
 /**
  * How many of a prefecture's men are on fire duty: running to a fire or at
@@ -64,7 +69,10 @@ const ENGINEER_LAMP = lampAt(ENGINEER.lamp);
 export const SERVICE_MODELS = Object.freeze({
   prefecture: Object.freeze({
     // (A ghost has no id and no walkers: it shows the watch house staffed, its crew at home.)
-    variant: (b, place, ctx) => ({ key: frost(place) ? 'prefecture:ice' : 'prefecture', state: prefectureState(b, ctx && ctx.game), ice: false }),
+    variant: (b, place, ctx) => {
+      const state = prefectureState(b, ctx && ctx.game);
+      return { key: frost(place) ? 'prefecture:ice' : 'prefecture', state, ice: false, actors: prefectureCast(state) };
+    },
     warm: ['prefecture'],
     lamps: (b) => (b.efficiency > 0 ? PREFECTURE_LAMP : []),
     build(key, lod) {

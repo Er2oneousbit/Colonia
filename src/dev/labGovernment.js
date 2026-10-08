@@ -18,6 +18,8 @@ import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { partShows } from '../render3d/models.js';
 import { GOVERNMENT_MODELS, governmentLook } from '../render3d/models/government.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { curiaActors } from '../render3d/models/curia.js';
+import { labCrowd } from './labPeople.js';
 
 /** Where each building stands (metres), what it shows, its label. */
 const ITEMS = [
@@ -85,12 +87,15 @@ export function buildGovernmentScene() {
   let ice = false;
   /** Free a group's geometries (the look's materials are shared and kept). */
   const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  // The senate's people, as the game draws them (models/curia.js curiaActors).
+  const crowd = labCrowd(group);
   function build() {
     for (const it of holders) {
       for (const c of it.h.children) free(c);
       it.h.clear();
       it.h.add(governmentLook(it.kind, lod, { ice, shows: (when) => partShows(when, it.state, false) }));
     }
+    crowd.fill(lod, holders.filter((it) => it.kind === 'senate').map((it) => [curiaActors(it.state), it.x, it.z]));
   }
   build();
   const labels = holders.map((it) => ({ name: it.name, note: it.note, x: it.x - HALF(it.kind) + 0.5, z: it.z - HALF(it.kind) + 0.5, y: 7 }));
@@ -105,6 +110,7 @@ export function buildGovernmentScene() {
     fade: [4, 0, 50, 58],
     lamp: [lampItem.x + 2.1, 3.05, lampItem.z + 1.25],
     shadowBox: 46,
+    noAO: [crowd.batch.group],
     get lod() { return lod; },
     setLod(n) {
       if (n === lod) return;

@@ -135,7 +135,9 @@ test('commerce3d: staffed or not: the market\'s awnings, the forum\'s doors and 
   assert.equal(f.get('doors-open'), 'open');
   assert.equal(f.get('doors-shut'), 'shut');
   assert.equal(f.get('coin'), 'open');
-  assert.ok([...f].some(([n, w]) => n.startsWith('person') && w === 'open'), 'a clerk only when it works');
+  // The clerk and the citizens are actors (people/): there only while it works.
+  assert.ok(MODELS.forum.variant({ efficiency: 1 }).actors.actors.length >= 2, 'a clerk and a citizen when it works');
+  assert.equal(MODELS.forum.variant({ efficiency: 0 }).actors.actors.length, 0, 'nobody when it does not');
   assert.ok(forumShows('open', 'open') && !forumShows('open', 'shut') && forumShows('always', 'shut'));
   const m = tags('market', 'market');
   assert.equal(m.get('awnings'), 'open');

@@ -39,7 +39,8 @@ import { Group, Matrix4 } from 'three';
 import { iceMaterial } from '../materials.js';
 import { TaggedParts } from './masonry.js';
 import { govMaterials, column } from './domus.js';
-import { buildCuria, CURIA, CURIA_LAMPS } from './curia.js';
+import { buildCuria, CURIA, CURIA_LAMPS, curiaActors } from './curia.js';
+import { cast, NOBODY } from '../people/actors.js';
 import { buildPraetorium, PRAETORIUM_COLONNADES, PRAETORIUM_LAMPS } from './praetorium.js';
 import { buildPraetoriumMaius, PRAETORIUM_MAIUS_COLONNADES, PRAETORIUM_MAIUS_LAMPS } from './praetoriumMaius.js';
 import { buildRegia, REGIA_COLONNADES, REGIA_LAMPS } from './regia.js';
@@ -103,6 +104,7 @@ const DEFS = {
     cols: [{ order: 'corinthian', h: CURIA.colH, y: CURIA.floorY, at: CURIA.cols.map((x) => [x, CURIA.porchZ]) }],
     lamps: CURIA_LAMPS,
     water: false,
+    actors: curiaActors,
   },
   governor_house: { build: buildPraetorium, cols: PRAETORIUM_COLONNADES, lamps: PRAETORIUM_LAMPS, water: true },
   governor_villa: { build: buildPraetoriumMaius, cols: PRAETORIUM_MAIUS_COLONNADES, lamps: PRAETORIUM_MAIUS_LAMPS, water: true },
@@ -166,13 +168,16 @@ function lampsOf(type) {
   return (b) => (b.efficiency > 0 ? lit : []);
 }
 
-/** One entry of MODELS. */
+/** One entry of MODELS; its people (a type's `actors(state)`) packed once a state. */
 function entry(type) {
   const d = DEFS[type];
+  const casts = {};
+  const castOf = (state) => (casts[state] ??= d.actors ? cast(d.actors(state)) : NOBODY);
   return Object.freeze({
     variant: (b, place, ctx) => {
       const ice = d.water && frost(place);
-      return { key: ice ? `${type}:ice` : type, state: governmentState(b, ctx ? ctx.game : null), ice: false, more: moreOf(type) };
+      const state = governmentState(b, ctx ? ctx.game : null);
+      return { key: ice ? `${type}:ice` : type, state, ice: false, more: moreOf(type), actors: castOf(state) };
     },
     warm: [type, ...d.cols.map((c, i) => colKey(type, i))],
     lamps: lampsOf(type),

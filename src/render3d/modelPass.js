@@ -45,7 +45,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement } from 'three';
+import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement, WebGLRenderTarget, Group } from 'three';
 import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
@@ -55,6 +55,8 @@ import { fountainTier, tierOf } from './fountainTier.js';
 import { WaterBits } from '../world/map.js';
 import { painterFor } from './paint/painter.js';
 import { CONFIG } from '../config.js';
+import { PeopleBatch } from './people/batch.js';
+import { peopleMaterial, peopleDepthMaterial } from './people/material.js';
 
 /** A tile at least this wide on the screen (device px) draws the full model; at least LOD1_PX, the middle one; else the far one. */
 export const LOD0_PX = 160;
@@ -83,6 +85,28 @@ const COMPILE_GIVE_UP_S = 30;
 const BUILD_MS = 8;
 /** Tries at compiling that may throw before the models give way to the sprites for good. */
 const WARM_TRIES = 3;
+
+/**
+ * The people's own levels (people/): a tile at least this wide on the screen
+ * (device px) draws them at their full detail, at least PEOPLE_LOD1_PX the
+ * middle one. A person is a fifth of a building's height: the full body
+ * (some 5,000 triangles) pays only where a face is a few dozen pixels.
+ */
+export const PEOPLE_LOD0_PX = 300;
+export const PEOPLE_LOD1_PX = 150;
+
+/** The people's level of detail for a camera scale (device px per world px). */
+export function peopleLodFor(scale) {
+  const tile = CONFIG.TILE_W * scale;
+  return tile >= PEOPLE_LOD0_PX ? 0 : tile >= PEOPLE_LOD1_PX ? 1 : 2;
+}
+
+/** A building's own number for its people's phases (its place and type: the same after a reload). */
+function seedOf(b) {
+  let h = (b.x * 73856093) ^ (b.y * 19349663);
+  for (let i = 0; i < b.type.length; i++) h = Math.imul(h ^ b.type.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 100003) + 0.5;
+}
 
 /** The level of detail for a camera scale (device px per world px). */
 export function lodFor(scale) {
@@ -134,6 +158,9 @@ export class ModelPass {
     this.warming = null;
     this.lost = false;
     this.stats = { kits: 0, triangles: 0, drawn: 0, byType: {} };
+    // The buildings' people (models.js variants' `actors`): instanced and moved on the GPU (people/batch.js).
+    this.people = new PeopleBatch(rig.modelSlot);
+    this.peopleOn = true;
     // Why models cannot draw on this GPU (a program that does not link, textures that could not
     // be painted): null while all is well. The sprites draw instead, for good.
     this.failed = null;
@@ -335,6 +362,9 @@ export class ModelPass {
     this.life(r);
     this.buildUntil = performance.now() + BUILD_MS;
     this.deferred = 0;
+    const scale = r.camera ? r.camera.scale : 1;
+    let peopleMs = 0;
+    this.people.begin(peopleLodFor(scale), this.buildUntil);
     for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
     const byType = {};
     // (The shadow map is cleared rather than drawn when no model wants it: sunRig.js fitShadow.)
@@ -355,8 +385,18 @@ export class ModelPass {
           }
         }
       }
+      // Its people: their cast at the building's matrix (written to the GPU only when the set changes).
+      if (v.actors && this.peopleOn) {
+        const t0 = performance.now();
+        this.people.add(v.actors, _m, seedOf(m.b));
+        peopleMs += performance.now() - t0;
+      }
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
     }
+    const tp = performance.now();
+    this.people.end();
+    // (The people's CPU a frame: gathering the casts, and writing them when the set changed.)
+    peopleMs += performance.now() - tp;
     for (const g of ghosts) this.placeGhost(g, lod);
     this.prefetch(lod);
     this.buildUntil = 0;
@@ -380,7 +420,9 @@ export class ModelPass {
     if (this.frame % KEEP_FRAMES === 0) {
       for (const [id, e] of this.tiers) if (this.frame - e.seen > KEEP_FRAMES) this.tiers.delete(id);
     }
-    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod, deferred: this.deferred };
+    const ps = this.people.stats;
+    tris += ps.triangles;
+    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod, deferred: this.deferred + ps.deferred, people: ps.people, peopleDraws: ps.draws, peopleLod: this.people.lod, peopleMs };
     return placed.length;
   }
 
@@ -473,6 +515,7 @@ export class ModelPass {
   /** Hide the casters from the shadow map while it is cleared (sunRig.js: nothing in it to show). */
   setCasting(on) {
     for (const k of this.kits.values()) for (const im of k.meshes) im.castShadow = on && im.userData.part.cast;
+    this.people.setCasting(on);
   }
 
   /** The look's shared uniforms and moving water for this frame (the weather, the season, the time). */
@@ -530,11 +573,14 @@ export class ModelPass {
       // The ghosts' tints (the see-through program the stains use, but their own materials).
       ghostMaterial('ok');
       ghostMaterial('warn');
+      // The people's programs: their material and their shadow casters' (a hidden instanced proxy each).
+      this.warmPeople();
       const rig = this.rig;
       // The models' slot alone, in the rig's light (three compiles hidden objects too: the target
       // scene's lights and sky, without the ground's own shader), under the very output state it is
       // drawn in (tone mapping and sRGB are part of a program).
       job = rig.withOutput(() => this.gl.compileAsync(rig.modelSlot, camera, rig.scene));
+      job = Promise.all([job, this.warmPeopleDepth(camera)]);
     } catch (err) {
       // This threw once and the models waited for good, a sprite where each stood and nothing
       // said: now it is said, tried again, and given up after a few tries.
@@ -554,6 +600,99 @@ export class ModelPass {
     job.then(done, done);
   }
 
+  /**
+   * Hidden instanced proxies of the people's materials in the models' slot, so
+   * the warm-up compiles their programs (the shadow casters' too: three would
+   * make those at the first shadow draw) before anyone is drawn.
+   */
+  warmPeople() {
+    if (this.peopleProxies) return;
+    const g = this.people.pieceFor('body:m', 2).base;
+    this.peopleProxies = [peopleMaterial(), peopleDepthMaterial('depth')].map((mat) => {
+      const p = this.people.make(g, 1);
+      p.mesh.material = mat;
+      p.mesh.castShadow = false;
+      p.mesh.name = 'people-warm';
+      return p.mesh;
+    });
+    // The shadow caster's proxy apart: the sun's pass draws into its shadow map (linear, no tone
+    // mapping), so its program is compiled under a render target, not the slot's output (warm).
+    const depth = this.peopleProxies[1];
+    depth.removeFromParent();
+    this.peopleDepthScene = new Group();
+    this.peopleDepthScene.add(depth);
+  }
+
+  /** Compile the people's shadow caster as the shadow pass will draw it (into a target): a promise. */
+  warmPeopleDepth(camera) {
+    if (!this.peopleDepthScene) return Promise.resolve();
+    this.peopleTarget ??= new WebGLRenderTarget(1, 1);
+    const prev = this.gl.getRenderTarget();
+    this.gl.setRenderTarget(this.peopleTarget);
+    try {
+      return this.gl.compileAsync(this.peopleDepthScene, camera, this.rig.scene);
+    } finally {
+      this.gl.setRenderTarget(prev);
+    }
+  }
+
+  /**
+   * For the smoke test and the console: draw the people alone (everything
+   * else hidden) at each of `times` (the look's clock, s) into a small
+   * target with the game's camera, and say how many pixels they cover and
+   * how many changed from one time to the next: the proof that they are
+   * drawn, instanced and skinned on the GPU, moving with the clock alone.
+   */
+  probePeople(camera, times = [0.4, 1.3], size = 160) {
+    const gl = this.gl;
+    const rig = this.rig;
+    const target = new WebGLRenderTarget(size, size);
+    const hidden = [];
+    const hide = (o) => {
+      if (o.visible) {
+        o.visible = false;
+        hidden.push(o);
+      }
+    };
+    for (const o of rig.scene.children) if (o !== rig.modelSlot && !o.isLight) hide(o);
+    for (const o of rig.modelSlot.children) if (o !== this.people.group) hide(o);
+    const bg = rig.scene.background;
+    rig.scene.background = null;
+    const clock = LOOK.uniforms.uLookTime;
+    const was = clock.value;
+    const shots = [];
+    try {
+      for (const t of times) {
+        clock.value = t;
+        gl.setRenderTarget(target);
+        gl.setClearColor(0x000000, 0);
+        gl.clear(true, true, true);
+        gl.render(rig.scene, camera);
+        const px = new Uint8Array(size * size * 4);
+        gl.readRenderTargetPixels(target, 0, 0, size, size, px);
+        shots.push(px);
+      }
+    } finally {
+      clock.value = was;
+      rig.scene.background = bg;
+      for (const o of hidden) o.visible = true;
+      gl.setRenderTarget(null);
+      target.dispose();
+    }
+    const covered = shots.map((px) => {
+      let n = 0;
+      for (let i = 3; i < px.length; i += 4) if (px[i] > 0) n++;
+      return n;
+    });
+    let changed = 0;
+    for (let k = 1; k < shots.length; k++) {
+      const a = shots[k - 1];
+      const b = shots[k];
+      for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) + Math.abs(a[i + 3] - b[i + 3]) > 24) changed++;
+    }
+    return { covered, changed, people: this.people.stats.people, draws: this.people.stats.draws };
+  }
+
   /** The WebGL context was lost, or came back: compile again (the painter paints again on its own). */
   lose() { this.lost = true; }
 
@@ -567,5 +706,15 @@ export class ModelPass {
   dispose() {
     for (const id of [...this.kits.keys()]) this.dropKit(id);
     this.tiers.clear();
+    for (const m of this.peopleProxies || []) {
+      m.removeFromParent();
+      m.dispose();
+      m.geometry.dispose();
+    }
+    this.peopleProxies = null;
+    this.peopleDepthScene = null;
+    if (this.peopleTarget) this.peopleTarget.dispose();
+    this.peopleTarget = null;
+    this.people.dispose();
   }
 }
