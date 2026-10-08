@@ -563,6 +563,7 @@ export class Renderer {
     this.follow = null; // { id } of a walker the view follows (until the map is moved)
     this.walkerSpots = []; // where each walker was drawn this frame, for clicks (pickWalker)
     this.walkers3d = []; // this frame's walkers drawn as 3D people (their items: lanterns, the ring)
+    this.units3d = []; // this frame's land units drawn as 3D figures (their items: torches; the ring and health bar when shown)
     this.walkerAt = { fx: 0, fy: 0, lift: 0, stride: 0, vt: 0, W: 0, H: 0, aim: null }; // (handed to the back end, copied)
     this.walkerCtx = { origin: null, venue: null };
     this.coverStrips = []; // the building strips drawn this frame, for clicks (coverDepthAt: what hides a figure)
@@ -1226,6 +1227,8 @@ export class Renderer {
     // (The WebGL back end drawing the buildings as models draws the land units as 3D figures,
     // render3d/units/: those are handed to it; their item keeps the ring, the health bar and the torch.)
     const u3 = !!be.drawsUnits;
+    (this.units3d ||= []).length = 0;
+    const selFortNow = this.selectedId && game.buildings.get(this.selectedId)?.def.kind === 'fort' ? this.selectedId : 0;
     if (u3) be.unitsFrame(tick + alpha, game.units.values(), { vt, W: map.w, H: map.h, x0: x0w, x1: x1w, y0: y0w, y1: vr.y + vr.h + 40 });
     for (const u of game.units.values()) {
       const fx = u.px + (u.x - u.px) * alpha;
@@ -1242,7 +1245,12 @@ export class Renderer {
       if (!inView(wx, wy) && !(naval && inView(wx, wy - 60))) continue;
       const d = this.yardDepth(u, fx, fy) ?? span.d ?? ux + uy + 0.004;
       if (u3 && !naval && this.unit3d(u, be, fx, fy, span.lift, stride, vt)) {
-        items.push({ d, kind: K_UNIT, u, wx, wy, stride, face, clipY: null, marks: be.unitTop(u) });
+        const it = { d, kind: K_UNIT, u, wx, wy, stride, face, clipY: null, marks: be.unitTop(u) };
+        // (Its item paints only a ring or a health bar: queued only then, so a battle of 3D units takes no
+        // cell of the live art each; the night's torches read the kept list.)
+        this.units3d.push(it);
+        it.queued = u.hp < u.maxHp || u.id === this.selectedUnit || (selFortNow !== 0 && u.fort === selFortNow);
+        if (it.queued) items.push(it);
         this.unitSpots.push({ id: u.id, wx, wy, d });
         continue;
       }
@@ -1613,7 +1621,7 @@ export class Renderer {
         for (const side of [1, -1]) L.glow(sx + side * mg.ox * k, sy + (side * mg.oy - GATE_H - 2) * k, 5.5 * k * f, 0.9 * lamps * f, true);
       }
       // Lanterns and torches on the move (the walkers drawn in 3D too).
-      for (const it of this.walkers3d && this.walkers3d.length ? items.concat(this.walkers3d) : items) {
+      for (const it of this.walkers3d.length || this.units3d.length ? items.concat(this.walkers3d, this.units3d.filter((q) => !q.queued)) : items) {
         if (it.kind === K_WALKER && !it.ringOnly) {
           const w = it.w;
           const ship = w.type === 'ship';

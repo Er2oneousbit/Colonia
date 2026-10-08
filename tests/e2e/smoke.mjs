@@ -4281,7 +4281,13 @@ try {
       let wpick = null;
       if (walker) {
         await gp.mouse.click(walker.x, walker.y);
-        await gp.waitForTimeout(150);
+        // Waited for by state, a frame drawn with his ring: under the software GL a frame can take
+        // longer than a fixed 150 ms (programs compiled once the models are ready stall it; the
+        // land units' added theirs, and the frame read before the click's was drawn had no live art).
+        await gp.waitForFunction((id) => {
+          const app = window.colonia;
+          return app.ui.info.target?.id === id && app.renderer.selectedWalker === id && app.renderer.stats.live > 0;
+        }, walker.id, { timeout: 10000, polling: 50 }).catch(() => {});
         wpick = await gp.evaluate(() => ({ target: window.colonia.ui.info.target, ring: window.colonia.renderer.selectedWalker, live: window.colonia.renderer.stats.live }));
       }
       check('WebGL renderer: a click on a walker opens its panel', !!walker && wpick.target?.kind === 'walker' && wpick.target.id === walker.id && wpick.ring === walker.id && wpick.live > 0, JSON.stringify({ walker, wpick }));
