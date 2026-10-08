@@ -228,6 +228,46 @@ const ANATOMY = {
 // The leopard: the lion's frame at SPECIES.leopard's scale, slimmer through the body and limbs, no tuft.
 ANATOMY.leopard = scaledAnatomy(ANATOMY.lion, 0.64, 0.86);
 
+// The villages' flocks (models/villages.js), cloven-hoofed (`cloven`: their own small hooves). A goat: lean, the
+// back straight, deep in the chest for its size, a long narrow face, ears out to the side, horns and a beard
+// (goatHorns). A sheep: a deep round barrel under its fleece (its coat in the mantle's slot: the wool's weave),
+// a small face, ears out flat, a long thin tail.
+ANATOMY.goat = {
+  trunk: [
+    [-0.47, 0.66, 0.6, 0.01, 0, 2], [-0.45, 0.7, 0.52, 0.06, 0, 2], [-0.4, 0.73, 0.46, 0.105, 0, 2], [-0.3, 0.74, 0.43, 0.125, 0.05, 2], [-0.1, 0.73, 0.41, 0.135, 0.1, 2],
+    [0.08, 0.75, 0.39, 0.135, 0.15, 2], [0.2, 0.77, 0.41, 0.125, 0.25, 2], [0.29, 0.74, 0.46, 0.105, 0.25, 2], [0.34, 0.68, 0.53, 0.065, 0.2, 2],
+  ],
+  neck: [[0, 0.67, 0.28, 0.07, 0.09, 0.085], [0.35, 0.74, 0.34, 0.06, 0.075, 0.072], [0.7, 0.83, 0.4, 0.05, 0.062, 0.06], [1, 0.91, 0.44, 0.045, 0.05, 0.05]],
+  head: {
+    from: [0, 0.97, 0.42], to: [0, 0.82, 0.65],
+    keys: [[0, 0.03, -0.04, 0.04], [0.15, 0.05, -0.055, 0.05], [0.35, 0.046, -0.05, 0.048], [0.6, 0.034, -0.036, 0.034], [0.85, 0.028, -0.03, 0.027], [1, 0.012, -0.012, 0.013]],
+    jaw: [[0.55, -0.02, -0.04, 0.026], [0.85, -0.02, -0.034, 0.02], [1, -0.02, -0.03, 0.012]],
+    eye: [0.3, 0.024, 0.044, 0.01], nose: [0.98, 0.01, 0.01], ear: { base: 0.03, deep: 0.02, h: 0.085, tilt: 1.1 },
+  },
+  fore: [[-0.35, 0.04, 0.055, 0.05], [0, 0.04, 0.05, 0.045], [0.5, 0.032, 0.03, 0.035], [1, 0.024, 0.022, 0.025], [1.3, 0.02, 0.02, 0.02], [2, 0.015, 0.016, 0.015], [2.5, 0.016, 0.016, 0.016], [3, 0.017, 0.018, 0.018]],
+  hind: [[-0.35, 0.05, 0.07, 0.07], [0.2, 0.045, 0.055, 0.06], [0.6, 0.035, 0.035, 0.045], [1, 0.026, 0.024, 0.03], [1.3, 0.022, 0.02, 0.025], [2, 0.015, 0.015, 0.016], [2.5, 0.016, 0.016, 0.016], [3, 0.017, 0.018, 0.018]],
+  cloven: { r: 0.02, h: 0.045 },
+  tail: [[0, 0.022], [1, 0.02], [2, 0.016], [3, 0.008]],
+};
+ANATOMY.sheep = {
+  trunk: [
+    [-0.5, 0.6, 0.52, 0.03, 0, 2], [-0.47, 0.66, 0.44, 0.11, 0, 2.2], [-0.4, 0.69, 0.38, 0.16, 0, 2.3], [-0.28, 0.71, 0.35, 0.18, 0.05, 2.3], [-0.1, 0.71, 0.34, 0.19, 0.08, 2.3],
+    [0.08, 0.72, 0.34, 0.19, 0.1, 2.3], [0.2, 0.72, 0.36, 0.175, 0.15, 2.2], [0.3, 0.69, 0.4, 0.15, 0.15, 2.1], [0.37, 0.63, 0.47, 0.1, 0.1, 2],
+  ],
+  neck: [[0, 0.6, 0.28, 0.1, 0.11, 0.11], [0.35, 0.64, 0.34, 0.085, 0.09, 0.09], [0.7, 0.69, 0.4, 0.065, 0.07, 0.068], [1, 0.73, 0.45, 0.05, 0.055, 0.05]],
+  head: {
+    from: [0, 0.78, 0.43], to: [0, 0.66, 0.63],
+    keys: [[0, 0.03, -0.04, 0.04], [0.15, 0.05, -0.05, 0.048], [0.35, 0.045, -0.045, 0.044], [0.6, 0.035, -0.035, 0.033], [0.85, 0.03, -0.03, 0.028], [1, 0.012, -0.012, 0.014]],
+    jaw: [[0.55, -0.018, -0.036, 0.024], [0.85, -0.018, -0.03, 0.019], [1, -0.018, -0.026, 0.012]],
+    eye: [0.32, 0.022, 0.04, 0.009], nose: [0.98, 0.008, 0.011], ear: { base: 0.028, deep: 0.018, h: 0.075, tilt: 1.6 },
+  },
+  fore: [[-0.35, 0.045, 0.06, 0.055], [0, 0.04, 0.05, 0.045], [0.5, 0.03, 0.03, 0.033], [1, 0.022, 0.02, 0.023], [1.3, 0.018, 0.018, 0.018], [2, 0.014, 0.015, 0.014], [2.5, 0.015, 0.015, 0.015], [3, 0.016, 0.017, 0.017]],
+  hind: [[-0.35, 0.055, 0.075, 0.075], [0.2, 0.048, 0.058, 0.062], [0.6, 0.034, 0.034, 0.042], [1, 0.024, 0.022, 0.027], [1.3, 0.02, 0.019, 0.022], [2, 0.014, 0.014, 0.015], [2.5, 0.015, 0.015, 0.015], [3, 0.016, 0.017, 0.017]],
+  cloven: { r: 0.018, h: 0.04 },
+  tail: [[0, 0.04], [1, 0.035], [2, 0.03], [3, 0.018]],
+  fleece: 1,
+};
+
 /** An anatomy at k of its size, its widths a further `wk` (a slimmer beast on a frame like another's). */
 function scaledAnatomy(A, k, wk) {
   const H = A.head;
@@ -412,6 +452,9 @@ function coatTone(sp, p, base = 1) {
   if (sp === 'lion') return base * (0.93 + 0.05 * noise(p[0] * 25, p[1] * 25, p[2] * 25) + 0.03 * Math.sin(p[2] * 40 + p[1] * 25));
   if (sp === 'leopard') return base * (leopardSpot(p) ? 0.22 : 0.96 + 0.04 * noise(p[0] * 30, p[1] * 30, p[2] * 30));
   if (sp === 'bear') return base * (0.82 + 0.14 * noise(p[0] * 32, p[1] * 32, p[2] * 32) + 0.07 * Math.sin(p[1] * 55 + p[2] * 18) * Math.sin(p[0] * 40));
+  // A sheep's fleece in locks; a goat's coat a little shaggy along the flanks.
+  if (sp === 'sheep') return base * (0.84 + 0.12 * noise(p[0] * 70, p[1] * 70, p[2] * 70) + 0.06 * noise(p[0] * 18, p[1] * 18, p[2] * 18));
+  if (sp === 'goat') return base * (0.9 + 0.08 * noise(p[0] * 45, p[1] * 45, p[2] * 45) + 0.04 * Math.sin(p[1] * 90 + p[2] * 20));
   return base * (0.95 + 0.04 * noise(p[0] * 20, p[1] * 20, p[2] * 20));
 }
 
@@ -443,6 +486,10 @@ function trunk(m, sp, A, J, R) {
       // A cat's pale belly; the back a shade darker. A bear's underside darker than its flanks.
       slot = sp !== 'bear' && Math.cos(phi) < -0.62 ? SLOTS.TRIM : FUR;
       tone *= sp === 'bear' ? 0.86 + 0.14 * Math.max(0, Math.cos(phi) + 0.3) : 0.94 - 0.06 * Math.max(0, Math.cos(phi));
+    } else if (A.fleece) {
+      // A sheep's fleece: the mantle's slot (the wool's weave), dingier under the belly.
+      slot = FUR;
+      tone *= 0.88 + 0.12 * Math.max(0, Math.cos(phi) + 0.4);
     }
     return { p, c, uv: [phi * 0.3, z], w: trunkWeights(J, p), slot, tone };
   });
@@ -493,6 +540,9 @@ function neck(m, sp, A, J, R) {
     } else if (SHOW.has(sp)) {
       // A cat's throat pale; a bear's neck all coat.
       slot = sp !== 'bear' && Math.cos(phi) < -0.45 ? SLOTS.TRIM : FUR;
+    } else if (A.fleece) {
+      // The fleece up the neck to behind the ears; the face bare.
+      if (s < 0.82) slot = FUR;
     }
     return { p, c, uv: [phi * 0.3, s], w: wt, slot, tone };
   });
@@ -532,6 +582,10 @@ function head(m, sp, A, J, R, lod) {
       const cphi = Math.cos(phi);
       if (sp === 'bear') slot = s > 0.62 ? SLOTS.TRIM : FUR;
       else slot = cphi < -0.55 ? (s > 0.72 ? SLOTS.DARK : SLOTS.TRIM) : s > 0.55 && Math.abs(Math.sin(phi)) > 0.45 && cphi < 0.35 ? SLOTS.TRIM : FUR;
+    } else if (A.cloven) {
+      // A goat's or a sheep's muzzle darker; a sheep's poll in its fleece.
+      if (s > 0.82) tone *= 0.72;
+      if (A.fleece && s < 0.12 && Math.cos(phi) > 0) slot = FUR;
     }
     return { p, c, uv: [phi * 0.1, s], w: hw, slot, tone };
   });
@@ -679,6 +733,19 @@ function leg(m, sp, A, J, R, l, lod) {
       tone: (u) => (u > 1 ? 0.6 + 0.2 * (u - 1) : 0.85),
     });
     ellipsoid(m, [bot[0], 0.004, bot[2] - 0.01], H.r * 0.95, 0.005, H.r * 0.85, 1, R.legR, fw, SLOTS.DARK);
+  } else if (A.cloven) {
+    // A goat's or a sheep's pastern and its small cloven hoof (the cleft a dark line down its front).
+    const H = A.cloven;
+    const top = [D[0], H.h + 0.012, D[2] + 0.012];
+    const bot = [D[0], 0.0, D[2] + 0.022];
+    limbLoft(m, [D, top, bot], {
+      u0: 0, u1: 2, rows: lod === 0 ? 3 : 2, cols: R.legR, side: sd,
+      rad: (u) => (u < 1 ? [H.r * 0.85, H.r * 0.9, H.r * 0.85] : [lerp(H.r * 0.9, H.r, u - 1), lerp(H.r, H.r * 1.15, u - 1), lerp(H.r * 0.9, H.r * 0.8, u - 1)]),
+      w: () => fw,
+      slot: (u, phi) => (u > 1.05 ? SLOTS.DARK : SLOTS.SKIN),
+      tone: (u, phi) => (u > 1 ? 0.55 + (Math.abs(Math.sin(phi)) < 0.2 && Math.cos(phi) > 0 ? -0.25 : 0.15) : 0.8),
+    });
+    ellipsoid(m, [bot[0], 0.003, bot[2]], H.r, 0.004, H.r * 1.1, 1, R.legR, fw, SLOTS.DARK);
   } else {
     // An elephant's round foot, its nails at the front.
     const F = A.foot;
@@ -1068,8 +1135,46 @@ export function buildQuad(species, opts, lod) {
     elephantTrunk(m, A, J, R);
     tusks(m, A, lod);
     if (opts.has('tower')) tower(m, A, J, lod);
+  } else if (species === 'goat') {
+    goatHorns(m, A, lod);
   }
   return m;
+}
+
+/**
+ * A goat's horns, swept up and back from the poll in a scimitar's curve,
+ * ridged, the colour of horn (the hair's slot, toned pale), and its beard
+ * under the chin (the hair's slot); both on the head's bone.
+ */
+function goatHorns(m, A, lod) {
+  const H = A.head;
+  const ax = nrm(sub(H.to, H.from));
+  const L = len(sub(H.to, H.from));
+  const up = nrm(sub([0, 1, 0], mul(ax, ax[1])));
+  const hw = () => weights([[QB.head, 1]]);
+  for (const sd of [1, -1]) {
+    const base = add(add(H.from, mul(ax, 0.2 * L)), add(mul(up, 0.04), [sd * 0.025, 0, 0]));
+    const pts = [base, add(base, [sd * 0.015, 0.07, -0.03]), add(base, [sd * 0.035, 0.11, -0.1]), add(base, [sd * 0.05, 0.1, -0.17])];
+    limbLoft(m, pts, {
+      u0: 0, u1: 3, rows: lod === 0 ? 6 : 3, cols: lod === 0 ? 6 : 4,
+      rad: (u) => {
+        const r = 0.016 * (1 - u / 3.3);
+        return [r * 0.8, r, r];
+      },
+      w: hw, slot: () => SLOTS.HAIR, tone: (u) => 1.6 - 0.25 * u + (lod === 0 ? 0.15 * Math.sin(u * 12) : 0),
+    });
+  }
+  if (lod < 2) {
+    const chin = add(add(H.from, mul(ax, 0.78 * L)), mul(up, -0.035));
+    limbLoft(m, [chin, add(chin, [0, -0.04, -0.005]), add(chin, [0, -0.075, -0.015])], {
+      u0: 0, u1: 2, rows: 2, cols: 4,
+      rad: (u) => {
+        const r = 0.012 * (1 - u / 2.2);
+        return [r * 0.6, r, r];
+      },
+      w: hw, slot: () => SLOTS.HAIR, tone: () => 0.8,
+    });
+  }
 }
 
 /** A beast's piece key: `quad:<species>[:opt...]`. */

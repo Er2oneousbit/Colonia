@@ -97,7 +97,7 @@ function villagesOf() {
     if (state === 'trade') buildings.set(5 + k, { id: 5 + k, type: 'mission_post', efficiency: 1, accessRoad: 0 });
     const game = { city: { natives: { people } }, buildings, time: { totalTicks: 1 } };
     for (const b of pieces) b.def = BUILDINGS[b.type];
-    return { people, state, pieces, game, m, ctx: { game, villagePeople: people, month: MONTHS[0], clock: 0, frame: 1 } };
+    return { people, state, pieces, game, m, ctx: { game, villagePeople: people, month: MONTHS[0] } };
   });
 }
 
@@ -141,7 +141,6 @@ export function buildVillagesScene(groundTex) {
   const people = new PeopleBatch(group);
   let lod = 0;
   let monthAt = 0;
-  let frame = 1;
   /** Kits by key at this level, built once (the game's builders). */
   const kits = new Map();
   const kitOf = (key) => {
@@ -172,54 +171,25 @@ export function buildVillagesScene(groundTex) {
   };
   /** Each piece's place in the lab (its footprint's middle, metres). */
   const centre = (b) => [OX + (b.x + b.size / 2) * TILE, OZ + (b.y + b.size / 2) * TILE];
-  /** The beasts' holders, refilled each frame from their kits' matrices (the game's moveFlock). */
-  let beasts = [];
   const _b = new Matrix4();
   const _l = new Matrix4();
   function build() {
     built.clear();
     for (const g of kits.values()) g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
     kits.clear();
-    beasts = [];
     people.begin(lod);
     for (const v of villages) {
       v.ctx.month = MONTHS[monthAt];
-      v.ctx.villageMemo = null;
       for (const b of v.pieces) {
         const [x, z] = centre(b);
         const m = new Matrix4().setPosition(x, 0, z);
         const res = VILLAGE_MODELS[b.type].variant(b, { snow: 0 }, v.ctx);
-        for (const e of res.more || []) {
-          if (e.key.startsWith('pecus:')) {
-            // Room for every copy its matrices hold; life() shows the first e.n.
-            const n = e.mats.length / 16;
-            const hs = [];
-            for (let j = 0; j < n; j++) hs.push(place(e.key, m));
-            beasts.push({ e, m, hs });
-            continue;
-          }
-          for (let j = 0; j < e.n; j++) place(e.key, _b.multiplyMatrices(m, _l.fromArray(e.mats, j * 16)));
-        }
+        for (const e of res.more || []) for (let j = 0; j < e.n; j++) place(e.key, _b.multiplyMatrices(m, _l.fromArray(e.mats, j * 16)));
+        // (The villagers and their flocks: people and beasts moved on the GPU by the look's clock.)
         if (res.actors) people.add(res.actors, m, b.id % 997);
       }
     }
     people.end();
-    life(0);
-  }
-  function life(t) {
-    frame++;
-    for (const v of villages) {
-      v.ctx.clock = t;
-      v.ctx.frame = frame;
-      // (The variant moves its flocks: the entries' matrices are refilled in place.)
-      for (const b of v.pieces) if (b.type !== 'native_crops') VILLAGE_MODELS[b.type].variant(b, { snow: 0 }, v.ctx);
-    }
-    for (const { e, m, hs } of beasts) {
-      hs.forEach((h, j) => {
-        h.visible = j < e.n;
-        if (j < e.n) h.matrix.multiplyMatrices(m, _l.fromArray(e.mats, j * 16));
-      });
-    }
   }
   let ready = false;
   const ensure = () => {
@@ -255,9 +225,8 @@ export function buildVillagesScene(groundTex) {
       people.begin(lod);
       if (ready) build();
     },
-    life(t) {
+    life() {
       ensure();
-      life(t);
     },
     onKey(k) {
       if (k !== 'v') return false;

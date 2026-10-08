@@ -224,7 +224,7 @@ test('villages3d: the grinder\'s hands are on the quern\'s upper stone through h
   }
 });
 
-test('villages3d: whoever stands in a hut\'s yard stands clear of every form\'s roof; the beasts keep on their footprints as they move', async () => {
+test('villages3d: whoever stands in a hut\'s yard stands clear of every form\'s roof; the fold\'s flock keeps inside its walls', async () => {
   const { hutActors, YARD } = await import('../src/render3d/models/villages.js');
   const { underEave, HUT } = await import('../src/render3d/models/tugurium.js');
   for (const form of Object.keys(HUT)) {
@@ -232,7 +232,7 @@ test('villages3d: whoever stands in a hut\'s yard stands clear of every form\'s 
       for (const work of ['grind', 'spin']) {
         const L = { people: 'native', form, q: 0, jitter: 0, work, child: true, crone: true };
         for (const a of hutActors(L, state, 9)) {
-          if (a.clip === 'grind' || a.clip === 'play') continue;
+          if (a.clip === 'grind' || a.clip === 'play' || a.beast) continue;
           // (The hut itself turns up to 0.18 off the yard's quarter turn: hutLook's jitter.)
           for (const j of [-0.18, 0, 0.18]) {
             const c = Math.cos(-j);
@@ -246,13 +246,18 @@ test('villages3d: whoever stands in a hut\'s yard stands clear of every form\'s 
     }
   }
   assert.ok(YARD.door && YARD.side);
-  // The flocks at several moments: the fold's and a tethered goat's.
-  const v = village('ligurian', 'calm');
-  const pieces = [v.m, ...HUTS.map(([x, y], i) => v.hut(MID + 1 + i, x, y))];
-  for (const clock of [0, 7.3, 41.9, 123.4]) {
-    for (const b of pieces) {
-      const { group } = villageLook(b, 1, { game: v.game, month: 5, clock });
-      fits(group, b.size, `${b.type} ${b.id} at ${clock} s`);
+  // The fold's flock (beasts on the beast rig, walking a few steps and grazing) keeps inside the fold's walls,
+  // the whole length of its routes, a beast's reach round it.
+  const { meetingActors } = await import('../src/render3d/models/villages.js');
+  const { CONCILIUM } = await import('../src/render3d/models/concilium.js');
+  const [x0, z0, x1, z1] = CONCILIUM.fold;
+  for (const people of PEOPLES) {
+    const beasts = meetingActors(people, 'calm', 17).filter((a) => a.beast);
+    assert.ok(beasts.length >= 3, 'a flock in the fold');
+    for (const a of beasts) {
+      const ends = [[a.at[0], a.at[2]]];
+      if (a.route) ends.push([a.at[0] + Math.sin(a.ry) * a.route.length, a.at[2] + Math.cos(a.ry) * a.route.length]);
+      for (const [x, z] of ends) assert.ok(x - 0.45 >= x0 - 0.05 && x + 0.45 <= x1 + 0.05 && z - 0.45 >= z0 - 0.05 && z + 0.45 <= z1 + 0.05, `${people}: a ${a.beast} at ${x.toFixed(2)}, ${z.toFixed(2)} out of the fold`);
     }
   }
 });

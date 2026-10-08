@@ -4,8 +4,9 @@
  * The native villages as the game draws them (render3d/models.js MODELS
  * takes these entries as they are): the hut (Tugurium, models/tugurium.js),
  * the meeting place (Concilium, concilium.js) and the plot (Arvum,
- * arvum.js), their villagers as people (people/actors.js) and their flocks
- * (pecus.js), from the sim's own fields, read only (sim/natives.js).
+ * arvum.js), their villagers as people and their flocks as beasts on the
+ * beast rig (people/actors.js; units/quadRig.js: goats and sheep), from the
+ * sim's own fields, read only (sim/natives.js).
  *
  * The people: the city's villages' (game.city.natives.people): 'ligurian'
  * in the missions that have them (Mutina, Luna), 'native' (the generic Iron
@@ -14,7 +15,7 @@
  * States (villageState), the same for every piece of a village:
  *   'calm'   calmed by a missionary (anger under ANGER_MAX) and no attack:
  *            at work and at peace: the women grinding and spinning at their
- *            doors, the men at the hurdles and the flock, the children at
+ *            doors, the men at the fold and its gate, the children at
  *            play, the elders by a cooking fire under the cauldron, a plot
  *            being hoed
  *   'trade'  calm, and a mission post at work (sim/natives.js postWorking:
@@ -43,11 +44,10 @@
  *                                    fold, stele or posts
  *   vfire:<small|great>, vcauldron, varms:<people>, vgoods, voak:<look>
  *   arvum:<people>:<crop>:<stage>    a plot, its crop by the month
- *   pecus:<sheep|goat>:<coat>:<pose> a beast of the flock, moving by its
- *                                    matrix (livestock.js herdPlaces)
- * A piece's list is kept per building by a signature of its look (its form,
- * turn, things, state, month), made again only when that changes; its
- * beasts' matrices alone are refilled each frame.
+ * A piece's list is kept by its look (its form, turn, things, state,
+ * month) and shared by every piece that looks so; the flocks are actors
+ * (the fold's walking a few steps and grazing, a hut's tethered goat), so
+ * nothing is written a frame.
  *
  * Night: each hut's hearth glows through its door (a lamp on its door's
  * side), the meeting place's fire (given facing both ways: open on all
@@ -65,9 +65,7 @@ import { QUERN } from '../people/clips.js';
 import { buildHut, yardThing, HUT_FORMS, HUT } from './tugurium.js';
 import { buildConcilium, buildFire, buildCauldron, buildArms, buildGoods, buildOak, CONCILIUM } from './concilium.js';
 import { buildPlot, CROPS, cropStage } from './arvum.js';
-import { buildBeast } from './pecus.js';
 import { buildSmoke } from './sacra.js';
-import { herdPlaces, penCells } from './livestock.js';
 import { lookOf } from '../flora/species.js';
 import { TaggedParts } from './masonry.js';
 import { steamMaterial, plume } from './healing.js';
@@ -143,61 +141,39 @@ function turn(x, z, ry) {
   return [x * c + z * s, -x * s + z * c];
 }
 
-/** Write a stand-up matrix into `arr` at slot `i`. */
-function put(arr, i, x, z, yaw, s = 1) {
-  _p.set(x, 0, z);
-  _q.setFromAxisAngle(UP, yaw);
-  _s.setScalar(s);
-  _m.compose(_p, _q, _s).toArray(arr, i * 16);
-}
-
-/** The coats a village's flock shows (sheep cream and dark brown, goats tawny and pied): two of each kind. */
-const COAT_PAIRS = Object.freeze({ sheep: [0, 2], goat: [0, 3] });
+/**
+ * The flocks' coats (sRGB, the beast rig's slots: units/quadMesh.js): a
+ * sheep's fleece in the mantle, its bare face and legs in the skin; a goat's
+ * coat in the skin, its horns and beard in the hair. The hill flocks were of
+ * mixed shades: the white fleece bred for later.
+ */
+const SHEEP_COATS = Object.freeze([
+  { mantle: 0xd9cdb2, skin: 0x9a8a74, hair: 0x8a7a64 }, { mantle: 0x9a8a72, skin: 0x5e5244, hair: 0x6e6250 },
+  { mantle: 0x6a5240, skin: 0x3e3024, hair: 0x5a4a3a }, { mantle: 0x3a332e, skin: 0x2a2420, hair: 0x4a4038 },
+]);
+const GOAT_COATS = Object.freeze([
+  { skin: 0x9a6a3e, hair: 0x6e6250, mantle: 0x9a6a3e }, { skin: 0x2e2824, hair: 0x7a6e5a, mantle: 0x2e2824 },
+  { skin: 0xd8d0c0, hair: 0x8a7e66, mantle: 0xd8d0c0 }, { skin: 0x7a5a3a, hair: 0x6a5e4a, mantle: 0x7a5a3a },
+]);
 
 /**
- * The flock: n beasts of a kind's coats wandering their cells, their kits'
- * entries in `more` (matrices refilled each frame by moveFlock). `rot`
- * turns the cells (the piece's turn about its middle).
+ * A beast of a flock (the beast rig's goat or sheep: units/quadRig.js) as an
+ * actor: grazing where it stands, or (`route`) walking a few steps across
+ * the fold and grazing at each end.
  */
-function flock(more, n, cells, seed, kinds, rot) {
-  const slots = new Map();
-  const which = [];
-  for (let i = 0; i < n; i++) {
-    const kind = kinds[i % kinds.length];
-    // (Two coats of each kind: every coat and pose in view is a draw of its own.)
-    const coat = COAT_PAIRS[kind][hash01(seed, i, 21) < 0.5 ? 0 : 1];
-    which.push(['stand', 'graze'].map((pose) => {
-      const key = `pecus:${kind}:${coat}:${pose}`;
-      let e = slots.get(key);
-      if (!e) {
-        e = { key, mats: new Float32Array(16 * n), n: 0, state: 'always' };
-        slots.set(key, e);
-        more.push(e);
-      }
-      return e;
-    }));
-  }
-  return { n, which, cells, slots: [...slots.values()], seed: seed * 7 + 3, places: [], rot };
+function beast(kind, seed, at, ry, route = null) {
+  const coats = kind === 'goat' ? GOAT_COATS : SHEEP_COATS;
+  const spec = { beast: `quad:${kind}`, clip: route ? `${kind}:walk` : `${kind}:graze`, at, ry, seed, colours: coats[Math.floor(hash01(seed, 21) * coats.length) % coats.length] };
+  if (route) spec.route = { length: route, speed: 0.32, pauseEnd: 9 + hash01(seed, 3) * 6, pauseStart: 7 + hash01(seed, 4) * 6, clipEnd: `${kind}:graze`, clipStart: hash01(seed, 5) < 0.5 ? `${kind}:graze` : `${kind}:stand` };
+  return spec;
 }
 
-/** Move a flock to where it is at time `t` (s). */
-function moveFlock(f, t) {
-  for (const e of f.slots) e.n = 0;
-  if (f.tether) {
-    // A tethered beast stays at its stake facing one way: it grazes, and now and then looks up.
-    const { x, z, yaw, ph } = f.tether;
-    const graze = Math.sin((t + ph) * 0.37) + 0.4 * Math.sin((t + ph) * 1.13) > -0.35 ? 1 : 0;
-    const e = f.which[0][graze];
-    put(e.mats, e.n++, x, z, yaw, 1);
-    return;
-  }
-  herdPlaces(f.n, f.cells, f.seed, t, f.places, { pace: 0.22, still: 0.62 });
-  for (let i = 0; i < f.n; i++) {
-    const o = f.places[i];
-    const e = f.which[i][o.pose];
-    const [x, z] = turn(o.x, o.z, f.rot);
-    put(e.mats, e.n++, x, z, o.yaw + f.rot, 1);
-  }
+/** The fold's flock (the meeting place's frame): three or four, walking a few steps and grazing, inside the walls. */
+function foldFlock(people, seed) {
+  const kinds = people === 'ligurian' ? ['sheep', 'goat', 'sheep', 'goat', 'sheep'] : ['sheep', 'sheep', 'goat', 'sheep', 'sheep'];
+  const places = [[1.95, 2.15, Q, 0.95], [3.05, 3.05, -Q, 0.95], [2.35, 2.75, 0.4, 0.45], [3.1, 2.3, Math.PI, 0], [2.0, 3.15, 2.4, 0]];
+  const n = 3 + (hash01(seed, 31) < 0.5 ? 0 : 1);
+  return places.slice(0, n).map(([x, z, ry, len], i) => beast(kinds[i], seed * 3 + i, [x, 0.02, z], ry, len || null));
 }
 
 // ---------------------------------------------------------------------------
@@ -311,12 +287,12 @@ function thingsOf(h, form) {
  *   side    the front left corner (a woman listening, the old woman)
  *   a, b    the two things' places, the back corners
  *   child   where a child squats at play
- *   goat    a tethered goat's place and facing, by the back
+ *   goat    a tethered goat's place and facing, the back left corner (no thing b then)
  */
 export const YARD = Object.freeze({
   quern: [-1.12, 1.2, Q], door: [1.62, 1.58, -2.4], side: [-1.64, 1.62, 2.5],
   a: [1.18, -1.22, Math.PI * 0.75], b: [-1.18, -1.26, -Math.PI * 0.75],
-  child: [0.2, 1.72, Math.PI], goat: [0.05, -1.62, -1.45],
+  child: [0.2, 1.72, Math.PI], goat: [-1.42, -1.42, -2.36],
 });
 
 /** Every look's hut kit at the hut's turn, its things, the hearth's smoke over the apex, its goat. */
@@ -334,26 +310,9 @@ function hutMore(L) {
   };
   if (L.work === 'grind') place('quern', 'tugx:quern');
   place('a', `tugx:${L.things[0]}`);
-  place('b', `tugx:${L.things[1]}`);
+  // (A hut with a goat tethered keeps that back corner for it.)
+  if (!L.goat) place('b', `tugx:${L.things[1]}`);
   return more;
-}
-
-/**
- * A hut's tethered goat (one, as a hill family kept by its door): standing at
- * its stake behind the hut, grazing and looking up in turn on the look's
- * clock; its kits' slots for moveFlock (`tether`).
- */
-function hutGoat(more, L, seed) {
-  const [x, z, r] = YARD.goat;
-  const rot = L.q * Q;
-  const [px, pz] = turn(x, z, rot);
-  const coat = COAT_PAIRS.goat[hash01(seed, 0, 21) < 0.5 ? 0 : 1];
-  const which = ['stand', 'graze'].map((pose) => {
-    const e = { key: `pecus:goat:${coat}:${pose}`, mats: new Float32Array(16), n: 0, state: 'always' };
-    more.push(e);
-    return e;
-  });
-  return { tether: { x: px, z: pz, yaw: r + rot, ph: hash01(seed, 7) * 30 }, which: [which], slots: which };
 }
 
 /** A hut's people in a state (actor specs in the tile's frame). */
@@ -376,13 +335,15 @@ export function hutActors(L, state, seed) {
       out.push(villager('child', p, seed + 3, { clip: 'play', at: at3('child'), ry: YARD.child[2] }));
     }
   }
+  // A goat tethered behind the hut, grazing (and now and then looking up), whatever the village's mood.
+  if (L.goat) out.push(beast('goat', seed + 7, [YARD.goat[0], 0.02, YARD.goat[1]], YARD.goat[2]));
   return out.map((a) => turned(a, rot));
 }
 
 const HUT_CASTS = new Map();
 /** A hut's cast, kept by its look and state. */
 function hutCast(L, state, seed) {
-  const sig = `${L.people}|${L.form}|${L.q}|${L.work}|${L.child}|${L.crone}|${state}|${seed}`;
+  const sig = `${L.people}|${L.form}|${L.q}|${L.work}|${L.child}|${L.crone}|${L.goat}|${state}|${seed}`;
   let c = HUT_CASTS.get(sig);
   if (!c) {
     const list = hutActors(L, state, seed);
@@ -411,7 +372,7 @@ function meetingTurn(b) {
 }
 
 /** The meeting place's kits in a state, turned `q` quarter turns; `month` the oak's look's. */
-function meetingMore(people, state, q, month, seed) {
+function meetingMore(people, state, q, month) {
   const rot = q * Q;
   const I = at(0, 0, rot);
   const more = [{ key: `concilium:${people}`, n: 1, mats: I, state: 'always' }];
@@ -424,11 +385,20 @@ function meetingMore(people, state, q, month, seed) {
   const [hx, hz] = CONCILIUM.hearth;
   const [sx, sz] = turn(hx, hz, rot);
   more.push({ key: `vsmoke:${roused ? 'war' : 'fire'}`, n: 1, mats: at(sx, sz, 0, 1, roused ? 1.2 : 2.1), state: 'always' });
-  // The flock in the fold: four or five, sheep and goats.
-  const [x0, z0, x1, z1] = CONCILIUM.fold;
-  const n = 4 + Math.floor(hash01(seed, 31) * 2);
-  const f = flock(more, n, penCells([x0 + 0.1, z0 + 0.1, x1 - 0.1, z1 - 0.1], Math.max(n, 4)), seed, people === 'ligurian' ? ['sheep', 'goat', 'sheep'] : ['sheep', 'sheep', 'goat'], rot);
-  return { more, flock: f };
+  // (The flock in the fold is the meeting place's actors: beasts on the beast rig.)
+  return Object.freeze(more.map((e) => Object.freeze(e)));
+}
+
+/** The meeting places' lists, kept by their look (a few a game: two peoples, four states, four turns, the oak's looks). */
+const MEET_MORE = new Map();
+function meetingMoreOf(people, state, q, month) {
+  const sig = `${people}|${state}|${q}|${lookOf('oak', month)}`;
+  let list = MEET_MORE.get(sig);
+  if (!list) {
+    list = meetingMore(people, state, q, month);
+    MEET_MORE.set(sig, list);
+  }
+  return list;
 }
 
 /** The meeting place's people in a state (actor specs, its frame before its turn). */
@@ -484,6 +454,8 @@ export function meetingActors(people, state, seed) {
       out.push(villager('child', p, seed + 33, { clip: 'idle', at: [-1.0, 0, 1.95], ry: toFire(-1.0, 1.95) }));
     }
   }
+  // The flock in the fold, whatever the village's mood.
+  out.push(...foldFlock(people, seed));
   return out;
 }
 
@@ -543,32 +515,20 @@ function plotCast(L, state, seed) {
 // The entries
 // ---------------------------------------------------------------------------
 
-/** How long a piece's kept look is remembered unseen (frames). */
-const KEEP = 600;
-
 /**
- * A memo per pass (ctx) by building id, pruned of the long unseen, and
- * forgotten with the lamps when the pass draws another game (a new game or a
- * load: the villages' ids start again at NATIVE_ID_BASE in every game).
+ * The lamps of the pieces drawn (by id: models.js modelLamps asks of a
+ * building alone), forgotten when the pass draws another game (a new game or
+ * a load: the villages' ids start again at NATIVE_ID_BASE in every game).
  */
-function memoOf(ctx) {
+const HUT_LAMPS = new Map();
+const MEET_LAMPS = new Map();
+function lampsOf(ctx) {
   if (ctx.villageGame !== ctx.game) {
     ctx.villageGame = ctx.game;
-    ctx.villageMemo = new Map();
     HUT_LAMPS.clear();
     MEET_LAMPS.clear();
   }
-  const memo = (ctx.villageMemo ??= new Map());
-  if (ctx.frame % KEEP === 0 && memo.pruned !== ctx.frame) {
-    memo.pruned = ctx.frame;
-    for (const [id, m] of memo) if (ctx.frame - m.seen > KEEP) memo.delete(id);
-  }
-  return memo;
 }
-
-/** The lamps of the huts drawn (by id: models.js modelLamps asks of a building alone). */
-const HUT_LAMPS = new Map();
-const MEET_LAMPS = new Map();
 
 const NONE = new Group();
 
@@ -577,67 +537,52 @@ function seedOf(b) {
   return ((b.x * 73 + b.y * 151 + (b.id || 0)) % 997) + 1;
 }
 
+/** The huts' lists, kept by their look (a hut's list is all its own: its turn, its things). */
+const HUT_MORE = new Map();
+function hutMoreOf(L) {
+  const sig = `${L.people}|${L.form}|${L.age}|${L.q}|${L.jitter}|${L.work}|${L.things}|${L.goat}`;
+  let list = HUT_MORE.get(sig);
+  if (!list) {
+    list = Object.freeze(hutMore(L).map((e) => Object.freeze(e)));
+    if (HUT_MORE.size > 4000) HUT_MORE.clear();
+    HUT_MORE.set(sig, list);
+  }
+  return list;
+}
+
 const HUT_ENTRY = Object.freeze({
   // Every material a village's huts draw is in these (one look and one yard thing of each material).
-  warm: ['tugurium:ligurian:round:0', 'tugurium:native:capanna:0', 'tugx:quern', 'tugx:loom', 'tugx:skep', 'vsmoke:hut', 'pecus:goat:0:stand'],
+  warm: ['tugurium:ligurian:round:0', 'tugurium:native:capanna:0', 'tugx:quern', 'tugx:loom', 'tugx:skep', 'vsmoke:hut'],
   variant(b, place, ctx) {
     const game = ctx ? ctx.game : null;
     const people = ctx && ctx.villagePeople ? ctx.villagePeople : villagePeople(game);
     const state = villageState(b, game);
     const L = hutLook(b, game, people);
-    const seed = seedOf(b);
-    const sig = `${people}|${L.form}|${L.age}|${L.q}|${L.jitter}|${L.work}|${L.things}|${L.goat}|${seed}`;
-    let e = null;
-    if (ctx && ctx.frame !== undefined && b.id !== null && b.id !== undefined) {
-      const memo = memoOf(ctx);
-      e = memo.get(b.id);
-      if (!e || e.sig !== sig) {
-        e = { sig, more: hutMore(L) };
-        if (L.goat) e.flock = hutGoat(e.more, L, seed);
-        memo.set(b.id, e);
-      }
-      e.seen = ctx.frame;
-      if (e.flock) moveFlock(e.flock, ctx.clock || 0);
+    if (ctx && b.id !== null && b.id !== undefined) {
+      lampsOf(ctx);
       HUT_LAMPS.set(b.id, [hutLamp(L)]);
-    } else {
-      // A ghost or a look outside the game: built each time, the beast at its clock's 0.
-      e = { more: hutMore(L) };
-      if (L.goat) moveFlock(hutGoat(e.more, L, seed), (ctx && ctx.clock) || 0);
     }
-    return { key: 'tugurium:none', state: 'always', ice: false, more: e.more, actors: hutCast(L, state, seed) };
+    return { key: 'tugurium:none', state: 'always', ice: false, more: hutMoreOf(L), actors: hutCast(L, state, seedOf(b)) };
   },
   lamps: (b) => HUT_LAMPS.get(b.id) || [],
   build: (key, lod) => buildPart(key, lod),
 });
 
 const MEETING_ENTRY = Object.freeze({
-  warm: ['concilium:ligurian', 'concilium:native', 'vfire:great', 'vcauldron', 'varms:native', 'vgoods', 'voak:leaf', 'vsmoke:fire', 'pecus:sheep:0:stand'],
+  warm: ['concilium:ligurian', 'concilium:native', 'vfire:great', 'vcauldron', 'varms:native', 'vgoods', 'voak:leaf', 'vsmoke:fire'],
   variant(b, place, ctx) {
     const game = ctx ? ctx.game : null;
     const people = ctx && ctx.villagePeople ? ctx.villagePeople : villagePeople(game);
     const state = villageState(b, game);
     const q = meetingTurn(b);
     const month = ctx ? ctx.month : null;
-    const seed = seedOf(b);
-    const sig = `${people}|${state}|${q}|${lookOf('oak', month)}|${seed}`;
-    let e = null;
-    if (ctx && ctx.frame !== undefined && b.id !== null && b.id !== undefined) {
-      const memo = memoOf(ctx);
-      e = memo.get(b.id);
-      if (!e || e.sig !== sig) {
-        e = { sig, ...meetingMore(people, state, q, month, seed) };
-        memo.set(b.id, e);
-      }
-      e.seen = ctx.frame;
-      moveFlock(e.flock, ctx.clock || 0);
+    if (ctx && b.id !== null && b.id !== undefined) {
+      lampsOf(ctx);
       const [hx, hz] = CONCILIUM.hearth;
       const [x, z] = turn(hx, hz, q * Q);
       MEET_LAMPS.set(b.id, [[x, 0.7, z, 1, 0], [x, 0.7, z, -1, 0]]);
-    } else {
-      e = meetingMore(people, state, q, month, seed);
-      moveFlock(e.flock, (ctx && ctx.clock) || 0);
     }
-    return { key: 'concilium:none', state: 'always', ice: false, more: e.more, actors: meetingCast(people, state, q, seed) };
+    return { key: 'concilium:none', state: 'always', ice: false, more: meetingMoreOf(people, state, q, month), actors: meetingCast(people, state, q, seedOf(b)) };
   },
   lamps: (b) => MEET_LAMPS.get(b.id) || [],
   build: (key, lod) => buildPart(key, lod),
@@ -691,7 +636,6 @@ export function buildPart(key, lod) {
     case 'varms': return buildArms(k[1], { lod }).group;
     case 'vgoods': return buildGoods({ lod }).group;
     case 'voak': return buildOak(k[1], { lod });
-    case 'pecus': return buildBeast(k[1], Number(k[2]), k[3], lod).group;
     default: throw new Error(`Unknown village part: ${key}`);
   }
 }
@@ -703,7 +647,7 @@ export const VILLAGE_MODELS = Object.freeze({
 });
 
 /** The villages' part kits for models.js MODEL_PARTS, by their key's first word. */
-export const VILLAGE_PARTS = Object.freeze(Object.fromEntries(['tugurium', 'concilium', 'arvum', 'tugx', 'vsmoke', 'vfire', 'vcauldron', 'varms', 'vgoods', 'voak', 'pecus'].map((w) => [w, Object.freeze({ build: buildPart })])));
+export const VILLAGE_PARTS = Object.freeze(Object.fromEntries(['tugurium', 'concilium', 'arvum', 'tugx', 'vsmoke', 'vfire', 'vcauldron', 'varms', 'vgoods', 'voak'].map((w) => [w, Object.freeze({ build: buildPart })])));
 
 /**
  * A piece's whole look as one Group, as the game shows it (the lab, the

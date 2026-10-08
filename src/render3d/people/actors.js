@@ -362,7 +362,7 @@ export function actorBounds(a, reach = 0.5) {
 }
 
 /** Half a beast's length (metres, its own scale 1): how far it reaches from where it stands. */
-const BEAST_REACH = Object.freeze({ wolf: 0.65, horse: 1.15, elephant: 1.9, lion: 1.0, leopard: 0.65, bear: 0.9 });
+const BEAST_REACH = Object.freeze({ wolf: 0.65, horse: 1.15, elephant: 1.9, lion: 1.0, leopard: 0.65, bear: 0.9, goat: 0.55, sheep: 0.55 });
 
 /**
  * An orbit's place and facing at time t (s, the instance's own clock), as

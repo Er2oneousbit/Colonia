@@ -177,6 +177,24 @@ export const SPECIES = Object.freeze({
     trunk: null,
     seat: null, deck: null,
   },
+  // The villages' flocks (models/villages.js): the small beasts of the Iron Age hills. A goat some 70 cm at the
+  // withers, lean and leggy, its tail held up; a sheep a little lower and deeper in the body, its long tail hanging.
+  goat: {
+    root: [0, 0.62, -0.3], spine: [0, 0.66, -0.1], chest: [0, 0.69, 0.15], neck: [0, 0.72, 0.28], neck2: [0, 0.84, 0.38], head: [0, 0.94, 0.45], jaw: [0, 0.86, 0.52],
+    ear: [0.04, 0.95, 0.44], tail: [[0, 0.68, -0.42], [0, 0.72, -0.46], [0, 0.76, -0.49]], tailEnd: [0, 0.79, -0.5],
+    fore: [[0.075, 0.58, 0.19], [0.08, 0.44, 0.13], [0.075, 0.25, 0.17], [0.075, 0.075, 0.18]], foreToe: 0.05,
+    hind: [[0.075, 0.6, -0.32], [0.08, 0.44, -0.22], [0.075, 0.27, -0.35], [0.075, 0.075, -0.33]], hindToe: 0.05,
+    trunk: null,
+    seat: null, deck: null,
+  },
+  sheep: {
+    root: [0, 0.55, -0.32], spine: [0, 0.59, -0.1], chest: [0, 0.61, 0.15], neck: [0, 0.62, 0.29], neck2: [0, 0.69, 0.39], head: [0, 0.75, 0.47], jaw: [0, 0.69, 0.53],
+    ear: [0.05, 0.76, 0.45], tail: [[0, 0.56, -0.45], [0, 0.46, -0.48], [0, 0.34, -0.49]], tailEnd: [0, 0.22, -0.49],
+    fore: [[0.08, 0.5, 0.19], [0.085, 0.37, 0.14], [0.08, 0.21, 0.17], [0.08, 0.065, 0.18]], foreToe: 0.045,
+    hind: [[0.08, 0.52, -0.34], [0.085, 0.37, -0.25], [0.08, 0.22, -0.37], [0.08, 0.065, -0.35]], hindToe: 0.045,
+    trunk: null,
+    seat: null, deck: null,
+  },
 });
 
 /** Each species' joints at rest, indexed by bone ([x, y, z]); unused bones (a wolf's trunk) sit on the head. */
@@ -420,6 +438,9 @@ export const GAITS = Object.freeze({
   'leopard:walk': { stride: 0.95, phase: [0.25, 0.75, 0, 0.5], duty: 0.62, lift: 0.06, fold: [-1.0, 0.8], bob: 0.01 },
   // A bear's amble: short steps, the feet set down flat, the weight rolling from side to side.
   'bear:walk': { stride: 1.05, phase: [0.25, 0.75, 0, 0.5], duty: 0.66, lift: 0.075, fold: [-0.55, 0.45], bob: 0.018 },
+  // The villages' goats and sheep (models/villages.js): a short-stepping walk about the fold.
+  'goat:walk': { stride: 0.72, phase: [0.25, 0.75, 0, 0.5], duty: 0.6, lift: 0.055, fold: [-0.95, 0.75], bob: 0.01 },
+  'sheep:walk': { stride: 0.62, phase: [0.25, 0.75, 0, 0.5], duty: 0.62, lift: 0.045, fold: [-0.9, 0.7], bob: 0.01 },
 });
 
 /**
@@ -857,7 +878,41 @@ export const BEAST_CLIPS = Object.freeze({
   },
   // Up on the hind feet to look and scent the air, held, and down again.
   'bear:rise': { dur: 7, fps: 20, pose(P, t) { bearRise(P, t); } },
+  // --- Appended: the villages' flocks (models/villages.js) ---------------------------------------------
+  ...flockClips('goat', { tail: -0.6 }),
+  ...flockClips('sheep', { tail: 0.15 }),
 });
+
+/**
+ * A goat's or a sheep's clips: standing and looking about (the horse's idle,
+ * small), walking, and grazing: the neck down to the grass, the jaw working,
+ * the head lifted now and then to look round, a step forward between bites.
+ * `tail` its carriage (a goat's up, a sheep's hanging).
+ */
+function flockClips(sp, { tail = 0 } = {}) {
+  return {
+    [`${sp}:stand`]: { dur: 8, fps: 10, pose(P, t) { standIdle(P, t, { sp: 'horse', look: 0.8, tail: 0.5 }); P.rot('tail1', tail, 0, 0); } },
+    [`${sp}:walk`]: { dur: 0.9, fps: 30, gait: `${sp}:walk`, pose(P, t) { gaitBody(P, GAITS[`${sp}:walk`], t, sp, { neck: 0.05, tail }); } },
+    [`${sp}:graze`]: {
+      dur: 7, fps: 12,
+      pose(P, t) {
+        standIdle(P, t, { sp: 'horse', look: 0.15, tail: 0.6 });
+        // Down to the grass, the head up for a look round about once a loop.
+        const up = qtrack(t, [[0, 0], [0.55, 0], [0.62, 1], [0.78, 1], [0.86, 0]]);
+        const down = 1 - up;
+        P.rot('neck', 1.15 * down, 0.15 * up * sn(t, 2), 0);
+        P.rot('neck2', 0.35 * down, 0, 0);
+        P.rot('head', 0.35 * down - 0.1 * up, 0.1 * sn(t, 3) * down, 0);
+        P.rot('jaw', 0.09 * down * Math.abs(sn(t, 14)), 0, 0);
+        P.rot('tail1', tail, 0, 0);
+        // A step forward with a fore foot between bites (once a loop: the foot back by the loop's end).
+        const step = qtrack(t, [[0, 0], [0.3, 0], [0.38, 1], [0.48, 1], [0.55, 0]]);
+        const r = P.J[LEGS[0][3]];
+        P.leg(0, r[1] + 0.04 * Math.sin(Math.PI * step), r[2] + 0.06 * step, -0.4 * Math.sin(Math.PI * step), 0.3 * Math.sin(Math.PI * step));
+      },
+    },
+  };
+}
 
 export const BEAST_CLIP_NAMES = Object.freeze(Object.keys(BEAST_CLIPS));
 export const BEAST_CLIP_INDEX = Object.freeze(Object.fromEntries(BEAST_CLIP_NAMES.map((n, i) => [n, i])));
