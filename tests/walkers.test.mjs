@@ -22,7 +22,7 @@ import { ROADBLOCK_GROUPS, roadblockBit, WALKER_TYPES } from '../src/data/walker
 import { ROADBLOCK, Wall } from '../src/world/map.js';
 import { planAction, undoLast } from '../src/sim/construction.js';
 import { spawnWalker } from '../src/sim/entities.js';
-import { startRoaming, followPath, pickRoamTile, streetValue, streetRisk, streetNeed, homeNeed } from '../src/sim/movement.js';
+import { startRoaming, followPath, pickRoamTile, streetValue, streetRisk, streetNeed, homeNeed, routeFrom } from '../src/sim/movement.js';
 import { vendorNeed, vendorSupply } from '../src/sim/market.js';
 import { updateServiceSpawns } from '../src/sim/services.js';
 import { addBuilding } from '../src/sim/entities.js';
@@ -572,4 +572,29 @@ test('soldiers, raiders and imperial legionaries are picked by a click on their 
   assert.equal(soldierDoing({ side: 'enemy', state: 'advance' }), 'Advancing on the city');
   assert.equal(soldierDoing({ side: 'rome', state: 'training', trainLeft: 9 * 20 }, { rally: null }), 'Training at the Campus, 9 days left');
   assert.equal(soldierDoing({ side: 'rome', state: 'training', trainLeft: 20 }, { rally: null }, false, true), 'Training at the Campus, 1 day left (paused: the Campus is short of staff)');
+});
+
+test('a road cleared under a walker: it steps back onto the road and carries on, goods and all', () => {
+  const game = newGame();
+  const { map } = game;
+  const { x0, x1, y } = straightRoad(game);
+  const dest = map.idx(x1, y);
+  // A cart on its way east, standing in the middle of the stretch about to be cleared.
+  const at = x0 + 9;
+  const cart = spawnWalker(game, 'cart', map.idx(at, y), null, { cargo: { good: 'wheat', amount: 400 }, state: 'deliver' });
+  followPath(game, cart, game.pf.roadPath(map.idx(at, y), dest));
+  assert.ok(build(game, 'clear', at - 1, y, at + 1, y).ok, 'road cleared under it');
+  assert.equal(map.road[map.idx(at, y)], 0);
+  // Before: it found no road route from where it stood and vanished with its load.
+  let ticks = 0;
+  while (game.walkers.has(cart.id) && !map.road[map.idx(cart.x, cart.y)] && ticks++ < 400) updateWalkers(game);
+  assert.ok(game.walkers.has(cart.id) && !cart.dead, 'the cart is still about');
+  assert.ok(map.road[map.idx(cart.x, cart.y)], 'back on a road');
+  assert.ok(cart.x > at + 1, `on the far side of the gap, toward its goal (x ${cart.x})`);
+  assert.equal(cart.path && cart.path[cart.path.length - 1], dest, 'still heading where it was going');
+  assert.equal(cart.cargo.amount, 400, 'its load with it');
+  // A route asked for from off the road crosses the open land to the road, then keeps to it.
+  const path = routeFrom(game, map.idx(at, y), map.idx(x0, y));
+  assert.ok(path && path[0] === map.idx(at, y) && path[path.length - 1] === map.idx(x0, y), 'a route back to the road and along it');
+  assert.ok(path.slice(2).every((i) => map.road[i]), 'one step over the cleared tile, then the road');
 });

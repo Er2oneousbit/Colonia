@@ -26,7 +26,7 @@
  * columns stuccoed red below and white above, the house wall behind it with
  * a door and a red dado, cupboards and book boxes in its shade; before it, in
  * the open court, the master on a low dais in his wicker cathedra under a
- * striped awning, the album on its easel with the alphabet painted on it,
+ * striped awning, the album on its easel with a line of Virgil painted on it,
  * the counting table; benches round the court where the boys sit, a boy
  * reciting before the master; a low wall round the court, open to the
  * street; LVDVS painted on a board under the portico's beam.
@@ -261,7 +261,9 @@ function teacher(lod, seed, out) {
     out.wood.push(box(0.42, 0.1, 0.24, cx, h, cz + 0.52, 0.8));
   }
   if (lod === 0) out.wood.push(staff([cx + 0.31, h, cz + 0.12], [cx + 0.27, h + 0.95, cz - 0.05], 0.009, 4));
-  // The album: a whitened board on an easel, the alphabet painted on it in two lines.
+  // The album: a whitened board on an easel, the line set to copy painted on it: the Aeneid's
+  // first words, which Pompeii's schoolboys scratched on its walls again and again (an alphabet
+  // alone read as an English ABC), a word to a line.
   const [ax, az, ry] = [1.62, -1.35, -0.32];
   const board = [box(1.0, 0.68, 0.03, 0, 0.62, 0, lin(0xece6d6))];
   const frame = [];
@@ -272,8 +274,8 @@ function teacher(lod, seed, out) {
   const legs = [staff([-0.6, 0, 0.16], [-0.56, 1.38, -0.12], 0.022, 5), staff([0.6, 0, 0.16], [0.56, 1.38, -0.12], 0.022, 5), staff([0, 0.06, -0.5], [0, 1.28, -0.2], 0.022, 5)];
   if (lod < 2) legs.push(box(0.9, 0.04, 0.06, 0, 0.56, 0.04, 0.7));
   const letters = lod === 0
-    ? [...inscribe('ABCDEFGHI', 1.06, 0.016, 0.1), ...inscribe('LMNOPRSTVX', 0.76, 0.016, 0.1)]
-    : lod === 1 ? [box(0.7, 0.07, 0.004, 0, 1.08, 0.016), box(0.78, 0.07, 0.004, 0, 0.78, 0.016)] : [];
+    ? [...inscribe('ARMA', 1.12, 0.016, 0.1), ...inscribe('VIRVMQVE', 0.92, 0.016, 0.1), ...inscribe('CANO', 0.72, 0.016, 0.1)]
+    : lod === 1 ? [box(0.36, 0.07, 0.004, 0, 1.14, 0.016), box(0.74, 0.07, 0.004, 0, 0.94, 0.016), box(0.3, 0.07, 0.004, 0, 0.74, 0.016)] : [];
   for (const [list, key] of [[board, 'board'], [frame, 'wood'], [legs, 'wood'], [letters, 'ink']]) {
     for (const g of list) {
       g.rotateX(-0.1);

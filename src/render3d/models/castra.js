@@ -984,10 +984,12 @@ export function clothBothSides() {
 // Inscriptions
 // ---------------------------------------------------------------------------
 
-/** The letters the forts' plaques need besides the forum's (masonry.js GLYPHS): N and D. */
+/** The letters the forts' plaques and the school's board need besides the forum's (masonry.js GLYPHS): N, D and Q. */
 const MORE_GLYPHS = Object.freeze({
   N: { w: 0.7, s: [[0, 0, 0, 1], [0, 1, 0.7, 0], [0.7, 0, 0.7, 1]] },
   D: { w: 0.66, s: [[0, 0, 0, 1], [0, 1, 0.34, 1], [0.34, 1, 0.58, 0.84], [0.58, 0.84, 0.66, 0.5], [0.66, 0.5, 0.58, 0.16], [0.58, 0.16, 0.34, 0], [0.34, 0, 0, 0]] },
+  // (The O with the long tail of the capitals, swept out under the next letter.)
+  Q: { w: 0.8, s: [...GLYPHS.O.s, [0.46, 0.1, 0.98, -0.14]] },
 });
 const ALL_GLYPHS = { ...GLYPHS, ...MORE_GLYPHS };
 

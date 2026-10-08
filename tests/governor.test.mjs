@@ -614,3 +614,15 @@ test('words: the Imperial advisor, the briefing and the victory screen', () => {
   assert.equal(victoryTitle(game), 'Victory!', 'the sandbox');
   assert.equal(victoryGovernorLine(game), null);
 });
+
+test('one senate house per city: a second is refused, and another may go up once the first is demolished', () => {
+  const game = newGame({ size: 96 });
+  const a = findFree(game, 6, 6);
+  assert.ok(build(game, 'senate', a.x + 1, a.y + 1).ok, 'the first');
+  const b = findFree(game, 6, 6);
+  const chk = checkBuilding(game, 'senate', b.x + 1, b.y + 1);
+  assert.equal(chk.ok, false);
+  assert.match(chk.reason, /Only one Curia/);
+  removeBuilding(game, [...game.buildings.values()].find((s) => s.type === 'senate'), 'demolish');
+  assert.ok(checkBuilding(game, 'senate', b.x + 1, b.y + 1).ok, 'free to build again');
+});

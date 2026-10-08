@@ -400,9 +400,10 @@ export const BUILDINGS = Object.freeze({
     desc: 'Tax collectors register households. Only registered homes pay taxes.',
   }),
   senate: B({
-    name: 'Curia', en: 'Senate House', category: 'government', cost: 400, size: 4, workers: 30, labor: 'govReligion',
+    // One per city, as a town had one council (and as in the original).
+    name: 'Curia', en: 'Senate House', category: 'government', cost: 400, size: 4, limit: 1, workers: 30, labor: 'govReligion',
     des: [8, 2, -2, 8], walker: 'taxman', spawnDays: 3,
-    desc: 'The seat of local government. Collects taxes and boosts every rating.',
+    desc: 'The seat of local government. Collects taxes and boosts every rating. One per city.',
   }),
   // The governor's residences (sim/governor.js): decor, one at a time, and
   // what rioters (and Caesar's legions) go for first. The original's costs

@@ -13,7 +13,7 @@
 
 import { CONFIG } from '../config.js';
 import { WALKER_TYPES, roadblockBit } from '../data/walkers.js';
-import { ROADBLOCK } from '../world/map.js';
+import { ROADBLOCK, Terrain, Road, Wall } from '../world/map.js';
 import { killWalker, mainOf } from './entities.js';
 import { vendorNeed } from './vendorNeed.js';
 import { careNeed } from './gardens.js';
@@ -62,12 +62,69 @@ export function followPath(game, w, path) {
  * @returns {boolean} false if no road route exists
  */
 export function walkTo(game, w, destIdx, maxDist = 1e9) {
-  const { map } = game;
-  const here = map.idx(w.x, w.y);
-  const path = game.pf.roadPath(here, destIdx, maxDist);
+  const path = routeFrom(game, game.map.idx(w.x, w.y), destIdx, maxDist);
   if (!path) return false;
   followPath(game, w, path);
   return true;
+}
+
+/** Can a walker off the roads step onto tile i? (`throughId`: a building it may enter) */
+export function landPassable(game, i, throughId = 0) {
+  const { map } = game;
+  const t = map.terrain[i];
+  if (t === Terrain.ROCK) return false;
+  if (t === Terrain.WATER && map.road[i] !== Road.BRIDGE) return false;
+  if (map.wall[i] === Wall.WALL) return false; // gates let citizens through
+  const id = map.building[i];
+  return !id || id === throughId;
+}
+
+/** Tiles of open land a walker left off the road may cross to get back onto one. */
+const BACK_TO_ROAD = 8;
+/** Road tiles round it tried, nearest first, for one that leads where it is going. */
+const BACK_TO_ROAD_TRIES = 6;
+
+/**
+ * A walking route from tile `here` to `dest` along the roads. A walker
+ * whose road was cleared under it stands off the road: it first crosses
+ * open land (the fewest tiles, at most BACK_TO_ROAD) to the nearest road
+ * that leads to `dest`, then carries on along the roads. (It used to find
+ * no road route from where it stood and vanish, with whatever it carried.)
+ * @returns {number[]|null} path[0] = here
+ */
+export function routeFrom(game, here, dest, maxDist = 1e9) {
+  const { map, pf } = game;
+  if (map.road[here]) return pf.roadPath(here, dest, maxDist);
+  const prev = new Map([[here, -1]]);
+  let frontier = [here];
+  let tries = 0;
+  for (let step = 0; step < BACK_TO_ROAD && frontier.length > 0; step++) {
+    const next = [];
+    for (const i of frontier) {
+      const x = map.xOf(i);
+      const y = map.yOf(i);
+      for (let d = 0; d < 4; d++) {
+        if (!map.inBounds(x + DX[d], y + DY[d])) continue;
+        const j = map.idx(x + DX[d], y + DY[d]);
+        if (prev.has(j) || !landPassable(game, j)) continue;
+        prev.set(j, i);
+        if (!map.road[j]) {
+          next.push(j);
+          continue;
+        }
+        // A road: the way back to it, then on along the roads (if it leads there).
+        const rest = pf.roadPath(j, dest, maxDist);
+        if (rest) {
+          const leg = [];
+          for (let k = j; k >= 0; k = prev.get(k)) leg.push(k);
+          return leg.reverse().concat(rest.slice(1));
+        }
+        if (++tries >= BACK_TO_ROAD_TRIES) return null;
+      }
+    }
+    frontier = next;
+  }
+  return null;
 }
 
 /**

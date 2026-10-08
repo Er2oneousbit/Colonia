@@ -60,9 +60,9 @@ import { HOUSE_TIERS } from '../data/housing.js';
 import { GOODS } from '../data/goods.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { RIOT_TARGETS, RIOT_SPARED_KINDS, RIOT_SPARED_TIER, MOOD_REASONS } from '../data/crime.js';
-import { Terrain, Road, Wall } from '../world/map.js';
+import { Terrain } from '../world/map.js';
 import { spawnWalker, killWalker, inOwnFort } from './entities.js';
-import { followPath, goHome, startRoaming } from './movement.js';
+import { followPath, goHome, startRoaming, landPassable } from './movement.js';
 import { igniteBuilding, buildingLabel, withArticle } from './risk.js';
 import { transact } from './economy.js';
 import { liftAllMoods, cityMoodCause } from './mood.js';
@@ -483,17 +483,6 @@ export function startRiot(game, b) {
   game.message(`Riot! The people of ${withArticle(label)} have set their home alight and taken to the streets. ${why}.${aim}`, 'bad', map.xOf(road), map.yOf(road));
   game.events.emit('sound', { name: 'horn' });
   return first;
-}
-
-/** Can a walker off the roads step onto tile i? (`throughId`: a building it may enter) */
-export function landPassable(game, i, throughId = 0) {
-  const { map } = game;
-  const t = map.terrain[i];
-  if (t === Terrain.ROCK) return false;
-  if (t === Terrain.WATER && map.road[i] !== Road.BRIDGE) return false;
-  if (map.wall[i] === Wall.WALL) return false; // gates let citizens through
-  const id = map.building[i];
-  return !id || id === throughId;
 }
 
 /**

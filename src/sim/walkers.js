@@ -11,7 +11,7 @@
  */
 
 import { killWalker, releaseReservation, STRIDE_WRAP } from './entities.js';
-import { followPath, goHome, pickRoamTile, setNextTile } from './movement.js';
+import { followPath, goHome, pickRoamTile, setNextTile, routeFrom, landPassable } from './movement.js';
 import { roamerVisit } from './services.js';
 import { buyerArrive, buyerUnload } from './market.js';
 import { settlerArrive, seekHome } from './population.js';
@@ -22,7 +22,7 @@ import { findDeliveryTarget, findDeliveryFit, receiveGoods, isStorage } from './
 import { collectArrive } from './storageOrders.js';
 import { recruitArrive } from './military.js';
 import { recruitAtAcademy, recruitTraining } from './training.js';
-import { criminalAfterWait, thiefArrive, rioterArrive, rioterStep, hunterArrive, landPassable, offRoadReroute } from './crime.js';
+import { criminalAfterWait, thiefArrive, rioterArrive, rioterStep, hunterArrive, offRoadReroute } from './crime.js';
 import { physicianArrive, physicianAfterWait } from './disease.js';
 import { boatArrive, boatAfterWait } from './fishing.js';
 import { boatBlocked } from './bridges.js';
@@ -118,6 +118,8 @@ function onArriveTile(game, w) {
       else setNextTile(game, w, next);
       return;
     }
+    // (Off the road, its road cleared under it, a walker plans again at every step until
+    // back on one: reroute crosses open land to the nearest road, movement.js routeFrom.)
     if (w.kind !== 'ship' && !map.road[next]) {
       reroute(game, w);
       return;
@@ -150,10 +152,9 @@ function onArriveTile(game, w) {
 
 /** The road ahead vanished: find a new route to the same destination. */
 function reroute(game, w) {
-  const { map, pf } = game;
+  const { map } = game;
   const dest = w.path[w.path.length - 1];
-  const here = map.idx(w.x, w.y);
-  const path = map.road[here] ? pf.roadPath(here, dest) : null;
+  const path = routeFrom(game, map.idx(w.x, w.y), dest);
   if (path) {
     followPath(game, w, path);
     return;

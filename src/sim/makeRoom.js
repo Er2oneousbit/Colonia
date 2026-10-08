@@ -23,7 +23,8 @@
 import { UNIT_TYPES } from '../data/units.js';
 import { passable } from './unitMove.js';
 import { inOwnFort } from './entities.js';
-import { landPassable, offRoadReroute } from './crime.js';
+import { offRoadReroute } from './crime.js';
+import { landPassable } from './movement.js';
 import { nativeTraderReroute } from './natives.js';
 
 // How far (tiles, either axis) room is usually found: past the middle of

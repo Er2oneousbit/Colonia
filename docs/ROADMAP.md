@@ -13,6 +13,15 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.21)
+
+* **Woods trimmed** (under WebGL): trees at about two thirds of their species' size, so a wood stands about twice a house's height instead of three times, with fewer second trees and shrubs (about 1.3 plants a tile, from nearly 2) and lone trees off their tile's middle, so woods no longer hide the streets or stand in rows. Far trees lost the patches of sky blue in their crowns (leaf cards baked facing away from the camera, lit as mirrors)
+* **Walkers on a cleared road are no longer lost:** each steps over open ground to the nearest road (up to 8 tiles) that leads where it was going and carries on, carts with their loads; before, it vanished
+* **One senate house per city**, as in the original
+* **The school's board** in 3D reads ARMA VIRVMQVE CANO, the Aeneid's opening that Pompeii's schoolboys scratched on its walls, in place of an alphabet that read as English
+* Headless sim: identical to v0.20.20 on every difficulty
+* 1283 unit tests
+
 ## Done (v0.20.20)
 
 * **The senate house and the governor's residences in 3D** (under WebGL): the senate house after the Curia Julia and Sabratha's curia, a tall hall on a podium behind six Corinthian columns with CVRIA on the frieze, bronze doors under S·P·Q·R and a gilt Victory on the gable, senators in purple-striped togas on its steps and lictors with their fasces; the Governor's House a Pompeian atrium house round its impluvium and a painted peristyle; the Villa a great peristyle with a long pool, playing jets, statues and lemon trees, the governor dining with his guests in the triclinium; the Palace on a raised platform behind a gate of Corinthian columns cut REGIA, a court with two fountains and cypresses, an audience hall with gilt capitals, a gilded ridge and an eagle, two-storey wings either side. When rioters or enemies come near, the doors are barred, the household goes in and more guards stand out; in a hard frost the pools freeze and the fountains stop. Console: `government [house|villa|palace]`
