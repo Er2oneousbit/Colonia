@@ -198,8 +198,9 @@ export class ShipPass {
     // twenty at the people's own level cost a frame more than its sprite did.
     const people = peopleLodFor(r.camera.scale);
     this.lod = Math.min(2, people + CREW_LOD_STEP);
-    // (Far out, as far as the town's people are drawn at their far level, the crews' smallest pieces are left off.)
-    this.far = people === 2;
+    // (Far out, as far as the town's people are drawn at their far level, the crews' smallest pieces are left off
+    // (crew.js FAR_SKIPS); half way, the crews themselves at their far level, a few (MID_SKIPS).)
+    this.far = people === 2 ? 2 : this.lod === 2 ? 1 : 0;
     this.motion.begin(clock, dt);
     this.used = 0;
     this.nKits = 0;

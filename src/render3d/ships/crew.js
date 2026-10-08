@@ -158,10 +158,21 @@ export function packCrew(specs) {
  */
 export const FAR_SKIPS = Object.freeze(['beard:', 'helmet:', 'caligae:', 'prop:spear', 'prop:bow', 'prop:arrow', 'prop:tablet', 'prop:sack', 'prop:hammer']);
 
-/** The pieces of crewman `c` drawn: all of them, or far out (`far`) less FAR_SKIPS. */
+/** What a crew leaves off half way out (its own level the far one, the town's people's the middle). */
+export const MID_SKIPS = Object.freeze(['beard:', 'caligae:', 'prop:tablet', 'prop:sack', 'prop:hammer']);
+
+/**
+ * The pieces of crewman `c` drawn: all of them, or far out (`far`) less
+ * FAR_SKIPS, every head of hair cropped (curls and a crop are the same few
+ * pixels there, and one piece is one draw for every crew).
+ */
 export function piecesAt(c, far) {
-  if (!far) return c.pieces;
-  return c.farPieces || (c.farPieces = c.pieces.filter((k) => !FAR_SKIPS.some((s) => k.startsWith(s))));
+  // (Boots never: a crewman's feet are on a deck or in his hull, and they are a draw of their own.)
+  if (!far) return c.nearPieces || (c.nearPieces = c.pieces.filter((k) => !k.startsWith('caligae:')));
+  // (Half way out, `far` 1: the beard, the tablet, the sack and the mallet left off; the helmets and arms that
+  // tell a marine and a warrior stay.)
+  if (far === 1) return c.midPieces || (c.midPieces = c.pieces.filter((k) => !MID_SKIPS.some((s) => k.startsWith(s))));
+  return c.farPieces || (c.farPieces = c.pieces.filter((k) => !FAR_SKIPS.some((s) => k.startsWith(s))).map((k) => (k.startsWith('hair:') ? `hair:crop:${k.split(':')[2]}` : k)));
 }
 
 /** First room in a piece's instance buffers (doubled as needed). */
@@ -207,10 +218,10 @@ export class CrewBatch {
 
   /**
    * This frame's crews: `list` [{ crew (packCrew), slot, phase }] at level
-   * `lod` (`far`: leaving FAR_SKIPS off); `sig` the set's signature (written again only when it changes,
+   * `lod` (`far` 2: leaving FAR_SKIPS off, 1: MID_SKIPS); `sig` the set's signature (written again only when it changes,
    * or a piece wanted was built). Builds what is missing within BUILD_MS.
    */
-  set(list, lod, sig, far = lod === 2) {
+  set(list, lod, sig, far = lod === 2 ? 2 : 0) {
     this.frame++;
     if (lod !== this.lod || far !== this.far) {
       this.lod = lod;

@@ -782,7 +782,9 @@ export function buildHull(kind, lod) {
   } else {
     // Farther out the metal is painted gold and bronze: its sheen is a few pixels, its draw a whole one.
     const gold = (g, k) => paint(g, lin(0xc9973c, k));
-    p.add('paint', m.painted, out.painted.concat(panes, out.gilt.map((g) => gold(g, 1)), out.bronze.map((g) => gold(g, 0.62))).map(sink));
+    // (The paint's shadow is the planks' and the masts' already, the wood's, but for its upper strakes' edge:
+    // it casts none at these levels, a draw fewer in the sun's pass.)
+    p.add('paint', m.painted, out.painted.concat(panes, out.gilt.map((g) => gold(g, 1)), out.bronze.map((g) => gold(g, 0.62))).map(sink), { cast: false });
   }
   return p.build();
 }
@@ -896,8 +898,9 @@ export function buildYard(kind, i, lod) {
   }
   const m = shipMaterials();
   const p = new TaggedParts(`vessel-${kind}-yard`);
-  // (Its shadow is a line a few pixels long: none, but close up.)
-  p.add('wood', m.wood, out.wood, { cast: lod === 0 });
+  // (Its shadow is a thin line on the water, and a draw more in the sun's pass: none. Measured: the
+  // ships' kits cost what their sprites did only so.)
+  p.add('wood', m.wood, out.wood, { cast: false });
   return p.build();
 }
 
@@ -939,7 +942,8 @@ export function buildFurl(kind, i, lod) {
   const yard = yardPieces(kind, i, lod);
   if (lod === 0) p.add('yard', m.wood, yard, { cast: false });
   else parts.push(...yard.map((g) => paint(g, lin(0x6a4c34))));
-  p.add('sail', kind === 'gaulish' ? m.hide : m.cloth, parts, { cast: lod === 0 });
+  // (A furled sail's shadow is a short roll's: none, as the yard's.)
+  p.add('sail', kind === 'gaulish' ? m.hide : m.cloth, parts, { cast: false });
   return p.build();
 }
 
