@@ -285,8 +285,8 @@ export function medicusActors(state) {
   // (The couch's mattress is SEAT_H over the floor: the patient's feet on the floor.)
   const px = cx + 0.25;
   const pz = cz + 0.1;
-  const pry = -Math.PI / 4;
-  const [dx, dz] = inFrame(px, pz, pry, 0.05, 0.92);
+  const pry = -Math.PI / 6;
+  const [dx, dz] = inFrame(px, pz, pry, 0.05, 1.0);
   // The assistant faces +x (ry pi/2): his ahead the model's +x, his left its -z; the mortar MORTAR.ahead before him.
   const [mx, mz] = M.mortar;
   const ax = mx - MORTAR.ahead;

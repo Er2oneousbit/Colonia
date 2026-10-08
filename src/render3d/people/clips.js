@@ -910,7 +910,7 @@ export const CLIPS = Object.freeze({
         // The legs straight and a little apart, the feet fallen outward, toes down.
         P.rot(`thigh${k}`, -0.06, 0, s * 0.05);
         P.rot(`shin${k}`, 0.1, 0, 0);
-        P.rot(`foot${k}`, 0.55, s * 0.3, 0);
+        P.rot(`foot${k}`, 0.85, s * 0.3, 0);
       }
       // The head on the pillow (raised by the neck's bend), turning to one side and the other, held.
       const yaw = 0.45 * hold(t, 1, 0.15, 2);
@@ -918,8 +918,8 @@ export const CLIPS = Object.freeze({
       P.rot('head', 0.12, yaw * 0.7, 0);
       // The hands on the cover over his chest; the right up to his brow and back.
       const brow = track(t, [[0, 0], [0.55, 0], [0.63, 1], [0.78, 1], [0.86, 0]]);
-      P.hand(1, 0.14, 0.27, -0.2, { pole: [0.6, -0.8, 0] });
-      const rest = [-0.12, 0.27, -0.28];
+      P.hand(1, 0.15, 0.33, -0.2, { pole: [0.6, -0.8, 0] });
+      const rest = [-0.13, 0.33, -0.28];
       const up = [-0.05, 0.3, -0.66];
       P.hand(-1, ...rest.map((v, i) => lerp(v, up[i], brow)), { pole: [-0.7, -0.6, 0] });
       P.rot('handL', 0, 0, 0.3);

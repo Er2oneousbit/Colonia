@@ -443,7 +443,7 @@ function blankets(lod) {
  * from the gate with an orderly at his side, in step; a patient sitting on
  * the bench; an orderly (capsarius) carrying a dish along the corridor from
  * one ward's door to another; in the hall, the patient on the operating
- * table, the surgeon at his side working, an orderly holding the dressings.
+ * table, the surgeon at his side talking to him, an orderly holding the dressings.
  * Nobody while it is shut.
  */
 export function valetudinariumActors(state) {
@@ -455,7 +455,7 @@ export function valetudinariumActors(state) {
     body: 'm', scale: ABED.scale, dress: ['tunic:knee'], hair: i % 2 ? 'crop' : 'curls', clip: 'lie', at: [x, y, z], ry, seed, colours: { skin: skins[i % 6] },
   }));
   list.push({ body: 'm', scale: 0.95, dress: ['tunic:knee'], hair: 'crop', beard: 'short', clip: 'lie', at: [COUCH[0], BED_H + 0.12, COUCH[1] + ABED.toFoot], ry: 0, seed: 380 });
-  list.push({ body: 'm', dress: ['tunic:long', 'pallium'], hair: 'bald', beard: 'full', old: true, clip: 'talk', at: [-1.45, g, 3.35], ry: -Math.PI / 2, seed: 381, colours: { tunic: DYES.white, mantle: DYES.woad } });
+  list.push({ body: 'm', dress: ['tunic:long', 'pallium'], hair: 'bald', beard: 'full', old: true, clip: 'talk', at: [-1.3, g, 3.35], ry: -Math.PI / 2, seed: 381, colours: { tunic: DYES.white, mantle: DYES.woad } });
   // The soldier and the orderly in from the gate along the flags, in step (sync), stopping to talk before the herb beds.
   const walk = { length: 2.2, speed: 0.6, pauseEnd: 6, pauseStart: 4 };
   list.push({ body: 'm', dress: ['tunic:knee', 'caligae'], hair: 'crop', clip: 'walk', at: [-0.3, g, 5.0], ry: Math.PI, seed: 382, sync: true, colours: { tunic: DYES.madder },
@@ -467,9 +467,9 @@ export function valetudinariumActors(state) {
   // The orderly along the left corridor, between the wards' doors, a dish in his hands; he holds it out at a ward's door.
   list.push({ body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'walk', props: { R: 'patera' }, at: [-3.5, fy, V.sideDoors[3]], ry: Math.PI, seed: 385, colours: { tunic: DYES.oatmeal },
     route: { length: V.sideDoors[3] - V.sideDoors[1], speed: 0.8, pauseEnd: 6, pauseStart: 5, clipEnd: 'give', clipStart: 'hold', faceEnd: -Math.PI / 2, faceStart: -Math.PI / 2 } });
-  // In the hall: the patient on the table, his head toward -x; the surgeon across it, working; an orderly at the head.
+  // In the hall: the patient on the table, his head toward -x; the surgeon across it, talking to him; an orderly at the head.
   list.push({ body: 'm', scale: 0.95, dress: ['tunic:knee'], hair: 'crop', clip: 'lie', at: [0, fy + TABLE_TOP, -4.25], ry: Math.PI / 2, seed: 386 });
-  list.push({ body: 'm', dress: ['tunic:long'], hair: 'bald', beard: 'short', old: true, clip: 'count', at: [0.15, fy, -4.86], ry: 0, seed: 387, colours: { tunic: DYES.white } });
+  list.push({ body: 'm', dress: ['tunic:long'], hair: 'bald', beard: 'short', old: true, clip: 'talk', at: [0.15, fy, -4.86], ry: 0, seed: 387, colours: { tunic: DYES.white } });
   list.push({ body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'hold', props: { R: 'patera' }, at: [-1.22, fy, -4.2], ry: Math.PI / 2, seed: 388, colours: { tunic: DYES.fawn, skin: 0x75492f } });
   return list;
 }

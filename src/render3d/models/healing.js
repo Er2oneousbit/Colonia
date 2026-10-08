@@ -143,13 +143,13 @@ export function sleeper(mats, { skin = 0xa87a58, hair = 0x2e2119, blanket = 0x8a
 export function blanket(x, y, z, ry, { colour = 0x8a6a4a, scale = 1, lod = 0 } = {}) {
   const s = scale;
   const len = 1.3 * s;
-  const b = new BoxGeometry(0.66 * s, 0.2 * s, len, lod ? 2 : 4, 1, lod ? 1 : 3);
+  const b = new BoxGeometry(0.72 * s, 0.2 * s, len, lod ? 2 : 4, 1, lod ? 1 : 3);
   const p = b.attributes.position;
   for (let i = 0; i < p.count; i++) {
-    const u = p.getX(i) / (0.33 * s);
+    const u = p.getX(i) / (0.36 * s);
     // (A hump over the body: the top's middle up, its edges down to the mattress.)
     const top = p.getY(i) > 0;
-    p.setY(i, top ? 0.27 * s * (1 - 0.6 * u * u) : -0.02);
+    p.setY(i, top ? 0.34 * s * (1 - 0.6 * u * u) : -0.02);
     p.setX(i, p.getX(i) * (top ? 0.9 : 1));
   }
   b.computeVertexNormals();

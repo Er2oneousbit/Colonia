@@ -249,12 +249,12 @@ function work(lod, out) {
   // The cloth over the client (tonstrinaActors: he sits still under it): a linen cape from his neck to
   // below his knees, turned about him and drawn forward over his lap (its open hem faces the ground,
   // which the camera never sees from below). At every level, as the client is.
-  const g = revolve(profileOf([[0.4, -0.1], [0.38, 0.1], [0.32, 0.34], [0.25, 0.5], [0.2, 0.58], [0.12, 0.64], [0.07, 0.66]]), {
+  const g = revolve(profileOf([[0.36, -0.1], [0.35, 0.1], [0.29, 0.34], [0.22, 0.5], [0.18, 0.58], [0.11, 0.64], [0.07, 0.66]]), {
     segments: lod === 2 ? 8 : lod ? 12 : 20,
     metres: 0.3,
     deform: (q) => {
       // (Its front pulled forward over the knees, more toward the hem.)
-      if (q.z > 0) q.z *= 1 + 0.9 * Math.max(0, 0.45 - q.y);
+      if (q.z > 0) q.z *= 1 + 1.25 * Math.max(0, 0.45 - q.y);
     },
     tint: (q) => 0.82 + 0.18 * Math.min(1, (q.y + 0.1) / 0.6),
   });
