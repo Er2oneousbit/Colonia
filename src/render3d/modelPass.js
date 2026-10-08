@@ -45,7 +45,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement } from 'three';
+import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement, WebGLRenderTarget } from 'three';
 import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
@@ -606,6 +606,63 @@ export class ModelPass {
       p.mesh.name = 'people-warm';
       return p.mesh;
     });
+  }
+
+  /**
+   * For the smoke test and the console: draw the people alone (everything
+   * else hidden) at each of `times` (the look's clock, s) into a small
+   * target with the game's camera, and say how many pixels they cover and
+   * how many changed from one time to the next: the proof that they are
+   * drawn, instanced and skinned on the GPU, moving with the clock alone.
+   */
+  probePeople(camera, times = [0.4, 1.3], size = 160) {
+    const gl = this.gl;
+    const rig = this.rig;
+    const target = new WebGLRenderTarget(size, size);
+    const hidden = [];
+    const hide = (o) => {
+      if (o.visible) {
+        o.visible = false;
+        hidden.push(o);
+      }
+    };
+    for (const o of rig.scene.children) if (o !== rig.modelSlot && !o.isLight) hide(o);
+    for (const o of rig.modelSlot.children) if (o !== this.people.group) hide(o);
+    const bg = rig.scene.background;
+    rig.scene.background = null;
+    const clock = LOOK.uniforms.uLookTime;
+    const was = clock.value;
+    const shots = [];
+    try {
+      for (const t of times) {
+        clock.value = t;
+        gl.setRenderTarget(target);
+        gl.setClearColor(0x000000, 0);
+        gl.clear(true, true, true);
+        gl.render(rig.scene, camera);
+        const px = new Uint8Array(size * size * 4);
+        gl.readRenderTargetPixels(target, 0, 0, size, size, px);
+        shots.push(px);
+      }
+    } finally {
+      clock.value = was;
+      rig.scene.background = bg;
+      for (const o of hidden) o.visible = true;
+      gl.setRenderTarget(null);
+      target.dispose();
+    }
+    const covered = shots.map((px) => {
+      let n = 0;
+      for (let i = 3; i < px.length; i += 4) if (px[i] > 0) n++;
+      return n;
+    });
+    let changed = 0;
+    for (let k = 1; k < shots.length; k++) {
+      const a = shots[k - 1];
+      const b = shots[k];
+      for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) + Math.abs(a[i + 3] - b[i + 3]) > 24) changed++;
+    }
+    return { covered, changed, people: this.people.stats.people, draws: this.people.stats.draws };
   }
 
   /** The WebGL context was lost, or came back: compile again (the painter paints again on its own). */

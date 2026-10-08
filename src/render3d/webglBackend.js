@@ -586,6 +586,11 @@ export class WebGLBackend {
   }
 
   /** The build ghost of a type drawn as a model (Renderer.placeGhostModels): drawn as that model, see-through and tinted. */
+  /** The people drawn alone at two clock times (modelPass.js probePeople): the smoke test's proof they move. */
+  probePeople(times) {
+    return this.models.probePeople(this.camera, times);
+  }
+
   ghostModel(g) {
     this.ghosts.push(g);
   }

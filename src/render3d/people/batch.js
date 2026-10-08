@@ -67,6 +67,7 @@ export class PeopleBatch {
     this.frame++;
     this.lod = lod;
     this.buildUntil = buildUntil;
+    this.builtThisFrame = false;
     this.used = 0;
     this.sig = mix(0x811c9dc5, lod);
   }
@@ -171,9 +172,11 @@ export class PeopleBatch {
     if (this.buildUntil) {
       for (const l of [lod + 1, lod - 1, lod + 2, lod - 2]) {
         const o = this.pieces.get(`${key}|${l}`);
-        // Past the budget, or a build it would not fit (guessed from the level built: a finer level costs
-        // about four times a coarser one), the other level stands in.
-        if (o && performance.now() + o.ms * (l > lod ? 4 ** (l - lod) : 0.25) > this.buildUntil) {
+        // Past the budget, or a second build this frame that would not fit (guessed from the level built: a
+        // finer level costs about four times a coarser one), the other level stands in. (One build a frame
+        // may overrun: a body at full detail never fits 8 ms, and must be built some time.)
+        const now = performance.now();
+        if (o && (now > this.buildUntil || (this.builtThisFrame && now + o.ms * (l > lod ? 4 ** (l - lod) : 0.25) > this.buildUntil))) {
           this.stats.deferred++;
           // (Written again next frame, when there may be time to build this level.)
           this.dirty = true;
@@ -186,6 +189,7 @@ export class PeopleBatch {
     p = this.make(geometry, FIRST_ROOM);
     Object.assign(p, { key, lod, seen: this.frame, ms: performance.now() - t0, tris: geometry.index.count / 3 });
     this.pieces.set(id, p);
+    this.builtThisFrame = true;
     return p;
   }
 
