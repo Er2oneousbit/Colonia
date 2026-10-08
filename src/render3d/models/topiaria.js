@@ -20,11 +20,12 @@
  * lean-to of tiles, its door; a potting bench along a wall with pierced
  * pots of seedlings on it and under it; rows of seedlings in a bed; a
  * compost heap in a wattle bin; the tools against the shed; box clipped to
- * a cone and a ball in pots, waiting to go out to a garden.
+ * a ball in a pot and a hedge in a wooden trough, waiting to go out to a garden.
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed: the gate and the shed door open, a gardener clipping
- *           the cone with his shears, the lantern lit at night
+ *           the hedge with his shears, another carrying compost (actors:
+ *           yardActors), the lantern lit at night
  *   'shut'  no staff: shut up, the tools put away by the shed
  *
  * Metres, the tile's middle at the origin, y up, the street toward +z.
@@ -38,9 +39,10 @@ import { material } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, ruralMaterials, wallRun, leanTo, wattleFence, heap, basket, blk } from './rural.js';
-import { people, staff } from './castra.js';
-import { learningMaterials, person, at } from './learning.js';
+import { staff } from './castra.js';
+import { learningMaterials } from './learning.js';
 import { hortusMaterials } from './hortus.js';
+import { DYES } from '../people/actors.js';
 
 /** The yard's measures (metres): the tests, the lab and the game read them. */
 export const TOPIARIA = Object.freeze({
@@ -51,10 +53,20 @@ export const TOPIARIA = Object.freeze({
   gate: Object.freeze([-0.5, 0.5]),
   /** The lantern on the right gate pier (x, y, z), facing the street. */
   lamp: Object.freeze([0.5, 1.0, 1.83]),
+  /** The box hedge in its trough (x, z), along x: the gardener's work (HEDGE). */
+  hedge: Object.freeze([0.77, 0.45]),
+  /** The gravel path's top, and the loam's: where the people stand. */
+  path: 0.045,
+  ground: 0.03,
 });
 
 const T = TOPIARIA;
 const E = 2 - T.inset;
+/**
+ * The box hedge in its trough (T.hedge its middle): along x `w`, `d` deep, the trough's height, the hedge's top;
+ * the gardener's feet `reach` before its face (clips.js prune: the shears' blades' tips just into it).
+ */
+export const HEDGE = Object.freeze({ w: 0.7, d: 0.34, trough: 0.36, top: 1.14, reach: 0.55 });
 
 /** A pierced pot (olla perforata) at (x, y, z), `r` round, with a seedling or a clipped plant in it. */
 function pot(out, x, y, z, r, lod, rnd, { plant = 'seedling', h = r * 1.6 } = {}) {
@@ -133,6 +145,28 @@ function shed(out, lod, seed) {
   }
 }
 
+/**
+ * The yard's people while it is staffed (people/actors.js specs, the yard's
+ * metres): a gardener clipping the box hedge in its trough with his spring shears,
+ * along its side and back (prune: the clip's shears a metre up and 0.42
+ * ahead at the grip, the blades' tips just into its face), and another carrying
+ * a sack of compost on his shoulder up the path from the gate to the shed
+ * and back, standing with it at each end. Nobody while it is shut.
+ */
+export function yardActors(state) {
+  if (state !== 'open') return [];
+  const [hx, hz] = T.hedge;
+  // (He faces the hedge, -z, HEDGE.reach before its face; his grip is 0.08 to his right of his middle, so he
+  // stands that far to his left of its middle, the shears going along it either side.)
+  return [
+    { body: 'm', dress: ['tunic:short'], hair: 'crop', beard: 'short', clip: 'prune', props: { R: 'shears' }, at: [hx - 0.08, T.ground, hz + HEDGE.d / 2 + HEDGE.reach], ry: Math.PI, seed: 391, colours: { tunic: DYES.fawn, skin: 0x9a6a4a } },
+    {
+      body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'carry', props: { L: 'sack' }, at: [-0.05, T.path, 1.45], ry: Math.PI, seed: 392, colours: { tunic: DYES.undyed },
+      route: { length: 1.75, pauseEnd: 4, pauseStart: 3, clipEnd: 'shoulder', clipStart: 'shoulder', faceEnd: Math.PI / 2 },
+    },
+  ];
+}
+
 /** Build the gardeners' yard: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
 export function buildYard({ lod = 0, seed = 311 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
@@ -175,8 +209,13 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
   const nPots = lod === 2 ? 3 : lod ? 5 : 8;
   for (let k = 0; k < nPots; k++) pot(out, bx + (k % 2 ? 0.1 : -0.1), 0.81, -0.5 + (k * 1.3) / nPots, 0.075, lod, rnd);
   if (lod < 2) for (let k = 0; k < 4; k++) pot(out, bx + (rnd() - 0.5) * 0.15, 0, -0.4 + k * 0.38, 0.09, lod, rnd, { plant: 'none' });
-  // Box clipped to a cone and a ball in big pots, waiting to go out; the cone at the gardener's hand.
-  pot(out, 0.72, 0.0, 0.55, 0.17, lod, rnd, { plant: 'cone', h: 0.32 });
+  // Box clipped to a ball in a big pot, and a box hedge in a wooden trough, waiting to go out; the hedge at the
+  // gardener's hand. (Its top a little over his shears' height, clips.js prune, a metre up; its face before them.)
+  const [hx, hz] = T.hedge;
+  const { w, d, trough, top } = HEDGE;
+  out.wood.push(blk(lod, w + 0.04, trough, d + 0.04, { bevel: 0.01, seed: seed + 80, wobble: 0.002, grime: 0.3, seg: 1 }).translate(hx, 0, hz));
+  out.box.push(tintGeometry(slab(w, top - trough, d, { bevel: lod === 2 ? 0.04 : 0.08, seed: seed + 81, wobble: lod ? 0 : 0.02, tone: 0, grime: 0 }).translate(hx, trough, hz),
+    (px, py) => 0.75 + 0.25 * Math.min(1, (py - trough) / (top - trough))));
   pot(out, -0.75, 0.0, -0.25, 0.16, lod, rnd, { plant: 'ball', h: 0.3 });
   // Seedlings in rows in the bed by the gate (left), straw between them.
   const rows = lod === 2 ? 2 : 4;
@@ -201,8 +240,8 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
     const bk = basket(0.2, 0.26, 0.6, lod);
     out.wicker.push(bk.wicker.translate(0.5, 0, -0.35));
     if (bk.fill) out.compost.push(bk.fill.translate(0.5, 0, -0.35));
-    // The watering jar by the bench: a narrow-necked jug of clay.
-    out.clay.push(revolve(profileOf([[0, 0], [0.08, 0], [0.13, 0.12], [0.12, 0.24], [0.05, 0.32], [0.04, 0.4], [0.055, 0.42], [0, 0.41]]), { segments: lod ? 8 : 14, metres: 0.3 }).translate(1.05, 0, 1.0));
+    // The watering jar by the bench (clear of the gardener at the hedge): a narrow-necked jug of clay.
+    out.clay.push(revolve(profileOf([[0, 0], [0.08, 0], [0.13, 0.12], [0.12, 0.24], [0.05, 0.32], [0.04, 0.4], [0.055, 0.42], [0, 0.41]]), { segments: lod ? 8 : 14, metres: 0.3 }).translate(1.08, 0, 1.45));
   }
   // The tools: against the shed's front while nobody works; the shears in the gardener's hands while one does.
   const toolsIn = { wood: [], iron: [] };
@@ -245,18 +284,7 @@ export function buildYard({ lod = 0, seed = 311 } = {}) {
     p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
-  if (lod === 0) {
-    // The gardener at work: clipping the cone with his shears, in a tunic of undyed wool.
-    // (He faces the cone, his hands together at its side on the shears' handles.)
-    const [gx, gz] = [0.34, 0.74];
-    const gry = Math.atan2(0.72 - gx, 0.55 - gz);
-    const list = person(m, { cloth: 0x8a7656, hair: 0x2a1e16, skin: 0x9a6c4c, arms: [[-0.08, 0.98, 0.3], [0.09, 1.0, 0.31]] }, gx, 0.02, gz, gry);
-    people(p, m, 'gardener', list, 'open');
-    const shears = [];
-    const [sx, sz] = at(gx, gz, gry, 0, 0.44);
-    for (const s of [-1, 1]) shears.push(tintGeometry(boxUV(new BoxGeometry(0.012, 0.012, 0.26).rotateY(gry + s * 0.16).translate(sx, 0.99, sz))));
-    p.add('shears', m.iron, shears, { when: 'open', cast: false });
-  }
+  // (The people are actors: yardActors.)
   const yard = p.build();
   // Over the ground: a leaning handle's end or a sandal's sole a little under it only costs depth.
   for (const m of yard.meshes) {

@@ -6,8 +6,9 @@
  * valetudinarium.js), each at work in the front row and idle behind (the
  * baths both full and still, and dry), on beaten earth between streets,
  * labelled, as the game draws them (models/health.js: the states by the
- * parts' tags). Winter (the mood, or snow 2 and up) is the game's hard
- * frost: the pool freezes and the working baths steam.
+ * parts' tags; their people the actors each model gives its state). Winter
+ * (the mood, or snow 2 and up) is the game's hard frost: the pool freezes,
+ * nobody stands in it, and the working baths steam.
  * ----------------------------------------------------------------------------
  */
 
@@ -16,7 +17,14 @@ import { material } from '../render3d/materials.js';
 import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { partShows } from '../render3d/models.js';
 import { HEALTH_MODELS } from '../render3d/models/health.js';
-import { BALNEUM } from '../render3d/models/balneum.js';
+import { BALNEUM, balneumActors } from '../render3d/models/balneum.js';
+import { tonstrinaActors } from '../render3d/models/tonstrina.js';
+import { medicusActors } from '../render3d/models/medicus.js';
+import { valetudinariumActors } from '../render3d/models/valetudinarium.js';
+import { labCrowd } from './labPeople.js';
+
+/** Each kind's people by its state (and the baths' frost). */
+const ACTORS = { barber: tonstrinaActors, clinic: medicusActors, baths: balneumActors, hospital: valetudinariumActors };
 
 /** Where each building stands (metres), what it shows, its label. */
 const ITEMS = [
@@ -44,11 +52,11 @@ Horace, Martial, who thanks Domitian for clearing barbers off the street). The c
 him with an iron razor; a basin and towels; inside, a mirror of polished bronze, pots and razors, TONSOR over the door.</p>
 <p><b>The physician</b> (<i>medicus</i>): a consulting room open to the street, as the Greek iatreion and the doctors' tabernae; the
 instruments of the House of the Surgeon at Pompeii (scalpels, probes, forceps, cupping vessels) on a cloth, remedies ground in a mortar
-and kept in pots (Celsus), a brazier for the cautery. The doctor takes a patient's wrist; outside, the staff of Asclepius with its
+and kept in pots (Celsus), a brazier for the cautery. The doctor talks with a patient while his assistant grinds a remedy; outside, the staff of Asclepius with its
 serpent, herbs in pots, MEDICVS over the door.</p>
 <p><b>The baths</b> (<i>balneum</i>): a neighbourhood bath after Pompeii's Stabian, Forum and Sarno baths and Vitruvius 5.10: a
 vaulted caldarium in brick with its window to the afternoon sun, a round room under a cone of a dome open at the top, a portico, a
-palaestra with ball players and a man with his strigil (Seneca's Letter 56), a cold pool with a bronze spout; behind, the furnace
+palaestra where bathers talk, rest and splash at the labrum (Seneca's Letter 56), a cold pool with a bronze spout; behind, the furnace
 (praefurnium), its stoker and firewood, the boiler, a flue, the pilae of the hypocaust through a hole in the wall. With piped water and
 staff the fire is in and smoke rises; with water and no staff the pool lies still and the doors are shut; without water the pool is
 dry. In a hard frost the pool freezes and the working baths steam.</p>
@@ -94,6 +102,8 @@ export function buildHealthScene() {
   let frost = false;
   /** Free a group's geometries (the look's materials are shared and kept). */
   const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  // The people, as the game draws them (each model's *Actors: models/health.js), by each building's state.
+  const crowd = labCrowd(group);
   function build() {
     for (const it of holders) {
       for (const c of it.h.children) free(c);
@@ -104,6 +114,7 @@ export function buildHealthScene() {
       model.traverse((m) => { if (m.isMesh) m.visible = partShows(m.userData.when, it.state, ice); });
       it.h.add(model);
     }
+    crowd.fill(lod, holders.map((it) => [ACTORS[it.kind](it.state, it.kind === 'baths' && frost), it.x, it.z]));
   }
   build();
   const labels = ITEMS.map((it) => ({ name: it.name, note: it.note, x: it.x - HALF[it.kind] + 0.5, z: it.z - HALF[it.kind] + 0.5, y: 4.8 }));
@@ -117,6 +128,7 @@ export function buildHealthScene() {
     fade: [-1, 1, 30, 38],
     lamp: LAMP,
     shadowBox: 28,
+    noAO: [crowd.batch.group],
     get lod() { return lod; },
     setLod(n) {
       if (n === lod) return;

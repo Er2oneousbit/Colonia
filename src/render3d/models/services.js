@@ -19,12 +19,15 @@
 
 import { buildPrefecture, PREFECTURE, PUMP_WATER, prefectureActors } from './prefecture.js';
 import { cast } from '../people/actors.js';
-import { buildEngineerPost, ENGINEER } from './engineer.js';
+import { buildEngineerPost, ENGINEER, engineerActors } from './engineer.js';
 import { iceMaterial } from '../materials.js';
 
 /** The watch house's people by state (prefecture.js prefectureActors), packed once each. */
 const PREFECTURE_CASTS = {};
 const prefectureCast = (state) => (PREFECTURE_CASTS[state] ??= cast(prefectureActors(state)));
+/** The builders' yard's people by state (engineer.js engineerActors), packed once each. */
+const ENGINEER_CASTS = {};
+const engineerCast = (state) => (ENGINEER_CASTS[state] ??= cast(engineerActors(state)));
 
 /**
  * How many of a prefecture's men are on fire duty: running to a fire or at
@@ -82,7 +85,10 @@ export const SERVICE_MODELS = Object.freeze({
     },
   }),
   engineer_post: Object.freeze({
-    variant: (b) => ({ key: 'engineer_post', state: engineerState(b), ice: false }),
+    variant: (b) => {
+      const state = engineerState(b);
+      return { key: 'engineer_post', state, ice: false, actors: engineerCast(state) };
+    },
     warm: ['engineer_post'],
     lamps: (b) => (b.efficiency > 0 ? ENGINEER_LAMP : []),
     build: (key, lod) => buildEngineerPost({ lod }).group,

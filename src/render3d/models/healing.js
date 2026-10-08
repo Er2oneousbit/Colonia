@@ -9,8 +9,9 @@
  * staff of Asclepius with its serpent, beds of herbs, and the baths' steam
  * and smoke.
  *
- * People are learning.js person(): standing or seated, posed by their
- * wrists. A patient abed is that person laid on his back.
+ * The four buildings' people are actors (people/actors.js: each model's
+ * *Actors(state)); a patient abed is one lying (clips.js lie) under a
+ * blanket() of the kit's.
  *
  * Steam and smoke are soft ribbons (crossed sheets of a grid whose vertices
  * carry an alpha that fades to nothing at their edges and top), see-through,
@@ -33,7 +34,7 @@ import { material, surfaceTextures, LOOK } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab } from './masonry.js';
 import { lin } from './rural.js';
-import { learningMaterials, person, bush, box } from './learning.js';
+import { learningMaterials, bush, box } from './learning.js';
 
 /** The materials the four share besides the schools' (learning.js learningMaterials). */
 export function healthMaterials() {
@@ -60,74 +61,32 @@ export function healthMaterials() {
 // ---------------------------------------------------------------------------
 
 /**
- * A patient lying on his back (learning.js person, laid down), his head on
- * the pillow end, a blanket over him to the chest: at (x, y, z) the middle
- * of his length on the mattress's top at y, along ry (his head toward -z
- * when ry is 0). Returns [{ g, material }] for castra.js people().
+ * The blanket over a patient lying abed as an actor (people/clips.js lie):
+ * at (x, y, z) the actor's place (the mattress's top under the middle of
+ * his length), turned ry as the actor (his head toward his -z); from his
+ * chest to past his feet, a little wider than he is, its top humped over
+ * him and his hands on it. `scale` the actor's. Returns a geometry in the
+ * blanket's colour (for the cloth's material).
  */
-export function abed(mats, opts, x, y, z, ry, { blanket = 0x8a6a4a, scale = 1 } = {}) {
-  const parts = person(mats, { arms: 'down', ...opts }, 0, 0, 0, 0, scale);
-  // (Standing on y 0 facing +z: a quarter turn about x lays him with his head toward -z, face up; his
-  // back, 0.1 behind his middle, then rests on the mattress.)
-  for (const p of parts) {
-    p.g.rotateX(-Math.PI / 2);
-    p.g.translate(0, y + 0.1 * scale, 0.82 * scale);
-    p.g.rotateY(ry);
-    p.g.translate(x, 0, z);
-  }
-  // The blanket: from his feet to his chest, a little wider than he is, its top rounded over him.
-  // (Laid down, his feet are at z 0.82 of his frame and his chest at -0.4, its top 0.24 over the mattress.)
-  const len = 1.25 * scale;
-  const b = new BoxGeometry(0.64 * scale, 0.2 * scale, len, 4, 1, 3);
+export function blanket(x, y, z, ry, { colour = 0x8a6a4a, scale = 1, lod = 0 } = {}) {
+  const s = scale;
+  const len = 1.3 * s;
+  const b = new BoxGeometry(0.72 * s, 0.2 * s, len, lod ? 2 : 4, 1, lod ? 1 : 3);
   const p = b.attributes.position;
   for (let i = 0; i < p.count; i++) {
-    const u = p.getX(i) / (0.32 * scale);
+    const u = p.getX(i) / (0.36 * s);
     // (A hump over the body: the top's middle up, its edges down to the mattress.)
     const top = p.getY(i) > 0;
-    p.setY(i, top ? 0.28 * scale * (1 - 0.6 * u * u) : -0.02);
+    p.setY(i, top ? 0.34 * s * (1 - 0.6 * u * u) : -0.02);
     p.setX(i, p.getX(i) * (top ? 0.9 : 1));
   }
   b.computeVertexNormals();
-  b.translate(0, y + 0.02, 0.86 * scale - len / 2);
+  // (From his chest, 0.42 toward his head, to past his feet.)
+  b.translate(0, y + 0.02, -0.42 * s + len / 2);
   b.rotateY(ry);
   b.translate(x, 0, z);
-  const rgb = lin(blanket);
-  parts.push({ g: tintGeometry(boxUV(b), (px, py) => [rgb[0] * (0.85 + 0.6 * (py - y)), rgb[1] * (0.85 + 0.6 * (py - y)), rgb[2] * (0.85 + 0.6 * (py - y))]), material: mats.cloth });
-  return parts;
-}
-
-/**
- * A sleeper glimpsed through a ward's door: only what shows over the
- * blanket (a head on the pillow, the hair, the shoulders, a hand on the
- * cover), a sixth of a whole person's triangles; placed as abed().
- * Returns [{ g, material }].
- */
-export function sleeper(mats, { skin = 0xa87a58, hair = 0x2e2119, blanket = 0x8a6a4a } = {}, x, y, z, ry) {
-  const parts = [];
-  const sk = lin(skin);
-  const head = new SphereGeometry(0.1, 10, 7);
-  head.scale(0.92, 1.02, 1.12);
-  head.translate(0, y + 0.13, -0.74);
-  parts.push({ g: tintGeometry(boxUV(head), () => sk), material: mats.skin });
-  const cap = new SphereGeometry(0.106, 10, 4, 0, Math.PI * 2, 0, Math.PI * 0.55);
-  cap.rotateX(-Math.PI / 2 - 0.3);
-  cap.translate(0, y + 0.12, -0.76);
-  parts.push({ g: tintGeometry(boxUV(cap), () => lin(hair)), material: mats.hair });
-  for (const s of [-1, 1]) {
-    const hand = new SphereGeometry(0.045, 6, 4);
-    hand.scale(0.8, 0.6, 1.2);
-    hand.translate(s * 0.16, y + 0.26, -0.18 + s * 0.08);
-    parts.push({ g: tintGeometry(boxUV(hand), () => sk), material: mats.skin });
-  }
-  const b = lin(blanket);
-  const cover = slab(0.6, 0.24, 1.32, { bevel: 0.08, seed: Math.round(x * 7 + z * 13), wobble: 0.01, tone: 0.05, grime: 0 });
-  cover.translate(0, y - 0.01, 0.12);
-  parts.push({ g: tintGeometry(cover, (px, py) => [b[0] * (0.8 + 0.8 * (py - y)), b[1] * (0.8 + 0.8 * (py - y)), b[2] * (0.8 + 0.8 * (py - y))]), material: mats.cloth });
-  for (const q of parts) {
-    q.g.rotateY(ry);
-    q.g.translate(x, 0, z);
-  }
-  return parts;
+  const rgb = lin(colour);
+  return tintGeometry(boxUV(b), (px, py) => [rgb[0] * (0.85 + 0.6 * (py - y)), rgb[1] * (0.85 + 0.6 * (py - y)), rgb[2] * (0.85 + 0.6 * (py - y))]);
 }
 
 /** A point of a frame at (x, z) turned ry, (dx right, dz ahead) in it: the model's [x, z]. */

@@ -24,22 +24,24 @@
  *
  * States (models.js partShows; militaryModels.js academyState):
  *   'out'   men drilling (recruits training there, or soldiers sent from
- *           their forts): three at the posts, an archer at the line, a rider
- *           in the ring (his horse a `more` kit), the drill master watching
- *   'open'  staffed, nobody training: the drill master on his tribunal
+ *           their forts): five at the posts, two archers at the line, a
+ *           trooper holding the horse in the ring (its `more` kit) and a
+ *           comrade, the drill master on his feet calling the drill
+ *   'open'  staffed, nobody training: the drill master in his chair on his
+ *           tribunal
+ * (academyActors: the people, moving, people/actors.js.)
  *   'shut'  no staff: the gate shut, nobody
  *
  * Metres, the middle at the origin, y up, the gate toward +z.
  * ----------------------------------------------------------------------------
  */
 
-import { CylinderGeometry, Matrix4 } from 'three';
+import { CylinderGeometry, Matrix4, Vector3 } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { TaggedParts, slab, tuscanColumn, lantern, lanternPane } from './masonry.js';
 import { gableRoof, railFence, lin, D } from './rural.js';
-import { figureParts } from './figure.js';
-import { castraMaterials, box, staff, prism, vexillum, inscribe, people } from './castra.js';
+import { castraMaterials, box, staff, prism, vexillum, inscribe, soldier, atPost, ARMS } from './castra.js';
 
 /** The academy's measures (metres): the tests, the lab and the game read them. */
 export const ACADEMY = Object.freeze({
@@ -279,27 +281,53 @@ export function buildAcademy({ lod = 0, seed = 191 } = {}) {
       p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
     }
   }
-  if (lod === 0) {
-    // The drill master on his tribunal while it is staffed, his vine staff in hand.
-    const [x0, x1, z0, z1, h] = C.tribunal;
-    const doc = figureParts({ cloth: 0xa8322b, cloth2: 0x7a6248, reach: 0.4 }, (x0 + x1) / 2 + 0.2, h + 0.08, (z0 + z1) / 2 + 0.1, Math.PI / 2 - 0.3);
-    people(p, m, 'master', doc, 'staffed');
-    // Men drilling: three at the posts (wicker shields, wooden swords), an archer at the line, a rider in the ring.
-    const men = [];
-    C.pali.slice(0, 3).forEach(([px, pz], i) => men.push(...figureParts({ cloth: [0xa8322b, 0xcfc3a8, 0x3f7a3a][i], reach: 1 }, px + 0.05, 0.03, pz + 0.6, Math.PI + 0.1 * i)));
-    men.push(...figureParts({ cloth: 0x3f7a3a, reach: 1 }, 3.5, 0.03, 0.25, Math.PI));
-    men.push(...figureParts({ cloth: 0xc9962e }, rx - 0.4, 0.66, rz + 0.2, -Math.PI * 0.3 + Math.PI / 2, 0.92));
-    C.pali.slice(0, 3).forEach(([px, pz]) => {
-      const w = new CylinderGeometry(0.3, 0.3, 0.04, 12, 1);
-      w.rotateX(Math.PI / 2);
-      w.scale(0.85, 1.2, 1);
-      w.translate(px + 0.25, 0.95, pz + 0.48);
-      men.push({ g: tintGeometry(boxUV(w), () => lin(0xb8995a)), material: m.paint });
-      men.push({ g: staff([px - 0.28, 1.25, pz + 0.4], [px - 0.16, 1.55, pz + 0.08], 0.025, 4), material: m.wood });
-    });
-    // The archer's bow: drawn, its string to his cheek.
-    men.push({ g: staff([3.3, 0.9, -0.15], [3.32, 1.55, -0.12], 0.014, 4), material: m.wood }, { g: staff([3.32, 1.55, -0.12], [3.28, 2.0, -0.18], 0.014, 4), material: m.wood });
-    people(p, m, 'drill', men, 'out');
-  }
+  // (The drill master and the men drilling are actors: academyActors.)
   return p.build();
+}
+
+/** The folding chair on the tribunal (tribunal): its seat's middle (x, z) and the tribunal's top, where its feet stand. */
+const CHAIR = Object.freeze([(C.tribunal[0] + C.tribunal[1]) / 2 - 0.25, (C.tribunal[2] + C.tribunal[3]) / 2, C.tribunal[4] + 0.08]);
+
+/**
+ * The academy's people (people/actors.js specs, its metres). Staffed, the
+ * drill master (campidoctor, a legionary in his mail) on his tribunal: at
+ * ease in his folding chair while nobody trains ('open'); on his feet
+ * calling the drill while men train ('out'). Then five men at the five
+ * posts, each facing his post at the drill's reach and striking at it with
+ * the wooden sword from behind the wicker shield (each at his own pace:
+ * not in step), the front row from the field's side, the back row from the
+ * gate's; two archers behind the line loosing at the butts; a trooper at
+ * the head of the horse in the ring (its `more` kit), holding it, and a
+ * comrade talking to him. Nobody when it is shut.
+ */
+export function academyActors(state) {
+  if (state === 'shut') return [];
+  const [cx, cz, top] = CHAIR;
+  const list = [];
+  if (state === 'open') list.push(soldier('legion', { clip: 'sit', props: {}, at: [cx + 0.03, top, cz], ry: Math.PI / 2, seed: 51 }));
+  else list.push(soldier('legion', { clip: 'orate', props: {}, at: [cx + 0.6, top, cz + 0.15], ry: Math.PI / 2 - 0.25, seed: 51 }));
+  if (state !== 'out') return list;
+  // The drill: the front row's posts (z 1.3) from the field (-z), the back row's (z 3.1) from the gate (+z).
+  const tunics = [ARMS.legion.tunic, 0xcfc3a8, ARMS.archer.tunic, 0xcfc3a8, ARMS.legion.tunic];
+  C.pali.forEach(([px, pz], i) => {
+    const ry = pz < 2 ? 0 : Math.PI;
+    const [x, z] = atPost(px, pz, ry);
+    list.push({ body: 'm', dress: ['tunic:knee', 'caligae'], hair: 'crop', clip: 'drill', props: { R: 'gladius', L: 'scutum' }, at: [x, 0.03, z], ry, seed: 52 + i, colours: { tunic: tunics[i], accent: 0xb8995a } });
+  });
+  // The archers behind the line (z 0), each loosing at his butt.
+  C.butts.forEach(([bx, bz], i) => {
+    const at = [bx + 0.1 * (i ? -1 : 1), 0.03, 0.3];
+    list.push(soldier('archer', { clip: 'shoot', props: { L: 'bow', R: 'arrow' }, at, ry: Math.atan2(bx - at[0], bz - at[2]), seed: 58 + i }));
+  });
+  // The trooper at the ring horse's head (RING_HORSE: it faces its own +z), holding it; a comrade beside him.
+  const hp = new Vector3().setFromMatrixPosition(RING_HORSE);
+  const fwd = new Vector3(0, 0, 1).transformDirection(RING_HORSE);
+  const side = new Vector3(fwd.z, 0, -fwd.x);
+  const head = hp.clone().addScaledVector(fwd, 1.35).addScaledVector(side, 0.35);
+  const face = Math.atan2(hp.x - head.x, hp.z - head.z);
+  const trooper = (extra) => ({ ...soldier('cavalry', extra), dress: ['tunic:knee', 'caligae', 'helmet'], props: {} });
+  list.push(trooper({ clip: 'hold', at: [head.x, 0.03, head.z], ry: face, seed: 60 }));
+  const mate = head.clone().addScaledVector(side, -0.75).addScaledVector(fwd, 0.45);
+  list.push(trooper({ clip: 'talk', at: [mate.x, 0.03, mate.z], ry: Math.atan2(head.x - mate.x, head.z - mate.z), seed: 61 }));
+  return list;
 }

@@ -8,7 +8,8 @@
  * tags, the columns as instanced kits of their own). The front row shows
  * each at work (in session, lived in); behind it the other states: the
  * senate idle and on its guard, the house shut up, the villa idle, the
- * palace on its guard with a mob or an enemy near.
+ * palace on its guard with a mob or an enemy near; behind those the house
+ * and the villa on their guard. Their people are the models' actors.
  * ----------------------------------------------------------------------------
  */
 
@@ -19,6 +20,9 @@ import { partShows } from '../render3d/models.js';
 import { GOVERNMENT_MODELS, governmentLook } from '../render3d/models/government.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { curiaActors } from '../render3d/models/curia.js';
+import { praetoriumActors } from '../render3d/models/praetorium.js';
+import { praetoriumMaiusActors } from '../render3d/models/praetoriumMaius.js';
+import { regiaActors } from '../render3d/models/regia.js';
 import { labCrowd } from './labPeople.js';
 
 /** Where each building stands (metres), what it shows, its label. */
@@ -31,7 +35,12 @@ const ITEMS = [
   { x: -10, z: -12, kind: 'senate', state: 'out', name: 'Senate House', note: 'on guard: a mob coming' },
   { x: 10, z: -12, kind: 'governor_villa', state: 'shut', name: 'Governor\'s Villa', note: 'shut up' },
   { x: 32, z: -12, kind: 'governor_palace', state: 'out', name: 'Governor\'s Palace', note: 'on guard: the enemy near' },
+  { x: -28, z: -32, kind: 'governor_house', state: 'out', name: 'Governor\'s House', note: 'on guard: a mob coming' },
+  { x: 10, z: -36, kind: 'governor_villa', state: 'out', name: 'Governor\'s Villa', note: 'on guard: the enemy near' },
 ];
+
+/** Each type's people by state, as the game draws them (the models' actors). */
+const ACTORS = { senate: curiaActors, governor_house: praetoriumActors, governor_villa: praetoriumMaiusActors, governor_palace: regiaActors };
 
 const HALF = (kind) => BUILDINGS[kind].size * 2;
 
@@ -63,7 +72,7 @@ function ground(minX, maxX, minZ, maxZ) {
   const earth = new PlaneGeometry(w * 3, d * 3, 1, 1).rotateX(-Math.PI / 2);
   g.add(new Mesh(tintGeometry(boxUV(earth)), material('earth', { surface: 'earth', vertexColors: true, snow: 1 })));
   // A street along the front of each row and down each gap between the buildings.
-  const streets = [[minX, 22.2, maxX, 24.8], [minX, -1.8, maxX, 1.8], [-21, minZ, -19, maxZ], [-0.9, minZ, 0.9, maxZ], [19.6, minZ, 21.6, maxZ]];
+  const streets = [[minX, 22.2, maxX, 24.8], [minX, -1.8, maxX, 1.8], [minX, -24, maxX, -21.5], [-21, minZ, -19, maxZ], [-0.9, minZ, 0.9, maxZ], [19.6, minZ, 21.6, maxZ]];
   for (const [x0, z0, x1, z1] of streets) {
     const p = new PlaneGeometry(x1 - x0, z1 - z0, 1, 1).rotateX(-Math.PI / 2).translate((x0 + x1) / 2, 0.004, (z0 + z1) / 2);
     g.add(new Mesh(tintGeometry(boxUV(p)), material('basalt', { surface: 'basalt', vertexColors: true, snow: 0.6, normal: 1 })));
@@ -76,7 +85,7 @@ function ground(minX, maxX, minZ, maxZ) {
 export function buildGovernmentScene() {
   const group = new Group();
   group.name = 'government-scene';
-  group.add(ground(-36, 44, -24, 26));
+  group.add(ground(-36, 44, -46, 26));
   const holders = ITEMS.filter((it) => GOVERNMENT_MODELS[it.kind]).map((it) => {
     const h = new Group();
     h.position.set(it.x, 0, it.z);
@@ -87,7 +96,7 @@ export function buildGovernmentScene() {
   let ice = false;
   /** Free a group's geometries (the look's materials are shared and kept). */
   const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
-  // The senate's people, as the game draws them (models/curia.js curiaActors).
+  // The people, as the game draws them (each model's actors: curia.js curiaActors, praetorium.js ...).
   const crowd = labCrowd(group);
   function build() {
     for (const it of holders) {
@@ -95,7 +104,7 @@ export function buildGovernmentScene() {
       it.h.clear();
       it.h.add(governmentLook(it.kind, lod, { ice, shows: (when) => partShows(when, it.state, false) }));
     }
-    crowd.fill(lod, holders.filter((it) => it.kind === 'senate').map((it) => [curiaActors(it.state), it.x, it.z]));
+    crowd.fill(lod, holders.map((it) => [ACTORS[it.kind](it.state), it.x, it.z]));
   }
   build();
   const labels = holders.map((it) => ({ name: it.name, note: it.note, x: it.x - HALF(it.kind) + 0.5, z: it.z - HALF(it.kind) + 0.5, y: 7 }));

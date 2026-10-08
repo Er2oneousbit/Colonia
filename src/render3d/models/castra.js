@@ -41,8 +41,7 @@ import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { material, DoubleSide, waterMaterial } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, paving, GLYPHS, tiledRoof, TaggedParts, lantern, lanternPane } from './masonry.js';
-import { blk, beam, lin, D, gableRoof } from './rural.js';
-import { figureParts } from './figure.js';
+import { beam, lin, D, gableRoof } from './rural.js';
 
 /** The fort's plan (metres from the middle; the gate's side, +z, is the front). */
 export const CASTRA = Object.freeze({
@@ -923,56 +922,64 @@ export function tank(x, z, w, d, rim, lod, out, seed = 1) {
 export { lantern, lanternPane };
 
 /**
- * A soldier standing guard, as the models' people are (figure.js): a tunic
- * in `cloth`, a bronze helmet for his hair, a spear in his right hand, a
- * shield on his left arm; at (x, y, z) facing ry. Adds to TaggedParts `p`
- * under `name` in state `when`.
+ * The soldiers of the forts, the barracks, the academy and the watchtower
+ * (people/actors.js specs): each arm as the record dresses it. A legionary
+ * in the red tunic under his mail (lorica hamata), his boots of straps
+ * (caligae), the imperial Gallic helmet, his curved shield painted in the
+ * legion's red (the shield's face is the actor's accent) and his spear; the
+ * auxiliary archers (the eastern archers of Trajan's Column, the Hamii of
+ * Hadrian's Wall) in mail and helmet over a green tunic; the troopers of an
+ * ala in their yellow.
  */
-export function sentry(p, mats, name, x, y, z, ry, when, { cloth = 0xa8322b, shield = null } = {}) {
-  // (The figure's hair cap is a helmet here.)
-  const parts = figureParts({ cloth, cloth2: null, skin: 0xa87a58 }, x, y, z, ry, 0.95).map((f) => (f.material.name.startsWith('hair-') ? { g: f.g, material: mats.bronze } : f));
-  // The spear upright beside him, a shield at his side.
-  const c = Math.cos(ry);
-  const s = Math.sin(ry);
-  const at = (dx, dz) => [x + dx * c + dz * s, z - dx * s + dz * c];
-  const [sx, sz] = at(0.26, 0.08);
-  parts.push({ g: staff([sx, y, sz], [sx, y + 2.0, sz], 0.014, 5), material: mats.wood });
-  const tip = new ConeGeometry(0.022, 0.16, 4);
-  tip.translate(sx, y + 2.08, sz);
-  parts.push({ g: tintGeometry(boxUV(tip)), material: mats.iron });
-  if (shield) {
-    const [hx, hz] = at(-0.26, 0.12);
-    const g = new CylinderGeometry(0.55, 0.55, 0.95, 6, 1, true, -0.5, 1.0);
-    g.translate(0, 0, -0.55);
-    g.scale(0.62, 1, 0.62);
-    g.rotateY(ry - Math.PI / 2 + 0.2);
-    g.translate(hx, y + 0.62, hz);
-    parts.push({ g: tintGeometry(boxUV(g), () => shield), material: mats.paint });
-  }
-  people(p, mats, name, parts, when);
+export const ARMS = Object.freeze({
+  legion: Object.freeze({ tunic: 0xa3352b, shield: 0xa3352b }),
+  archer: Object.freeze({ tunic: 0x4f7a3e, shield: 0x4f6a3a }),
+  cavalry: Object.freeze({ tunic: 0xc9962e, shield: 0xc9962e }),
+});
+
+/** A soldier of `arm` (ARMS) in his kit, on guard with spear and shield unless `extra` says otherwise. */
+export function soldier(arm, extra = {}) {
+  const a = ARMS[arm];
+  return {
+    body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', clip: 'guard', props: { R: 'spear', L: 'scutum' },
+    ...extra,
+    colours: { tunic: a.tunic, accent: a.shield, metal: 0x8a8c90, leather: 0x5a3a24, ...(extra.colours || {}) },
+  };
 }
 
 /**
- * People (figure.js figureParts, and what they hold) added to TaggedParts
- * `p` in state `when`, one part a material: every figure's tunic in the one
- * dyed cloth, its colour carried by its vertices, so a crowd of men in
- * three colours is one draw call for their clothes, not three.
+ * A sentry pacing a wall's walk (or a gate's): he marches (clips.js patrol:
+ * the spear upright, the shield on his arm) from x0 to x1 at the walk's
+ * height y and z, in the front side's frame (as the rampart is built), and
+ * back; at each end he stands on guard, turned to look out over the
+ * parapet. The whole turned onto side k (onSide: 0 front, 1 the +x side, 2
+ * the back, 3 the -x side). Slow, as a man on his round walks; his seed
+ * varies his pauses, so two never keep step.
  */
-export function people(p, mats, name, parts, when) {
-  const by = new Map();
-  for (const f of parts) {
-    let { g, material: m } = f;
-    if (m.name.startsWith('cloth-') && m !== mats.cloth) {
-      // (cloth-<hex>: the colour from its name, times the figure's own shading in its vertices.)
-      const rgb = lin(Number.parseInt(m.name.slice(6), 16));
-      const col = g.attributes.color;
-      for (let i = 0; i < col.count; i++) col.setXYZ(i, col.getX(i) * rgb[0], col.getY(i) * rgb[1], col.getZ(i) * rgb[2]);
-      m = mats.cloth;
-    }
-    if (!by.has(m)) by.set(m, []);
-    by.get(m).push(g);
-  }
-  for (const [m, list] of by) p.add(`${name}-${m.name}`, m, list, { when });
+export function wallSentry(arm, x0, x1, y, z, seed, k = 0) {
+  const a = (k & 3) * (Math.PI / 2);
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return soldier(arm, {
+    clip: 'patrol', at: [x0 * c + z * s, y, z * c - x0 * s], ry: (x1 > x0 ? Math.PI / 2 : -Math.PI / 2) + a, seed,
+    route: { length: Math.abs(x1 - x0), speed: 0.75, pauseEnd: 5 + (seed % 3), pauseStart: 4 + (seed % 4), clipEnd: 'guard', clipStart: 'guard', faceEnd: a, faceStart: a },
+  });
+}
+
+/**
+ * Where a man stands to drill at a post (clips.js drill, Vegetius's palus):
+ * the clip's sword point (the gladius's 0.52 m blade) ends 1.10 m ahead of
+ * his feet and 0.08 m to his right (-x) at full thrust, so he stands with
+ * the post's middle (px, pz) 1.17 m ahead, facing ry: his point sinks a few
+ * centimetres into the post's near face (0.1 m before its middle).
+ */
+export const DRILL_AT = Object.freeze({ ahead: 1.17, side: -0.08 });
+export function atPost(px, pz, ry) {
+  const { ahead, side } = DRILL_AT;
+  // (His offset to the post turned by ry, as the actor's matrix turns it: x' = x cos + z sin, z' = z cos - x sin.)
+  const c = Math.cos(ry);
+  const s = Math.sin(ry);
+  return [px - (side * c + ahead * s), pz - (ahead * c - side * s)];
 }
 
 /** The look's double-sided cloth for things seen from both sides (a flag, a tent's flap). */

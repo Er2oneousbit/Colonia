@@ -11,14 +11,12 @@
  * and wall, the master's round-backed chair) and a tiled slope with the
  * boards under it.
  *
- * Why people of their own: figure.js stands its one mannequin up, and a
- * school is a room of people sitting. person() is that mannequin lighter
- * (fewer segments: a school holds nine of them, the academy a dozen) and
- * posable: standing or seated, arms down, a tablet on the lap, a roll held
- * open, a hand raised to teach or to declaim. Its clothes are the forts'
- * one dyed cloth (castra.js people: the colour in the vertices), and every
- * skin and every head of hair one material each, toned by its vertices, so
- * a crowd costs a draw a material, not a draw a person.
+ * person() is a still, posable mannequin: standing or seated, arms down, a
+ * tablet on the lap, a roll held open, a hand raised to teach or to
+ * declaim. The buildings' living people are actors now (render3d/people/);
+ * person() is left for what is carved: statues on their pedestals (the
+ * library's Minerva, the residences', the arch's), every part of it one
+ * material (marble, bronze) toned by its vertices.
  *
  * Metres, y up, facing +z, as the other models (models/well.js); every
  * geometry has position, normal, uv (metres) and an RGB colour, so merge()
@@ -126,7 +124,7 @@ function wrists(arms, sit, s) {
  *   arms           down, lap, read, write, teach, chin (seated); hold,
  *                  orate, reach, spear (standing)
  *   lean           forward over the hips (radians, seated)
- * Returns [{ g, material }] for castra.js people() (or a TaggedParts add).
+ * Returns [{ g, material }] for a TaggedParts add.
  */
 export function person(mats, opts, x, y, z, ry, scale = 1) {
   const { cloth = 0xc9bca2, cloth2 = null, skin = 0xa87a58, hair = 0x2e2119, sit = 0, long = false, arms = sit ? 'lap' : 'down', lean = sit ? 0.1 : 0, beard = false } = opts;

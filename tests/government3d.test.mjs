@@ -25,6 +25,10 @@ import assert from 'node:assert/strict';
 import { Box3, Group } from 'three';
 import { MODELS, hasModel, modelMatrix, modelLamps, partShows, modelFor } from '../src/render3d/models.js';
 import { curiaActors } from '../src/render3d/models/curia.js';
+import { praetoriumActors } from '../src/render3d/models/praetorium.js';
+import { praetoriumMaiusActors, PRAETORIUM_MAIUS } from '../src/render3d/models/praetoriumMaius.js';
+import { regiaActors } from '../src/render3d/models/regia.js';
+import { DINE } from '../src/render3d/people/clips.js';
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { governmentState, alarmed, governmentLook, ALARM_TILES, GOVERNMENT_TYPES } from '../src/render3d/models/government.js';
@@ -127,7 +131,9 @@ function shownIn(type, lod = 0) {
 
 test('government3d: every part shows in some state, and each state shows what it should', () => {
   for (const type of TYPES) for (const p of shownIn(type)) assert.ok(p.states.length, `${type} ${p.name}|${p.when} shows in no state`);
-  const peopleIn = (type, s, lod = 0) => shownIn(type, lod).filter((p) => /^(senators|household|guard|guard-more)-/.test(p.name) && p.states.includes(s)).length;
+  // No one merged into a kit any more: the people are actors (people/), by state.
+  for (const type of TYPES) assert.ok(!shownIn(type).some((p) => /^(senators|household|guard|guard-more)-/.test(p.name)), `${type}: no still mannequins`);
+  const ACTORS = { governor_house: praetoriumActors, governor_villa: praetoriumMaiusActors, governor_palace: regiaActors };
   // The senate's people are actors (people/): senators in session, soldiers of the guard on the alert, nobody idle.
   const senate = (s) => curiaActors(s);
   assert.ok(senate('open').length >= 8 && senate('open').every((a) => a.dress.some((d) => d.startsWith('toga')) || a.props), 'the senate in session');
@@ -140,12 +146,13 @@ test('government3d: every part shows in some state, and each state shows what it
       assert.deepEqual(doors, ['open', 'out', 'shut'], type);
       continue;
     }
-    assert.ok(peopleIn(type, 'open') >= 3, `${type}: people at work`);
-    assert.equal(peopleIn(type, 'shut'), 0, `${type}: nobody when shut`);
-    assert.ok(peopleIn(type, 'out') >= 1, `${type}: guards on the alert`);
-    // The household gone in when trouble comes; nobody far out (a crowd is thousands of triangles under a pixel each).
-    assert.equal(shownIn(type).filter((p) => /^(senators|household)-/.test(p.name) && p.states.includes('out')).length, 0, `${type}: the household indoors`);
-    assert.equal(peopleIn(type, 'open', 1), 0, `${type} lod 1`);
+    const people = ACTORS[type];
+    assert.ok(people('open').length >= 6, `${type}: people at work`);
+    assert.ok(people('open').some((a) => a.clip === 'guard' && a.props.R === 'spear' && a.props.L === 'scutum'), `${type}: the guard at the door`);
+    assert.ok(people('open').some((a) => a.dress.includes('toga') && a.colours.accent !== undefined), `${type}: the governor in the toga praetexta`);
+    assert.equal(people('shut').length, 0, `${type}: nobody when shut`);
+    // On the alert: only soldiers (the household gone in), more of them than at work.
+    assert.ok(people('out').length >= 3 && people('out').every((a) => a.dress.includes('lorica')), `${type}: guards on the alert, the household indoors`);
     // Doors: open at work, shut idle and on the alert.
     const doors = shownIn(type).filter((p) => p.name === 'doors').map((p) => p.states.join('+')).sort();
     assert.deepEqual(doors, ['open', 'out', 'shut'], type);
@@ -153,6 +160,18 @@ test('government3d: every part shows in some state, and each state shows what it
     const lamps = shownIn(type).filter((p) => p.name === 'lamp');
     assert.deepEqual(lamps.filter((p) => p.mesh.material.name === 'lantern-pane').flatMap((p) => p.states), ['open', 'out'], type);
     assert.deepEqual(lamps.filter((p) => p.mesh.material.name === 'lantern-pane-out').flatMap((p) => p.states), ['shut'], type);
+  }
+  // The villa's diners lie on the couches: each a dine actor with his feet DINE.top under a couch's top
+  // (domus.js couch: 0.69 over the floor), his hips on it, facing the table, which he can reach.
+  const V = PRAETORIUM_MAIUS;
+  const diners = praetoriumMaiusActors('open').filter((a) => a.clip === 'dine');
+  assert.equal(diners.length, 3);
+  for (const d of diners) {
+    assert.ok(Math.abs(d.at[1] + DINE.top - (V.floorY + 0.69)) < 1e-6, 'on the couch top');
+    // The right hand's reach to the table: 0.55 before him, 0.2 to his left (people/clips.js dine).
+    const rx = d.at[0] + Math.sin(d.ry) * 0.55 + Math.cos(d.ry) * 0.2;
+    const rz = d.at[2] + Math.cos(d.ry) * 0.55 - Math.sin(d.ry) * 0.2;
+    assert.ok(Math.hypot(rx, rz - V.dine.z) < V.dine.r + 0.05, `a diner reaches the table: ${rx.toFixed(2)}, ${rz.toFixed(2)}`);
   }
   // The fountains play while the house is kept; the standards fly while the governor is in residence.
   for (const type of ['governor_villa', 'governor_palace']) {

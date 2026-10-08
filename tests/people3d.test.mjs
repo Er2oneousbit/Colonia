@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 
 import { Group, Matrix4, Vector3, ShaderLib } from 'three';
 import { BONES, BONE, BONE_COUNT } from '../src/render3d/people/rig.js';
-import { CLIPS, CLIP_NAMES, CLIP_INDEX, poseAt, bakeClips, clipFrames, FRAME_FLOATS } from '../src/render3d/people/clips.js';
+import { CLIPS, CLIP_NAMES, CLIP_INDEX, poseAt, bakeClips, clipFrames, FRAME_FLOATS, ROW, BEAT, WINDLASS } from '../src/render3d/people/clips.js';
 import { buildPiece } from '../src/render3d/people/pieces.js';
 import { pack, cast, actorBounds, hash01, routePose } from '../src/render3d/people/actors.js';
 import { AEDES } from '../src/render3d/models/aedes.js';
@@ -36,6 +36,9 @@ import { peopleMaterial, peopleDepthMaterial, patchPeopleShader } from '../src/r
 import { MODELS, modelMatrix, TILE_M } from '../src/render3d/models.js';
 import { ModelPass, peopleLodFor } from '../src/render3d/modelPass.js';
 import { BUILDINGS } from '../src/data/buildings.js';
+import { PORTUS, tholePin, HORTATOR } from '../src/render3d/models/portus.js';
+import { NAVALIA } from '../src/render3d/models/navalia.js';
+import { windlassAxis } from '../src/render3d/models/engineer.js';
 
 test('people3d: the rig has its 25 bones, each after its parent, and a prop bone in each hand', () => {
   assert.equal(BONE_COUNT, 25);
@@ -50,8 +53,11 @@ test('people3d: the rig has its 25 bones, each after its parent, and a prop bone
 test('people3d: every clip loops seamlessly, is baked as its poses, and plants its feet', () => {
   const baked = bakeClips();
   assert.equal(baked.table.length, CLIP_NAMES.length);
-  // (The texture's rows within 4,096: every desktop and laptop GPU of the targets reads that tall.)
-  assert.ok(baked.rows <= 4096, `${baked.rows} rows`);
+  // (The texture's rows within 8,192: every desktop and laptop GPU of the targets reads textures 16,384
+  // tall or more, and the texture is only as tall as its rows, so the limit costs nothing until it is used.)
+  assert.ok(baked.rows <= 8192, `${baked.rows} rows`);
+  // (A route's two pause clips share one float, b + 64 a (actors.js, the shader): every clip's index under 64.)
+  assert.ok(CLIP_NAMES.length <= 64, `${CLIP_NAMES.length} clips`);
   for (const name of CLIP_NAMES) {
     // The pose at the loop's end is the one at its start.
     const a = poseAt(name, 0);
@@ -88,7 +94,7 @@ const PIECES = [
   'body:m', 'body:f', 'body:c', 'tunic:m:knee', 'tunic:m:short', 'tunic:m:long', 'tunic:m:knee:broad', 'tunic:f:long:stola', 'tunic:c:knee',
   'toga:m', 'toga:m:velato', 'pallium:m', 'palla:f', 'palla:f:veil', 'paenula:m', 'lorica:m', 'limus:m', 'caligae:m', 'helmet:m', 'bulla:c', 'wreath:m',
   'hair:crop:m', 'hair:curls:m', 'hair:bun:f', 'hair:bald:m', 'beard:full:m', 'beard:short:m',
-  ...['patera', 'tibiae', 'tablet', 'stylus', 'rollOpen', 'roll', 'spear', 'scutum', 'broom', 'purse', 'axe', 'fasces', 'acerra', 'hammer', 'chisel', 'coin', 'beam', 'sack'].flatMap((p) => [`prop:${p}:R`, `prop:${p}:L`]),
+  ...['patera', 'tibiae', 'tablet', 'stylus', 'rollOpen', 'roll', 'spear', 'scutum', 'broom', 'purse', 'axe', 'fasces', 'acerra', 'hammer', 'chisel', 'coin', 'beam', 'sack', 'oar', 'gladius', 'razor', 'pestle', 'cup', 'bow', 'arrow', 'crank', 'shears'].flatMap((p) => [`prop:${p}:R`, `prop:${p}:L`]),
 ];
 const tris = (key, lod) => buildPiece(key, lod).index.count / 3;
 
@@ -165,20 +171,54 @@ const CONVERTED = {
   oracle: [{}],
   mission_post: [{ efficiency: 1 }, { efficiency: 0 }],
   school: [{ efficiency: 1 }, { efficiency: 0 }],
+  library: [{ efficiency: 1 }, { efficiency: 0 }],
+  academy: [{ efficiency: 1 }, { efficiency: 0 }],
   forum: [{ efficiency: 1 }, { efficiency: 0 }],
   senate: [{ efficiency: 1 }, { efficiency: 1, alarm: true }, { efficiency: 0 }],
   prefecture: [{ efficiency: 1 }, { efficiency: 1, fire: true }, { efficiency: 0 }],
+  engineer_post: [{ efficiency: 1 }, { efficiency: 0 }],
+  governor_house: [{ efficiency: 1 }, { efficiency: 1, alarm: true }, { efficiency: 0 }],
+  governor_villa: [{ efficiency: 1 }, { efficiency: 1, alarm: true }, { efficiency: 0 }],
+  governor_palace: [{ efficiency: 1 }, { efficiency: 1, alarm: true }, { efficiency: 0 }],
+  // (The fleet's buildings face their water, each side turning their people with them; a hull on the slip, a crew at drill.)
+  navalia: [0, 1, 2, 3].flatMap((side) => [{ efficiency: 1, side, progress: 60 }, { efficiency: 1, side, progress: 0 }, { efficiency: 0, side }]),
+  naval_station: [0, 1, 2, 3].flatMap((side) => [{ efficiency: 1, side }, { efficiency: 0, side }]),
+  portus: [0, 1, 2, 3].flatMap((side) => [{ efficiency: 1, side, ship: true }, { efficiency: 1, side }, { efficiency: 0, side }]),
+  // (The forts deployed, `rally`: nobody on watch, the men out; the cavalry's troopers by its horses, `men`.)
+  fort_legion: [{ efficiency: 1 }, { efficiency: 1, rally: true, nobody: true }, { efficiency: 0 }],
+  fort_archer: [{ efficiency: 1 }, { efficiency: 1, rally: true, nobody: true }, { efficiency: 0 }],
+  fort_cavalry: [{ efficiency: 1, men: 8 }, { efficiency: 1, men: 3 }, { efficiency: 1 }, { efficiency: 1, men: 8, rally: true, nobody: true }, { efficiency: 0 }],
+  barracks: [{ efficiency: 1 }, { efficiency: 1, training: true }, { efficiency: 0 }],
+  military_academy: [{ efficiency: 1 }, { efficiency: 1, drill: true }, { efficiency: 0 }],
+  tower: [{ efficiency: 1 }, { efficiency: 0 }],
+  barber: [{ efficiency: 1 }, { efficiency: 0 }],
+  clinic: [{ efficiency: 1 }, { efficiency: 0 }],
+  hospital: [{ efficiency: 1 }, { efficiency: 0 }],
+  // (The baths: bathers only with water and staff; still, or dry, nobody.)
+  baths: [{ efficiency: 1, water: true }, { efficiency: 0, water: true }, { efficiency: 1, water: false, nobody: true }],
+  gardener_yard: [{ efficiency: 1 }, { efficiency: 0 }],
 };
 
 /** A building of `type` in a state, and the game its variant reads. */
 function scene(type, s) {
   const god = BUILDINGS[type].god;
   const b = { id: 7, type, x: 10, y: 10, size: BUILDINGS[type].size, efficiency: s.efficiency ?? 1 };
+  // (A fort deployed to a rally point; the barracks training a recruit.)
+  if (s.rally) b.rally = { x: 30, y: 30 };
+  if (s.training) b.trainProgress = 40;
+  if ('water' in s) b.hasWater = s.water;
+  // (A fleet building faces its water, `side`; a navalia's hull on its slip by its progress.)
+  if ('side' in s) b.waterSide = s.side;
+  if ('progress' in s) b.progress = s.progress;
   const game = {
     city: { gods: god ? { [god]: { festivalsHeld: s.fest ? 1 : 0, monthsSinceFestival: s.fest ? 0 : 2, angered: false } } : {} },
     time: { totalTicks: 1 },
-    walkers: new Map(s.fire ? [[1, { type: 'prefect', home: b.id, origin: b.id, state: 'toFire' }]] : s.alarm ? [[1, { type: 'rioter', target: b.id }]] : []),
-    units: new Map(),
+    walkers: new Map(s.fire ? [[1, { type: 'prefect', home: b.id, origin: b.id, state: 'toFire' }]] : s.alarm ? [[1, { type: 'rioter', target: b.id }]]
+      : s.drill ? [[1, { type: 'recruit', state: 'training', academy: b.id }]] : []),
+    // (A fort's men: its garrison, the cavalry's horses in their stalls.)
+    units: new Map([...Array.from({ length: s.men || 0 }, (_, i) => [i + 1, { id: i + 1, side: 'rome', fort: b.id }]),
+      // (A new ship's crew training at a Portus: sim/training.js trainAt.)
+      ...(s.ship ? [[99, { id: 99, type: 'liburnian', drill: b.id, state: 'training' }]] : [])]),
     buildings: new Map([[b.id, b]]),
   };
   return { b, game };
@@ -192,7 +232,7 @@ test('people3d: every converted building keeps its people on its own footprint a
     for (const s of states) {
       const { b, game } = scene(type, s);
       const v = MODELS[type].variant(b, { snow: 0 }, { game });
-      if (s.efficiency === 0 && type !== 'oracle') assert.equal(v.actors.actors.length, 0, `${type}: nobody unstaffed`);
+      if ((s.efficiency === 0 && type !== 'oracle') || s.nobody) assert.equal(v.actors.actors.length, 0, `${type} ${JSON.stringify(s)}: nobody`);
       else assert.ok(v.actors.actors.length > 0, `${type} ${JSON.stringify(s)}: people`);
       const S = b.size;
       for (let T = 0; T < 4; T++) {
@@ -221,7 +261,12 @@ test('people3d: the model pass draws the actors of the buildings it draws, writt
   const { b, game } = scene('forum', { efficiency: 1 });
   const r = { game, weather: {}, time: 0, camera: { scale: 4 } };
   const placed = (T = 0) => [{ b, T, vx: b.x, vy: b.y, state: 0, snow: 0 }];
-  const frame = (list) => { for (let i = 0; i < 4; i++) mp.update(r, list, 2); };
+  // (Frames until every piece is built: the pieces are built within a time budget a frame, so on a loaded
+  // machine, a full test run in parallel, four frames were not always enough. Waited for, never assumed.)
+  const frame = (list) => {
+    for (let i = 0; i < 4; i++) mp.update(r, list, 2);
+    for (let i = 0; i < 400 && (mp.stats.deferred > 0 || mp.people.dirty); i++) mp.update(r, list, 2);
+  };
   frame(placed());
   const want = MODELS.forum.variant(b).actors.actors.length;
   assert.equal(mp.stats.people, want, 'the forum\'s people drawn');
@@ -308,4 +353,104 @@ test('people3d: the temples\' priests walk clear of their altars and the altar\'
       assert.ok(Math.abs(x - ax) > aw / 2 + r - 1e-6 || Math.abs(z - az) > ad / 2 + r, `${type}: the priest's way at ${x.toFixed(2)}, ${z.toFixed(2)} crosses the altar`);
     }
   }
+});
+
+test('people3d: the working clips reach their tools: the oar through its thole, the mallet on the block, the crank round its axle, the bow drawn and loosed', () => {
+  const near = (a, b, d, what) => assert.ok(a.distanceTo(b) < d, `${what}: ${a.toArray().map((v) => v.toFixed(3))} vs ${b.toArray().map((v) => v.toFixed(3))}`);
+  for (let k = 0; k < 16; k++) {
+    const t = k / 16;
+    // The oar's line from its handle (propR) passes the thole pin, on each side; both hands on the loom.
+    for (const [clip, so] of [['row', 1], ['rowRight', -1]]) {
+      const p = poseAt(clip, t);
+      const grip = p.jointOf('propR');
+      const up = new Vector3(0, 1, 0).transformDirection(p.world[BONE.propR]);
+      const thole = new Vector3(so * ROW.out, ROW.up, ROW.ahead);
+      near(grip.clone().addScaledVector(up, thole.clone().sub(grip).dot(up)), thole, 1e-3, `${clip} at ${t}: the oar through its thole`);
+      for (const h of ['handL', 'handR']) assert.ok(p.jointOf(h).distanceTo(grip) < 0.35, `${clip}: ${h} on the oar`);
+    }
+    // The crank on its axle; the hands on its handle as it goes round.
+    const w = poseAt('windlass', t);
+    const axle = w.jointOf('propR');
+    near(axle, new Vector3(WINDLASS.x, WINDLASS.height, WINDLASS.ahead), 1e-6, 'the crank on its axle');
+    const handle = axle.clone().add(new Vector3(0, 1, 0).transformDirection(w.world[BONE.propR]).multiplyScalar(WINDLASS.arm));
+    for (const h of ['handL', 'handR']) assert.ok(Math.abs(w.jointOf(h).y + 0.01 - handle.y) < 0.03 && Math.abs(w.jointOf(h).z + 0.03 - handle.z) < 0.03, `windlass: ${h} on the handle at ${t}`);
+  }
+  // The mallet's head (props.js hammer: 0.22 along the grip's x, its face 0.05 under) comes down on the block at the catch.
+  const b = poseAt('beat', 0);
+  const head = b.jointOf('propR').add(new Vector3(0.22, -0.05, 0).applyMatrix4(new Matrix4().extractRotation(b.world[BONE.propR])));
+  near(head, new Vector3(BEAT.side, BEAT.height, BEAT.ahead), 0.02, 'the mallet on the block');
+  // The bow: drawn, the nock (propR) far back from the grip and the arrow shown; loosed, the arrow gone.
+  const drawn = poseAt('shoot', 0.45);
+  const loosed = poseAt('shoot', 0.7);
+  const scale = (p) => new Vector3().setFromMatrixColumn(p.world[BONE.propR], 0).length();
+  assert.ok(scale(drawn) > 0.99 && scale(loosed) < 0.01);
+  assert.ok(drawn.jointOf('propR').distanceTo(drawn.jointOf('propL')) > 0.5, 'drawn to the jaw');
+  // The string's nock is skinned to the drawing hand's prop bone.
+  const bow = buildPiece('prop:bow:L', 0);
+  const bones = bow.attributes.aBones.array;
+  const wts = bow.attributes.aWeights.array;
+  let nock = 0;
+  for (let i = 0; i < bones.length; i += 4) if (bones[i] === BONE.propR && wts[i] === 1) nock++;
+  assert.ok(nock > 0, 'the bow string\'s nock on propR');
+});
+
+test('people3d: actors in step (sync) share the building\'s phase and speed: a crew to its hortator\'s beat', () => {
+  const crew = cast([{ clip: 'row', sync: true }, { clip: 'rowRight', sync: true, seed: 99 }, { clip: 'beat', sync: true }, { clip: 'idle' }]);
+  assert.deepEqual(crew.actors.slice(0, 3).map((a) => a.clip[1]), [0, 0, 0]);
+  assert.ok(crew.actors[3].clip[1] !== 0 && !crew.actors[3].sync);
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  const batch = mp.people;
+  batch.begin(0);
+  batch.add(crew, new Matrix4(), 17);
+  batch.end();
+  const got = [];
+  for (const p of batch.pieces.values()) {
+    if (!p.key.startsWith('body:') || !p.mesh.count) continue;
+    const a = p.attrs.aActClip.array;
+    for (let i = 0; i < p.mesh.count; i++) got.push([a[i * 4], a[i * 4 + 1], a[i * 4 + 2]]);
+  }
+  const synced = got.filter(([c]) => c !== CLIP_INDEX.idle);
+  assert.equal(synced.length, 3);
+  for (const g of synced) assert.ok(g[1] === synced[0][1] && g[2] === synced[0][2], 'one phase, one speed');
+  mp.dispose();
+});
+
+test('people3d: the working clips meet the models\' parts: the Portus\'s oars on their thole pins and benches, the hortator\'s block, the windlasses\' cranks', () => {
+  const toWorld = (a, v) => v.clone().applyMatrix4(new Matrix4().fromArray(a.local));
+  const actorsOf = (type, s) => {
+    const { b, game } = scene(type, s);
+    return MODELS[type].variant(b, { snow: 0 }, { game }).actors.actors;
+  };
+  // (Side 2: the fleet's models face +z unturned, so their own measures are the world's here.)
+  const crew = actorsOf('portus', { efficiency: 1, side: 2, ship: true });
+  const rowers = crew.filter((a) => a.clipName === 'row' || a.clipName === 'rowRight');
+  assert.equal(rowers.length, 2 * PORTUS.frame.benches);
+  const pins = [];
+  for (let k = 0; k < PORTUS.frame.benches; k++) for (const s of [-1, 1]) pins.push(tholePin(k, s));
+  for (const a of rowers) {
+    const so = a.clipName === 'row' ? 1 : -1;
+    // The oar's line through the clip's thole: on the rail's top, a loom's radius up, against the stern side (-x) of its own pin.
+    const t = toWorld(a, new Vector3(so * ROW.out, ROW.up, ROW.ahead));
+    const pin = pins.find((p) => Math.abs(p[2] - t.z) < 1e-6 && p[0] - t.x > 0 && p[0] - t.x < 0.1);
+    assert.ok(pin, `a rower's thole at ${t.x.toFixed(2)}, ${t.z.toFixed(2)} by a pin`);
+    assert.ok(t.y - pin[1] > 0.025 && t.y - pin[1] < 0.045, 'the oar riding on the rail');
+    assert.ok(pin[0] - t.x >= 0.05 && pin[0] - t.x < 0.07, 'against the pin, not through it');
+    // Sat on his bench, braced on the frame's floor.
+    assert.ok(Math.abs(a.at[1] + ROW.seat - PORTUS.frame.seat) < 1e-6 && Math.abs(a.at[1] - PORTUS.frame.floor) < 1e-6);
+    assert.ok(a.sync, 'in step with the stroke');
+  }
+  // The hortator's mallet comes down on his block's top at the catch (props.js hammer: its head 0.22 along the grip, its face 0.05 under).
+  const h = crew.find((a) => a.clipName === 'beat');
+  const p = poseAt('beat', 0);
+  const head = p.jointOf('propR').add(new Vector3(0.22, -0.05, 0).applyMatrix4(new Matrix4().extractRotation(p.world[BONE.propR])));
+  assert.ok(toWorld(h, head).distanceTo(new Vector3(...HORTATOR.block)) < 0.03, 'the mallet on the block');
+  // The windlasses: each winder's crank (its bone on the axle, props.js crank: the boss 0.06 long on its inner side) on the axle's end.
+  const w = poseAt('windlass', 0.3).jointOf('propR');
+  const yard = actorsOf('engineer_post', { efficiency: 1 }).find((a) => a.clipName === 'windlass');
+  const ax = windlassAxis();
+  assert.ok(toWorld(yard, w).distanceTo(new Vector3(ax.x1 + 0.06, ax.y, ax.z)) < 1e-4, 'the yard\'s crank on its roller\'s end');
+  const dock = actorsOf('navalia', { efficiency: 1, side: 2 }).find((a) => a.clipName === 'windlass');
+  const [, wy, wz] = NAVALIA.windlass;
+  assert.ok(toWorld(dock, w).distanceTo(new Vector3(NAVALIA.crankX - 0.06, wy, wz)) < 1e-4, 'the dockyard\'s crank on its axle\'s end');
 });

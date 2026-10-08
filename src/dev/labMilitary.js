@@ -15,7 +15,9 @@
  * The game draws its soldiers itself, over the model, at the yard's spots
  * (data/units.js FORT_YARD): the lab stands figures there in their colours
  * (and the troopers on horses), so the yard can be judged with its men in it
- * from every side.
+ * from every side. The buildings' own people (the forts' watch on the
+ * walks, the troopers at the stalls, the clerk, the recruit at the post, the
+ * academy's drill) are the game's actors (militaryActors), moving.
  * ----------------------------------------------------------------------------
  */
 
@@ -25,8 +27,10 @@ import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { buildFigure } from '../render3d/models/figure.js';
 import { buildHorse } from '../render3d/models/livestock.js';
 import { partShows, modelFor } from '../render3d/models.js';
-import { MILITARY_MODELS, militaryMore } from '../render3d/models/militaryModels.js';
+import { MILITARY_MODELS, militaryMore, militaryActors } from '../render3d/models/militaryModels.js';
+import { CAVALRY_FORT } from '../render3d/models/castraEquitum.js';
 import { FORT_YARD, UNIT_TYPES } from '../data/units.js';
+import { labCrowd } from './labPeople.js';
 
 /** Where each building stands (metres), what it shows, its label. */
 const ITEMS = [
@@ -152,6 +156,11 @@ export function buildMilitaryScene() {
   const _m = new Matrix4();
   /** Free a group's geometries (the look's materials are shared and kept). */
   const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  // The people of each building in its state, as the game draws them (militaryModels.js
+  // militaryActors: the forts' watch, the cavalry's troopers by the horses in the stalls, the clerk,
+  // the recruit, the drill).
+  const crowd = labCrowd(group);
+  const horsesOf = (it) => (it.kind === 'fort_cavalry' && it.state === 'open' ? Math.min(CAVALRY_FORT.stalls, it.men || 0) : 0);
   function build() {
     // (The buildings' own groups, then the kits their copies share.)
     for (const it of holders) {
@@ -177,6 +186,7 @@ export function buildMilitaryScene() {
         }
       }
     }
+    crowd.fill(lod, holders.map((it) => [militaryActors(it.kind, { state: it.state, horses: horsesOf(it) }), it.x, it.z]));
   }
   build();
   const labels = ITEMS.map((it) => ({ name: it.name, note: it.note, x: it.x - 5.5, z: it.z - 5.5, y: 3.6 }));
@@ -189,6 +199,7 @@ export function buildMilitaryScene() {
     labels,
     fade: [0, 0, 44, 52],
     lamp: LAMP,
+    noAO: [crowd.batch.group],
     get lod() { return lod; },
     setLod(n) {
       if (n === lod) return;

@@ -33,9 +33,10 @@
  * under VALETVDINARIVM, lanterns.
  *
  * States (meshes tagged in userData.when, models.js partShows):
- *   'open'  staffed: the sick in their beds and in the court, the orderlies,
- *           the doctor among his herbs, the surgeon in the hall, the doors
- *           open, the lanterns lit at night
+ *   'open'  staffed: the sick in their beds under their blankets and in the
+ *           court, the orderlies, the physician at a couch, the surgeon in
+ *           the hall (actors: valetudinariumActors), the doors open, the
+ *           lanterns lit at night
  *   'shut'  no staff: the doors shut, the beds empty, nobody
  *
  * Metres, the footprint's middle at the origin, y up, the street toward +z,
@@ -48,9 +49,11 @@ import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, tuscanColumn, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, gableRoof, D } from './rural.js';
-import { staff, inscribe, people, mirrorX } from './castra.js';
-import { person, box } from './learning.js';
-import { healthMaterials, lectus, abed, sleeper, herbBed, asclepius, basinStand, table, potRow } from './healing.js';
+import { staff, inscribe, mirrorX } from './castra.js';
+import { box } from './learning.js';
+import { healthMaterials, lectus, blanket, inFrame, herbBed, asclepius, table, potRow } from './healing.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H } from '../people/clips.js';
 
 /** The hospital's measures (metres): the tests, the lab and the game read them. */
 export const VALETUDINARIUM = Object.freeze({
@@ -313,10 +316,12 @@ function hall(lod, seed, out) {
     ring.translate(0, eave + 0.36, zf + 0.02);
     out.trav.push(tintGeometry(boxUV(ring), () => 0.9));
   }
-  // Inside: the operating table, a stone slab on two piers; a side table of instruments and dressings, a shelf of pots.
+  // Inside: the operating table, a stone slab on two piers (its patient is an actor at every level: far out
+  // the slab alone, one block); a side table of instruments and dressings, a shelf of pots.
+  if (lod === 2) out.marble.push(slab(1.9, TABLE_TOP, 0.72, { bevel: 0, seed: seed + 20, wobble: 0, tone: 0, grime: 0 }).translate(0, fy, -4.25));
   if (lod < 2) {
-    out.marble.push(slab(1.9, 0.08, 0.72, { bevel: 0.012, seed: seed + 20, wobble: 0, tone: 0.03, grime: 0 }).translate(0, fy + 0.72, -4.25));
-    for (const s of [-1, 1]) out.marble.push(slab(0.3, 0.72, 0.5, { bevel: 0.01, seed: seed + 21 + s, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(s * 0.65, fy, -4.25));
+    out.marble.push(slab(1.9, 0.08, 0.72, { bevel: 0.012, seed: seed + 20, wobble: 0, tone: 0.03, grime: 0 }).translate(0, fy + TABLE_TOP - 0.08, -4.25));
+    for (const s of [-1, 1]) out.marble.push(slab(0.3, TABLE_TOP - 0.08, 0.5, { bevel: 0.01, seed: seed + 21 + s, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(s * 0.65, fy, -4.25));
     out.shelter.push(...table(-0.95, zo + T + 0.4, 0.62, 1.0, 0.8, Math.PI / 2).map((g) => g.translate(0, fy, 0)));
     out.linen.push(box(0.9, 0.06, 0.5, -0.95, fy + 0.8, zo + T + 0.4, 0.95));
     out.shelter.push(box(1.0, 0.04, 0.26, 0.75, fy + 1.45, zo + T + 0.13, 0.8));
@@ -348,11 +353,13 @@ function court(lod, seed, out) {
   out.marble.push(revolve(profileOf([[0, 0.03], [0.42, 0.03], [0.42, 0.08], [0.38, 0.12], [0.38, 0.62], [0.42, 0.66], [0.42, 0.72], [0.32, 0.72], [0.32, 0.12]]), { segments: seg, metres: 0.8, tint: (p) => 0.82 + 0.18 * Math.min(1, p.y / 0.7) }).translate(0, 0, -0.2));
   out.dark.push(tintGeometry(boxUV(new CylinderGeometry(0.32, 0.32, 0.01, seg, 1).translate(0, 0.5, -0.2))));
   // The couch in the sun by the left corridor; a bench by the right.
-  const c = lectus(-2.25, 3.55, 0, { w: 0.78, l: 1.8, h: 0.42, lod, tick: 0xd8ccb0, back: true });
+  const c = lectus(COUCH[0], COUCH[1], 0, { w: 0.78, l: 1.8, h: BED_H, lod, tick: 0xd8ccb0, back: true });
   out.wood.push(...c.wood);
   out.linen.push(...c.cloth);
-  out.trav.push(slab(0.42, 0.06, 1.3, { bevel: 0.01, seed: seed + 31, wobble: 0, tone: 0.03, grime: 0 }).translate(2.45, 0.44, 3.4));
-  for (const k of [-1, 1]) out.trav.push(slab(0.34, 0.44, 0.14, { bevel: 0.01, seed: seed + 32 + k, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(2.45, 0, 3.4 + k * 0.48));
+  // (The bench's top SEAT_H over the gravel: a sitter's feet on it.)
+  const legs = 0.03 + SEAT_H - 0.06;
+  out.trav.push(slab(0.42, 0.06, 1.3, { bevel: 0.01, seed: seed + 31, wobble: 0, tone: 0.03, grime: 0 }).translate(2.45, legs, 3.4));
+  for (const k of [-1, 1]) out.trav.push(slab(0.34, legs, 0.14, { bevel: 0.01, seed: seed + 32 + k, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(2.45, 0, 3.4 + k * 0.48));
   // The altar of Asclepius and Hygieia: a block of stone, its bronze serpent staff on it.
   const [ax, az] = [1.85, 4.85];
   out.trav.push(slab(0.6, 0.12, 0.5, { bevel: 0.015, seed: seed + 40, wobble: 0.002, tone: 0.04, grime: 0.4 }).translate(ax, 0, az));
@@ -398,38 +405,75 @@ function gate(lod, seed, out) {
   }
 }
 
-/** The people (only close up): the sick abed and about the court, the orderlies, the doctor, the surgeon at work. */
-function folk(mats, beds) {
-  const list = [];
-  const things = { bronze: [], wood: [], linen: [] };
-  const fy = V.floorY;
-  const blankets = [0x8a6a4a, 0x6a5a48, 0x9a7a5a, 0x7a6a5a, 0x8a5a3a, 0x6a6a5a];
-  const skins = [0xa87a58, 0xb88a64, 0x9a6c4c, 0xc49a74, 0x8a5e40, 0xb08060];
-  // The sick in the wards' beds (some beds empty), seen only through the doors: what shows over the blankets.
-  beds.forEach(([x, z, ry], i) => {
-    if (i % 3 === 2) return;
-    list.push(...sleeper(mats, { hair: [0x2e2119, 0x4a3020, 0x1e1812][i % 3], skin: skins[i % 6], blanket: blankets[i % 6] }, x, fy + 0.42 + 0.12, z, ry));
+/** The beds: along each side ward's outer wall (head toward the back), across the back wards (head toward the hall). [x, z, ry] each. */
+const BEDS = (() => {
+  const xb = V.outer - T - 0.45;
+  const side = V.sideDoors.flatMap((dz) => [[-xb, dz, 0]]);
+  return Object.freeze([...side, ...side.map(([x, z]) => [-x, z, 0]), [-V.backDoor, -xb, Math.PI / 2], [V.backDoor, -xb, -Math.PI / 2]].map((b) => Object.freeze(b)));
+})();
+/** The beds' frame (lectus h), the mattress's top 0.12 over it; the operating table's top; the court's couch (x, z). */
+const BED_H = 0.42;
+const TABLE_TOP = 0.8;
+const COUCH = Object.freeze([-2.25, 3.55]);
+/** Where a patient lies on a bed: the actor's place 0.02 toward the foot from its middle (his head on the pillow), and his size. */
+const ABED = Object.freeze({ toFoot: 0.02, scale: 0.9 });
+const BLANKETS = [0x8a6a4a, 0x6a5a48, 0x9a7a5a, 0x7a6a5a, 0x8a5a3a, 0x6a6a5a];
+
+/** The sick in the wards' beds: a bed in three empty. [x, y, z, ry, blanket, seed] each. */
+function sleepers() {
+  return BEDS.flatMap(([x, z, ry], i) => {
+    if (i % 3 === 2) return [];
+    const [ax, az] = inFrame(x, z, ry, 0, ABED.toFoot);
+    return [[ax, V.floorY + BED_H + 0.12, az, ry, BLANKETS[i % 6], 371 + i]];
   });
-  // A convalescent on the couch in the sun.
-  list.push(...abed(mats, { cloth: 0xc9bca2, hair: 0x3a2a1a, skin: 0xb88a64 }, -2.25, 0.42 + 0.12, 3.6, 0, { blanket: 0x7a4a3a }));
-  // A soldier on a crutch, an orderly at his elbow, coming in from the gate.
-  list.push(...person(mats, { cloth: 0xa8322b, hair: 0x2e2119, skin: 0xa87a58, arms: [[-0.26, 1.18, 0.1], [0.24, 0.9, 0.06]] }, 0.95, 0.03, 3.6, Math.PI - 0.2));
-  things.wood.push(staff([0.95 + 0.27, 0.03, 3.6 - 0.05], [0.95 + 0.25, 1.28, 3.6 + 0.02], 0.022, 5));
-  list.push(...person(mats, { cloth: 0xd8d0bc, hair: 0x1e1812, skin: 0x8a5e40, arms: [[-0.25, 1.0, 0.24], [0.12, 0.9, 0.2]] }, 1.42, 0.03, 3.75, Math.PI - 0.5));
-  // A patient on the bench, his arm in a sling.
-  list.push(...person(mats, { cloth: 0x6a7a5a, hair: 0x4a3020, skin: 0xb08060, sit: 0.5, arms: [[-0.12, 0.72, 0.3], [0.08, 0.88, 0.2]], lean: 0.08 }, 2.45, 0.0, 3.4, -Math.PI / 2));
-  things.linen.push(box(0.2, 0.14, 0.14, 2.45 - 0.2, 0.86, 3.4 - 0.1, 0.95));
-  // The doctor among his herbs, stooping to a bed; an orderly carrying a basin along the corridor.
-  list.push(...person(mats, { cloth: 0xe0d8c4, cloth2: 0x4a5a6a, hair: 0x8a8680, beard: true, long: true, arms: 'reach' }, -1.5, 0.03, 0.15, Math.PI));
-  list.push(...person(mats, { cloth: 0xc9bca2, hair: 0x2e2119, skin: 0x9a6c4c, arms: 'hold' }, -3.45, fy, 0.95, Math.PI));
-  const bb = basinStand(-3.45, 0.95 - 0.28, { h: 1.16, r: 0.17, lod: 0, water: false });
-  things.bronze.push(...bb.bowl);
-  // In the hall: the patient on the table, the surgeon at his side, an orderly holding the lamp and the dressings.
-  list.push(...abed(mats, { cloth: 0xd8cdb4, hair: 0x2e2119, skin: 0xb88a64 }, 0.0, fy + 0.8, -4.25, Math.PI / 2, { blanket: 0xe8e0d0 }));
-  // (The surgeon across the table from the door, so the court sees him at work; the orderly at the patient's head.)
-  list.push(...person(mats, { cloth: 0xe0d8c4, hair: 0x6a625a, skin: 0xa87a58, beard: true, long: true, arms: [[-0.2, 1.0, 0.42], [0.18, 1.02, 0.36]] }, 0.15, fy, -4.95, 0.1));
-  list.push(...person(mats, { cloth: 0x8a7a62, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, -1.22, fy, -4.2, Math.PI / 2));
-  return { list, things };
+}
+
+/** The blankets over the patients lying abed (staffed): the wards' (with their beds), the couch's, the table's. */
+function blankets(lod) {
+  const out = [];
+  for (const [x, y, z, ry, colour] of sleepers()) out.push(blanket(x, y, z, ry, { colour, scale: ABED.scale, lod }));
+  out.push(blanket(COUCH[0], BED_H + 0.12, COUCH[1] + ABED.toFoot, 0, { colour: 0x7a4a3a, scale: 0.95, lod }));
+  out.push(blanket(0, V.floorY + TABLE_TOP, -4.25, Math.PI / 2, { colour: 0xe8e0d0, scale: 0.95, lod }));
+  return out;
+}
+
+/**
+ * The hospital's people while it is open (people/actors.js specs, its
+ * metres): the sick lying in the wards' beds (a bed in three empty), seen
+ * through the doors, and a convalescent on the couch in the sun, the
+ * physician (medicus) standing at his couch talking; a soldier walking in
+ * from the gate with an orderly at his side, in step; a patient sitting on
+ * the bench; an orderly (capsarius) carrying a dish along the corridor from
+ * one ward's door to another; in the hall, the patient on the operating
+ * table, the surgeon at his side talking to him, an orderly holding the dressings.
+ * Nobody while it is shut.
+ */
+export function valetudinariumActors(state) {
+  if (state !== 'open') return [];
+  const fy = V.floorY;
+  const g = 0.03;
+  const skins = [0xa87a58, 0xb88a64, 0x9a6c4c, 0xc49a74, 0x8a5e40, 0xb08060];
+  const list = sleepers().map(([x, y, z, ry, , seed], i) => ({
+    body: 'm', scale: ABED.scale, dress: ['tunic:knee'], hair: i % 2 ? 'crop' : 'curls', clip: 'lie', at: [x, y, z], ry, seed, colours: { skin: skins[i % 6] },
+  }));
+  list.push({ body: 'm', scale: 0.95, dress: ['tunic:knee'], hair: 'crop', beard: 'short', clip: 'lie', at: [COUCH[0], BED_H + 0.12, COUCH[1] + ABED.toFoot], ry: 0, seed: 380 });
+  list.push({ body: 'm', dress: ['tunic:long', 'pallium'], hair: 'bald', beard: 'full', old: true, clip: 'talk', at: [-1.3, g, 3.35], ry: -Math.PI / 2, seed: 381, colours: { tunic: DYES.white, mantle: DYES.woad } });
+  // The soldier and the orderly in from the gate along the flags, in step (sync), stopping to talk before the herb beds.
+  const walk = { length: 2.2, speed: 0.6, pauseEnd: 6, pauseStart: 4 };
+  list.push({ body: 'm', dress: ['tunic:knee', 'caligae'], hair: 'crop', clip: 'walk', at: [-0.3, g, 5.0], ry: Math.PI, seed: 382, sync: true, colours: { tunic: DYES.madder },
+    route: { ...walk, clipEnd: 'listen', faceEnd: Math.PI / 2 + 0.3 } });
+  list.push({ body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'walk', at: [0.3, g, 5.0], ry: Math.PI, seed: 383, sync: true, colours: { tunic: DYES.undyed, skin: 0x8c5e40 },
+    route: { ...walk, clipEnd: 'talk', faceEnd: -Math.PI / 2 - 0.3 } });
+  // (The bench's top SEAT_H over the gravel: his hips over it, facing into the court.)
+  list.push({ body: 'm', dress: ['tunic:knee'], hair: 'curls', clip: 'sit', at: [2.42, g, 3.4], ry: -Math.PI / 2, seed: 384, colours: { tunic: DYES.green } });
+  // The orderly along the left corridor, between the wards' doors, a dish in his hands; he holds it out at a ward's door.
+  list.push({ body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'walk', props: { R: 'patera' }, at: [-3.5, fy, V.sideDoors[3]], ry: Math.PI, seed: 385, colours: { tunic: DYES.oatmeal },
+    route: { length: V.sideDoors[3] - V.sideDoors[1], speed: 0.8, pauseEnd: 6, pauseStart: 5, clipEnd: 'give', clipStart: 'hold', faceEnd: -Math.PI / 2, faceStart: -Math.PI / 2 } });
+  // In the hall: the patient on the table, his head toward -x; the surgeon across it, talking to him; an orderly at the head.
+  list.push({ body: 'm', scale: 0.95, dress: ['tunic:knee'], hair: 'crop', clip: 'lie', at: [0, fy + TABLE_TOP, -4.25], ry: Math.PI / 2, seed: 386 });
+  list.push({ body: 'm', dress: ['tunic:long'], hair: 'bald', beard: 'short', old: true, clip: 'talk', at: [0.15, fy, -4.86], ry: 0, seed: 387, colours: { tunic: DYES.white } });
+  list.push({ body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'hold', props: { R: 'patera' }, at: [-1.22, fy, -4.2], ry: Math.PI / 2, seed: 388, colours: { tunic: DYES.fawn, skin: 0x75492f } });
+  return list;
 }
 
 /** Build the hospital: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
@@ -448,16 +492,11 @@ export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
   hall(lod, seed + 120, out);
   court(lod, seed + 140, out);
   gate(lod, seed + 160, out);
-  // The beds: along each side ward's outer wall (head toward the back), across the back wards (head toward the hall).
-  const beds = [
-    ...left.beds.map(([x, z]) => [x, z, 0]),
-    ...right.beds.map(([x, z]) => [-x, z, 0]),
-    [-V.backDoor, -V.outer + T + 0.45, Math.PI / 2],
-    [V.backDoor, -V.outer + T + 0.45, -Math.PI / 2],
-  ];
-  if (lod < 2) {
-    for (const [x, z, ry] of beds) {
-      const l = lectus(x, z, ry, { w: 0.74, l: 1.7, h: 0.42, lod, tick: 0xd8ccb0 });
+  // The beds (BEDS): along each side ward's outer wall, across the back wards. (At every level: the sick
+  // lie on them as actors, drawn at every level, and would float in an empty ward.)
+  {
+    for (const [x, z, ry] of BEDS) {
+      const l = lectus(x, z, ry, { w: 0.74, l: 1.7, h: BED_H, lod, tick: 0xd8ccb0 });
       out.beds.push(...l.wood.map((g) => g.translate(0, V.floorY, 0)));
       out.bedCloth.push(...l.cloth.map((g) => g.translate(0, V.floorY, 0)));
     }
@@ -501,13 +540,8 @@ export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
       p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
     }
   }
-  if (lod === 0) {
-    const { list, things } = folk(m, beds);
-    people(p, m, 'sick', list, 'open');
-    p.add('crutch', m.wood, things.wood, { when: 'open', cast: false });
-    p.add('basin', m.bronze, things.bronze, { when: 'open', cast: false });
-    p.add('dressings', m.linen, things.linen, { when: 'open', cast: false });
-  }
+  // The blankets over the sick while it is open (the people are actors: valetudinariumActors).
+  p.add('blankets', m.linen, blankets(lod), { when: 'open', cast: false });
   return p.build();
 }
 

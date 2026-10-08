@@ -17,7 +17,8 @@
  *   statue_large    or weathered; the grand statue's lampstands lit at
  *                   night while it is tended
  *   gardener_yard   the topiaria (models/topiaria.js): open while staffed
- *                   (a gardener at work, the shed open, its lantern lit),
+ *                   (its gardeners at work as actors, the shed open, its
+ *                   lantern lit),
  *                   shut without
  *   triumphal_arch  the fornix (models/fornix.js) across its road: built
  *                   with the road along its own x, turned a quarter when
@@ -33,7 +34,8 @@
 
 import { Matrix4, Group } from 'three';
 import { buildSmallStatue, buildStatue, buildGrandStatue, SIGNA, GRAND_LAMPS } from './signa.js';
-import { buildYard, TOPIARIA } from './topiaria.js';
+import { buildYard, TOPIARIA, yardActors } from './topiaria.js';
+import { cast } from '../people/actors.js';
 import { buildArch } from './fornix.js';
 import { buildPlot, buildHedge, buildHedgeStub, buildHedgePost, buildGardenWarm, DESIGNS, SEASONS, gardenSeason, STUB } from './hortus.js';
 
@@ -235,9 +237,16 @@ export function yardState(b) {
 
 const YARD_LIT = Object.freeze([Object.freeze([TOPIARIA.lamp[0], TOPIARIA.lamp[1] + 0.11, TOPIARIA.lamp[2], 1])]);
 
+/** The yard's people by its state (models/topiaria.js yardActors), packed once (people/actors.js). */
+const YARD_CASTS = {};
+const yardCast = (state) => (YARD_CASTS[state] ??= cast(yardActors(state)));
+
 const YARD = Object.freeze({
   warm: ['gardener_yard'],
-  variant: (b) => ({ key: 'gardener_yard', state: yardState(b), ice: false }),
+  variant: (b) => {
+    const state = yardState(b);
+    return { key: 'gardener_yard', state, ice: false, actors: yardCast(state) };
+  },
   lamps: (b) => (b.efficiency > 0 ? YARD_LIT : []),
   build: (key, lod) => buildYard({ lod }).group,
 });

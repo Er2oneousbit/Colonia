@@ -15,13 +15,18 @@
  *   tower   the watchtower (Turris, models/turris.js) in the province's
  *           stone: 'open' manned (staffed: its archers on the gallery, the
  *           door open), else 'shut'; its torches burn at night while it is
- *           manned (models.js modelLamps).
+ *           manned (models.js modelLamps). Its crew are actors (turris.js
+ *           turrisActors), cast once a state.
  * ----------------------------------------------------------------------------
  */
 
 import { buildWallPiece } from './townWall.js';
-import { buildTurris, TURRIS } from './turris.js';
+import { buildTurris, TURRIS, turrisActors } from './turris.js';
 import { lookOfGame } from '../walls/wallGame.js';
+import { cast } from '../people/actors.js';
+
+/** The watchtower's crew by state (turris.js turrisActors), packed once. */
+const TURRIS_CASTS = Object.freeze({ open: cast(turrisActors('open')), shut: cast(turrisActors('shut')) });
 
 /** The watchtower's torches (models.js modelLamps): front and back, [x, y, z, facing along z]. */
 const TURRIS_LAMPS = Object.freeze([
@@ -39,7 +44,10 @@ export const WALL_MODELS = Object.freeze({
   }),
   tower: Object.freeze({
     warm: ['tower:polygonal'],
-    variant: (b, place, ctx) => ({ key: `tower:${ctx && ctx.game ? lookOfGame(ctx.game) : 'polygonal'}`, state: b.efficiency > 0 ? 'open' : 'shut', ice: false }),
+    variant(b, place, ctx) {
+      const state = b.efficiency > 0 ? 'open' : 'shut';
+      return { key: `tower:${ctx && ctx.game ? lookOfGame(ctx.game) : 'polygonal'}`, state, ice: false, actors: TURRIS_CASTS[state] };
+    },
     lamps: (b) => (b.efficiency > 0 ? TURRIS_LAMPS : []),
     build: (key, lod) => buildTurris({ look: key.split(':')[1] || 'polygonal', lod }).group,
   }),

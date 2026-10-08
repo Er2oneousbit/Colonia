@@ -123,8 +123,15 @@ test('fleet3d: a Portus drills only while a ship trains there and it is fully st
   assert.equal(portusDrill({ id: null, efficiency: 1 }, game), false, 'a ghost');
   assert.equal(portusDrill({ id: 20, efficiency: 1 }, null), false);
   const keys = (b) => looks('portus', { waterSide: 0, type: 'portus', ...b }, { snow: 0 }, { game }).map((e) => e.key);
-  assert.ok(keys({ id: 20, efficiency: 1, accessRoad: 5 }).includes('portus:drill'));
+  // At drill the oars are at the frame in the rowers' hands (actors), the racks empty, the corvus down.
+  assert.ok(!keys({ id: 20, efficiency: 1, accessRoad: 5 }).includes('portus:rack'));
   assert.ok(keys({ id: 20, efficiency: 1, accessRoad: 5 }).includes('portus:corvus:down'));
+  const crew = (b) => MODELS.portus.variant({ waterSide: 0, type: 'portus', ...b }, { snow: 0 }, { game }).actors.actors;
+  const rowers = crew({ id: 20, efficiency: 1, accessRoad: 5 }).filter((a) => /^row/.test(a.clipName));
+  assert.equal(rowers.length, 12, 'twelve rowers at drill');
+  assert.ok(rowers.every((a) => a.sync), 'in step with the hortator');
+  assert.ok(crew({ id: 20, efficiency: 1, accessRoad: 5 }).some((a) => a.clipName === 'beat' && a.sync), 'the hortator');
+  assert.equal(crew({ id: 22, efficiency: 1, accessRoad: 5 }).filter((a) => /^row|beat|drill/.test(a.clipName)).length, 0, 'no crew without a ship training');
   assert.ok(keys({ id: 22, efficiency: 1, accessRoad: 5 }).includes('portus:rack'));
   assert.ok(keys({ id: 22, efficiency: 1, accessRoad: 5 }).includes('portus:corvus:up'));
 });
@@ -215,11 +222,20 @@ test('fleet3d: every tagged part shows in some state, and the states differ', ()
   };
   assert.ok(names('naval_station', 'open').has('fire') && !names('naval_station', 'open').has('ash'));
   assert.ok(names('naval_station', 'shut').has('ash') && !names('naval_station', 'shut').has('fire'));
-  // People only while staffed.
-  for (const type of TYPES) assert.ok(![...names(type, 'shut')].some((n) => /^(winder|tallyman|sentry|sailor|master)-/.test(n)), type);
-  // The hull's shipwrights only while the yard is staffed.
-  const hull = (state) => { const s = new Set(); MODELS.navalia.build('navalia:hull:3', 0).traverse((o) => { if (o.isMesh && partShows(o.userData.when, state, false)) s.add(o.name); }); return s; };
-  assert.ok([...hull('open')].some((n) => n.startsWith('shipwright')) && ![...hull('shut')].some((n) => n.startsWith('shipwright')));
+  // No still mannequins in the kits: the people are actors (people/), only while staffed.
+  for (const type of TYPES) assert.ok(![...names(type, 'open'), ...names(type, 'shut')].some((n) => /^(winder|tallyman|sentry|sailor|master|rowers|hortator|marine|boarder|shipwright)/.test(n)), type);
+  const people = (type, b) => MODELS[type].variant({ id: 1, type, waterSide: 2, stock: {}, accessRoad: 1, ...b }, { snow: 0 }, null).actors.actors;
+  for (const type of TYPES) {
+    assert.ok(people(type, { efficiency: 1 }).length > 0, `${type}: people while staffed`);
+    assert.equal(people(type, { efficiency: 0 }).length, 0, `${type}: nobody when not`);
+  }
+  // The hull's shipwrights only with a hull on the slip.
+  const wrights = (progress) => people('navalia', { efficiency: 1, progress }).filter((a) => a.clipName === 'hammer').length;
+  assert.deepEqual([wrights(0), wrights(60)], [0, 2]);
+  // The windlass's crank: the winder turns his own while the yard is staffed; the kit's hangs only while it is idle.
+  assert.deepEqual([...names('navalia', 'open')].includes('crank'), false);
+  assert.ok(names('navalia', 'shut').has('crank'));
+  assert.ok(people('navalia', { efficiency: 1 }).some((a) => a.clipName === 'windlass'));
 });
 
 test('fleet3d: each level of detail is lighter than the one before, and within budget', () => {

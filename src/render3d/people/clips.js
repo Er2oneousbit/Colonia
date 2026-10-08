@@ -30,6 +30,7 @@
  * ----------------------------------------------------------------------------
  */
 
+import { Euler, Quaternion, Vector3 } from 'three';
 import { Pose } from './pose.js';
 import { BONE, BONE_COUNT, BONE_FLOATS } from './rig.js';
 
@@ -101,6 +102,49 @@ export const PUMP = Object.freeze({ ahead: 1.0, height: 1.1, arm: 0.62, tilt: 0.
 
 /** A seat's height for the seated clips (a bench, a chair): the actor stands its feet on the floor under it. */
 export const SEAT_H = 0.45;
+
+/**
+ * The rowing frame the row clips pull at (a model puts its bench and thole
+ * here, as the watch house puts its pump at PUMP): the bench's top `seat`
+ * over the feet; the thole pin `out` to the oar's side, `up` over the feet,
+ * `ahead` of the seat (the rower faces the stern, so the thole is before
+ * him); the oar's length from the handle `inboard` to the thole, `oar` in
+ * all; the stretcher his feet are braced on, `brace` ahead.
+ */
+export const ROW = Object.freeze({ seat: 0.34, out: 0.42, up: 0.82, ahead: 0.3, inboard: 0.55, oar: 1.75, brace: 0.56 });
+
+/**
+ * The hortator's block (beat): its top `height` over his feet, `ahead` of
+ * him and `side` (to his right, -x), where the mallet's head comes down.
+ * Its loop is the stroke's: a crew and its hortator played with one phase
+ * keep time (actors.js `sync`).
+ */
+export const BEAT = Object.freeze({ height: 0.92, ahead: 0.48, side: -0.14 });
+
+/** A windlass's axle (windlass): along x, `ahead` of the man and `height` up, its crank `arm` long, at `x`. */
+export const WINDLASS = Object.freeze({ ahead: 0.44, height: 1.0, arm: 0.24, x: 0.18 });
+
+/**
+ * A couch (lectus) for the diners (dine): its top `top` over the floor. The
+ * actor stands at the couch's front edge where his hips lie, facing the
+ * table; he lies along it on his left side, his head to his left (+x), his
+ * feet `feet` to his right.
+ */
+export const DINE = Object.freeze({ top: 0.6, feet: 0.8 });
+
+/**
+ * The barber's client (shave): the middle of the seated client's head, in
+ * the barber's frame (he faces it from the client's side), and the mortar's
+ * mouth a physician grinds at (stir): `ahead`, `height`.
+ */
+export const SHAVE = Object.freeze({ head: Object.freeze([0.04, 1.2, 0.44]) });
+export const MORTAR = Object.freeze({ ahead: 0.36, height: 0.86 });
+
+/** The bow (props.js bow): its string BOW.brace behind the grip at rest, tip to tip (the shoot clip's nock at rest). */
+export const BOW = Object.freeze({ brace: 0.11 });
+
+/** The shelf a librarian reaches to (reach): `ahead` of him, `height` up. */
+export const SHELF = Object.freeze({ ahead: 0.42, height: 1.55 });
 
 /** Where a hand rests on the body for the toga's folds: the left forearm across the waist (chest frame). */
 const TOGA_HAND = [0.12, 1.0, 0.2];
@@ -178,8 +222,22 @@ function propAlong(P, s, from, to, roll = 0, opts = {}) {
   // +y toward (dx, dy, dz): YXZ Euler from the direction (yaw about y, then pitch about x).
   const yaw = Math.atan2(dx, dz);
   const pitch = Math.acos(Math.max(-1, Math.min(1, dy / l)));
-  P.prop(s, from[0], from[1], from[2], pitch, yaw, roll, opts);
+  if (!roll) {
+    P.prop(s, from[0], from[1], from[2], pitch, yaw, 0, opts);
+    return;
+  }
+  // (The roll about the prop's own +y comes first: an Euler's z would tip that axis off the line. The
+  // turn, the pitch and the roll composed, then read back as the YXZ Euler the Pose takes.)
+  _q1.setFromAxisAngle(_Y, yaw).multiply(_q2.setFromAxisAngle(_X, pitch)).multiply(_q2b.setFromAxisAngle(_Y, roll));
+  _eu.setFromQuaternion(_q1, 'YXZ');
+  P.prop(s, from[0], from[1], from[2], _eu.x, _eu.y, _eu.z, opts);
 }
+const _q1 = new Quaternion();
+const _q2 = new Quaternion();
+const _q2b = new Quaternion();
+const _eu = new Euler();
+const _X = new Vector3(1, 0, 0);
+const _Y = new Vector3(0, 1, 0);
 
 /** A point `d` along a prop placed by propAlong. */
 function along(from, to, d) {
@@ -775,7 +833,347 @@ export const CLIPS = Object.freeze({
       P.rot('head', -0.04, 0.08 * sn(t, 1, 0.1), 0);
     },
   },
+  // Rowing at a frame (ROW), the oar out on his left: the catch, the drive leaning back, the blade out and
+  // feathered, the recovery swinging forward. Its loop is the hortator's stroke (beat).
+  row: { dur: 2.4, fps: 15, pose(P, t) { rowPose(P, t, 1); } },
+  // The same with the oar out on his right (the frame's other side).
+  rowRight: { dur: 2.4, fps: 15, pose(P, t) { rowPose(P, t, -1); } },
+  // The hortator beating the stroke with his mallet on his block (BEAT), on the catch.
+  beat: {
+    dur: 2.4, fps: 15,
+    pose(P, t) {
+      stand(P, t, { shift: 0.3, ph: 0.2, look: 0.25, lean: 0.06 });
+      // The mallet (props.js hammer: its head 0.22 along the grip's +x) raised slowly, brought down on the catch.
+      const lift = track(t, [[0, 0], [0.07, 0], [0.18, 0.22], [0.5, 0.3], [0.82, 1.2], [0.92, 1.3]]);
+      const g = [BEAT.side - 0.1 * lift, BEAT.height + 0.05 + 0.3 * lift, BEAT.ahead - 0.22 - 0.12 * lift];
+      P.prop(-1, g[0], g[1], g[2], 0, -Math.PI / 2, lift);
+      P.hand(-1, g[0], g[1] - 0.01, g[2] - 0.02, { pole: [-0.8, -0.4, -0.4] });
+      P.rot('handR', 0, 0, -0.3 - 0.3 * lift);
+      fingers(P, -1, 0.95);
+      // The left hand on his hip, the head nodding the beat.
+      P.hand(1, 0.25, 0.98, 0.02, { pole: [1, 0, -0.3] });
+      P.rot('handL', 0, 0, 0.6);
+      fingers(P, 1, 0.5);
+      P.rot('spine', 0.06 * (1 - lift), -0.08, 0);
+      P.rot('head', 0.08 * Math.max(0, cs(t, 1)) ** 4, 0, 0);
+    },
+  },
+  // Drill at the post (palus), as Vegetius has the recruits do it: the shield up, a thrust of the
+  // sword from behind it, back to guard, a punch with the shield's boss, the weight on the bent knees.
+  drill: {
+    dur: 2.4, fps: 20,
+    pose(P, t) {
+      const thrust = track(t, [[0, 0], [0.12, 0], [0.22, 1], [0.32, 1], [0.46, 0]]);
+      const punch = track(t, [[0, 0], [0.58, 0], [0.66, 1], [0.72, 1], [0.86, 0]]);
+      const bob = 0.012 * sn(t, 2);
+      P.root(0.01, -0.07 + bob, 0.03 * thrust, 0.12 + 0.1 * thrust, -0.3 + 0.12 * thrust - 0.08 * punch, 0);
+      P.rot('spine', 0.06 + 0.06 * thrust, 0.06 * thrust - 0.08 * punch, 0);
+      P.rot('chest', 0.02, 0.12 * thrust - 0.06 * punch, 0);
+      // The left foot forward, the right back, turned out: a fighting stance.
+      P.foot(1, 0.1, 0.085, 0.24, 0, 0.2, { pole: [0.2, 0, 1] });
+      P.foot(-1, -0.16, 0.085, -0.2, 0, -0.45, { pole: [-0.3, 0, 1] });
+      // The shield before him (props.js scutum: its face +z, the grip behind the boss), turned to cover his right.
+      const sh = [0.12 + 0.02 * punch, 1.0 + 0.04 * punch, 0.3 + 0.16 * punch];
+      P.prop(1, sh[0], sh[1], sh[2], 0, -0.4 + 0.1 * punch, 0);
+      P.hand(1, sh[0], sh[1] - 0.01, sh[2] - 0.03, { pole: [0.9, -0.4, -0.2] });
+      P.rot('handL', 0, 0, 1.3);
+      fingers(P, 1, 0.95);
+      // The sword: low at the hip, point forward; thrust out past the shield's edge.
+      const grip = [lerp(-0.2, -0.1, thrust), lerp(1.0, 1.1, thrust), lerp(0.16, 0.58, thrust)];
+      const tip = [grip[0] + lerp(0.12, 0.02, thrust), grip[1] + lerp(0.12, 0.03, thrust), grip[2] + 0.5];
+      propAlong(P, -1, grip, tip, -Math.PI / 2);
+      P.hand(-1, grip[0], grip[1], grip[2] - 0.02, { pole: [-0.7, -0.6, -0.3] });
+      P.rot('handR', 0, 0, -1.2);
+      fingers(P, -1, 0.95);
+      // The eyes on the post over the shield's rim.
+      P.rot('neck', 0.05, 0.25 - 0.1 * thrust, 0);
+      P.rot('head', -0.05, 0.2 - 0.05 * thrust, 0);
+    },
+  },
+  // A barber shaving a seated client (SHAVE: his head before the barber): the left hand holding the head,
+  // short strokes of the razor down the cheek, the blade wiped on the cloth over his forearm.
+  shave: {
+    dur: 4, fps: 12,
+    pose(P, t) {
+      stand(P, t, { shift: 0.4, ph: 0.7, look: 0, lean: 0.14 });
+      const [hx, hy, hz] = SHAVE.head;
+      P.hand(1, hx + 0.08, hy + 0.04, hz + 0.06, { pole: [0.9, 0.1, -0.4] });
+      P.rot('handL', 0.4, 0, -0.5);
+      fingers(P, 1, 0.3);
+      // Three strokes, each down the cheek and off it, then a wipe toward the left arm.
+      const wipe = track(t, [[0, 0], [0.72, 0], [0.8, 1], [0.9, 1], [0.97, 0]]);
+      const k = (t * 4) % 1;
+      const down = k < 0.6 ? smooth(k / 0.6) : 1 - smooth((k - 0.6) / 0.4);
+      const off = k < 0.6 ? 0 : Math.sin(Math.PI * (k - 0.6) / 0.4);
+      const stroke = [hx - 0.06 - 0.03 * off, hy + 0.02 - 0.09 * down, hz - 0.08 - 0.03 * off];
+      const at = stroke.map((v, i) => lerp(v, [0.08, 1.06, 0.22][i], wipe));
+      P.prop(-1, at[0], at[1], at[2], 0.3, 0, -0.9);
+      P.hand(-1, at[0] - 0.01, at[1] - 0.04, at[2] - 0.01, { pole: [-0.8, -0.5, -0.3] });
+      P.rot('handR', 0.3, 0, -0.7);
+      fingers(P, -1, 0.7);
+      P.rot('neck', 0.3, 0.05, 0);
+      P.rot('head', 0.25, 0.05, 0);
+    },
+  },
+  // The barber's client: seated, his head tipped back for the razor, still but for his breath.
+  shaved: {
+    dur: 10, fps: 4,
+    pose(P, t) {
+      sit(P, t, { ph: 0.3, lean: -0.08, look: 0 });
+      P.rot('neck', -0.22, 0, 0);
+      P.rot('head', -0.25, 0.04 * sn(t, 1), 0);
+      for (const s of [1, -1]) {
+        P.hand(s, s * 0.14, 0.62, 0.3, { pole: [s * 0.5, -0.4, -0.6] });
+        P.rot(s > 0 ? 'handL' : 'handR', 0.9, 0, s * 0.2);
+        fingers(P, s, 0.5);
+      }
+    },
+  },
+  // Grinding a remedy at a mortar on a table (MORTAR): the pestle round and round, the other hand on the rim.
+  stir: {
+    dur: 3, fps: 12,
+    pose(P, t) {
+      stand(P, t, { shift: 0.3, ph: 0.55, look: 0.1, lean: 0.18 });
+      const a = TAU * 2 * t;
+      const { ahead, height } = MORTAR;
+      const head = [-0.02 + 0.025 * Math.cos(a), height - 0.06, ahead + 0.025 * Math.sin(a)];
+      const grip = [-0.04 + 0.05 * Math.cos(a), height + 0.09, ahead - 0.04 + 0.05 * Math.sin(a)];
+      // (The pestle's head is -y of its bone: aim the bone's +y away from the head.)
+      propAlong(P, -1, grip, [2 * grip[0] - head[0], 2 * grip[1] - head[1], 2 * grip[2] - head[2]]);
+      P.hand(-1, grip[0], grip[1] + 0.01, grip[2], { pole: [-0.8, -0.4, -0.4] });
+      P.rot('handR', 0, 0, -1.3);
+      fingers(P, -1, 0.9);
+      P.hand(1, 0.1, height + 0.02, ahead - 0.02, { pole: [0.7, -0.6, -0.3] });
+      P.rot('handL', 0.4, 0, 0.9);
+      fingers(P, 1, 0.6);
+      P.rot('chest', 0, 0.04 * Math.cos(a), 0);
+      P.rot('neck', 0.3, 0, 0);
+      P.rot('head', 0.2, 0, 0);
+    },
+  },
+  // Dining reclined on a couch (DINE) on the left elbow, as the Romans did: the cup in the left hand,
+  // the right reaching to the table and back, a drink now and then, the head turned to talk.
+  dine: {
+    dur: 10, fps: 6,
+    pose(P, t) {
+      const top = DINE.top;
+      // (The hips on their left side on the couch, the trunk propped up on the elbow.)
+      P.root(0, top + 0.13 - 0.95, -0.28, 0, 0, -1.38);
+      P.rot('spine', 0.04, 0, 0.5 + 0.01 * sn(t, 3));
+      P.rot('chest', 0.0, 0.1 * sn(t, 1, 0.2), 0.38 + 0.01 * sn(t, 3));
+      // The legs along the couch to his right, the upper one drawn up.
+      P.foot(1, -DINE.feet, top + 0.07, -0.3, 0.4, 0.4, { pole: [0, 0, 1] });
+      P.foot(-1, -DINE.feet + 0.14, top + 0.16, -0.1, 0.4, 0.4, { pole: [0, 0.3, 1] });
+      // The left forearm up from the elbow on its cushion, the cup in hand; to the lips at 0.62.
+      const drink = track(t, [[0, 0], [0.56, 0], [0.64, 1], [0.74, 1], [0.82, 0]]);
+      const cup = [lerp(0.4, 0.4, drink), lerp(top + 0.4, top + 0.6, drink), lerp(0.08, 0.06, drink)];
+      P.prop(1, cup[0], cup[1], cup[2], 0, 0, -0.9 * drink);
+      P.hand(1, cup[0] + 0.02, cup[1] - 0.04, cup[2] - 0.02, { pole: [0.2, -1, 0.1] });
+      P.rot('handL', 0, 0, 0.9);
+      fingers(P, 1, 0.75);
+      // The right hand: on his hip, out to the table (before the couch), back with a morsel to his mouth.
+      const reach = track(t, [[0, 0], [0.12, 0], [0.24, 1], [0.32, 1], [0.42, 0.5], [0.46, 0.5], [0.52, 0]]);
+      const eat = track(t, [[0, 0], [0.38, 0], [0.43, 1], [0.47, 1], [0.53, 0]]);
+      const rest = [0.06, top + 0.38, 0.08];
+      const table = [0.2, top + 0.12, 0.55];
+      const mouth = [0.38, top + 0.58, 0.14];
+      const h = rest.map((v, i) => lerp(lerp(v, table[i], reach), mouth[i], eat));
+      P.hand(-1, ...h, { pole: [-0.3, -0.6, -0.6] });
+      P.rot('handR', 0.5, 0, -0.5);
+      fingers(P, -1, 0.5);
+      // The head held level over the slanting trunk, turning to a neighbour and to the table.
+      P.rot('neck', 0.05, 0.2 * hold(t, 1, 0.1, 2), -0.38);
+      P.rot('head', 0.05 + 0.15 * reach, 0.25 * hold(t, 1, 0.1, 2), -0.22);
+    },
+  },
+  // A sentry's walk on his round (a route): the spear upright at his right, the shield on his left arm.
+  patrol: {
+    dur: WALK_DUR, fps: 30, walk: true,
+    pose(P, t) {
+      walkLegs(P, t);
+      const sw = 0.02 * sn(t, 1, 0.25);
+      P.prop(-1, -0.27, 1.12 + 0.01 * sn(t, 2), 0.1 + sw, 0.06, 0, 0);
+      P.hand(-1, -0.27, 1.1 + 0.01 * sn(t, 2), 0.08 + sw, { pole: [-0.6, -0.7, -0.3] });
+      P.rot('handR', 0, 0, -1.4);
+      fingers(P, -1, 0.95);
+      P.prop(1, 0.28, 0.9, 0.05, 0, 0.4, 0);
+      P.hand(1, 0.26, 0.88, 0.03, { pole: [0.7, -0.6, -0.3] });
+      P.rot('handL', 0, 0, 1.2);
+      fingers(P, 1, 0.9);
+    },
+  },
+  // An archer shooting (the composite bow on his left hand, the arrow on the string, propR): nock, draw to
+  // the jaw, hold, loose, the hand back to the quiver at his hip and up with the next. He shoots along +z.
+  shoot: {
+    dur: 5, fps: 14,
+    pose(P, t) {
+      // (Turned side on: the left shoulder to the mark, the feet across the line.)
+      const draw = track(t, [[0, 0], [0.06, 0], [0.32, 1], [0.54, 1], [0.545, 0], [0.98, 0]]);
+      const quiver = track(t, [[0, 0], [0.6, 0], [0.7, 1], [0.78, 1], [0.9, 0]]);
+      const bowUp = track(t, [[0, 1], [0.6, 1], [0.68, 0.25], [0.86, 0.25], [0.95, 1]]);
+      P.root(0, -0.015, 0, 0.02, -1.25, 0.01 * sn(t, 1));
+      P.rot('spine', 0.02, 0.06 * draw, -0.03);
+      P.rot('chest', 0, 0.1 * draw, 0);
+      P.foot(1, 0.02, 0.085, 0.17, 0, -1.0);
+      P.foot(-1, -0.04, 0.085, -0.2, 0, -1.2);
+      // The bow arm out to the mark at the shoulder's height (lowered while the next arrow comes).
+      const bow = [0.06, lerp(1.0, 1.38, bowUp), lerp(0.35, 0.62, bowUp)];
+      P.prop(1, bow[0], bow[1], bow[2], -0.3 * (1 - bowUp), 0, 0.12);
+      P.hand(1, bow[0] + 0.01, bow[1] - 0.02, bow[2] - 0.01, { pole: [0.3, -1, 0] });
+      P.rot('handL', 0, 0, 1.2);
+      fingers(P, 1, 0.95);
+      // The string's nock (propR): at rest on the bow, drawn to the jaw; the arrow on it till it is loosed.
+      // (The string at rest in the bow's own frame, BOW.brace behind the grip, turned with the bow's tilt.)
+      const tilt = -0.3 * (1 - bowUp);
+      const rest = [bow[0], bow[1] + BOW.brace * Math.sin(tilt), bow[2] - BOW.brace * Math.cos(tilt)];
+      const anchor = [0.0, 1.47, 0.05];
+      const nock = rest.map((v, i) => lerp(v, anchor[i], draw));
+      const shown = t < 0.545 ? 1 : t > 0.93 ? 1 : 0.001;
+      P.prop(-1, nock[0], nock[1], nock[2], -0.3 * (1 - bowUp), 0, 0, { scale: shown });
+      // The drawing hand: on the nock, then back past the ear, down to the quiver, up to the string.
+      const ear = [-0.04, 1.52, -0.08];
+      const hip = [-0.22, 0.98, -0.12];
+      let h = nock;
+      if (t >= 0.545 && t < 0.6) h = anchor.map((v, i) => lerp(v, ear[i], smooth((t - 0.545) / 0.055)));
+      else if (t >= 0.6 && t < 0.74) h = ear.map((v, i) => lerp(v, hip[i], quiver));
+      else if (t >= 0.74) h = nock.map((v, i) => lerp(v, hip[i], quiver));
+      P.hand(-1, h[0], h[1] - 0.02, h[2] - 0.03, { pole: [-1, 0.25, -0.2] });
+      P.rot('handR', 0.2, 0, -0.6);
+      fingers(P, -1, 0.65);
+      // The head turned to the mark down the arrow.
+      P.rot('neck', 0.02, 0.55, 0);
+      P.rot('head', 0.04, 0.6, 0.06 * draw);
+    },
+  },
+  // Turning a windlass (WINDLASS) by its crank, both hands on the handle, the body rocking into each turn.
+  windlass: {
+    dur: 3, fps: 15,
+    pose(P, t) {
+      const a = TAU * 2 * t;
+      const { ahead, height, arm, x } = WINDLASS;
+      const hz = ahead + arm * Math.sin(a);
+      const hy = height + arm * Math.cos(a);
+      const push = Math.sin(a);
+      const low = 0.5 - 0.5 * Math.cos(a);
+      P.root(0, -0.03 - 0.07 * low, 0.07 * push + 0.04 * low, 0.1 + 0.14 * push + 0.2 * low, 0, 0);
+      P.rot('spine', 0.06 + 0.08 * push + 0.15 * low, 0, 0);
+      P.foot(1, 0.13, 0.085, 0.16, 0, 0.15);
+      P.foot(-1, -0.14, 0.085, -0.14, 0, -0.25);
+      // The crank's arm along the bone's +y: turned about the axle (x) by the angle.
+      P.prop(-1, x, height, ahead, a, 0, 0);
+      for (const s of [1, -1]) {
+        P.hand(s, s > 0 ? x - 0.1 : x - 0.3, hy + 0.01, hz - 0.03, { pole: [s * 0.6, -0.7, -0.3] });
+        P.rot(s > 0 ? 'handL' : 'handR', 0.3, 0, s * 1.3);
+        fingers(P, s, 0.95);
+      }
+      P.rot('neck', 0.15, 0, 0);
+      P.rot('head', 0.1, 0, 0);
+    },
+  },
+  // A gardener clipping a hedge before him with spring shears, along it and back, the other hand on top.
+  prune: {
+    dur: 4, fps: 10,
+    pose(P, t) {
+      stand(P, t, { shift: 0.4, ph: 0.25, look: 0.05, lean: 0.12 });
+      const along = 0.16 * sn(t, 1);
+      const snip = 0.5 + 0.5 * sn(t, 8);
+      const grip = [-0.08 + along, 1.0 + 0.06 * sn(t, 2, 0.2), 0.42];
+      propAlong(P, -1, grip, [grip[0] - 0.05, grip[1] + 0.03, grip[2] + 0.5], 0.2 * snip);
+      P.hand(-1, grip[0], grip[1] - 0.01, grip[2] - 0.02, { pole: [-0.8, -0.5, -0.3] });
+      P.rot('handR', 0.2 * snip, 0, -1.2);
+      fingers(P, -1, 0.7 + 0.25 * snip);
+      P.hand(1, 0.16 + along * 0.6, 1.06, 0.4, { pole: [0.7, -0.6, -0.3] });
+      P.rot('handL', 0.9, 0, 0.3);
+      fingers(P, 1, 0.3);
+      P.rot('chest', 0, 0.2 * along, 0);
+      P.rot('neck', 0.25, along, 0);
+    },
+  },
+  // A librarian at his cupboard (SHELF): a roll taken down from the shelf, its tag read, put back.
+  reach: {
+    dur: 8, fps: 8,
+    pose(P, t) {
+      stand(P, t, { shift: 0.6, ph: 0.85, look: 0.15 });
+      armsDown(P, t, [1]);
+      const up = track(t, [[0, 0.3], [0.1, 1], [0.24, 1], [0.36, 0], [0.7, 0], [0.82, 1], [0.92, 1]]);
+      const shelf = [-0.06, SHELF.height - 0.05, SHELF.ahead];
+      const look = [-0.08, 1.2, 0.3];
+      const h = look.map((v, i) => lerp(v, shelf[i], up));
+      P.prop(-1, h[0] + 0.01, h[1] + 0.02, h[2] + 0.02, 0, 0, 0);
+      P.hand(-1, h[0], h[1], h[2], { pole: [-0.8, -0.4, -0.4] });
+      P.rot('handR', 0.3, 0, -1.1);
+      fingers(P, -1, 0.85);
+      P.rot('neck', 0.15 - 0.45 * up, 0, 0);
+      P.rot('head', 0.2 - 0.25 * up, -0.05, 0);
+    },
+  },
+  // Lying abed on his back (a patient, a sleeper): the actor's place is the mattress's top under the middle
+  // of his length, his head toward -z (behind the facing) raised on a pillow, his face up. He breathes,
+  // turns his head on the pillow now and then, and lifts a hand to his brow and back (a fever).
+  lie: {
+    dur: 12, fps: 3,
+    pose(P, t) {
+      // (The hips' joint 0.1 over the mattress, a hand toward the head from the middle; laid back a quarter turn.)
+      P.root(0, 0.1 - 0.95, -0.1, -Math.PI / 2 + 0.006 * sn(t, 4), 0, 0);
+      P.rot('chest', 0.012 * sn(t, 4), 0, 0);
+      for (const s of [1, -1]) {
+        const k = s > 0 ? 'L' : 'R';
+        // The legs straight and a little apart, the feet fallen outward, toes down.
+        P.rot(`thigh${k}`, -0.06, 0, s * 0.05);
+        P.rot(`shin${k}`, 0.1, 0, 0);
+        P.rot(`foot${k}`, 0.85, s * 0.3, 0);
+      }
+      // The head on the pillow (raised by the neck's bend), turning to one side and the other, held.
+      const yaw = 0.45 * hold(t, 1, 0.15, 2);
+      P.rot('neck', 0.38, yaw * 0.3, 0);
+      P.rot('head', 0.12, yaw * 0.7, 0);
+      // The hands on the cover over his chest; the right up to his brow and back.
+      const brow = track(t, [[0, 0], [0.55, 0], [0.63, 1], [0.78, 1], [0.86, 0]]);
+      P.hand(1, 0.15, 0.33, -0.2, { pole: [0.6, -0.8, 0] });
+      const rest = [-0.13, 0.33, -0.28];
+      const up = [-0.05, 0.3, -0.66];
+      P.hand(-1, ...rest.map((v, i) => lerp(v, up[i], brow)), { pole: [-0.7, -0.6, 0] });
+      P.rot('handL', 0, 0, 0.3);
+      P.rot('handR', 0.4 * brow, 0, -0.3);
+      fingers(P, 1, 0.4);
+      fingers(P, -1, 0.4);
+    },
+  },
 });
+
+/**
+ * A rower's stroke (ROW), the oar on side `so` (+1 his left). The oar turns
+ * about its thole: forward (a > 0) at the catch, back at the finish; dipped
+ * (q > 0: the handle up, the blade down) through the drive, lifted and
+ * feathered (turned flat) for the recovery.
+ */
+function rowPose(P, t, so) {
+  const a = track(t, [[0, 0.55], [0.08, 0.5], [0.42, -0.42], [0.5, -0.45], [0.62, -0.3], [0.92, 0.55], [0.97, 0.56]]);
+  const q = track(t, [[0, 0.15], [0.42, 0.15], [0.5, -0.05], [0.9, -0.05], [0.97, 0.15]]);
+  const feather = track(t, [[0, 0], [0.44, 0], [0.52, 1], [0.88, 1], [0.95, 0]]);
+  const lean = track(t, [[0, 0.42], [0.08, 0.38], [0.42, -0.22], [0.5, -0.2], [0.62, -0.05], [0.92, 0.42]]);
+  P.root(0, ROW.seat + 0.1 - 0.95, -0.03, lean * 0.55, 0, 0);
+  P.rot('spine', 0.04 + lean * 0.35, 0, 0);
+  P.rot('chest', lean * 0.15, -so * 0.06, 0);
+  for (const s of [1, -1]) P.foot(s, s * 0.13, 0.11, ROW.brace, -0.35, s * 0.1, { pole: [s * 0.1, 1, 0.6] });
+  const thole = [so * ROW.out, ROW.up, ROW.ahead];
+  const L = ROW.inboard;
+  const handle = [thole[0] - so * L * Math.cos(a) * Math.cos(q), thole[1] + L * Math.sin(q), thole[2] + L * Math.sin(a) * Math.cos(q)];
+  // The oar from its handle out through the thole, feathered (turned about itself) on the recovery.
+  propAlong(P, -1, handle, thole, so * (Math.PI / 2) * (1 - feather));
+  // The inner hand at the handle's end, the outer toward the thole.
+  const inner = along(handle, thole, 0.04);
+  const outer = along(handle, thole, 0.24);
+  const hi = so > 0 ? -1 : 1;
+  P.hand(hi, inner[0], inner[1] - 0.02, inner[2] - 0.03, { pole: [hi * 0.7, -0.6, -0.3] });
+  P.hand(-hi, outer[0], outer[1] - 0.02, outer[2] - 0.03, { pole: [-hi * 0.7, -0.6, -0.3] });
+  for (const s of [1, -1]) {
+    P.rot(s > 0 ? 'handL' : 'handR', 0, 0, s * 1.3);
+    fingers(P, s, 0.95);
+  }
+  P.rot('neck', -0.1 * lean, 0, 0);
+  P.rot('head', -0.15 * lean, 0, 0);
+}
 
 /** The walkers' legs: the walk at WALKER_STRIDE on hips STRIDE_DROP lower, leaning `lean` in. */
 function strideLegs(P, t, lean = 0) {

@@ -29,7 +29,7 @@ import { buildWarehouse, warehouseLoads, setWarehouseState } from '../render3d/m
 import { buildLoad, buildDisplay, displayShows, WARE_GOODS } from '../render3d/models/wares.js';
 import { buildFigure } from '../render3d/models/figure.js';
 import { buildPrefecture, PREFECTURE, PUMP_WATER, prefectureActors } from '../render3d/models/prefecture.js';
-import { buildEngineerPost } from '../render3d/models/engineer.js';
+import { buildEngineerPost, engineerActors } from '../render3d/models/engineer.js';
 import { partShows } from '../render3d/models.js';
 import { iceMaterial, waterMaterial } from '../render3d/materials.js';
 import { CONFIG } from '../config.js';
@@ -275,9 +275,9 @@ function makeScene(id, L) {
     return kits.get(k);
   };
   const built = [];
-  // The forum's and the watch house's people, as the game draws them (their models' actors).
+  // The forum's, the watch house's and the builders' yard's people, as the game draws them (their models' actors).
   const crowd = labCrowd(group);
-  const ACTORS = { forum: forumActors, prefecture: prefectureActors };
+  const ACTORS = { forum: forumActors, prefecture: prefectureActors, engineer: engineerActors };
   function build() {
     for (const b of built) {
       b.h.remove(b.model.group);

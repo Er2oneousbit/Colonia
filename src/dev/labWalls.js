@@ -22,7 +22,8 @@ import { Group, Mesh, PlaneGeometry } from 'three';
 import { material } from '../render3d/materials.js';
 import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { buildWallPiece, WALL_TOP } from '../render3d/models/townWall.js';
-import { buildTurris } from '../render3d/models/turris.js';
+import { buildTurris, turrisActors } from '../render3d/models/turris.js';
+import { labCrowd } from './labPeople.js';
 import { wallPiece, stubKey, WALL_LOOK_NAMES } from '../render3d/walls/wallLayout.js';
 import { rotMask } from '../render/view.js';
 import { partShows } from '../render3d/models.js';
@@ -174,6 +175,7 @@ export function buildWallsScene() {
     return h;
   };
   const pieces = [];
+  const crowd = labCrowd(group);
   function build() {
     built.clear();
     for (const [, m] of kits) for (const mesh of m.meshes) mesh.geometry.dispose();
@@ -198,6 +200,8 @@ export function buildWallsScene() {
     }
     const [tx, tz] = at(15.5, 1.5);
     place(kit(`tower:${look}`), tx, tz, 0, 'open');
+    // Its crew on the gallery, as the game draws them (turris.js turrisActors).
+    crowd.fill(lod, [[turrisActors('open'), tx, tz]]);
   }
   build();
 
@@ -217,6 +221,7 @@ export function buildWallsScene() {
       // The lamp's light at the gate's torch (its right-hand bracket, on the face toward the road outside).
       lamp: [at(6, 2)[0] + 1.62, 3.15, at(6, 2)[1] + 1.88],
       shadowBox: 40,
+      noAO: [crowd.batch.group],
       get lod() { return lod; },
       get look() { return look; },
       pieces,

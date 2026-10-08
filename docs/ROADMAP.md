@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.25)
+
+* **Every building's people move** (under WebGL): the library's readers, scribe and librarian at the cupboards; the academy's master, pupils, declaimer and philosophers walking the colonnade; the barber shaving a client; the physician and his assistant at the mortar; bathers, the attendant and the stoker; the hospital's sick, orderlies and surgeon; the governor's household, the villa's diners reclined on their couches, the palace's petitioners and lictors, guards when trouble comes near; the engineer's winder, surveyor and masons; sentries pacing the forts' walls, archers shooting, cavalrymen by their horses (as many as the stalls hold), recruits drilling at the post; shipwrights at the Navalia, marines at the Statio, twelve rowers pulling in time to the hortator's mallet at the Portus; gardeners clipping hedges. Fourteen new motions (rowing, the drill, archery, shaving, dining, a windlass, pruning, lying sick, among others)
+* Headless sim: identical to v0.20.24 (nothing under src/sim changed)
+* 1322 unit tests, 272 browser checks
+
 ## Done (v0.20.24)
 
 * **Walkers in 3D** (under WebGL): every walker is an animated 3D person dressed for the work: the prefect in red with his bucket (running to a fire, throwing water), the engineer with his measuring rod, the veiled priest, teachers, librarians and scholars with rolls, the barber, the physician with his case, the bath attendant, actors, gladiators and the charioteer with his pair, the gardener, the tax collector, market women with baskets on their heads, cart pushers with handcarts loaded with what they carry, ox wagons from the farms, drovers leading horses, settlers with their families and bundles or a pack mule, caravans of mules, recruits marching, protesters, thieves and rioters with torches. Their steps match the ground they cover (no sliding), they turn at corners and stop when the game pauses; clicking one opens its panel as before. Soldiers, raiders, wolves and ships keep their sprites for now. Lab: the Walkers scene (`=` key)

@@ -29,11 +29,8 @@
  * ----------------------------------------------------------------------------
  */
 
-import {
-  BufferGeometry, Float32BufferAttribute, CylinderGeometry, BoxGeometry, SphereGeometry, CapsuleGeometry, TorusGeometry,
-  Vector3, Quaternion,
-} from 'three';
-import { revolve, profileOf, boxUV, tintGeometry, tube, merge } from '../shapes.js';
+import { BufferGeometry, Float32BufferAttribute, CylinderGeometry, BoxGeometry, SphereGeometry, TorusGeometry, Vector3 } from 'three';
+import { revolve, profileOf, boxUV, tintGeometry, merge } from '../shapes.js';
 import { material } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { slab, wallWithOpenings } from './masonry.js';
@@ -835,76 +832,5 @@ function finishHull(out, lod, ts) {
 // ---------------------------------------------------------------------------
 // A rower, seated, pulling an oar
 // ---------------------------------------------------------------------------
-
-/** A capsule from a to b (arrays), radius r. */
-function limb(a, b, r, seg = 8) {
-  const A = new Vector3(...a);
-  const B = new Vector3(...b);
-  const len = A.distanceTo(B);
-  const g = new CapsuleGeometry(r, Math.max(0.001, len), 3, seg);
-  g.applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), B.clone().sub(A).normalize()));
-  const m = A.clone().add(B).multiplyScalar(0.5);
-  g.translate(m.x, m.y, m.z);
-  return tintGeometry(boxUV(g));
-}
-
-/**
- * A rower on a bench whose seat is at y = 0.45 over his feet's floor (y =
- * 0), facing +z (toward the stern, as rowers sit), his hands on the oar's
- * loom at (hx, hy, hz) (`pull` 0 the catch, leaning forward; 1 the finish,
- * leaning back). Returns { cloth, skin, hair } geometries for the figure's
- * materials (figure.js keys: cloth-<hex>, skin-<hex>, hair-<hex>).
- */
-export function rower(pull = 0.5, seed = 1, lod = 0) {
-  const rnd = artRng(seed);
-  const seg = lod ? 5 : 8;
-  const lean = -0.35 + pull * 0.7; // radians: forward (to -z... toward the oar) at the catch, back at the finish
-  const seat = [0, 0.45, 0];
-  const sh = [0, 0.45 + 0.52 * Math.cos(lean), -0.52 * Math.sin(lean) * -1];
-  const out = { cloth: [], skin: [], hair: [] };
-  // The tunic: a tapered body from the seat to the shoulders.
-  const body = new CylinderGeometry(0.16, 0.19, 0.56, seg + 4, 1);
-  body.translate(0, 0.28, 0);
-  body.scale(1, 1, 0.7);
-  body.rotateX(lean);
-  body.translate(seat[0], seat[1], seat[2]);
-  out.cloth.push(tintGeometry(boxUV(body), () => 0.9));
-  // Thighs along +z... the feet braced forward of him (toward -z, the oar's side is the stern's way).
-  for (const s of [-1, 1]) {
-    const hip = [s * 0.09, 0.47, 0.02];
-    const knee = [s * 0.11, 0.6, -0.36];
-    const foot = [s * 0.12, 0.06, -0.52];
-    out.cloth.push(limb(hip, knee, 0.075, seg));
-    out.skin.push(limb(knee, foot, 0.05, seg));
-  }
-  // Arms out to the loom in front of him (toward -z).
-  const hand = [0, sh[1] - 0.18 - pull * 0.05, -0.55 + pull * 0.35];
-  for (const s of [-1, 1]) {
-    const shoulder = [s * 0.19, sh[1] - 0.03, sh[2]];
-    const elbow = [s * 0.22, (shoulder[1] + hand[1]) / 2 - 0.06, (shoulder[2] + hand[2]) / 2 + 0.06 * (1 - pull)];
-    out.cloth.push(limb(shoulder, [shoulder[0] * 1.05, shoulder[1] - 0.08, shoulder[2]], 0.06, seg));
-    out.skin.push(limb(shoulder, elbow, 0.042, seg), limb(elbow, [s * 0.14, hand[1], hand[2]], 0.036, seg));
-  }
-  // The head on its neck.
-  const head = new SphereGeometry(0.1, seg + 4, seg);
-  head.scale(0.92, 1.12, 1.02);
-  head.translate(sh[0], sh[1] + 0.17, sh[2] - 0.02);
-  out.skin.push(tintGeometry(boxUV(head)));
-  const cap = new SphereGeometry(0.105, seg + 4, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
-  cap.scale(0.94, 1.1, 1.05);
-  cap.rotateX(-0.3);
-  cap.translate(sh[0], sh[1] + 0.185, sh[2] - 0.025);
-  out.hair.push(tintGeometry(boxUV(cap), () => 0.8 + rnd() * 0.2));
-  return { ...out, hand };
-}
-
-/** The materials a rower takes (figure.js's keys, so they are the town's people's). */
-export function rowerMaterials(cloth = 0x9a6a44, skin = 0xa87a58, hair = 0x2e2119) {
-  return {
-    cloth: material(`cloth-${cloth.toString(16)}`, { surface: 'wool', color: cloth, vertexColors: true, snow: 0.15 }),
-    skin: material(`skin-${skin.toString(16)}`, { color: skin, roughness: 0.55, snow: 0, wet: 0 }),
-    hair: material(`hair-${hair.toString(16)}`, { color: hair, roughness: 0.7, snow: 0.2 }),
-  };
-}
 
 export { merge, D };

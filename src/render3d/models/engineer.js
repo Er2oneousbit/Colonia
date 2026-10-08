@@ -33,16 +33,20 @@
  * So, on a 4 m tile of beaten earth: at the back-left an open-fronted
  * workshop in opus craticium under a lean-to of tiles, a bench inside, a
  * sign over its front (COLLEGIVM FABRVM), the tool rack on its side wall;
- * at the back-right the shear legs over an ashlar block; in front, the
+ * at the back-right the shear legs over an ashlar block, the windlass
+ * across them at a man's height with a crank on its end; in front, the
  * groma standing by the street as the yard's sign, squared timbers on
  * bearers, a mortar trough and a heap of pozzolana, a stack of bricks and
  * a stack of ashlar.
  *
  * States (meshes tagged in userData.when, models.js partShows):
- *   'open'  staffed: a man at the windlass and the block hoisted, the
- *           surveyor at the groma, the saw and mallet out on the bench
- *   'shut'  no staff: the block let down onto rollers, the saw and the
- *           mallet back on the rack, nobody, the lantern out
+ *   'open'  staffed: a man turning the windlass's crank and the block
+ *           hoisted, the surveyor sighting along the groma's plumb lines, a
+ *           mason dressing the ashlar, a carpenter mortising a beam at the
+ *           bench, the saw out on it
+ *   'shut'  no staff: the block let down onto rollers, the crank hanging,
+ *           the saw and the mallet back on the rack, nobody, the lantern out
+ * The builders are actors (people/: engineerActors), moving on the GPU.
  *
  * Metres, the tile's middle at the origin, y up, the front (the street)
  * toward +z, as models/well.js. Levels of detail 0 to 2.
@@ -55,7 +59,7 @@ import { material } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, lantern, lanternPane, inscription, TaggedParts } from './masonry.js';
 import { leanTo, beam, lin } from './rural.js';
-import { figureParts } from './figure.js';
+import { WINDLASS } from '../people/clips.js';
 
 /** The yard's measures (metres): the tests, the lab and the game read them. */
 export const ENGINEER = Object.freeze({
@@ -63,16 +67,64 @@ export const ENGINEER = Object.freeze({
   floorY: 0.04, // the yard's beaten earth
   // The workshop's outer faces (back-left), its walls' thickness, its lean-to roof's top and eave.
   shed: Object.freeze({ x0: -1.85, x1: 0.45, z0: -1.9, z1: -0.15, t: 0.22, topY: 3.0, eaveY: 2.45 }),
-  // The shear legs: their feet and where they meet.
-  feet: Object.freeze([Object.freeze([0.92, -1.8]), Object.freeze([1.8, -1.8])]),
-  apex: Object.freeze([1.36, 3.42, -0.66]),
+  // The shear legs: their feet and where they meet (left of the yard's edge: the windlass man stands
+  // at the crank on the right, people/clips.js WINDLASS).
+  feet: Object.freeze([Object.freeze([0.62, -1.8]), Object.freeze([1.42, -1.8])]),
+  apex: Object.freeze([1.02, 3.42, -0.66]),
   /** The groma's staff (x, z) and its height. */
   groma: Object.freeze([-1.18, 1.42, 1.74]),
+  /** Where the surveyor stands sighting along two of the groma's plumb lines (x, z): the cross is turned to him. */
+  sight: Object.freeze([-0.45, 0.95]),
   /** The lantern at the workshop's front corner (x, y, z): the game's night lights it while staffed (models.js modelLamps). */
   lamp: Object.freeze([0.33, 1.93, 0.07]),
 });
 
 const E = ENGINEER;
+
+/** The windlass: its roller's axis (y, z) across the legs, its ends (x), the crank on the right end (the tests read it). */
+export function windlassAxis() {
+  const [fa, fb] = E.feet;
+  const [ax, ay, az] = E.apex;
+  // (At a man's crank height over the yard: the windlass clip's axle, WINDLASS.height.)
+  const wy = E.floorY + WINDLASS.height;
+  const t = (wy - E.floorY) / (ay - E.floorY);
+  const xa = fa[0] + (ax - fa[0]) * t;
+  const xb = fb[0] + (ax - fb[0]) * t;
+  const z = fa[1] + (az - fa[1]) * t;
+  return { y: wy, z, x0: xa - 0.1, x1: xb + 0.1 };
+}
+
+/**
+ * The yard's people (people/actors.js specs, its metres) while it is
+ * staffed: a builder turning the windlass by its crank (the roller's right
+ * end, WINDLASS: his own crank, the kit's put away), the hoisted block
+ * clear of him; the surveyor (mensor) sighting along two plumb lines of the
+ * groma, his tablet in hand; a mason dressing the travertine block with
+ * mallet and chisel; a carpenter cutting a mortise in a beam on the bench.
+ * Nobody when the yard is idle.
+ */
+export function engineerActors(state) {
+  if (state !== 'open') return [];
+  const w = windlassAxis();
+  const y0 = E.floorY;
+  const [sx, sz] = E.sight;
+  const [gx, gz] = E.groma;
+  const tunic = { body: 'm', dress: ['tunic:short'], hair: 'crop' };
+  return [
+    // Facing -z, the crank's axle WINDLASS.ahead before him, the roller to his left (+x of his frame is -x here).
+    { ...tunic, clip: 'windlass', props: { R: 'crank' }, at: [w.x1 + WINDLASS.x + 0.06, y0, w.z + WINDLASS.ahead], ry: Math.PI, seed: 231, colours: { tunic: 0xa8977a } },
+    { body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'crop', beard: 'short', clip: 'hold', props: { R: 'tablet' }, at: [sx, y0, sz], ry: Math.atan2(gx + 0.24 - sx, gz - sz), seed: 232, old: true, colours: { tunic: 0xd8cdb4, mantle: 0x8a6a4a } },
+    { ...tunic, clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [STONE[0], y0, STONE[2] - STONE[4] / 2 - 0.32], ry: 0, seed: 233, colours: { tunic: 0x8a7a5a } },
+    { ...tunic, hair: 'curls', clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [-0.62, y0, E.shed.z0 + E.shed.t + 0.28 + 0.21 + 0.36], ry: Math.PI, seed: 234, colours: { tunic: 0x6e604f } },
+  ];
+}
+
+/**
+ * The travertine block on the tufa ones (x, top y, z, its width, its
+ * length): its top where a mason's chisel comes down (people/clips.js
+ * hammer: the chisel's tip about 0.9 over his feet).
+ */
+const STONE = Object.freeze([1.36, 0.94, 1.15, 0.48, 0.9]);
 
 /** A box w x h x d, its foot at (x, y, z): UVs in metres, a vertex colour of `k`. */
 function box(w, h, d, x, y, z, k = 1) {
@@ -179,6 +231,9 @@ function workshop(lod, seed, out) {
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) out.wood.push(box(0.08, bY - 0.08 - E.floorY, 0.08, bx + sx * 0.62, E.floorY, bz + sz * 0.15, 0.85));
   if (lod < 2) {
     out.wood.push(slab(0.95, 0.04, 0.22, { bevel: 0.006, seed: seed + 11, wobble: 0.002, tone: 0.1, grime: 0 }).rotateY(0.08).translate(bx - 0.1, bY, bz + 0.03));
+    // A squared beam across the bench's front, its mortise being cut (the carpenter's chisel comes down
+    // on it: people/clips.js hammer), a few chips by it.
+    out.timber.push(slab(1.1, 0.13, 0.14, { bevel: 0.01, seed: seed + 12, wobble: 0.003, tone: 0.08, grime: 0 }).translate(bx + 0.15, bY, bz + 0.12));
     // Scaffold poles leaning in the corner, a coil of rope hung on the end wall.
     for (let k = 0; k < 3; k++) out.wood.push(pole([x0 + t + 0.12 + k * 0.08, E.floorY, z1 - 0.35 - k * 0.12], [x0 + t + 0.05, 2.25 + k * 0.08, z0 + t + 0.08 + k * 0.05], 0.035, lod, seed + 20 + k));
     for (let k = 0; k < 3; k++) {
@@ -277,8 +332,9 @@ function groma(lod, out) {
   if (lod < 2) out.bronze.push(revolve(profileOf([[0, 0], [0.022, 0], [0.022, 0.06], [0, 0.07]]), { segments: seg, metres: 0.1 }).translate(cx, top - 0.04, gz));
   const arm = 0.44;
   const ay = top + 0.025;
-  // The cross turned a little from the yard's square, as when setting out a line.
-  const r = 0.35;
+  // The cross turned from the yard's square, as when setting out a line: an arm toward the surveyor,
+  // so he sights along its plumb line and the one opposite.
+  const r = Math.atan2(E.sight[1] - gz, E.sight[0] - cx);
   const ends = [0, 1, 2, 3].map((k) => [cx + Math.cos(r + (k * Math.PI) / 2) * arm, ay, gz + Math.sin(r + (k * Math.PI) / 2) * arm]);
   out.wood.push(beam(ends[0], ends[2], 0.034, 3, lod));
   out.wood.push(beam(ends[1], ends[3], 0.034, 4, lod));
@@ -327,34 +383,37 @@ function hoist(lod, seed, out) {
   }
   // The stays: one back to the workshop's corner, one to a stake at the yard's back corner.
   const corner = [E.shed.x1 - 0.06, E.shed.topY - 0.12, E.shed.z0 + 0.06];
-  const stake = [1.94, y0, -1.96];
+  // (The back stay's stake behind the roller, clear of the winder at the crank.)
+  const stake = [1.1, y0, -1.96];
   if (lod < 2) {
     out.rope.push(tube([A, [(A[0] + corner[0]) / 2, (A[1] + corner[1]) / 2 - 0.06, (A[2] + corner[2]) / 2], corner], 0.011, { radial: lod ? 3 : 5, segments: lod ? 4 : 10, around: 0.06 }));
     out.rope.push(tube([A, [(A[0] + stake[0]) / 2 + 0.02, (A[1] + stake[1]) / 2 - 0.05, (A[2] + stake[2]) / 2], [stake[0], stake[1] + 0.3, stake[2]]], 0.011, { radial: lod ? 3 : 5, segments: lod ? 4 : 10, around: 0.06 }));
     out.wood.push(box(0.05, 0.36, 0.05, stake[0] - 0.01, y0 - 0.02, stake[2] + 0.01, 0.8));
   }
-  // The windlass (sucula) through the legs a hand above the knee: a roller with the rope wound on it, two handspikes.
-  const wy = 0.55;
-  const legAt = (f) => {
-    const t = (wy - y0) / (ay - y0);
-    return [f[0] + (ax - f[0]) * t, f[1] + (az - f[1]) * t];
-  };
-  const wa = legAt(fa);
-  const wb = legAt(fb);
-  const wz = (wa[1] + wb[1]) / 2;
-  const roller = new CylinderGeometry(0.06, 0.06, wb[0] - wa[0] + 0.2, lod ? 7 : 12, 1);
+  // The windlass (sucula) through the legs at a man's crank height: a roller with the rope wound on
+  // it, a crank on its right end (the winder's own while he turns it: people/props.js crank; the kit's,
+  // hanging down, while the yard is idle).
+  const w = windlassAxis();
+  const wy = w.y;
+  const wz = w.z;
+  const roller = new CylinderGeometry(0.06, 0.06, w.x1 - w.x0, lod ? 7 : 12, 1);
   roller.rotateZ(Math.PI / 2);
-  roller.translate((wa[0] + wb[0]) / 2, wy, wz);
+  roller.translate((w.x0 + w.x1) / 2, wy, wz);
   out.wood.push(tintGeometry(boxUV(roller)));
   const drum = new CylinderGeometry(0.085, 0.085, 0.3, lod ? 7 : 12, 1);
   drum.rotateZ(Math.PI / 2);
   drum.translate(ax, wy, wz);
   out.rope.push(tintGeometry(boxUV(drum), () => 0.9));
-  if (lod < 2) {
-    for (const [x, r] of [[wa[0] - 0.06, 1.1], [wb[0] + 0.06, -1.25]]) {
-      out.wood.push(beam([x, wy - Math.sin(r) * 0.36, wz - Math.cos(r) * 0.36], [x, wy + Math.sin(r) * 0.36, wz + Math.cos(r) * 0.36], 0.035, seed + 9, lod));
-    }
-  }
+  // The crank at rest: its iron boss on the roller's end, the arm hanging, the handle out to the right.
+  const hub = new CylinderGeometry(0.03, 0.03, 0.06, lod ? 6 : 10, 1);
+  hub.rotateZ(Math.PI / 2);
+  hub.translate(w.x1 + 0.03, wy, wz);
+  out.crankIron.push(tintGeometry(boxUV(hub), () => 0.8));
+  out.crank.push(box(0.04, WINDLASS.arm + 0.06, 0.05, w.x1 + 0.03, wy - WINDLASS.arm - 0.03, wz, 0.85));
+  const handle = new CylinderGeometry(0.022, 0.022, 0.4, lod ? 5 : 8, 1);
+  handle.rotateZ(Math.PI / 2);
+  handle.translate(w.x1 + 0.03 + 0.2, wy - WINDLASS.arm, wz);
+  out.crank.push(tintGeometry(boxUV(handle), () => 0.72));
   // The block of travertine with its forceps holes, hoisted (open) or let down onto two rollers (shut).
   const bw = 0.62;
   const bh = 0.42;
@@ -435,13 +494,13 @@ function stock(lod, seed, out) {
     }
   }
   // Ashlar: two blocks of tufa on the ground, one of travertine across them, a square and a chisel on it.
-  const sx = 1.38;
-  const sz = 1.15;
+  const [stx, stop, sz, sw, sl] = STONE;
+  const sx = stx + 0.02;
   out.tufa.push(slab(0.62, 0.42, 0.46, { bevel: 0.02, seed: seed + 30, wobble: 0.008, tone: 0.06, grime: 0.35 }).translate(sx, y0, sz - 0.27));
   out.tufa.push(slab(0.62, 0.42, 0.46, { bevel: 0.02, seed: seed + 31, wobble: 0.008, tone: 0.06, grime: 0.35 }).rotateY(0.04).translate(sx + 0.02, y0, sz + 0.24));
-  out.stone.push(slab(0.48, 0.36, 0.9, { bevel: 0.02, seed: seed + 32, wobble: 0.006, tone: 0.05, grime: 0.1 }).rotateY(-0.05).translate(sx - 0.02, y0 + 0.42, sz));
+  out.stone.push(slab(sw, stop - y0 - 0.42, sl, { bevel: 0.02, seed: seed + 32, wobble: 0.006, tone: 0.05, grime: 0.1 }).rotateY(-0.05).translate(stx, y0 + 0.42, sz));
   if (lod < 2) {
-    const top = y0 + 0.78;
+    const top = stop;
     out.wood.push(box(0.3, 0.012, 0.035, sx - 0.05, top, sz - 0.1));
     out.wood.push(box(0.035, 0.012, 0.3, sx - 0.185, top, sz + 0.035));
     out.iron.push(box(0.012, 0.012, 0.2, sx + 0.12, top, sz + 0.2));
@@ -468,7 +527,7 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
   const out = {
     rubble: [], plaster: [], frame: [], wood: [], tile: [], dark: [], rope: [], iron: [], bronze: [], paint: [], letters: [], poles: [], stone: [],
     tufa: [], timber: [], lime: [], sand: [], bricks: [], chips: [], blockUp: tagged(), blockDown: tagged(),
-    sawRack: [], sawIronRack: [], malletRack: [], benchTools: [], benchIron: [],
+    sawRack: [], sawIronRack: [], malletRack: [], benchTools: [], benchIron: [], crank: [], crankIron: [],
   };
   const H = E.half - 0.02;
   // The yard: beaten earth over the whole tile.
@@ -478,14 +537,13 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
   groma(lod, out);
   hoist(lod, seed + 60, out);
   stock(lod, seed + 80, out);
-  // The saw and the mallet out on the bench while the yard works.
+  // The saw out on the bench while the yard works (the mallet is in the carpenter's hand).
   if (lod < 2) {
     const bY = 0.8;
     const bz = E.shed.z0 + E.shed.t + 0.28;
     const saw = TOOLS.saw(lod);
     for (const g of saw.wood) out.benchTools.push(g.rotateY(0.15).translate(-1.2, bY, bz - 0.12));
     for (const g of saw.iron) out.benchIron.push(g.rotateY(0.15).translate(-1.2, bY, bz - 0.12));
-    for (const g of TOOLS.mallet(lod).wood) out.benchTools.push(g.rotateY(-0.5).translate(-0.4, bY, bz - 0.02));
   }
   // Far out (a tile a few dozen pixels across) the ropes, the iron, the groma's bobs, the sign, the lime
   // and the floor's shade are a pixel or two, and each material and state is one more draw call for
@@ -544,6 +602,9 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
   p.add('tools-iron', mats.iron, out.sawIronRack, { when: 'shut' });
   p.add('tools', mats.wood, out.benchTools, { when: 'open' });
   p.add('tools-iron', mats.iron, out.benchIron, { when: 'open' });
+  // The windlass's crank at rest while the yard is idle (at work the winder turns his own).
+  p.add('crank', mats.wood, out.crank, { when: 'shut' });
+  if (lod < 2) p.add('crank-iron', mats.iron, out.crankIron, { when: 'shut' });
   // The lantern at the workshop's corner: lit while staffed (the lab's night lights its panes), dark when idle.
   if (lod < 2) {
     const [lx, ly, lz] = E.lamp;
@@ -552,15 +613,7 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
     p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
-  // The builders: one at the windlass, the surveyor sighting along the groma's cords.
-  if (lod === 0) {
-    // (At the windlass's end, out of the way of the hanging block: no one stands under a load.)
-    const winder = figureParts({ cloth: 0xa8977a, reach: 0.85 }, E.feet[0][0] - 0.34, E.floorY, -1.32, Math.PI * 0.62);
-    for (const f of winder) p.add(`winder-${f.material.name}`, f.material, [f.g], { when: 'open' });
-    const [gx, gz] = E.groma;
-    const surveyor = figureParts({ cloth: 0xd8cdb4, cloth2: 0x8a6a4a, reach: 0.5 }, gx + 0.1, E.floorY, gz + 0.3, Math.PI * 0.82);
-    for (const f of surveyor) p.add(`surveyor-${f.material.name}`, f.material, [f.g], { when: 'open' });
-  }
+  // (The builders are actors: engineerActors.)
   return p.build();
 }
 

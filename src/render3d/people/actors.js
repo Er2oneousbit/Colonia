@@ -29,6 +29,9 @@
  *   colours  { tunic, mantle, skin, hair, trim, leather, accent, metal }
  *            (sRGB hex; any not given from the palette by its seed)
  *   seed     a number: its colours and phase when not given
+ *   sync     true: in step with the building's other sync actors (a crew
+ *            rowing to its hortator's beat): the batch gives them the
+ *            building's phase and speed alike, `phase` their own on top
  *
  * cast(list) packs a list once (frozen): what the batch copies into its
  * instance buffers. A model keeps its casts by state, as it keeps `more`.
@@ -160,14 +163,18 @@ export function pack(spec, index = 0) {
     r[1] = route.speed ?? WALK_SPEED * 0.85;
     r[2] = route.pauseEnd ?? 4;
     r[3] = route.pauseStart ?? 3;
-    pauses = CLIP_INDEX[clipFor(route.clipEnd || 'idle', toga)] + 64 * CLIP_INDEX[clipFor(route.clipStart || 'idle', toga)];
+    // (Two clips in one float, b + 64 a, as the shader reads them: an index past 63 would read as another clip.)
+    const end = CLIP_INDEX[clipFor(route.clipEnd || 'idle', toga)];
+    const start = CLIP_INDEX[clipFor(route.clipStart || 'idle', toga)];
+    if (end > 63 || start > 63) throw new Error('A route\'s pause clip past index 63: widen the packing (aActClip.w)');
+    pauses = end + 64 * start;
   }
   // The facings at the route's ends in the actor's own frame: the end's within a half turn of 0 (the
   // way it arrived), the start's within a half turn of pi (the way it came back).
   const wrap = (a, mid) => mid + (((((a - mid + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI);
   const faceEnd = route && route.faceEnd !== undefined ? wrap(route.faceEnd - (spec.ry || 0), 0) : 0;
   const faceStart = route && route.faceStart !== undefined ? wrap(route.faceStart - (spec.ry || 0), Math.PI) : Math.PI;
-  const phase = spec.phase ?? hash01(seed, 9) * def.dur * 3;
+  const phase = spec.phase ?? (spec.sync ? 0 : hash01(seed, 9) * def.dur * 3);
   const speed = spec.speed ?? 1;
   // (Head scale: a child's head is bigger for its body than a man's.)
   const head = body === 'c' ? 1.14 : 1;
@@ -187,6 +194,8 @@ export function pack(spec, index = 0) {
     scale,
     routeLength: route ? route.length : 0,
     clipName,
+    // (In step with the building's other `sync` actors: the batch gives them its phase and speed alike.)
+    sync: !!spec.sync,
   });
 }
 

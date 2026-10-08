@@ -24,10 +24,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import {
-  BoxGeometry, CylinderGeometry, SphereGeometry, ConeGeometry, TorusGeometry, BufferGeometry, Float32BufferAttribute,
-  Matrix4, Vector3, Quaternion,
-} from 'three';
+import { BoxGeometry, CylinderGeometry, SphereGeometry, ConeGeometry, TorusGeometry, BufferGeometry, Float32BufferAttribute, Matrix4, Vector3 } from 'three';
 import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import {
   material, waterMaterial, shallowWaterMaterial, streamMaterial, ringMaterial,
@@ -35,8 +32,9 @@ import {
 import { artRng, smoothstep } from '../texgen.js';
 import { slab, GLYPHS, lantern, lanternPane, tuscanColumn } from './masonry.js';
 import { lin, D } from './rural.js';
-import { box, staff, people } from './castra.js';
+import { box } from './castra.js';
 import { learningMaterials, person, at, bush, hedge } from './learning.js';
+import { DYES } from '../people/actors.js';
 
 export { box, D, lin, lantern, lanternPane };
 
@@ -1014,101 +1012,43 @@ export function architraveRound(rect, y0, y1, sides = 'fblr', w = 0.26) {
 // People
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// The residences' people as actors (people/actors.js specs)
+// ---------------------------------------------------------------------------
+
 /**
- * A man in the toga (person() in white wool, a mantle over it, to the
- * ankles), at (x, y, z) facing ry: the broad purple stripe of a senator's
- * tunic down his front (latus clavus), the toga's fold across his chest
- * (the balteus) and, a magistrate's, its purple border (praetexta).
- * Returns person parts, the stripes in the dyed cloth.
+ * A soldier of the governor's guard (men seconded from the legions): the
+ * red tunic under the mail shirt (lorica hamata), the helmet, hobnailed
+ * caligae, his spear at his right and the curved scutum at his left, as the
+ * senate's guard. `clip` 'guard' standing, 'patrol' on a round.
  */
-export function togate(mats, x, y, z, ry, { sit = 0, arms, praetexta = false, scale = 1, skin = 0xb08060, hair = 0x3a2a1c, beard = false, lean } = {}) {
-  const parts = person(mats, { cloth: 0xf2ede2, cloth2: 0xf6f2ea, long: true, sit, arms, skin, hair, beard, ...(lean === undefined ? {} : { lean }) }, x, y, z, ry, scale);
-  const place = new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), ry), new Vector3(scale, scale, scale));
-  const seated = sit > 0;
-  const dy = seated ? sit + 0.08 - 0.86 : 0;
-  const extra = [];
-  // The fold of the toga from the left shoulder across the chest to the right hip.
-  const fold = tube([[-0.17, 1.38 + dy, 0.06], [-0.02, 1.2 + dy, 0.17], [0.14, 1.02 + dy, 0.14], [0.2, 0.94 + dy, 0.02]], 0.045, { radial: 5, segments: 8, around: 0.1 });
-  extra.push(tintGeometry(fold, () => lin(0xece6da)));
-  // The stripe down the front of the tunic, seen at the neck under the fold.
-  extra.push(box(0.05, 0.16, 0.012, 0.06, 1.27 + dy, 0.155, () => PURPLE));
-  if (praetexta) {
-    // The toga's purple border along the fold's edge.
-    const edge = tube([[-0.16, 1.4 + dy, 0.08], [-0.01, 1.23 + dy, 0.2], [0.16, 1.03 + dy, 0.17]], 0.016, { radial: 4, segments: 8, around: 0.1 });
-    extra.push(tintGeometry(edge, () => PURPLE));
-  }
-  for (const g of extra) parts.push({ g: g.applyMatrix4(place), material: mats.cloth });
-  return parts;
+export function guardActor(at, ry, seed, extra = {}) {
+  return {
+    body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', clip: 'guard', props: { R: 'spear', L: 'scutum' },
+    colours: { tunic: DYES.madder, accent: DYES.madder, metal: 0x8a8c90 }, at, ry, seed, ...extra,
+  };
 }
 
 /**
- * A lictor (a magistrate's attendant) at (x, y, z) facing ry, the fasces on
- * his left shoulder: elm rods bound in red thongs round an axe. Returns
- * person parts (the rods in wood, the axe's head in iron).
+ * A man in the toga over a white tunic: a senator's broad purple stripe
+ * (the latus clavus) on his tunic; a magistrate's (the governor's) toga
+ * bordered in purple (the praetexta: `praetexta`).
  */
-export function lictor(mats, x, y, z, ry) {
-  const parts = person(mats, { cloth: 0xa8322b, cloth2: null, skin: 0xa07050, hair: 0x2a1e14, arms: 'hold' }, x, y, z, ry);
-  const place = new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), ry), new Vector3(1, 1, 1));
-  // The bundle rests against his left shoulder, its foot in his hands.
-  const local = [];
-  const a = [-0.14, 1.05, 0.26];
-  const b = [-0.22, 1.85, -0.02];
-  for (let k = 0; k < (5); k++) {
-    const ox = ((k % 3) - 1) * 0.022;
-    const oz = (Math.floor(k / 3) - 0.5) * 0.022;
-    local.push([staff([a[0] + ox, a[1], a[2] + oz], [b[0] + ox, b[1], b[2] + oz], 0.013, 5), mats.wood]);
-  }
-  for (const t of [0.25, 0.55, 0.85]) {
-    const c = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-    const g = new CylinderGeometry(0.05, 0.05, 0.03, 8, 1);
-    g.rotateX(-Math.atan2(b[2] - a[2], b[1] - a[1]));
-    g.translate(c[0], c[1], c[2]);
-    local.push([tintGeometry(boxUV(g), () => lin(0x8a1c18)), mats.cloth]);
-  }
-  const axe = new BoxGeometry(0.012, 0.12, 0.14);
-  axe.translate(b[0] - 0.02, b[1] - 0.05, b[2] - 0.07);
-  local.push([tintGeometry(boxUV(axe)), mats.iron]);
-  for (const [g, m] of local) parts.push({ g: g.applyMatrix4(place), material: m });
-  return parts;
+export function togateActor(at, ry, seed, { praetexta = false, broad = true, ...extra } = {}) {
+  return {
+    body: 'm', dress: [broad ? 'tunic:knee:broad' : 'tunic:knee', 'toga'], hair: seed % 3 ? 'crop' : 'bald', old: seed % 3 === 0,
+    colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.purple, ...(praetexta ? { accent: DYES.murex } : {}) }, at, ry, seed, ...extra,
+  };
 }
 
-/**
- * A soldier of the governor's guard (men seconded from the legions) at
- * (x, y, z) facing ry: person() in a red tunic, a bronze helmet for his
- * hair, a spear upright in his right hand, an oval shield at his left
- * (`shield`, with the red-and-gold boss) or none. Lighter than the forts'
- * sentry (figure.js, built for one man at a gate): a palace's guard is a
- * dozen of them. Returns person parts.
- */
-export function guard(mats, x, y, z, ry, { shield = true } = {}) {
-  const parts = person(mats, { cloth: 0xa8322b, cloth2: null, skin: 0xa87a58, hair: 0x2a1e14, arms: 'down' }, x, y, z, ry)
-    .map((p) => (p.material === mats.hair ? { g: p.g, material: mats.bronze } : p));
-  const place = new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), ry), new Vector3(1, 1, 1));
-  const local = [];
-  local.push([staff([0.27, 0, 0.1], [0.27, 2.05, 0.1], 0.014, 5), mats.wood]);
-  local.push([tintGeometry(boxUV(new ConeGeometry(0.022, 0.16, 4).translate(0.27, 2.13, 0.1))), mats.iron]);
-  // The helmet's crest and neck guard over the bronze cap.
-  local.push([box(0.03, 0.06, 0.2, 0, 1.7, -0.01, () => lin(0xa8322b)), mats.cloth]);
-  if (shield) {
-    const g = new CylinderGeometry(0.55, 0.55, 0.9, 7, 1, true, -0.5, 1.0);
-    g.translate(0, 0, -0.55);
-    g.scale(0.6, 1, 0.6);
-    g.rotateY(-Math.PI / 2 + 0.25);
-    g.translate(-0.28, 0.62, 0.12);
-    local.push([tintGeometry(boxUV(g), (gx, gy) => (Math.abs(gy - 0.62) < 0.05 ? GOLD : [0.55, 0.12, 0.1])), mats.paint]);
-  }
-  for (const [g, m] of local) parts.push({ g: g.applyMatrix4(place), material: m });
-  return parts;
+/** A household slave or freedman: a short tunic of undyed or cheaply dyed wool. */
+export function servantActor(at, ry, seed, extra = {}) {
+  return { body: 'm', dress: ['tunic:short'], hair: seed % 2 ? 'curls' : 'crop', colours: { tunic: [DYES.oatmeal, DYES.fawn, DYES.undyed, DYES.brownWool][seed % 4] }, at, ry, seed, ...extra };
 }
 
-/** A household slave or a freedman at (x, y, z) facing ry: a tunic of undyed or faded wool. */
-export function servant(mats, x, y, z, ry, { cloth = 0x9c8a6a, arms = 'down', skin = 0x9a6c4c, hair = 0x241a12, long = false } = {}) {
-  return person(mats, { cloth, cloth2: null, skin, hair, arms, long }, x, y, z, ry);
-}
-
-/** A Roman lady in a long stola and a coloured palla over it, at (x, y, z) facing ry. */
-export function matron(mats, x, y, z, ry, { cloth = 0xe6d8bc, palla = 0x4f6f86, sit = 0, arms } = {}) {
-  return person(mats, { cloth, cloth2: palla, long: true, skin: 0xc49272, hair: 0x2c1a10, sit, arms }, x, y, z, ry, 0.95);
+/** The lady of the house, or a daughter: a stola over the long tunic, a palla of a rich dye. */
+export function matronActor(at, ry, seed, extra = {}) {
+  return { body: 'f', dress: ['tunic:long:stola', 'palla'], hair: 'bun', at, ry, seed, ...extra };
 }
 
 // ---------------------------------------------------------------------------
@@ -1420,11 +1360,6 @@ export function gardenTree(x, y, z, h, lod = 0, seed = 1) {
   const wood = [tintGeometry(boxUV(new CylinderGeometry(0.05, 0.08, h * 0.55, lod ? 5 : 8, 1).translate(x, y + h * 0.275, z)), () => 0.55)];
   const leaf = bush(x, y + h * 0.68, z, h * 0.3, { lod, seed, squash: 1.0 });
   return { wood, leaf };
-}
-
-/** A person's parts added to TaggedParts `p` under `name` in state `when` (castra.js people). */
-export function addPeople(p, mats, name, list, when) {
-  people(p, mats, name, list, when);
 }
 
 /** A point of a figure's frame in the model's (learning.js at). */

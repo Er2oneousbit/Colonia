@@ -24,12 +24,17 @@
  *     paved (via praetoria)
  *
  * States (models.js partShows; models/militaryModels.js fortState):
- *   'open'  men at home: the gate open, a sentry on the gate, the lanterns lit
+ *   'open'  men at home: the gate open, the lanterns lit; sentries pace the
+ *           walk over the gate and the rampart's walks and stand on guard at
+ *           each end, two men guard the standards (legionActors)
  *   'out'   deployed, or men away at a distant battle: the standards are out
- *           with the men (their base empty), the gate open
- *   'shut'  nobody: the gate shut, no sentry, the lanterns dark
+ *           with the men (their base empty), the gate open, nobody on watch
+ *   'shut'  nobody: the gate shut, the lanterns dark
  * Tags: 'home' (open or shut: the standards on their base), 'staffed'
  * (open or out: the gate's leaves swung back, the lanterns lit).
+ *
+ * The men at rest in the yard are the game's own soldiers, drawn over the
+ * model; the people here (people/actors.js) are the fort's watch only.
  *
  * Metres, the fort's middle at the origin, y up, the gate toward +z.
  * ----------------------------------------------------------------------------
@@ -39,7 +44,7 @@ import { paving, slab, tuscanColumn } from './masonry.js';
 import { gableRoof, lin } from './rural.js';
 import {
   CASTRA, fortBag, assemble, TANK_WATER, stoneRun, stoneTower, stoneGate, barrackBlock, onSide, mirrorX, box, gravel,
-  aquila, signum, vexillum, imago, standardBase, oven, tank, sentry, inscribe,
+  aquila, signum, vexillum, imago, standardBase, oven, tank, inscribe, soldier, wallSentry,
 } from './castra.js';
 
 /** The legion fort's measures (metres): the tests, the lab and the game read them. */
@@ -186,10 +191,32 @@ export function buildLegionFort({ lod = 0, seed = 101 } = {}) {
   const left = bag();
   barrackBlock({ lod, seed: seed + 310, out: left, x0: bx0, x1: bx1, z0: bz0, z1: bz1, eave: 1.4, rooms: 4 });
   for (const [key, list] of Object.entries(left)) out[key].push(...mirrorX(list));
-  const { p, mats } = assemble('castra', out, std, lod, L.lamps);
-  // A sentry on the gate's walk while the men are home.
-  if (lod === 0) sentry(p, mats, 'sentry', 0.55, 2.5, CASTRA.O - 0.35, 0.2, 'open', { cloth: 0xa8322b, shield: RED });
+  const { p } = assemble('castra', out, std, lod, L.lamps);
+  // (The watch are actors: legionActors.)
   return p.build();
+}
+
+/**
+ * The legion fort's watch (people/actors.js specs, its metres) while its
+ * men are home ('open'): a sentry pacing the walk over the gate (2.45 m up,
+ * between its parapets), one on the front walk right of the gate, one on
+ * the back walk behind the left barrack block (1 m up, clear of the blocks'
+ * and the headquarters' roofs), each stopping at the ends to stand guard
+ * looking out; and a guard either side of the standards before the
+ * headquarters, as the aedes was guarded day and night. Nobody on watch
+ * while the men are out with the standards, or the fort is empty.
+ */
+export function legionActors(state) {
+  if (state !== 'open') return [];
+  const [sz] = L.standards;
+  return [
+    wallSentry('legion', -0.95, 0.95, 2.45, CASTRA.gateIn + 0.46, 11),
+    wallSentry('legion', 2.55, 3.95, 1.0, CASTRA.O - 0.7, 12),
+    // (The back's walk, its x the front's turned: from 2.2 to 4.0 there is -2.2 to -4.0 here.)
+    wallSentry('legion', 2.2, 4.0, 1.0, CASTRA.O - 0.7, 13, 2),
+    soldier('legion', { at: [-1.4, CASTRA.floorY, sz + 0.1], ry: 0.15, seed: 14 }),
+    soldier('legion', { at: [1.4, CASTRA.floorY, sz + 0.1], ry: -0.15, seed: 15 }),
+  ];
 }
 
 export { TANK_WATER };

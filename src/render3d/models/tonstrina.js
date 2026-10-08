@@ -22,7 +22,7 @@
  * So, in 4 m: the shop open to the street between two piers, TONSOR painted
  * on a whitened board over the lintel, a lean-to roof of tiles sloping down
  * to the street; outside on the pavement the client on his stool, cloaked in
- * linen, the barber shaving him from behind, a basin on its stand with a
+ * linen, the barber at his side shaving him, a basin on its stand with a
  * towel; a man waiting on the bench, another standing to talk; inside, the
  * bronze mirror on the back wall, a shelf of pots and razors, towels on a
  * rail, a bench and a chair; the boards that shut the shop stacked against
@@ -31,7 +31,7 @@
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed: the barber at work and his customers, the stool, basin
  *           and towels out, the shop open, its boards stacked inside, the
- *           lantern lit at night
+ *           lantern lit at night (the people are actors: tonstrinaActors)
  *   'shut'  no staff: the boards across the front, nobody
  *
  * Metres, the footprint's middle at the origin, y up, the street toward +z,
@@ -44,9 +44,11 @@ import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin } from './rural.js';
-import { staff, inscribe, people } from './castra.js';
-import { person, roofSlope, box } from './learning.js';
+import { staff, inscribe } from './castra.js';
+import { roofSlope, box } from './learning.js';
 import { healthMaterials, stool, basinStand, towel, potRow, pot, wallWindow } from './healing.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H, SHAVE } from '../people/clips.js';
 
 /** The barber's measures (metres): the tests, the lab and the game read them. */
 export const TONSTRINA = Object.freeze({
@@ -60,8 +62,10 @@ export const TONSTRINA = Object.freeze({
   /** The roof: its eave (z, y) over the street and its top over the back wall. */
   eave: Object.freeze([0.55, 3.5]),
   ridge: Object.freeze([-1.97, 4.25]),
-  /** The client's stool (x, z), its seat's height. */
-  stool: Object.freeze([-0.2, 0.98, 0.46]),
+  /** The client's stool (x, z), its seat's height over the pavement (the seated clips' SEAT_H). */
+  stool: Object.freeze([-0.2, 0.98, SEAT_H]),
+  /** The pavement's top: where the people stand. */
+  pavement: 0.06,
   /** The lantern on its bracket by the right pier (x, y, z), facing the street. */
   lamp: Object.freeze([1.5, 2.06, 0.42]),
 });
@@ -230,10 +234,11 @@ function boards(lod, out) {
   }
 }
 
-/** The work outside (staffed): the client's stool, the basin on its stand with a towel, a jug. */
+/** The work outside (staffed): the client's stool, the basin on its stand with a towel, a jug, the cloth over the client. */
 function work(lod, out) {
   const [sx, sz, sh] = T.stool;
-  out.workWood.push(...stool(sx, sz, sh + 0.06, lod));
+  const seat = T.pavement + sh;
+  out.workWood.push(...stool(sx, sz, seat, lod));
   const b = basinStand(0.62, 1.0, { h: 0.84, r: 0.2, lod });
   out.workBronze.push(...b.stand, ...b.bowl);
   if (b.water) out.workWater.push(b.water);
@@ -241,49 +246,58 @@ function work(lod, out) {
     out.workLinen.push(...towel(0.62, 0.86, 0.79, { w: 0.24, drop: 0.3, d: 0.03 }));
     out.workClay.push(pot('amph', 0.98, 0.06, 1.25, 0.34, lod, 0.95));
   }
+  // The cloth over the client (tonstrinaActors: he sits still under it): a linen cape from his neck to
+  // below his knees, turned about him and drawn forward over his lap (its open hem faces the ground,
+  // which the camera never sees from below). At every level, as the client is.
+  const g = revolve(profileOf([[0.36, -0.1], [0.35, 0.1], [0.29, 0.34], [0.22, 0.5], [0.18, 0.58], [0.11, 0.64], [0.07, 0.66]]), {
+    segments: lod === 2 ? 8 : lod ? 12 : 20,
+    metres: 0.3,
+    deform: (q) => {
+      // (Its front pulled forward over the knees, more toward the hem.)
+      if (q.z > 0) q.z *= 1 + 1.25 * Math.max(0, 0.45 - q.y);
+    },
+    tint: (q) => 0.82 + 0.18 * Math.min(1, (q.y + 0.1) / 0.6),
+  });
+  out.workCloth.push(g.translate(sx, seat, sz + 0.04));
 }
 
-/** The people (only close up): the client under his cloth, the barber shaving him, one waiting, one talking. */
-function folk(mats) {
-  const list = [];
-  const linen = [];
-  const things = { iron: [] };
-  const [sx, sz, sh] = T.stool;
-  const seat = sh + 0.06;
-  // The client, seated facing the street, his head tipped back a little for the razor.
-  list.push(...person(mats, { cloth: 0x9a6a4a, hair: 0x2e2119, skin: 0xb08060, sit: seat, arms: 'lap', lean: -0.08 }, sx, 0, sz, 0));
-  // The cloth over him: a linen cape from his neck to below his knees, turned about him and drawn
-  // forward over his lap (its open hem faces the ground, which the camera never sees from below).
-  {
-    const g = revolve(profileOf([[0.4, -0.1], [0.38, 0.1], [0.32, 0.34], [0.25, 0.5], [0.2, 0.58], [0.12, 0.64], [0.07, 0.66]]), {
-      segments: 20,
-      metres: 0.3,
-      deform: (q) => {
-        // (Its front pulled forward over the knees, more toward the hem.)
-        if (q.z > 0) q.z *= 1 + 0.9 * Math.max(0, 0.45 - q.y);
-      },
-      tint: (q) => 0.82 + 0.18 * Math.min(1, (q.y + 0.1) / 0.6),
-    });
-    g.translate(sx, seat, sz + 0.04);
-    linen.push(g);
-  }
-  // The barber, behind him: his left hand on the client's brow, the razor at his cheek.
-  const bz = sz - 0.46;
-  const headY = seat + 0.08 - 0.86 + 1.6 + 0.06;
-  list.push(...person(mats, { cloth: 0xd8cdb4, hair: 0x4a3020, skin: 0xa87a58, arms: [[-0.07, headY + 0.1, 0.38], [0.1, headY - 0.04, 0.44]] }, sx, 0, bz, 0));
-  // The razor: an iron blade in his right hand at the cheek.
-  things.iron.push(box(0.012, 0.025, 0.1, sx + 0.12, headY - 0.06, sz - 0.03, 0.9));
-  // A man waiting on the left bench, his elbows on his knees; one standing by the right bench, talking.
-  list.push(...person(mats, { cloth: 0x6a7a5a, hair: 0x1e1812, skin: 0x9a6c4c, sit: 0.46, arms: 'chin', lean: 0.18 }, -1.55, 0.06, T.front + 0.2, 0.25));
-  list.push(...person(mats, { cloth: 0xb88a52, cloth2: 0xd8d0bc, hair: 0x5a3a20, skin: 0xb88a64, long: true, arms: 'orate' }, 1.25, 0.06, 1.35, -Math.PI * 0.62));
-  return { list, linen, things };
+/** The client's head's middle in his own frame as the shaved clip holds it (1.2 up, a hand behind his feet's place). */
+export const CLIENT_HEAD = Object.freeze([0, SHAVE.head[1], -0.105]);
+
+/**
+ * The barber's people while it is open (people/actors.js specs, the shop's
+ * metres): the client on his stool under the cloth, his head tipped back
+ * (shaved); the barber at his right side shaving him, his left hand on the
+ * client's head, the razor down the near cheek (shave: the clip's SHAVE.head
+ * is the client's head in the barber's frame, so the two are placed to
+ * meet); a man waiting his turn on the bench by the door; another on the
+ * pavement in his pallium, talking (the barber's was the town's news).
+ * Nobody while it is shut.
+ */
+export function tonstrinaActors(state) {
+  if (state !== 'open') return [];
+  const [sx, sz] = T.stool;
+  const y = T.pavement;
+  // The client faces the street (+z), his hips over the stool's middle (the seated clips put them 0.03 behind the feet's place).
+  const client = [sx, y, sz + 0.03];
+  const head = [client[0] + CLIENT_HEAD[0], y + CLIENT_HEAD[1], client[2] + CLIENT_HEAD[2]];
+  // The barber faces +x (ry pi/2): his ahead is the model's +x, his left its -z; the head is SHAVE.head in his frame.
+  const [hx, , hz] = SHAVE.head;
+  const barber = [head[0] - hz, y, head[2] + hx];
+  return [
+    { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'shaved', at: client, ry: 0, seed: 301, colours: { tunic: DYES.walnut } },
+    { body: 'm', dress: ['tunic:short'], hair: 'crop', beard: 'short', clip: 'shave', props: { R: 'razor' }, at: barber, ry: Math.PI / 2, seed: 302, colours: { tunic: DYES.undyed } },
+    // (The bench's top is SEAT_H over the pavement: the seated clips' feet on it.)
+    { body: 'm', dress: ['tunic:knee'], hair: 'curls', beard: 'full', clip: 'sit', at: [-1.55, y, T.front + 0.22], ry: 0.25, seed: 303, colours: { tunic: DYES.green } },
+    { body: 'm', dress: ['tunic:knee', 'pallium'], hair: 'crop', clip: 'talk', at: [1.4, y, 1.5], ry: -1.9, seed: 304, colours: { tunic: DYES.ochre, mantle: DYES.oatmeal } },
+  ];
 }
 
 /** Build the barber's: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
 export function buildTonstrina({ lod = 0, seed = 311 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const keys = ['flags', 'floor', 'shelter', 'trav', 'plaster', 'red', 'ochre', 'paint', 'tile', 'wood', 'dark', 'board', 'letters', 'gilt', 'iron', 'linen', 'terracotta',
-    'boardsOpen', 'boardsShut', 'workWood', 'workBronze', 'workWater', 'workLinen', 'workClay'];
+    'boardsOpen', 'boardsShut', 'workWood', 'workBronze', 'workWater', 'workLinen', 'workClay', 'workCloth'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   shell(lod, seed, out);
   street(lod, seed + 20, out);
@@ -321,6 +335,7 @@ export function buildTonstrina({ lod = 0, seed = 311 } = {}) {
   p.add('basin-water', m.paint, out.workWater.map((g) => tintGeometry(g, () => lin(0x6f8f8a))), { when: 'open', cast: false });
   p.add('work-towels', m.linen, out.workLinen, { when: 'open', cast: false });
   p.add('jug', m.clay, out.workClay, { when: 'open', cast: false });
+  p.add('cloth', m.linen, out.workCloth, { when: 'open', cast: false });
   if (lod < 2) {
     const [lx, ly, lz] = T.lamp;
     const l = lantern(lx, ly, lz, lod);
@@ -329,11 +344,6 @@ export function buildTonstrina({ lod = 0, seed = 311 } = {}) {
     p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
-  if (lod === 0) {
-    const { list, linen, things } = folk(m);
-    people(p, m, 'customers', list, 'open');
-    p.add('cloth', m.linen, linen, { when: 'open', cast: false });
-    p.add('razor', m.iron, things.iron, { when: 'open', cast: false });
-  }
+  // (The people are actors: tonstrinaActors.)
   return p.build();
 }

@@ -32,6 +32,8 @@ import {
 } from '../src/render3d/models/decor.js';
 import { gardenSeason, DESIGNS } from '../src/render3d/models/hortus.js';
 import { SIGNA } from '../src/render3d/models/signa.js';
+import { TOPIARIA, HEDGE, yardActors } from '../src/render3d/models/topiaria.js';
+import { poseAt, BONE } from '../src/render3d/people/clips.js';
 import { artState } from '../src/render/buildingArt.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 
@@ -285,13 +287,31 @@ test('decor3d: the arch\'s passage runs along its road, at either axis and every
   }
 });
 
+test('decor3d: the yard\'s gardener clips the hedge: his shears\' tips just into its face, along it, his grip clear of it', () => {
+  const g = yardActors('open').find((a) => a.clip === 'prune');
+  const [hx, hz] = TOPIARIA.hedge;
+  const face = hz + HEDGE.d / 2;
+  const local = new Matrix4().makeRotationY(g.ry).setPosition(...g.at);
+  for (let k = 0; k < 16; k++) {
+    const p = poseAt('prune', k / 16);
+    // (props.js shears: the blades' tips 0.17 along the prop's +y from the grip.)
+    const tip = new Vector3(0, 0.17, 0).applyMatrix4(p.world[BONE.propR]).applyMatrix4(local);
+    const grip = p.jointOf('propR').applyMatrix4(local);
+    assert.ok(tip.z < face && tip.z > face - 0.1, `the tips ${(face - tip.z).toFixed(3)} into the face`);
+    assert.ok(Math.abs(tip.x - hx) < HEDGE.w / 2 && tip.y > HEDGE.trough && tip.y < HEDGE.top, 'the tips on the hedge');
+    assert.ok(grip.z > face + 0.05, 'the grip clear of the hedge');
+  }
+});
+
 test('decor3d: the yard\'s states, and the lamps that light at night', () => {
   assert.equal(yardState({ efficiency: 0.4 }), 'open');
   assert.equal(yardState({ efficiency: 0 }), 'shut');
   const parts = [];
   MODELS.gardener_yard.build('gardener_yard', 0).traverse((o) => { if (o.isMesh) parts.push({ name: o.name, when: o.userData.when }); });
   const shownIn = (name, s) => parts.filter((p) => p.name.startsWith(name) && partShows(p.when, s, false)).length;
-  assert.ok(shownIn('gardener-', 'open') >= 2 && shownIn('gardener-', 'shut') === 0, 'a gardener at work only while staffed');
+  // The gardeners are actors (people/): at work only while staffed, none merged into the kit.
+  const people = (efficiency) => MODELS.gardener_yard.variant({ type: 'gardener_yard', efficiency }, { snow: 0 }, null).actors.actors.length;
+  assert.ok(people(1) >= 2 && people(0) === 0 && shownIn('gardener-', 'open') === 0, 'gardeners at work only while staffed');
   for (const n of ['gates', 'door', 'tools']) assert.ok(shownIn(n, 'open') === 1 && shownIn(n, 'shut') === 1, n);
   // The yard's lantern while staffed; the grand statue's lampstands while tended; the others none.
   const yard = { type: 'gardener_yard', size: 1, x: 0, y: 0, efficiency: 1 };

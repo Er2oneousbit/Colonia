@@ -26,15 +26,18 @@
  * in it whose jet plays, four marble statues, box-edged beds of flowers,
  * lemon trees in pots; at the back the triclinium under its own taller
  * gable and pediment, open on the garden between two marble columns, its
- * couches round the table; rooms either side of it.
+ * couches round the table toward the opening; rooms either side of it.
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  lived in: the doors and shutters open, the fountain playing,
- *           the governor at dinner with two guests, the lady walking in the
- *           garden, the servants about; the guard at the door; lamps lit
+ *           the governor at dinner with two guests reclined on the couches,
+ *           a piper playing to them, the lady and her daughter walking by
+ *           the pool, a gardener at work; the guard at the door; lamps lit
  *   'shut'  no servants: shut up, the fountain still, nobody
  *   'out'   trouble near: doors and shutters shut, the household indoors,
- *           the fountain playing, three guards at the door, the lamps lit
+ *           the fountain playing, three guards at the door and one on his
+ *           round in the garden, the lamps lit
+ * The people are actors (people/: praetoriumMaiusActors), moving on the GPU.
  *
  * Metres, the footprint's middle at the origin, y up, the street toward +z.
  * Levels of detail 0 to 2.
@@ -47,10 +50,12 @@ import { slab, TaggedParts } from './masonry.js';
 import { staff } from './castra.js';
 
 import {
-  govMaterials, guard, dressWall, box, D, lin, gable, slope, gableTri, rake, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, coping, slabs,
-  court, column, columnsRound, statue, threshold, rectPool, labrum, jet, couch, togate, servant, matron, addPeople, boxEdging, bedPlants, flowerBed, gardenTree,
-  lantern, lanternPane,
+  govMaterials, dressWall, box, D, lin, gable, slope, gableTri, rake, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, coping, slabs,
+  court, column, columnsRound, statue, threshold, rectPool, labrum, jet, couch, boxEdging, bedPlants, flowerBed, gardenTree, lantern, lanternPane,
+  guardActor, togateActor, servantActor, matronActor,
 } from './domus.js';
+import { DYES } from '../people/actors.js';
+import { DINE } from '../people/clips.js';
 
 /** The villa's measures (metres): the tests, the lab and the game read them. */
 export const PRAETORIUM_MAIUS = Object.freeze({
@@ -65,6 +70,12 @@ export const PRAETORIUM_MAIUS = Object.freeze({
   peri: Object.freeze({ top: 3.6, eave: 2.85, inner: Object.freeze([-5.6, 5.6, -2.4, 4.6]) }),
   /** The triclinium: its side walls' outer faces (|x|), its eave, the opening on the garden (half width, height). */
   tric: Object.freeze({ x: 2.6, eave: 4.3, open: Object.freeze([2.0, 3.45]) }),
+  /**
+   * The dining group in the triclinium, toward its opening on the garden:
+   * the round table's middle (z) and radius, the couches' length; the
+   * couches stand round it (DINING below), their tops at couch().
+   */
+  dine: Object.freeze({ z: -4.3, r: 0.5, len: 2.4 }),
   /** The pool in the garden (x, z, w, d) and the basin in it. */
   pool: Object.freeze([0, 1.25, 5.0, 2.1]),
   /** The street door: its half width and height. */
@@ -82,6 +93,23 @@ const ZF = V.front;
 const ZB = V.back;
 const ZR = V.range;
 const TX = V.tric.x;
+/** A couch's top over its foot (domus.js couch: the coverlet's top). */
+const COUCH_TOP = 0.69;
+/** The lemon trees' pots (z), at the garden's front corners. */
+const LEMON_Z = 3.6;
+/** The couch's depth (domus.js couch). */
+const COUCH_W = 0.95;
+/**
+ * The three couches round the table [x, z, ry]: across the back (the lectus
+ * medius) and down either side, each a hand from the table so a diner on
+ * his elbow reaches it (people/clips.js dine: his right hand to the table
+ * 0.55 before him); their fronts toward it.
+ */
+const DINING = Object.freeze([
+  Object.freeze([0, V.dine.z - V.dine.r - 0.45 - COUCH_W / 2, 0]),
+  Object.freeze([-(0.975 + COUCH_W / 2), V.dine.z + 0.4, Math.PI / 2]),
+  Object.freeze([0.975 + COUCH_W / 2, V.dine.z + 0.4, -Math.PI / 2]),
+]);
 
 /** The street front, the sides, the back, the porch, the pavement. */
 function walls(lod, seed, out) {
@@ -230,19 +258,20 @@ function triclinium(lod, seed, out) {
   }
   // Three couches round the table: across the back and down either side, coverlets of purple and saffron.
   const cY = FY;
-  const back = couch(0, ZB + T + 0.75, cY, 0, 2.4, lod, lin(0x6e1a3c));
-  const left = couch(-1.45, -5.0, cY, Math.PI / 2, 2.2, lod, lin(0xb07a20));
-  const right = couch(1.45, -5.0, cY, -Math.PI / 2, 2.2, lod, lin(0xb07a20));
-  for (const c of [back, left, right]) {
+  for (const [k, [x, z, ry]] of DINING.entries()) {
+    const c = couch(x, z, cY, ry, V.dine.len, lod, lin(k ? 0xb07a20 : 0x6e1a3c));
     out.inWood.push(...c.wood);
     out.cloth.push(...c.cloth);
   }
-  out.inMarble.push(tintGeometry(boxUV(new CylinderGeometry(0.42, 0.42, 0.05, lod ? 10 : 20, 1).translate(0, cY + 0.6, -5.3)), () => 0.95));
-  out.inMarble.push(tintGeometry(boxUV(new CylinderGeometry(0.06, 0.12, 0.58, lod ? 6 : 10, 1).translate(0, cY + 0.29, -5.3)), () => 0.9));
+  // The table, its top a little over the couches' (the diners reach down to it from their elbows).
+  const tz = V.dine.z;
+  const tY = cY + COUCH_TOP + 0.07;
+  out.inMarble.push(tintGeometry(boxUV(new CylinderGeometry(V.dine.r, V.dine.r, 0.05, lod ? 10 : 20, 1).translate(0, tY - 0.025, tz)), () => 0.95));
+  out.inMarble.push(tintGeometry(boxUV(new CylinderGeometry(0.07, 0.14, tY - 0.05 - cY, lod ? 6 : 10, 1).translate(0, cY + (tY - 0.05 - cY) / 2, tz)), () => 0.9));
   if (lod === 0) {
     // Dishes and a jug on the table.
-    for (const [x, z] of [[-0.15, -5.4], [0.18, -5.2], [0.0, -5.0]]) out.silver.push(tintGeometry(boxUV(new CylinderGeometry(0.1, 0.07, 0.03, 10, 1).translate(x, cY + 0.65, z))));
-    out.silver.push(tintGeometry(boxUV(new CylinderGeometry(0.04, 0.06, 0.2, 8, 1).translate(0.15, cY + 0.73, -5.55))));
+    for (const [x, z] of [[-0.18, -0.12], [0.2, 0.08], [0.0, 0.26]]) out.silver.push(tintGeometry(boxUV(new CylinderGeometry(0.1, 0.07, 0.03, 10, 1).translate(x, tY + 0.015, tz + z))));
+    out.silver.push(tintGeometry(boxUV(new CylinderGeometry(0.04, 0.06, 0.2, 8, 1).translate(0.15, tY + 0.1, tz - 0.25))));
   }
 }
 
@@ -289,34 +318,62 @@ function garden(lod, seed, out) {
   // Lemon trees in terracotta pots at the front corners of the garden.
   for (const s of [-1, 1]) {
     const x = s * 4.95;
-    const z = 3.6;
+    const z = LEMON_Z;
     out.clay.push(tintGeometry(boxUV(new CylinderGeometry(0.3, 0.22, 0.5, lod ? 8 : 14, 1).translate(x, gy + 0.25, z)), () => 0.9));
-    const t = gardenTree(x, gy + 0.45, z, 1.6, lod, seed + 50 + s);
+    // (Kept low, the crown's foot at the height a gardener's shears work: people/clips.js prune.)
+    const t = gardenTree(x, gy + 0.45, z, 1.4, lod, seed + 50 + s);
     out.wood.push(...t.wood);
     out.leaf.push(...t.leaf);
     if (lod === 0) {
       for (let k = 0; k < 7; k++) {
         const a = k * 0.9 + s;
-        out.flowers.push(box(0.07, 0.07, 0.07, x + Math.cos(a) * 0.42, gy + 1.42 + (k % 3) * 0.12, z + Math.sin(a) * 0.42, () => lin(0xe8c030)));
+        out.flowers.push(box(0.07, 0.07, 0.07, x + Math.cos(a) * 0.38, gy + 1.3 + (k % 3) * 0.11, z + Math.sin(a) * 0.38, () => lin(0xe8c030)));
       }
     }
   }
 }
 
-/** The household (lived in, close up): the governor at dinner with two guests, the lady and a girl in the garden, servants. */
-function household(m) {
-  const list = [];
+/**
+ * The villa's people (people/actors.js specs, its metres), by state. Lived
+ * in ('open'): the governor at dinner on the middle couch in the toga
+ * praetexta, a guest on each side couch, all reclined on the left elbow as
+ * Romans dined (the dine clip), a slave standing by the table with a dish,
+ * a girl playing the double pipes for them at the room's opening; in the
+ * garden the lady of the house and her daughter walking the length of the
+ * pool together, a gardener trimming a lemon tree; the guard at the door.
+ * Trouble near ('out'): the household indoors, three soldiers at the door,
+ * another walking his round past the pool. Nobody in a villa shut up.
+ */
+export function praetoriumMaiusActors(state) {
+  if (state === 'shut') return [];
+  const door = guardActor([1.55, 0.06, ZF + 0.55], 0.15, 601);
   const gy = FY - 0.08;
-  // The diners, sitting up on their couches toward the table (the reclining pose, simplified).
-  list.push(...togate(m, 0.0, FY + 0.12, ZB + T + 0.85, 0, { sit: 0.56, praetexta: true, arms: 'teach', hair: 0x3a2a1c }));
-  list.push(...togate(m, -1.35, FY + 0.12, -5.0, Math.PI / 2, { sit: 0.56, arms: 'lap', hair: 0x6a6058 }));
-  list.push(...togate(m, 1.35, FY + 0.12, -5.4, -Math.PI / 2, { sit: 0.56, arms: 'read', hair: 0x2a1e14 }));
-  list.push(...servant(m, 0.75, FY, -3.9, Math.PI - 0.6, { cloth: 0xc8b898, arms: 'hold' }));
-  // The lady of the house walking by the pool with a girl, a gardener at the beds.
-  list.push(...matron(m, -1.6, gy, 2.75, 0.4, { palla: 0x3f6584 }));
-  list.push(...matron(m, -0.95, gy, 2.95, -0.2, { palla: 0xb04a5a, cloth: 0xf0e6d0 }));
-  list.push(...servant(m, 2.6, gy, 3.4, 2.4, { cloth: 0x8a7a5a, arms: 'reach' }));
-  return list;
+  const walk = { length: 4.4, speed: 0.55, pauseEnd: 5, pauseStart: 5, faceEnd: Math.PI, faceStart: Math.PI };
+  if (state === 'out') {
+    return [
+      door, guardActor([-1.55, 0.06, ZF + 0.55], -0.15, 602), guardActor([4.4, 0.06, ZF + 0.55], 0.1, 603),
+      guardActor([-2.8, gy, 2.75], Math.PI / 2, 604, { clip: 'patrol', route: { ...walk, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard' } }),
+    ];
+  }
+  // A diner stands his feet DINE.top under the couch's top, at its front edge where his hips lie, facing the table.
+  const dy = FY + COUCH_TOP - DINE.top;
+  const front = ([x, z, ry], along) => [x + Math.sin(ry) * COUCH_W / 2 + Math.cos(ry) * along, dy, z + Math.cos(ry) * COUCH_W / 2 - Math.sin(ry) * along];
+  const [mid, left, right] = DINING;
+  const tz = V.dine.z;
+  return [
+    door,
+    togateActor(front(mid, -0.2), mid[2], 606, { praetexta: true, clip: 'dine', props: { L: 'cup' } }),
+    togateActor(front(left, 0.35), left[2], 607, { clip: 'dine', props: { L: 'cup' } }),
+    togateActor(front(right, -0.4), right[2], 608, { clip: 'dine', props: { L: 'cup' } }),
+    servantActor([0.25, FY, tz + V.dine.r + 0.42], Math.PI, 609, { clip: 'hold', props: { R: 'patera' } }),
+    // The piper at the room's opening, playing to the diners.
+    { body: 'f', dress: ['tunic:long'], hair: 'bun', clip: 'flute', props: { R: 'tibiae' }, at: [-1.3, FY - 0.1, V.peri.inner[2] + 0.35], ry: Math.PI + 0.25, seed: 610, colours: { tunic: DYES.saffron } },
+    // The lady and her daughter walking the pool's length together (in step: `sync`).
+    matronActor([-2.8, gy, 2.95], Math.PI / 2, 611, { clip: 'walk', sync: true, route: { ...walk, clipEnd: 'talk', clipStart: 'idle' }, colours: { tunic: DYES.white, mantle: DYES.woad, trim: DYES.oxblood } }),
+    { body: 'c', dress: ['tunic:long'], hair: 'bun', clip: 'walk', sync: true, at: [-2.8, gy, 2.52], ry: Math.PI / 2, seed: 612, route: { ...walk, speed: walk.speed / 0.78, length: walk.length / 0.78, clipEnd: 'listen', clipStart: 'idle' }, colours: { tunic: DYES.rose } },
+    // The gardener at a lemon tree in its pot.
+    servantActor([4.95, FY - 0.1, LEMON_Z - 0.82], 0, 613, { clip: 'prune', props: { R: 'shears' } }),
+  ];
 }
 
 /** Build the villa: { group, meshes, triangles }; meshes tagged in userData.when. Its peristyle's columns are not in it (government.js). */
@@ -397,12 +454,7 @@ export function buildPraetoriumMaius({ lod = 0, seed = 461 } = {}) {
   }
   p.add('lamp', lanternPane(), out.pane, { when: 'staffed', cast: false });
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
-  if (lod === 0) {
-    addPeople(p, m, 'household', household(m), 'open');
-    addPeople(p, m, 'guard', guard(m, 1.55, 0.06, ZF + 0.55, 0.15), 'staffed');
-    addPeople(p, m, 'guard-more', guard(m, -1.55, 0.06, ZF + 0.55, -0.15), 'out');
-    addPeople(p, m, 'guard-more', guard(m, 4.4, 0.06, ZF + 0.55, 0.1), 'out');
-  }
+  // (The household, the diners and the guard are actors: praetoriumMaiusActors.)
   return p.build();
 }
 

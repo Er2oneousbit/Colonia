@@ -1018,6 +1018,8 @@ async function main() {
       get figures() { return commerce.people.figures.map((f) => ({ ...f })); },
       stats: () => commerce.people.stats(),
       triangles: (l) => commerce.people.triangles(l),
+      /** One figure alone (its index; -1 everyone). */
+      solo: (i) => commerce.people.solo(i),
       setLod: (n) => setFountainLod(n),
     },
     /** The Walkers scene (labWalkers.js): a loop close up, the loops, the pass's stats, the level of detail. */

@@ -34,7 +34,8 @@
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed: the beacon's fire burning, the door open, the lantern
- *           lit, a sentry at the door and a sailor on the mole
+ *           lit, a sentry at the door, another on his round along the
+ *           quay, a sailor on the mole (actors, people/: statioActors)
  *   'shut'  no staff: the fire out (cold ash), the door shut, nobody
  *
  * Metres, the middle at the origin, y up, the water side toward +z (as
@@ -46,8 +47,8 @@ import { BoxGeometry, CylinderGeometry, BufferGeometry, Float32BufferAttribute }
 import { boxUV, tintGeometry, tube, revolve, profileOf } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, tuscanColumn, wallWithOpenings, lantern, lanternPane, inscription, TaggedParts } from './masonry.js';
-import { gableRoof, leanTo, doorLeaf, beam, D } from './rural.js';
-import { figureParts } from './figure.js';
+import { gableRoof, leanTo, doorLeaf, D } from './rural.js';
+import { DYES } from '../people/actors.js';
 import {
   HARBOUR, harbourMaterials, board, arcade, ashlar, bollard, mooringRing, waterSteps, pierFoam, oar, ropeCoil, liburnianHull,
 } from './harbour.js';
@@ -358,6 +359,25 @@ function tender(lod) {
   return out;
 }
 
+/**
+ * The station's people (people/actors.js specs, its metres facing +z;
+ * models/fleet.js turns them to the water) while it is manned: a marine
+ * on guard at the principia's door, another walking his round along the
+ * quay, a sailor of the fleet (a classiarius) carrying a sack out along
+ * the west mole to the boats and back. Nobody when it stands empty.
+ */
+export function statioActors(state) {
+  if (state !== 'open') return [];
+  const marine = { body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', props: { R: 'spear', L: 'scutum' }, colours: { tunic: DYES.madder, accent: DYES.madder, metal: 0x8a8c90 } };
+  return [
+    { ...marine, clip: 'guard', at: [S.hq.door + 0.95, S.top, S.hq.porchZ + 0.5], ry: 0.2, seed: 711 },
+    { ...marine, clip: 'patrol', at: [-4.7, S.top, S.quayZ - 0.6], ry: Math.PI / 2, seed: 712,
+      route: { length: 4.4, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard', faceEnd: 0, faceStart: 0 } },
+    { body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'carry', props: { L: 'sack' }, at: [(S.west[0] + S.west[1]) / 2 - 0.0, S.top - 0.02, S.quayZ + 0.8], ry: 0, seed: 713, colours: { tunic: DYES.sky },
+      route: { length: 4.4, speed: 0.75, pauseEnd: 2.5, pauseStart: 2.5, clipEnd: 'shoulder', clipStart: 'shoulder' } },
+  ];
+}
+
 /** Build the naval station: { group, meshes, triangles }. */
 export function buildStatio({ lod = 0, seed = 71, ice = false } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
@@ -412,13 +432,7 @@ export function buildStatio({ lod = 0, seed = 71, ice = false } = {}) {
     p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
-  // A sentry at the door and a sailor (a classiarius) on the west mole by a bollard.
-  if (lod === 0) {
-    const sentry = figureParts({ cloth: 0x7a3326, cloth2: 0x5a4a3a }, S.hq.door + 0.95, S.top, S.hq.porchZ + 0.55, 0.2);
-    for (const f of sentry) p.add(`sentry-${f.material.name}`, f.material, [f.g], { when: 'open' });
-    const sailor = figureParts({ cloth: 0x4a5a6a, reach: 0.7 }, S.west[1] - 0.75, S.top, 3.6, Math.PI / 2 + 0.3);
-    for (const f of sailor) p.add(`sailor-${f.material.name}`, f.material, [f.g], { when: 'open' });
-  }
+  // (The sentries and the sailor are actors: statioActors.)
   return p.build();
 }
 

@@ -21,11 +21,23 @@
  *   hammer    a mallet; chisel; coin
  *   beam      the handle of a pump's beam (the hands on its crossbar)
  *   sack      a sack carried on the shoulder
+ *   oar       a rowing frame's oar, rocked about its thole by clips.js row
+ *   gladius   the legionary's short sword
+ *   razor     the barber's novacula
+ *   pestle    a pestle for the physician's mortar
+ *   cup       a drinking cup
+ *   bow       the auxiliary archer's composite bow, its string drawn by the
+ *             other hand (its nock on propR)
+ *   arrow     an arrow on the string (propR: hidden, the bone at nothing,
+ *             once it is loosed)
+ *   crank     a windlass's crank, turned about its axle by clips.js windlass
+ *   shears    a gardener's spring shears
  * ----------------------------------------------------------------------------
  */
 
 import { Mesher, SLOTS, rigid } from './mesher.js';
 import { BONE, BONES } from './rig.js';
+import { ROW, WINDLASS, BOW } from './clips.js';
 
 const TAU = Math.PI * 2;
 
@@ -184,6 +196,105 @@ const PROPS = {
       const p = [Math.sin(th) * Math.sin(ph) * 0.13 * lump, 0.05 + Math.sin(th) * Math.cos(ph) * 0.09 * lump, Math.cos(th) * 0.28];
       return { p, c: [0, 0.05, p[2]], uv: [ph * 0.1, th * 0.1], w: W, slot: SLOTS.ROPE, tone: 0.8 + 0.2 * Math.cos(ph) };
     });
+  },
+  oar(m, lod, b) {
+    // A rowing frame's oar (clips.js ROW): from the handle's end along +y, the grip worn thin, the loom
+    // thick where it rides the thole, a shaft tapering to the blade, flat in the bone's x.
+    const L = ROW.oar;
+    lathe(m, [0, 0, 0], [0, 1, 0], [[0.018, 0], [0.019, 0.02], [0.019, 0.24], [0.032, 0.3], [0.036, 0.62], [0.03, 0.75], [0.022, L - 0.5]], SEG[lod], SLOTS.WOOD, b, { tone: (i) => (i < 3 ? 0.7 : 1) });
+    boxAt(m, [0, L - 0.25, 0], 0.13, 0.5, 0.016, SLOTS.WOOD, b, 0.92);
+  },
+  gladius(m, lod, b) {
+    // The short sword: its pommel and grip of bone in the fist, the guard, the blade along +y to its point.
+    lathe(m, [0, -0.07, 0], [0, 1, 0], [[0.022, 0], [0.026, 0.02], [0.014, 0.03], [0.015, 0.1], [0.032, 0.105], [0.032, 0.125], [0.006, 0.13]], SEG[lod], (i) => (i > 3 ? SLOTS.BRONZE : SLOTS.PAPYRUS), b, { tone: (i) => (i < 2 ? 0.8 : 1) });
+    const W = rigid(b);
+    // The blade: a flat diamond, its edges parallel, the long point.
+    const n = lod === 0 ? 6 : 3;
+    for (const face of [1, -1]) {
+      m.grid(n, 2, (i, j) => {
+        const y = 0.06 + (0.46 * i) / n;
+        const tip = i === n ? 0 : i === n - 1 ? 0.55 : 1;
+        const x = (j - 1) * 0.026 * tip;
+        return { p: [x, y, face * 0.006 * (j === 1 ? 1 : 0.2)], uv: [x, y], w: W, slot: SLOTS.IRON, tone: j === 1 ? 1.15 : 0.95 };
+      }, { flip: face < 0 });
+    }
+  },
+  razor(m, lod, b) {
+    // The novacula: a short handle, the broad blade beyond it.
+    lathe(m, [0, -0.04, 0], [0, 1, 0], [[0.009, 0], [0.009, 0.08]], Math.max(4, SEG[lod] - 4), SLOTS.WOOD, b);
+    boxAt(m, [0.012, 0.07, 0], 0.035, 0.06, 0.004, SLOTS.IRON, b, 1.15);
+  },
+  pestle(m, lod, b) {
+    // A pestle, its head down (-y) in the mortar.
+    lathe(m, [0, 0.06, 0], [0, -1, 0], [[0.012, 0], [0.014, 0.12], [0.024, 0.17], [0.022, 0.19], [0.001, 0.2]], SEG[lod], SLOTS.WOOD, b, { tone: (i) => (i > 2 ? 0.8 : 1) });
+  },
+  cup(m, lod, b) {
+    // A drinking cup (a poculum of silvered bronze): its foot, its bowl, open upward.
+    lathe(m, [0, -0.03, 0], [0, 1, 0], [[0.022, 0], [0.024, 0.006], [0.008, 0.012], [0.03, 0.03], [0.042, 0.07], [0.04, 0.075], [0.034, 0.072], [0.024, 0.04]], SEG[lod], SLOTS.BRONZE, b, { closed: false, tone: (i) => (i > 5 ? 0.6 : 1) });
+  },
+  bow(m, lod, b) {
+    // The composite bow of the auxiliary archers: limbs along y from the grip, recurved at the tips
+    // toward the target (+z), the string on the archer's side. The string's nock is skinned to the other
+    // hand's prop bone (propR, where clips.js shoot puts the drawing hand or the string at rest), so
+    // the string follows the draw: its rest place is that bone's.
+    const W = rigid(b);
+    const seg = Math.max(4, SEG[lod] - 4);
+    const n = lod === 0 ? 10 : 5;
+    const limb = (s) => {
+      const pts = [];
+      for (let k = 0; k <= n; k++) {
+        const u = k / n;
+        // (Out from the grip, bending back toward the archer as a strung bow does, the tips furthest back, the
+        // last fifth curling a little forward: a recurve. The tips end BOW.brace behind the grip, where the
+        // string is tied, so the string runs straight between them clear of the limbs.)
+        const y = s * (0.06 + 0.5 * u);
+        const z = -(BOW.brace + 0.02) * u ** 1.4 + 0.02 * Math.max(0, (u - 0.82) / 0.18) ** 2;
+        pts.push([0, y, z, 0.016 * (1 - 0.55 * u)]);
+      }
+      return pts;
+    };
+    for (const s of [1, -1]) {
+      const pts = [[0, 0, 0, 0.02], ...limb(s)];
+      m.grid(pts.length - 1, seg, (i, j) => {
+        const [x, y, z, r] = pts[i];
+        const ph = (TAU * j) / seg;
+        return { p: [x + Math.cos(ph) * r, y, z + Math.sin(ph) * r * 1.4], c: [x, y, z], uv: [ph * 0.02, y], w: W, slot: i < 2 ? SLOTS.LEATHER : SLOTS.WOOD, tone: i > pts.length - 3 ? 0.75 : 1 };
+      });
+    }
+    // The string: from each tip to the nock, a thin cord; the nock's ring on the drawing hand's bone.
+    const nock = BONES[BONE.propR].at.map((q, k) => q - BONES[BONE.propL].at[k]);
+    const NW = rigid('propR');
+    for (const s of [1, -1]) {
+      const tip = [0, s * 0.56, -BOW.brace];
+      m.grid(1, 4, (i, j) => {
+        const c = i === 0 ? tip : nock;
+        const ph = (TAU * j) / 4;
+        return { p: [c[0] + Math.cos(ph) * 0.0025, c[1], c[2] + Math.sin(ph) * 0.0025], c, uv: [j, i], w: i === 0 ? W : NW, slot: SLOTS.ROPE, tone: 1.1 };
+      });
+    }
+  },
+  arrow(m, lod, b) {
+    // An arrow from its nock (at the bone) along +z: the shaft, its fletching, the iron head.
+    lathe(m, [0, 0, 0], [0, 0, 1], [[0.004, 0], [0.004, 0.68]], 4, SLOTS.WOOD, b, { tone: () => 0.9 });
+    lathe(m, [0, 0, 0.68], [0, 0, 1], [[0.007, 0], [0.006, 0.03], [0.001, 0.06]], 4, SLOTS.IRON, b);
+    if (lod < 2) for (let k = 0; k < 3; k++) {
+      const a = (TAU * k) / 3;
+      boxAt(m, [Math.cos(a) * 0.008, Math.sin(a) * 0.008, 0.07], 0.002 + 0.01 * Math.abs(Math.cos(a)), 0.002 + 0.01 * Math.abs(Math.sin(a)), 0.09, SLOTS.WHITE, b, 0.9);
+    }
+  },
+  crank(m, lod, b) {
+    // A windlass's crank (clips.js WINDLASS): its arm from the axle (the bone, the axle along x) out
+    // along +y to the handle, the handle along -x where the hands hold it.
+    const A = WINDLASS.arm;
+    boxAt(m, [0.03, A / 2, 0], 0.04, A + 0.06, 0.05, SLOTS.WOOD, b, 0.85);
+    lathe(m, [0.05, A, 0], [-1, 0, 0], [[0.02, 0], [0.022, 0.08], [0.022, 0.4]], SEG[lod], SLOTS.WOOD, b, { tone: (i) => (i > 1 ? 0.72 : 0.9) });
+    lathe(m, [0.06, 0, 0], [-1, 0, 0], [[0.03, 0], [0.03, 0.06]], SEG[lod], SLOTS.IRON, b);
+  },
+  shears(m, lod, b) {
+    // Spring shears (forfex): two blades along +y joined by a bowed spring at the grip.
+    for (const s of [1, -1]) boxAt(m, [s * 0.008, 0.11, 0], 0.012, 0.12, 0.004, SLOTS.IRON, b, 1.1);
+    for (const s of [1, -1]) boxAt(m, [s * 0.012, 0.01, 0], 0.008, 0.1, 0.006, SLOTS.IRON, b, 0.85);
+    lathe(m, [0, -0.045, 0], [0, -1, 0], [[0.016, 0], [0.012, 0.012]], Math.max(4, SEG[lod] - 4), SLOTS.IRON, b, { tone: () => 0.8 });
   },
 };
 
