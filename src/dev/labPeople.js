@@ -28,6 +28,26 @@ import { cast } from '../render3d/people/actors.js';
 import { SEAT_H } from '../render3d/people/clips.js';
 import { DYES } from '../render3d/people/actors.js';
 
+/**
+ * People for another lab scene (the school, the senate, the forum, the watch
+ * house: their models' actors, as the game draws them): a batch in `group`;
+ * fill(lod, [[specs, x, z], ...]) draws each list of actor specs at (x, z).
+ */
+export function labCrowd(group) {
+  const batch = new PeopleBatch(group);
+  const m = new Matrix4();
+  return {
+    batch,
+    fill(lod, list) {
+      batch.begin(lod);
+      list.forEach(([specs, x, z], i) => {
+        if (specs.length) batch.add(cast(specs), m.makeTranslation(x, 0, z), i + 1);
+      });
+      batch.end();
+    },
+  };
+}
+
 /** The front row: bodies and dress. [name, note, spec]. */
 const DRESS = [
   ['Citizen', 'tunic to the knee, belted; short crop', { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'idle', colours: { tunic: DYES.oatmeal } }],

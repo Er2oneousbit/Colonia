@@ -14,7 +14,8 @@ import { material } from '../render3d/materials.js';
 import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { partShows } from '../render3d/models.js';
 import { EDUCATION_MODELS } from '../render3d/models/education.js';
-import { LUDUS } from '../render3d/models/ludus.js';
+import { LUDUS, schoolActors } from '../render3d/models/ludus.js';
+import { labCrowd } from './labPeople.js';
 
 /** Where each building stands (metres), what it shows, its label. */
 const ITEMS = [
@@ -84,6 +85,8 @@ export function buildLearningScene() {
   let lod = 0;
   /** Free a group's geometries (the look's materials are shared and kept). */
   const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
+  // The school's people, as the game draws them (models/ludus.js schoolActors).
+  const crowd = labCrowd(group);
   function build() {
     for (const it of holders) {
       for (const c of it.h.children) free(c);
@@ -92,6 +95,7 @@ export function buildLearningScene() {
       model.traverse((m) => { if (m.isMesh) m.visible = partShows(m.userData.when, it.state, false); });
       it.h.add(model);
     }
+    crowd.fill(lod, holders.filter((it) => it.kind === 'school').map((it) => [schoolActors(it.state), it.x, it.z]));
   }
   build();
   const labels = ITEMS.map((it) => ({ name: it.name, note: it.note, x: it.x - HALF[it.kind] + 0.5, z: it.z - HALF[it.kind] + 0.5, y: 4.6 }));
@@ -105,6 +109,7 @@ export function buildLearningScene() {
     fade: [-2, 0, 26, 32],
     lamp: LAMP,
     shadowBox: 24,
+    noAO: [crowd.batch.group],
     get lod() { return lod; },
     setLod(n) {
       if (n === lod) return;

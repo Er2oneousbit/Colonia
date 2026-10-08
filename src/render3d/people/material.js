@@ -70,7 +70,7 @@ function linear(hex) {
 }
 
 /** The tints of slots that take an instance's colour and shade it (the lips, the nails: the skin's, redder or paler). */
-const TINTS = { LIPS: [0.86, 0.6, 0.56], NAIL: [1.12, 1.02, 0.98], BROW: [0.8, 0.8, 0.8] };
+const TINTS = { LIPS: [0.8, 0.5, 0.47], NAIL: [1.12, 1.02, 0.98], BROW: [0.8, 0.8, 0.8] };
 
 /** The shared uniforms of every people material (the clips' table and the slots'), made once. */
 let SHARED = null;

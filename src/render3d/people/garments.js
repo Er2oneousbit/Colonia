@@ -416,7 +416,7 @@ export function palla(kind, lod, { veil = false } = {}) {
       return (0.004 + 0.012 * smooth(1.3, 0.6, y)) * folds(d, 7, [8, 13, 3]);
     },
     weightsAt: (x, y, z) => (y > 1.0 ? trunkWeights(x, y, z, { legs: 0.2, arms: 0.8 }) : skirtWeights(x, y, z)),
-    slot: (y) => (y < 0.6 ? SLOTS.TRIM : SLOTS.MANTLE),
+    slot: SLOTS.MANTLE,
     tone: (y, phi, f) => 0.86 + 4.5 * f + 0.05 * Math.cos(phi),
     hemWave: 0,
   });
@@ -668,7 +668,7 @@ export function wreath(kind, lod) {
     const { p: c } = headPoint(1.02 + 0.12 * Math.max(0, -Math.cos(phi)), phi, kind, 0.022, 0);
     const t = (TAU * j) / a;
     // Leaves: the band lumpy along it.
-    const r = 0.011 * (1 + (lod === 0 ? 0.45 * Math.abs(Math.sin(i * 2.7)) : 0));
+    const r = 0.0075 * (1 + (lod === 0 ? 0.6 * Math.abs(Math.sin(i * 2.7)) : 0));
     const ox = Math.sin(phi);
     const oz = Math.cos(phi);
     const p = [c[0] + ox * Math.cos(t) * r, c[1] + Math.sin(t) * r, c[2] + oz * Math.cos(t) * r];

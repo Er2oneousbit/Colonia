@@ -453,7 +453,7 @@ export function headPoint(theta, phi, kind = 'm', off = 0, carve = 1) {
   const dy = Math.cos(theta);
   const dz = Math.sin(theta) * Math.cos(phi);
   // An egg: rounder over the crown, longer down to the jaw.
-  const ry = dy > 0 ? 0.093 : 0.112;
+  const ry = dy > 0 ? 0.093 : 0.105;
   let x = 0.0745 * dx;
   let y = ry * dy;
   let z = 0.094 * dz;
@@ -461,7 +461,7 @@ export function headPoint(theta, phi, kind = 'm', off = 0, carve = 1) {
   if (dz < 0) z *= 1 + 0.06 * gauss((dy - 0.25) / 0.35);
   // The jaw narrowing toward the chin; the lower back drawn in toward the neck.
   const low = smooth(-0.05, -0.85, dy);
-  x *= 1 - 0.3 * low * F.jaw ** -0.5 * (kind === 'm' ? 0.85 : 1);
+  x *= 1 - 0.2 * low * F.jaw ** -0.5 * (kind === 'm' ? 0.85 : 1);
   if (dz < 0) z *= 1 - 0.42 * smooth(-0.15, -0.8, dy);
   // The face a little flatter than the skull's sphere, the cheeks' sides.
   if (dz > 0) z *= 1 - 0.06 * smooth(0.6, 1, dz) * (1 - low);
@@ -473,23 +473,24 @@ export function headPoint(theta, phi, kind = 'm', off = 0, carve = 1) {
     const front = smooth(0.15, 0.55, dz);
     let dzf = 0;
     // The eye sockets.
-    dzf -= 0.0105 * gauss(Math.hypot((ax - 0.031) / 0.017, (fy - 0.014) / 0.012)) * front;
+    dzf -= 0.0085 * gauss(Math.hypot((ax - 0.031) / 0.017, (fy - 0.014) / 0.012)) * front;
     // The brow's ridge over them.
     dzf += F.brow * gauss(Math.hypot((ax - 0.028) / 0.028, (fy - 0.034) / 0.008)) * front;
     // The nose: the bridge from between the eyes to the tip, wider at its wings.
     const ny = (0.018 - fy) / 0.05 / F.nose;
     if (ny > -0.2 && ny < 1.35) {
       const k = Math.min(1, Math.max(0, ny));
-      const reach = (0.004 + 0.02 * k ** 1.3) * F.nose * (ny > 1 ? Math.max(0, 1 - (ny - 1) / 0.35) ** 0.6 : 1);
-      const wide = 0.0075 + 0.006 * k ** 2;
+      // (Low at the bridge between the eyes, rising to the tip: not a ridge from the brow.)
+      const reach = (0.002 + 0.019 * k ** 1.7) * F.nose * (ny > 1 ? Math.max(0, 1 - (ny - 1) / 0.35) ** 0.6 : 1);
+      const wide = 0.009 + 0.007 * k ** 2;
       dzf += reach * gauss(fx / wide) * front;
       // The wings of the nostrils at its foot.
-      dzf += 0.006 * F.nose * gauss(Math.hypot((ax - 0.0135) / 0.006, (fy + 0.028 * F.nose + 0.006) / 0.006)) * front;
+      dzf += 0.0075 * F.nose * gauss(Math.hypot((ax - 0.014) / 0.007, (fy + 0.028 * F.nose + 0.006) / 0.006)) * front;
     }
     // Under the nose: the groove down to the lip (philtrum) and the lips.
     const my = -0.058;
-    dzf += 0.0042 * F.lips * gauss(Math.hypot(fx / 0.019, (fy - my - 0.006) / 0.0045)) * front;
-    dzf += 0.0046 * F.lips * gauss(Math.hypot(fx / 0.017, (fy - my + 0.0075) / 0.005)) * front;
+    dzf += 0.0052 * F.lips * gauss(Math.hypot(fx / 0.02, (fy - my - 0.0055) / 0.0045)) * front;
+    dzf += 0.0058 * F.lips * gauss(Math.hypot(fx / 0.018, (fy - my + 0.0075) / 0.0052)) * front;
     dzf -= 0.003 * gauss(Math.hypot(fx / 0.02, (fy - my + 0.0005) / 0.0017)) * front;
     // The corners of the mouth set in.
     dzf -= 0.003 * gauss(Math.hypot((ax - 0.022) / 0.006, (fy - my) / 0.006)) * front;
@@ -565,16 +566,18 @@ function eyes(m, kind, R) {
   const n = R.eye;
   for (const s of [1, -1]) {
     // Where the socket's floor is: the ball sits in it, its front just behind the lids' line.
-    const c = [HEAD_C[0] + s * 0.031, HEAD_C[1] + 0.012, HEAD_C[2] + 0.061];
-    const r = 0.0115;
+    const c = [HEAD_C[0] + s * 0.031, HEAD_C[1] + 0.012, HEAD_C[2] + 0.0645];
+    const r = 0.0122;
     m.grid(n, n + 2, (i, j) => {
       const theta = (Math.PI * i) / n;
       const phi = (TAU * j) / (n + 2);
       const d = [Math.sin(theta) * Math.sin(phi), Math.cos(theta), Math.sin(theta) * Math.cos(phi)];
       // Looking straight ahead, a hair inward (the eyes converge on what is before them).
       const look = d[2] * 0.995 - d[0] * s * 0.1;
-      const slot = look > 0.84 ? SLOTS.IRIS : SLOTS.EYE;
-      return { p: [c[0] + d[0] * r, c[1] + d[1] * r, c[2] + d[2] * r], c, uv: [0, 0], w: rigid('head'), slot, tone: look > 0.96 ? 0.35 : 1 };
+      const slot = look > 0.82 ? SLOTS.IRIS : SLOTS.EYE;
+      // (The upper lid's shadow over the ball's top: the eye reads under its brow, not staring.)
+      const lid = d[1] > 0.35 ? 0.45 : 1;
+      return { p: [c[0] + d[0] * r, c[1] + d[1] * r, c[2] + d[2] * r], c, uv: [0, 0], w: rigid('head'), slot, tone: (look > 0.96 ? 0.35 : 1) * lid };
     });
   }
 }
