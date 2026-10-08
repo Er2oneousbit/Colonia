@@ -44,8 +44,8 @@ export function drawnIn3D(type) {
 }
 
 /** Where a beast's halter is (its own frame), for the rope that leads it; where a pack mule's tail is tied to the next. */
-export const HALTER = Object.freeze({ mule: [0, 1.22, 1.16], horse: [0, 1.46, 1.24], ox: [0, 0.8, 1.3] });
-export const CRUPPER = Object.freeze([0, 1.05, -0.62]);
+export const HALTER = Object.freeze({ mule: [0, 1.22, 1.24], horse: [0, 1.48, 1.34], ox: [0, 0.8, 1.3] });
+export const CRUPPER = Object.freeze([0, 1.05, -0.7]);
 
 /** A colour from a CSS '#rrggbb'. */
 const hex = (css, fallback = 0xc9a86b) => (typeof css === 'string' && /^#[0-9a-f]{6}$/i.test(css) ? parseInt(css.slice(1), 16) : fallback);
@@ -175,7 +175,7 @@ function muleTrain(seed, leader, n, packs) {
   const figs = [leader];
   for (let k = 0; k < n; k++) {
     const good = packs[k % Math.max(1, packs.length)];
-    figs.push(beast('mule', ['pack'], { at: 'trail', gap: 1.95 + k * 2.05, side: 0.05 }, { ...coat('mule', seed + k), accent: good ? goodColour(good) : 0xb59a6a }));
+    figs.push(beast('mule', ['pack'], { at: 'trail', gap: 2.25 + k * 2.3, side: 0.05 }, { ...coat('mule', seed + k), accent: good ? goodColour(good) : 0xb59a6a }));
   }
   figs.push(rope(0, HAND, 1, HALTER.mule));
   for (let k = 1; k < n; k++) figs.push(rope(k, CRUPPER, k + 1, HALTER.mule));
@@ -364,9 +364,9 @@ function cartLook(w, seed, ctx) {
     if (!loaded) return [man];
     const n = Math.min(3, horsesLed(w.cargo.amount));
     const figs = [man];
-    for (let k = 0; k < n; k++) figs.push(beast('horse', [], { at: 'trail', gap: 2.1 + k * 2.3, side: 0 }, coat('horse', seed + k * 3)));
+    for (let k = 0; k < n; k++) figs.push(beast('horse', [], { at: 'trail', gap: 2.5 + k * 2.6, side: 0 }, coat('horse', seed + k * 3)));
     figs.push(rope(0, HAND, 1, HALTER.horse));
-    for (let k = 1; k < n; k++) figs.push(rope(k, [0, 1.15, -0.75], k + 1, HALTER.horse));
+    for (let k = 1; k < n; k++) figs.push(rope(k, [0, 1.2, -0.85], k + 1, HALTER.horse));
     return figs;
   }
   const n = loaded ? cargoLevel(w.cargo.amount, cartCapacity(origin, w.cargo.amount)) : 0;

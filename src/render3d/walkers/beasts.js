@@ -136,18 +136,18 @@ function heap(m, c, r, h, seg, slot, wt = STILL) {
  */
 const BEASTS = {
   mule: {
-    len: 1.15, y: 0.98, H: 0.27, W: 0.23, legTop: 0.95, legX: 0.125, front: 0.36, hind: -0.42, knee: [0.44, 0.5],
-    neck: [[0, 1.08, 0.36], [0, 1.27, 0.62], [0, 1.42, 0.84]], neckR: [0.17, 0.12, 0.09],
-    head: [[0, 1.45, 0.9], [0, 1.33, 1.1], [0, 1.17, 1.27]], headR: [0.1, 0.085, 0.066],
-    ears: 0.27, mane: 'roach', tail: [[0, 1.16, -0.6], [0, 0.95, -0.7], [0, 0.66, -0.72]], tailR: 0.032, tuft: 0.2,
-    legR: [0.075, 0.042], hoof: 0.05, swing: { walk: [0.32, 0.55], trot: [0.42, 0.85] },
+    len: 1.32, y: 0.98, H: 0.29, W: 0.25, legTop: 0.95, legX: 0.13, front: 0.42, hind: -0.48, knee: [0.44, 0.5],
+    neck: [[0, 1.08, 0.44], [0, 1.27, 0.7], [0, 1.42, 0.92]], neckR: [0.18, 0.13, 0.095],
+    head: [[0, 1.45, 0.98], [0, 1.33, 1.18], [0, 1.17, 1.35]], headR: [0.105, 0.09, 0.07],
+    ears: 0.24, mane: 'roach', tail: [[0, 1.16, -0.68], [0, 0.95, -0.78], [0, 0.66, -0.8]], tailR: 0.032, tuft: 0.2,
+    legR: [0.09, 0.048], hoof: 0.055, swing: { walk: [0.32, 0.55], trot: [0.42, 0.85] },
   },
   horse: {
-    len: 1.3, y: 1.08, H: 0.29, W: 0.24, legTop: 1.05, legX: 0.13, front: 0.42, hind: -0.48, knee: [0.5, 0.56],
-    neck: [[0, 1.2, 0.42], [0, 1.45, 0.68], [0, 1.66, 0.88]], neckR: [0.19, 0.13, 0.095],
-    head: [[0, 1.7, 0.94], [0, 1.56, 1.16], [0, 1.37, 1.36]], headR: [0.105, 0.09, 0.068],
-    ears: 0.13, mane: 'long', tail: [[0, 1.3, -0.68], [0, 1.08, -0.84], [0, 0.6, -0.9]], tailR: 0.06, tuft: 0,
-    legR: [0.085, 0.045], hoof: 0.055, swing: { walk: [0.34, 0.6], trot: [0.46, 0.95] },
+    len: 1.52, y: 1.1, H: 0.32, W: 0.27, legTop: 1.05, legX: 0.14, front: 0.5, hind: -0.56, knee: [0.5, 0.56],
+    neck: [[0, 1.22, 0.5], [0, 1.47, 0.78], [0, 1.68, 0.98]], neckR: [0.2, 0.14, 0.1],
+    head: [[0, 1.72, 1.04], [0, 1.58, 1.26], [0, 1.39, 1.46]], headR: [0.11, 0.095, 0.072],
+    ears: 0.13, mane: 'long', tail: [[0, 1.32, -0.78], [0, 1.1, -0.94], [0, 0.6, -1.0]], tailR: 0.065, tuft: 0,
+    legR: [0.1, 0.052], hoof: 0.062, swing: { walk: [0.34, 0.6], trot: [0.46, 0.95] },
   },
   ox: {
     len: 1.5, y: 0.95, H: 0.37, W: 0.31, legTop: 0.9, legX: 0.17, front: 0.5, hind: -0.55, knee: [0.4, 0.45],
@@ -298,9 +298,9 @@ export function buildBeast(kind, opts, lod) {
     box(m, [0, top + 0.01, -0.02], B.W * 2.1, 0.05, 0.6, SLOTS.MANTLE, STILL, 0.8);
     box(m, [0, top + 0.09, -0.02], 0.12, 0.12, 0.5, SLOTS.WOOD, STILL, 0.7);
     for (const s of [1, -1]) {
-      const c = [s * (B.W + 0.12), top - 0.08, -0.02];
-      tube(m, [[c[0], c[1] - 0.2, c[2]], [c[0], c[1] + 0.08, c[2]]], 0.16, { seg: Math.max(5, seg - 4), fx: 0.7, slot: SLOTS.ROPE, tone: () => 0.85, up: [0, 0, 1] });
-      heap(m, [c[0], c[1] + 0.1, c[2]], 0.13, 0.1, Math.max(5, seg - 4), SLOTS.ACCENT);
+      const c = [s * (B.W + 0.09), top - 0.1, -0.02];
+      tube(m, [[c[0], c[1] - 0.16, c[2]], [c[0], c[1] + 0.06, c[2]]], 0.125, { seg: Math.max(5, seg - 4), fx: 0.7, slot: SLOTS.ROPE, tone: () => 0.85, up: [0, 0, 1] });
+      heap(m, [c[0], c[1] + 0.07, c[2]], 0.105, 0.08, Math.max(5, seg - 4), SLOTS.ACCENT);
     }
     // The girth under the belly.
     tube(m, ringPts([0, B.y, -0.02], [0, 0, 1], B.W * 1.02, 12, B.H * 1.02), 0.018, { seg: 3, slot: SLOTS.LEATHER, caps: false });
@@ -308,7 +308,7 @@ export function buildBeast(kind, opts, lod) {
   if (opts.has('yoke')) {
     // The yoke across the neck before the withers, its bows round it.
     const n0 = B.neck[1];
-    tube(m, [[-0.45, n0[1] + 0.2, n0[2] - 0.05], [0, n0[1] + 0.26, n0[2] - 0.05], [0.45, n0[1] + 0.2, n0[2] - 0.05]], 0.05, { seg: Math.max(5, seg - 4), slot: SLOTS.WOOD, w: STILL });
+    tube(m, [[-0.33, n0[1] + 0.2, n0[2] - 0.05], [0, n0[1] + 0.26, n0[2] - 0.05], [0.33, n0[1] + 0.2, n0[2] - 0.05]], 0.05, { seg: Math.max(5, seg - 4), slot: SLOTS.WOOD, w: STILL });
     if (lod < 2) tube(m, ringPts([0, n0[1], n0[2] - 0.05], [0, 0, 1], B.neckR[1] * 0.9, 10, B.neckR[1] * 1.25), 0.016, { seg: 3, slot: SLOTS.WOOD, caps: false, w: nod });
   }
   return m;
@@ -456,7 +456,7 @@ export function buildCart(kind, lod) {
       for (const [hx] of C.horses) {
         for (const s of [1, -1]) {
           const from = [s * 0.11, C.floor + 1.08, 0.46];
-          const to = [hx + s * 0.05, 1.42, C.horses[0][1] + 1.3];
+          const to = [hx + s * 0.06, 1.47, C.horses[0][1] + 1.36];
           const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.12, (from[2] + to[2]) / 2];
           tube(m, [from, mid, to], 0.007, { seg: 3, slot: SLOTS.LEATHER, caps: false });
         }
