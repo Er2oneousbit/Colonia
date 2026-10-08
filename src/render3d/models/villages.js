@@ -97,6 +97,11 @@ function watchOf(game) {
   return w;
 }
 
+/** Forget what a game's villages were seen to be this tick (the console's `villages`, which changes them while paused). */
+export function forgetVillageWatch(game) {
+  WATCH.delete(game);
+}
+
 /** A piece's meeting place (itself for a meeting place), or null. */
 function meetingOf(b, game) {
   if (b.type === 'native_meeting') return b;
@@ -175,6 +180,14 @@ function flock(more, n, cells, seed, kinds, rot) {
 /** Move a flock to where it is at time `t` (s). */
 function moveFlock(f, t) {
   for (const e of f.slots) e.n = 0;
+  if (f.tether) {
+    // A tethered beast stays at its stake facing one way: it grazes, and now and then looks up.
+    const { x, z, yaw, ph } = f.tether;
+    const graze = Math.sin((t + ph) * 0.37) + 0.4 * Math.sin((t + ph) * 1.13) > -0.35 ? 1 : 0;
+    const e = f.which[0][graze];
+    put(e.mats, e.n++, x, z, yaw, 1);
+    return;
+  }
   herdPlaces(f.n, f.cells, f.seed, t, f.places, { pace: 0.22, still: 0.62 });
   for (let i = 0; i < f.n; i++) {
     const o = f.places[i];
@@ -248,7 +261,8 @@ function turned(a, rot) {
  * The hut's look from its id and its village: its form (the people's three,
  * the round and oval huts the commonest), its thatch's age, its door's turn
  * (toward its meeting place: a quarter turn, the hut itself a little off it),
- * what is in its yard and who works there.
+ * what is in its yard and who works there. (The men of a calm village are out
+ * at the flock, the plots and the meeting place; a hut's yard is the women's.)
  */
 export function hutLook(b, game, people) {
   const id = b.id ?? 0;
@@ -264,38 +278,45 @@ export function hutLook(b, game, people) {
   return {
     people, form, age: h(3) < 0.4 ? 1 : 0, q, jitter: (h(4) - 0.5) * 0.36,
     work: h(5) < 0.55 ? 'grind' : 'spin',
-    things: thingsOf(h),
-    man: h(7) < 0.5 ? 'mend' : 'herd',
+    things: thingsOf(h, form),
     child: h(8) < 0.55,
-    goats: h(9) < 0.4 ? 1 + Math.floor(h(10) * 2) : 0,
+    goat: h(9) < 0.35,
     crone: h(11) < 0.3,
   };
 }
 
-/** A hut's yard things beside its quern (two of them, by its id). */
-function thingsOf(h) {
-  const pool = ['woodpile', 'pots', 'rack', 'loom', 'chop', 'skep'];
+/**
+ * A hut's yard things beside its quern (two of them, by its id). Under the
+ * roundhouse's low eaves only the low things fit.
+ */
+function thingsOf(h, form) {
+  const pool = form === 'roundhouse' ? ['woodpile', 'pots', 'chop', 'skep'] : ['woodpile', 'pots', 'rack', 'loom', 'chop', 'skep'];
   const a = pool[Math.floor(h(12) * pool.length) % pool.length];
   let b = pool[Math.floor(h(13) * pool.length) % pool.length];
-  if (b === a) b = pool[(pool.indexOf(a) + 3) % pool.length];
+  if (b === a) b = pool[(pool.indexOf(a) + 2) % pool.length];
   return [a, b];
 }
 
 /**
- * The yard's places, the hut's door toward +z (all within its tile: the yard
- * turns by quarter turns only, which keeps a square in its tile):
- *   quern   where the grinder kneels (the quern is built ahead of her)
- *   door    by the door (a spinner, a man on guard)
- *   a, b    the two things' places; c a third (the hurdle the man mends)
+ * The yard's places, the hut's door toward +z, every form alike (all within
+ * its tile: the yard turns by quarter turns only, which keeps a square in its
+ * tile). Whoever stands stands in a front corner, past every form's eaves
+ * (the tests check them against each form's roof: tugurium.js HUT `eave`);
+ * the grinder kneels and the child squats under them.
+ *   quern   where the grinder kneels, facing the door's side (the quern ahead of her)
+ *   door    the front right corner (a spinner, a man on guard)
+ *   side    the front left corner (a woman listening, the old woman)
+ *   a, b    the two things' places, the back corners
  *   child   where a child squats at play
- *   pen     the goats' corner [x0, z0, x1, z1]
+ *   goat    a tethered goat's place and facing, by the back
  */
 export const YARD = Object.freeze({
-  quern: [-1.56, 1.12, Q], door: [0.72, 1.42, -2.6], a: [1.18, -1.22, Math.PI * 0.75], b: [-1.18, -1.26, -Math.PI * 0.75],
-  c: [1.5, 0.92, -Q], child: [0.15, 1.72, Math.PI], pen: [0.75, 0.95, 1.4, 1.4], herd: [1.0, 1.55, -2.2],
+  quern: [-1.12, 1.2, Q], door: [1.62, 1.58, -2.4], side: [-1.64, 1.62, 2.5],
+  a: [1.18, -1.22, Math.PI * 0.75], b: [-1.18, -1.26, -Math.PI * 0.75],
+  child: [0.2, 1.72, Math.PI], goat: [0.05, -1.62, -1.45],
 });
 
-/** Every look's hut kit at the hut's turn, its things, the hearth's smoke over the apex. */
+/** Every look's hut kit at the hut's turn, its things, the hearth's smoke over the apex, its goat. */
 function hutMore(L) {
   const rot = L.q * Q;
   const yaw = rot + L.jitter;
@@ -303,22 +324,33 @@ function hutMore(L) {
   const [ax, ay, az] = HUT[L.form].apex;
   const [sx, sz] = turn(ax, az, yaw);
   more.push({ key: 'vsmoke:hut', n: 1, mats: at(sx, sz, 0, 1, ay - 0.1), state: 'always' });
-  if (L.work === 'grind') {
-    const [x, z, r] = YARD.quern;
-    const [px, pz] = turn(x, z, rot);
-    more.push({ key: 'tugx:quern', n: 1, mats: at(px, pz, r + rot), state: 'always' });
-  }
-  for (const [k, name] of [['a', L.things[0]], ['b', L.things[1]]]) {
+  const place = (k, key) => {
     const [x, z, r] = YARD[k];
     const [px, pz] = turn(x, z, rot);
-    more.push({ key: `tugx:${name}`, n: 1, mats: at(px, pz, r + rot), state: 'always' });
-  }
-  if (L.man === 'mend') {
-    const [x, z, r] = YARD.c;
-    const [px, pz] = turn(x, z, rot);
-    more.push({ key: 'tugx:hurdle', n: 1, mats: at(px, pz, r + rot), state: 'always' });
-  }
+    more.push({ key, n: 1, mats: at(px, pz, r + rot), state: 'always' });
+  };
+  if (L.work === 'grind') place('quern', 'tugx:quern');
+  place('a', `tugx:${L.things[0]}`);
+  place('b', `tugx:${L.things[1]}`);
   return more;
+}
+
+/**
+ * A hut's tethered goat (one, as a hill family kept by its door): standing at
+ * its stake behind the hut, grazing and looking up in turn on the look's
+ * clock; its kits' slots for moveFlock (`tether`).
+ */
+function hutGoat(more, L, seed) {
+  const [x, z, r] = YARD.goat;
+  const rot = L.q * Q;
+  const [px, pz] = turn(x, z, rot);
+  const coat = Math.floor(hash01(seed, 0, 21) * GOAT_COATS.length);
+  const which = ['stand', 'graze'].map((pose) => {
+    const e = { key: `pecus:goat:${coat}:${pose}`, mats: new Float32Array(16), n: 0, state: 'always' };
+    more.push(e);
+    return e;
+  });
+  return { tether: { x: px, z: pz, yaw: r + rot, ph: hash01(seed, 7) * 30 }, which: [which], slots: which };
 }
 
 /** A hut's people in a state (actor specs in the tile's frame). */
@@ -326,39 +358,20 @@ export function hutActors(L, state, seed) {
   const rot = L.q * Q;
   const out = [];
   const p = L.people;
-  const away = state === 'war';
-  const roused = state === 'angry';
-  if (!roused) {
-    if (L.work === 'grind') {
-      const [x, z, r] = YARD.quern;
-      out.push(villager('woman', p, seed + 1, { clip: 'grind', props: { R: 'muller' }, at: [x, 0, z], ry: r }));
-    } else {
-      const [x, z, r] = YARD.door;
-      out.push(villager('woman', p, seed + 1, { clip: 'spin', props: { L: 'distaff', R: 'spindle' }, at: [x, 0, z], ry: r }));
-    }
-    if (L.child && !away) {
-      const [x, z, r] = YARD.child;
-      out.push(villager('child', p, seed + 3, { clip: 'play', at: [x, 0, z], ry: r }));
-    }
-    if (!away) {
-      if (L.man === 'mend') {
-        // At the hurdle by the wall, mending its withies.
-        const [x, z, r] = YARD.c;
-        const [dx, dz] = turn(0, 0.42, r);
-        out.push(villager('man', p, seed + 2, { clip: 'hammer', props: { L: 'chisel', R: 'hammer' }, at: [x + dx, 0, z + dz], ry: r + Math.PI }));
-      } else if (L.goats) {
-        const [x, z, r] = YARD.herd;
-        out.push(villager('man', p, seed + 2, { clip: 'lean', props: { R: 'crook' }, at: [x, 0, z], ry: r }));
-      }
-    } else if (L.crone) {
-      const [x, z, r] = YARD.herd;
-      out.push(villager('crone', p, seed + 4, { clip: 'listen', at: [x, 0, z], ry: r }));
-    }
+  const at3 = (k) => [YARD[k][0], 0, YARD[k][1]];
+  if (state === 'angry') {
+    // Roused: the man at his door's corner with his spear, his wife watching, the children kept in.
+    out.push(villager('man', p, seed + 2, { clip: 'guard', props: { R: 'spear' }, at: at3('door'), ry: YARD.door[2] + 0.3 }));
+    out.push(villager('woman', p, seed + 1, { clip: 'listen', at: at3('side'), ry: YARD.side[2] }));
   } else {
-    // Roused: the man at his door with his spear, his wife beside him, the children kept in.
-    const [x, z, r] = YARD.door;
-    out.push(villager('man', p, seed + 2, { clip: 'guard', props: { R: 'spear' }, at: [x, 0, z], ry: r + 0.3 }));
-    out.push(villager('woman', p, seed + 1, { clip: 'listen', at: [-0.75, 0, 1.55], ry: Math.PI * 0.85 }));
+    if (L.work === 'grind') out.push(villager('woman', p, seed + 1, { clip: 'grind', props: { R: 'muller' }, at: at3('quern'), ry: YARD.quern[2] }));
+    else out.push(villager('woman', p, seed + 1, { clip: 'spin', props: { L: 'distaff', R: 'spindle' }, at: at3('door'), ry: YARD.door[2] }));
+    // At war the children are kept in, the old woman watches the road the men took.
+    if (state === 'war') {
+      if (L.crone) out.push(villager('crone', p, seed + 4, { clip: 'listen', at: at3('side'), ry: YARD.side[2] }));
+    } else if (L.child) {
+      out.push(villager('child', p, seed + 3, { clip: 'play', at: at3('child'), ry: YARD.child[2] }));
+    }
   }
   return out.map((a) => turned(a, rot));
 }
@@ -366,7 +379,7 @@ export function hutActors(L, state, seed) {
 const HUT_CASTS = new Map();
 /** A hut's cast, kept by its look and state. */
 function hutCast(L, state, seed) {
-  const sig = `${L.people}|${L.form}|${L.q}|${L.work}|${L.man}|${L.child}|${L.goats}|${L.crone}|${state}|${seed}`;
+  const sig = `${L.people}|${L.form}|${L.q}|${L.work}|${L.child}|${L.crone}|${state}|${seed}`;
   let c = HUT_CASTS.get(sig);
   if (!c) {
     const list = hutActors(L, state, seed);
@@ -440,6 +453,8 @@ export function meetingActors(people, state, seed) {
     out.push(villager('woman', p, seed + 4, { clip: 'stir', props: { R: 'pestle' }, at: [cx, 0, cz], ry: toFire(cx, cz) }));
     // The herdsman by the fold, children at play by the fire, a woman bringing water.
     out.push(villager('man', p, seed + 5, { clip: 'lean', props: { R: 'crook' }, at: [1.1, 0, 1.25], ry: 0.6 }));
+    // A man mending the fold's gate hurdle, leaning open by the gap.
+    out.push(villager('man', p, seed + 12, { clip: 'hammer', props: { L: 'chisel', R: 'hammer' }, at: [0.58, 0, 2.35], ry: Q }));
     out.push(villager('child', p, seed + 6, { clip: 'play', at: [-0.55, 0, -0.75], ry: 0.4 }));
     out.push(villager('child', p, seed + 7, { clip: 'play', at: [-0.1, 0, -1.05], ry: -0.5 }));
     out.push(villager('woman', p, seed + 8, {
@@ -528,8 +543,18 @@ function plotCast(L, state, seed) {
 /** How long a piece's kept look is remembered unseen (frames). */
 const KEEP = 600;
 
-/** A memo per pass (ctx) by building id, pruned of the long unseen. */
+/**
+ * A memo per pass (ctx) by building id, pruned of the long unseen, and
+ * forgotten with the lamps when the pass draws another game (a new game or a
+ * load: the villages' ids start again at NATIVE_ID_BASE in every game).
+ */
 function memoOf(ctx) {
+  if (ctx.villageGame !== ctx.game) {
+    ctx.villageGame = ctx.game;
+    ctx.villageMemo = new Map();
+    HUT_LAMPS.clear();
+    MEET_LAMPS.clear();
+  }
   const memo = (ctx.villageMemo ??= new Map());
   if (ctx.frame % KEEP === 0 && memo.pruned !== ctx.frame) {
     memo.pruned = ctx.frame;
@@ -558,30 +583,23 @@ const HUT_ENTRY = Object.freeze({
     const state = villageState(b, game);
     const L = hutLook(b, game, people);
     const seed = seedOf(b);
-    const sig = `${people}|${L.form}|${L.age}|${L.q}|${L.jitter}|${L.work}|${L.things}|${L.man}|${L.goats}`;
+    const sig = `${people}|${L.form}|${L.age}|${L.q}|${L.jitter}|${L.work}|${L.things}|${L.goat}|${seed}`;
     let e = null;
     if (ctx && ctx.frame !== undefined && b.id !== null && b.id !== undefined) {
       const memo = memoOf(ctx);
       e = memo.get(b.id);
       if (!e || e.sig !== sig) {
         e = { sig, more: hutMore(L) };
-        if (L.goats) {
-          const [x0, z0, x1, z1] = YARD.pen;
-          e.flock = flock(e.more, L.goats, penCells([x0, z0, x1, z1], 2), seed, ['goat'], L.q * Q);
-        }
+        if (L.goat) e.flock = hutGoat(e.more, L, seed);
         memo.set(b.id, e);
       }
       e.seen = ctx.frame;
       if (e.flock) moveFlock(e.flock, ctx.clock || 0);
       HUT_LAMPS.set(b.id, [hutLamp(L)]);
     } else {
-      // A ghost or a look outside the game: built each time, the beasts standing.
+      // A ghost or a look outside the game: built each time, the beast at its clock's 0.
       e = { more: hutMore(L) };
-      if (L.goats) {
-        const [x0, z0, x1, z1] = YARD.pen;
-        const f = flock(e.more, L.goats, penCells([x0, z0, x1, z1], 2), seed, ['goat'], L.q * Q);
-        moveFlock(f, 0);
-      }
+      if (L.goat) moveFlock(hutGoat(e.more, L, seed), (ctx && ctx.clock) || 0);
     }
     return { key: 'tugurium:none', state: 'always', ice: false, more: e.more, actors: hutCast(L, state, seed) };
   },
@@ -598,7 +616,7 @@ const MEETING_ENTRY = Object.freeze({
     const q = meetingTurn(b);
     const month = ctx ? ctx.month : null;
     const seed = seedOf(b);
-    const sig = `${people}|${state}|${q}|${lookOf('oak', month)}`;
+    const sig = `${people}|${state}|${q}|${lookOf('oak', month)}|${seed}`;
     let e = null;
     if (ctx && ctx.frame !== undefined && b.id !== null && b.id !== undefined) {
       const memo = memoOf(ctx);
@@ -614,7 +632,7 @@ const MEETING_ENTRY = Object.freeze({
       MEET_LAMPS.set(b.id, [[x, 0.7, z, 1, 0], [x, 0.7, z, -1, 0]]);
     } else {
       e = meetingMore(people, state, q, month, seed);
-      moveFlock(e.flock, 0);
+      moveFlock(e.flock, (ctx && ctx.clock) || 0);
     }
     return { key: 'concilium:none', state: 'always', ice: false, more: e.more, actors: meetingCast(people, state, q, seed) };
   },

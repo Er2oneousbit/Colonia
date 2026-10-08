@@ -62,19 +62,27 @@ export const HUT_FORMS = Object.freeze({
 
 /**
  * Each form's measures: its door's middle on the ground (x, z: where the
- * door's lamp glows and people come out), the apex where its smoke rises
- * (x, y, z), and the spots round it in its frame where the yard's things go
- * ([x, z, turn]: `front` either side of the door, `side` and `back`), all
- * within 2 m of the middle.
+ * door's lamp glows), the apex where its smoke rises (x, y, z), and the roof's
+ * reach on the ground (`eave`: an oval rx x rz about (0, cz), or with `rect`
+ * the half sizes of a rectangle, `porch` a second one), which nobody standing
+ * in the yard may be under (models/villages.js YARD; the tests check it).
  */
 export const HUT = Object.freeze({
-  round: { door: [0, 1.2], apex: [0, 3.48, -0.15], spots: { frontL: [-1.05, 1.45, 0.5], frontR: [1.15, 1.35, -0.6], side: [-1.62, -0.2, 1.57], back: [0.9, -1.55, Math.PI] } },
-  oval: { door: [0, 1.08], apex: [0, 3.2, -0.08], spots: { frontL: [-1.0, 1.4, 0.4], frontR: [1.1, 1.3, -0.5], side: [-1.5, 0.9, 1.0], back: [1.05, -1.4, Math.PI] } },
-  stone: { door: [0, 1.02], apex: [0.85, 2.85, 0], spots: { frontL: [-1.0, 1.55, 0.2], frontR: [1.05, 1.5, -0.3], side: [-1.62, 0.1, Math.PI / 2], back: [-0.6, -1.55, Math.PI] } },
-  capanna: { door: [0, 1.2], apex: [0.62, 3.05, 0], spots: { frontL: [-1.15, 1.45, 0.4], frontR: [1.2, 1.4, -0.4], side: [-1.7, 0.15, Math.PI / 2], back: [0.8, -1.55, Math.PI] } },
-  roundhouse: { door: [0, 1.5], apex: [0, 3.5, 0], spots: { frontL: [-1.05, 1.55, 0.6], frontR: [1.1, 1.5, -0.6], side: [-1.75, -0.4, 1.5], back: [0.75, -1.75, Math.PI] } },
-  longhut: { door: [0, 1.0], apex: [0.75, 2.75, 0], spots: { frontL: [-1.0, 1.5, 0.2], frontR: [1.1, 1.45, -0.3], side: [-1.7, 0.2, Math.PI / 2], back: [0.5, -1.55, Math.PI] } },
+  round: { door: [0, 1.2], apex: [0, 3.48, -0.15], eave: { rx: 1.8, rz: 1.8, cz: -0.15 } },
+  oval: { door: [0, 1.08], apex: [0, 3.2, -0.08], eave: { rx: 1.93, rz: 1.55, cz: -0.08 } },
+  stone: { door: [0, 1.02], apex: [0.85, 2.85, 0], eave: { rect: [1.4, 1.27] } },
+  capanna: { door: [0, 1.2], apex: [0.62, 3.05, 0], eave: { rx: 1.91, rz: 1.47, cz: 0, porch: [0.7, 1.77] } },
+  roundhouse: { door: [0, 1.5], apex: [0, 3.5, 0], eave: { rx: 1.95, rz: 1.95, cz: 0 } },
+  longhut: { door: [0, 1.0], apex: [0.75, 2.75, 0], eave: { rect: [1.53, 1.22] } },
 });
+
+/** Is the point (x, z) of a hut's frame under its roof (`margin` metres round it counted in)? */
+export function underEave(form, x, z, margin = 0) {
+  const e = HUT[form].eave;
+  if (e.rect) return Math.abs(x) < e.rect[0] + margin && Math.abs(z) < e.rect[1] + margin;
+  if (e.porch && Math.abs(x) < e.porch[0] + margin && z < e.porch[1] + margin && z > 0) return true;
+  return (x / (e.rx + margin)) ** 2 + ((z - e.cz) / (e.rz + margin)) ** 2 < 1;
+}
 
 /** The things of a hut's yard (yardThing). */
 export const YARD_THINGS = Object.freeze(['quern', 'woodpile', 'pots', 'rack', 'loom', 'chop', 'hurdle', 'skep']);

@@ -223,3 +223,36 @@ test('villages3d: the grinder\'s hands are on the quern\'s upper stone through h
     }
   }
 });
+
+test('villages3d: whoever stands in a hut\'s yard stands clear of every form\'s roof; the beasts keep on their footprints as they move', async () => {
+  const { hutActors, YARD } = await import('../src/render3d/models/villages.js');
+  const { underEave, HUT } = await import('../src/render3d/models/tugurium.js');
+  for (const form of Object.keys(HUT)) {
+    for (const state of STATES) {
+      for (const work of ['grind', 'spin']) {
+        const L = { people: 'native', form, q: 0, jitter: 0, work, child: true, crone: true };
+        for (const a of hutActors(L, state, 9)) {
+          if (a.clip === 'grind' || a.clip === 'play') continue;
+          // (The hut itself turns up to 0.18 off the yard's quarter turn: hutLook's jitter.)
+          for (const j of [-0.18, 0, 0.18]) {
+            const c = Math.cos(-j);
+            const s = Math.sin(-j);
+            const x = a.at[0] * c + a.at[2] * s;
+            const z = -a.at[0] * s + a.at[2] * c;
+            assert.ok(!underEave(form, x, z, 0.2), `${form} ${state}: ${a.clip} at ${a.at[0]}, ${a.at[2]} under the roof`);
+          }
+        }
+      }
+    }
+  }
+  assert.ok(YARD.door && YARD.side);
+  // The flocks at several moments: the fold's and a tethered goat's.
+  const v = village('ligurian', 'calm');
+  const pieces = [v.m, ...HUTS.map(([x, y], i) => v.hut(MID + 1 + i, x, y))];
+  for (const clock of [0, 7.3, 41.9, 123.4]) {
+    for (const b of pieces) {
+      const { group } = villageLook(b, 1, { game: v.game, month: 5, clock });
+      fits(group, b.size, `${b.type} ${b.id} at ${clock} s`);
+    }
+  }
+});

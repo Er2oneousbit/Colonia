@@ -1064,7 +1064,6 @@ async function main() {
       stats: () => commerce.ships.stats(),
       setLod: (n) => setFountainLod(n),
     },
-    /** The Army scene (labUnits.js): a cell close up, the cells, the pass's stats, the level of detail. */
     /** The Villages scene (labVillages.js): a village's place, its pieces, the month, the level of detail. */
     villages: {
       where: (i) => commerce.villages.where(i),
@@ -1074,6 +1073,7 @@ async function main() {
       setLod: (n) => setFountainLod(n),
       triangles: (l) => commerce.villages.triangles(l),
     },
+    /** The Army scene (labUnits.js): a cell close up, the cells, the pass's stats, the level of detail. */
     army: {
       closeUp: (i, o) => closeUp(i, o),
       get cells() { return commerce.army.cells.map((c) => ({ ...c })); },
