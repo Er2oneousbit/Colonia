@@ -316,7 +316,7 @@ export function academyActors(state) {
   });
   // The archers behind the line (z 0), each loosing at his butt.
   C.butts.forEach(([bx, bz], i) => {
-    const at = [bx + 0.1 * (i ? -1 : 1), 0.03, 0.45];
+    const at = [bx + 0.1 * (i ? -1 : 1), 0.03, 0.3];
     list.push(soldier('archer', { clip: 'shoot', props: { L: 'bow', R: 'arrow' }, at, ry: Math.atan2(bx - at[0], bz - at[2]), seed: 58 + i }));
   });
   // The trooper at the ring horse's head (RING_HORSE: it faces its own +z), holding it; a comrade beside him.
@@ -327,7 +327,7 @@ export function academyActors(state) {
   const face = Math.atan2(hp.x - head.x, hp.z - head.z);
   const trooper = (extra) => ({ ...soldier('cavalry', extra), dress: ['tunic:knee', 'caligae', 'helmet'], props: {} });
   list.push(trooper({ clip: 'hold', at: [head.x, 0.03, head.z], ry: face, seed: 60 }));
-  const mate = head.clone().addScaledVector(side, 0.85).addScaledVector(fwd, 0.2);
+  const mate = head.clone().addScaledVector(side, -0.75).addScaledVector(fwd, 0.45);
   list.push(trooper({ clip: 'talk', at: [mate.x, 0.03, mate.z], ry: Math.atan2(head.x - mate.x, head.z - mate.z), seed: 61 }));
   return list;
 }
