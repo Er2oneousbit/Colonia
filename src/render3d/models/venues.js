@@ -42,10 +42,13 @@ import { cast, NOBODY, DYES, hash01 } from '../people/actors.js';
 import { buildCrowdGroup, CROWD_VARIANTS } from './venue.js';
 import { buildTheatrum, theatrumSeats, THEATRUM_LAMPS } from './theatrum.js';
 import { buildAmphitheatrum, buildAmphitheatrumStage, amphitheatrumSeats, AMPHITHEATRUM_LAMPS } from './amphitheatrum.js';
-import { theaterActors, amphitheaterActors } from './venueActors.js';
+import { buildArena, arenaSeats, ARENA_LAMPS } from './arena.js';
+import { buildCircus, buildLapCounter, circusSeats, circusLamps, LAP_PLACES } from './circus.js';
+import { lapsNow, leaderU } from './venueShow.js';
+import { theaterActors, amphitheaterActors, colosseumActors, hippodromeActors } from './venueActors.js';
 
 /** The venue types drawn as models. */
-export const VENUE_TYPES = Object.freeze(['theater', 'amphitheater']);
+export const VENUE_TYPES = Object.freeze(['theater', 'amphitheater', 'colosseum', 'hippodrome', 'hippodrome_part']);
 
 /** The game a venue was last drawn in (lamps are asked of the building alone: modelLamps). */
 let lastGame = null;
@@ -126,7 +129,7 @@ function seatsOf(type, section = 0) {
   const key = `${type}:${section}`;
   let s = SEATS.get(key);
   if (!s) {
-    s = type === 'theater' ? theatrumSeats() : type === 'amphitheater' ? amphitheatrumSeats() : [];
+    s = type === 'theater' ? theatrumSeats() : type === 'amphitheater' ? amphitheatrumSeats() : type === 'colosseum' ? arenaSeats() : type === 'hippodrome' ? circusSeats(section) : [];
     SEATS.set(key, s);
   }
   return s;
@@ -141,13 +144,18 @@ const MOODS = 16;
  * Is the group at seat `i` (`s` its seat) on its feet in mood `m`? A theatre
  * applauds now and then; an arena's crowd jumps up as the blows land.
  */
-function standing(type, i, s, m) {
+function standing(type, i, s, m, section) {
   const h = hash01(i, m, 7);
   if (type === 'theater') return m >= 13 ? h < 0.55 : h < 0.04;
+  // The circus: on their feet where the chariots are passing (m: the leader's place, half tiles along the track).
+  if (type === 'hippodrome') {
+    const U = (s[0] + 10 + section * 20) / 4;
+    return Math.abs(U - m / 2) < 1.8 ? hash01(i, 9) < 0.55 : h < 0.05;
+  }
   // A wave of excitement round the arena, and some on their feet all the time.
   const th = Math.atan2(s[2], s[0]);
   const wave = Math.sin(th * 2 - (m / MOODS) * Math.PI * 4);
-  return h < 0.12 + Math.max(0, wave) * 0.4;
+  return h < 0.05 + Math.max(0, wave) ** 3 * 0.35;
 }
 
 /**
@@ -166,7 +174,7 @@ export function crowdMore(type, section, fill, m) {
   seatsOf(type, section).forEach((s, i) => {
     // Filled in from the front (the best seats go first) by the seat's own number.
     if (hash01(i, 3) * FILL_STEPS >= fill) return;
-    const pose = standing(type, i, s, m) ? 'up' : 'sit';
+    const pose = standing(type, i, s, m, section) ? 'up' : 'sit';
     const variant = Math.floor(hash01(i, 5) * CROWD_VARIANTS) % CROWD_VARIANTS;
     const rise = s[5] ?? 0.33;
     const key = `crowd:${pose}:${s[4]}:${variant}:${Math.round(rise * 100)}`;
@@ -186,7 +194,8 @@ export function crowdMore(type, section, fill, m) {
 /** A venue's crowd now: none unless a show is on; its mood by the game's clock. */
 function crowdNow(type, section, state, game, ctx) {
   if (state !== 'open') return [];
-  const m = Math.floor(showTick(ctx) / BEAT_TICKS) % MOODS;
+  const tick = showTick(ctx);
+  const m = type === 'hippodrome' ? Math.round(leaderU(tick) * 2) : Math.floor(tick / BEAT_TICKS) % MOODS;
   return crowdMore(type, section, venueFill(game, type), m);
 }
 
@@ -194,14 +203,14 @@ function crowdNow(type, section, state, game, ctx) {
 // The people
 // ---------------------------------------------------------------------------
 
-const ACTORS = { theater: theaterActors, amphitheater: amphitheaterActors };
+const ACTORS = { theater: theaterActors, amphitheater: amphitheaterActors, colosseum: colosseumActors, hippodrome: hippodromeActors };
 const CASTS = new Map();
 /** A venue's people by its state and its acts (models/venueActors.js), packed once. */
-export function venueCast(type, state, acts) {
-  const sig = `${type}|${state}|${actsKey(acts)}`;
+export function venueCast(type, state, acts, section = 0) {
+  const sig = `${type}|${section}|${state}|${actsKey(acts)}`;
   let c = CASTS.get(sig);
   if (!c) {
-    const list = ACTORS[type] ? ACTORS[type](state, acts) : [];
+    const list = ACTORS[type] ? ACTORS[type](state, acts, section) : [];
     c = list.length ? cast(list) : NOBODY;
     CASTS.set(sig, c);
   }
@@ -232,6 +241,72 @@ function moreOf(type, section, state, acts, game, ctx) {
   return m.list;
 }
 
+/** A hippodrome's section: 0 its main (the curved end), else the part's own (1 the middle, 2 the gates); a ghost's from the plan. */
+export function sectionOf(b) {
+  if (b.main) return b.section || 1;
+  return b.section || 0;
+}
+
+/** The eggs and dolphins on section 1's spina for `laps` counted: the eggs still up, the dolphins turned head down one a lap. */
+const LAPS = new Map();
+export function circusLaps(laps) {
+  let list = LAPS.get(laps);
+  if (list) return list;
+  const m = new Matrix4();
+  const r = new Matrix4();
+  const eggs = [];
+  const up = [];
+  const down = [];
+  LAP_PLACES.eggs.forEach(([x, y, z], i) => { if (i >= laps) eggs.push(...m.makeTranslation(x, y, z).elements); });
+  LAP_PLACES.dolphins.forEach(([x, y, z], i) => {
+    m.makeTranslation(x, y, z);
+    if (i < laps) m.multiply(r.makeRotationZ(1.1));
+    (i < laps ? down : up).push(...m.elements);
+  });
+  list = Object.freeze([
+    ...(eggs.length ? [Object.freeze({ key: 'hippodrome:egg', n: eggs.length / 16, mats: new Float32Array(eggs), state: 'always' })] : []),
+    Object.freeze({ key: 'hippodrome:dolphin', n: 7, mats: new Float32Array([...down, ...up]), state: 'always' }),
+  ]);
+  LAPS.set(laps, list);
+  return list;
+}
+
+/** The hippodrome's sections' entry (both types): each section its own kit, the main's state and acts. */
+function circusEntry() {
+  const builds = {};
+  for (let k = 0; k < 3; k++) builds[`hippodrome:s${k}`] = (o) => buildCircus(k, o);
+  builds['hippodrome:egg'] = (o) => buildLapCounter('egg', o);
+  builds['hippodrome:dolphin'] = (o) => buildLapCounter('dolphin', o);
+  const lamps = [0, 1, 2].map((k) => circusLamps(k));
+  const joined = new Map();
+  return Object.freeze({
+    variant: (b, place, ctx) => {
+      const game = ctx ? ctx.game : null;
+      if (game) lastGame = game;
+      const k = sectionOf(b);
+      const state = venueState(b, game);
+      const acts = venueActs(b, game);
+      let more = crowdNow('hippodrome', k, state, game, ctx);
+      if (k === 1) {
+        // The laps counted in the race now running (none idle: every egg up, every dolphin level).
+        const laps = state === 'open' && acts.races ? lapsNow(showTick(ctx)) : 0;
+        const counters = circusLaps(laps);
+        const sig = `${laps}`;
+        let j = joined.get(more);
+        if (!j || j.sig !== sig) {
+          j = { sig, list: Object.freeze([...more, ...counters]) };
+          joined.set(more, j);
+        }
+        more = j.list;
+      }
+      return { key: `hippodrome:s${k}`, state, ice: false, more, actors: venueCast('hippodrome', state, acts, k) };
+    },
+    warm: ['hippodrome:s0', 'hippodrome:s1', 'hippodrome:s2', 'hippodrome:egg', 'hippodrome:dolphin', 'crowd:sit:toga:0:32', 'crowd:up:plebs:1:32'],
+    lamps: (b) => (venueState(b, lastGame) === 'open' ? lamps[sectionOf(b)] : []),
+    build: (key, lod) => (builds[key] || builds['hippodrome:s0'])({ lod }).group,
+  });
+}
+
 /** One venue's entry of MODELS: `builds` its kits by key (its own, and its parts by `type:part`). */
 function entry(type, builds, lamps, warm = []) {
   return Object.freeze({
@@ -252,6 +327,9 @@ function entry(type, builds, lamps, warm = []) {
 export const VENUE_MODELS = Object.freeze({
   theater: entry('theater', { theater: buildTheatrum }, THEATRUM_LAMPS),
   amphitheater: entry('amphitheater', { amphitheater: buildAmphitheatrum, 'amphitheater:stage': buildAmphitheatrumStage }, AMPHITHEATRUM_LAMPS, ['amphitheater:stage']),
+  colosseum: entry('colosseum', { colosseum: buildArena }, ARENA_LAMPS),
+  hippodrome: circusEntry(),
+  hippodrome_part: circusEntry(),
 });
 
 /** A crowd group by its key: `crowd:<pose>:<band>:<variant>:<rise cm>`. */
@@ -273,7 +351,7 @@ export const VENUE_PARTS = Object.freeze({
 export function venueLook(type, lod, { state = 'open', acts = null, fill = FILL_STEPS, mood = 0, section = 0, shows = null } = {}) {
   const g = new Group();
   const def = VENUE_MODELS[type];
-  const own = def.build(type, lod);
+  const own = def.build(type.startsWith('hippodrome') ? `hippodrome:s${section}` : type, lod);
   own.traverse((o) => { if (o.isMesh) o.userData.state = state; });
   g.add(own);
   const a = acts || { play: true, bouts: true, hunt: true, races: true };

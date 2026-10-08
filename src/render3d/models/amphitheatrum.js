@@ -244,7 +244,7 @@ export function buildAmphitheatrum({ lod = 0 } = {}) {
   lights(lod, p, M);
   // Masts round the top, and the awning over the upper tier on show days.
   const masts = lod === 2 ? 12 : 20;
-  velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: OUT - 0.06, dIn: OUT - 1.05, y0: TOP.y - 0.5, yTop: TOP.y + TOP.par + 1.05, drop: 0.28, lod, closed: true, stripes: 40 });
+  velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: OUT - 0.06, dIn: OUT - 0.75, y0: TOP.y - 0.5, yTop: TOP.y + TOP.par + 0.95, drop: 0.2, lod, closed: true, stripes: 64 });
   // The ground round it: flags at the stair's foot.
   p.add('paving', M.flags, box(7.2, 0.025, 6 - zFront - 0.02, 0, 0, (6 + zFront) / 2, 0.96));
   return p.build();

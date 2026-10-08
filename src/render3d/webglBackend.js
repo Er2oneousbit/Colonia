@@ -89,6 +89,7 @@ import { gpuOf, isSoftwareGpu } from '../render/perf.js';
 import { WalkerPass } from './walkers/pass.js';
 import { ShipPass } from './ships/pass.js';
 import { UnitPass } from './units/pass.js';
+import { venueShows } from './models/venueShow.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -859,7 +860,11 @@ export class WebGLBackend {
     let ships = 0;
     if (this.drawsShips) ships = this.ships.end();
     else this.ships.hide();
-    if (this.drawsUnits) walkers += this.units.end();
+    if (this.drawsUnits) {
+      // The venues' shows: their gladiators, the hunt, the race, as made-up units with the real ones (models/venueShow.js).
+      venueShows(this.units, this.placed, r);
+      walkers += this.units.end();
+    }
     else this.units.hide();
     const built = this.models.update(r, this.placed, lodFor(this.groundMode === 'low' ? cam.scale / 2 : cam.scale), this.ghosts);
     // The trees and rocks in view (or, while they cannot draw yet, their kits and programs prepared).

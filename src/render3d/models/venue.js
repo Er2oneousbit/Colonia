@@ -357,8 +357,8 @@ function spectator(x, d, pose, arms, lod, rise) {
       el = [x + s * 0.28, shY + 0.24, hipZ + 0.06];
       hd = [x + s * 0.26, shY + 0.5, hipZ + 0.14];
     }
-    cloth.push(limb(sh, el, r, Math.max(4, R - 3), 0.92, d.body));
-    skin.push(limb(el, hd, r * 0.85, Math.max(4, R - 3), 1, d.skin));
+    cloth.push(limb(sh, el, r * 1.35, Math.max(4, R - 3), 0.92, d.body));
+    skin.push(limb(el, hd, r * 1.0, Math.max(4, R - 3), 1, d.skin));
     skin.push(blob(hd, handR, handR, handR, Math.max(4, R - 3), 3, d.skin));
   }
   // The legs: seated, thighs forward over the seat's edge and shins down to the row below; on his feet, straight.
@@ -366,8 +366,10 @@ function spectator(x, d, pose, arms, lod, rise) {
     const hip = [x + s * sx * 0.85, hipY, hipZ + 0.02];
     const knee = sit ? [x + s * sx, hipY + 0.06, 0.2] : [x + s * sx, 0.46, hipZ + 0.04];
     const foot = sit ? [x + s * sx * 1.1, -rise + 0.04, 0.27] : [x + s * sx, 0.05, hipZ + 0.05];
-    cloth.push(limb(hip, knee, 0.068, Math.max(4, R - 2), 0.85, d.legs));
-    skin.push(limb(knee, foot, 0.045, Math.max(4, R - 3), 0.95, d.skin));
+    cloth.push(limb(hip, knee, 0.078, Math.max(4, R - 2), 0.85, d.legs));
+    // (A long robe, a toga or a woman's stola, falls to the shins on her feet.)
+    if (!sit && (d.toga || d.veil)) cloth.push(limb(knee, [foot[0], 0.18, foot[2]], 0.08, Math.max(4, R - 2), 0.8, d.legs));
+    skin.push(limb(knee, foot, 0.05, Math.max(4, R - 3), 0.95, d.skin));
     // (The sandal: a box at the foot.)
     skin.push(paint(box(0.08, 0.05, 0.2, foot[0], foot[1] - 0.05, foot[2] + 0.05), 0x5a3a24, 0.9));
   }
@@ -580,7 +582,8 @@ export function velarium(p, M, at, { ts, dm, dIn, y0, yTop, drop = 0.3, lod = 0,
       const s = j / rows;
       const [x, z] = at(dm + (dIn - dm) * s, t);
       pos.push(x, yTop - 0.05 - s * drop - sg * (0.5 + s), z);
-      cols.push(...(Math.floor((i / n) * stripes) % 2 ? lin(0xa83a2a) : lin(0xeee2c8)));
+      // (Linen with a narrow band of madder every fourth stripe: a ring of solid red read as a lifebuoy from above.)
+      cols.push(...(Math.floor((i / n) * stripes) % 4 === 0 ? lin(0xa83a2a) : lin(0xeee2c8, 0.95 + 0.05 * (j % 2))));
     }
   }
   for (let i = 0; i < n; i++) for (let j = 0; j < rows; j++) quads.push(i * (rows + 1) + j);

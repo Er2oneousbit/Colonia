@@ -132,13 +132,13 @@ function bay(w, k, lod, entrance) {
   storeys.forEach(([y0, y1, cr], s) => {
     const entH = 0.12;
     const top = y1 - entH;
-    const ow = Math.min(w * 0.58, (top - y0) * 0.62) * (entrance && s === 0 ? 1.12 : 1);
+    const ow = Math.min(w * 0.62, (top - y0) * 0.66) * (entrance && s === 0 ? 1.1 : 1);
     const spring = top - ow / 2 - 0.1;
     const pw = (w - ow) / 2;
     // The half piers: each bay's own, either side of its opening.
-    for (const sx of [-1, 1]) out.trav.push(box(pw, spring - y0, depth, sx * (w / 2 - pw / 2), y0, -depth / 2, 0.93));
+    for (const sx of [-1, 1]) out.trav.push(box(pw, spring - y0, depth, sx * (w / 2 - pw / 2), y0, -depth / 2, 0.78));
     // The arch's wall over the opening, to the entablature.
-    out.trav.push(spandrel(w, top - spring, ow / 2, depth, seg).translate(0, spring, 0));
+    out.trav.push(tinted(spandrel(w, top - spring, ow / 2, depth, seg).translate(0, spring, 0), [0.8, 0.8, 0.8]));
     // The voussoirs' ring: a band proud of the face round the arch (full detail).
     if (lod === 0) {
       const ring = new CylinderGeometry(ow / 2 + 0.05, ow / 2 + 0.05, 0.03, 12, 1, true, -Math.PI / 2, Math.PI);
@@ -153,9 +153,9 @@ function bay(w, k, lod, entrance) {
     // The engaged half-column at the bay's left edge, on a base, with its capital: Tuscan, Ionic, Corinthian.
     if (lod < 2) {
       const ch = top - y0;
-      const col = new CylinderGeometry(cr * 0.9, cr, ch - 0.06, lod ? 6 : 10, 1, false, -Math.PI / 2, Math.PI);
+      const col = new CylinderGeometry(cr * 1.05, cr * 1.15, ch - 0.06, lod ? 6 : 10, 1, false, -Math.PI / 2, Math.PI);
       col.translate(-w / 2, y0 + 0.03 + (ch - 0.06) / 2, 0);
-      out.trav.push(tintGeometry(boxUV(col), () => 1.0));
+      out.trav.push(tintGeometry(boxUV(col), () => 1.12));
       const capH = s === 2 ? 0.09 : 0.05;
       const cap = new CylinderGeometry(cr * (s === 2 ? 1.35 : 1.2), cr * 0.95, capH, lod ? 6 : 10, 1, false, -Math.PI / 2, Math.PI);
       cap.translate(-w / 2, top - capH / 2 - 0.02, 0);
@@ -163,8 +163,9 @@ function bay(w, k, lod, entrance) {
       if (s === 1 && lod === 0) for (const sx of [-1, 1]) out.trav.push(box(0.035, 0.035, 0.03, -w / 2 + sx * cr, top - 0.075, cr * 0.7, 1));
     }
     // The entablature: architrave, frieze, cornice, the cornice proud.
-    out.trav.push(box(w + 0.002, entH * 0.55, depth + 0.03, 0, top, -depth / 2 + 0.015, 0.97));
-    out.trav.push(box(w + 0.002, entH * 0.45, depth + 0.08, 0, top + entH * 0.55, -depth / 2 + 0.04, 1.02));
+    // (Proud of the face and paler than the wall, so each storey reads as a band from the game's camera.)
+    out.trav.push(box(w + 0.002, entH * 0.5, depth + 0.1, 0, top, -depth / 2 + 0.05, 1.05));
+    out.trav.push(box(w + 0.002, entH * 0.5, depth + 0.2, 0, top + entH * 0.5, -depth / 2 + 0.1, 1.2));
     // A statue in the arch of the middle storey, every other bay (Titus's coins), and in the top one's.
     if (s >= 1 && lod < 2 && (k + s) % 2 === 0) {
       out.statue.push(...figureMass(0, y0 + 0.05, -0.08, 0.36, lod + 1));
@@ -362,7 +363,7 @@ export function buildArena({ lod = 0 } = {}) {
   boxes(lod, p, M);
   // The masts on the attic's corbels, and the awning over the top tier on show days.
   const masts = lod === 2 ? 16 : 32;
-  velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: FACE + 0.08, dIn: CAVEA.rows[6].d - 0.2, y0: S3 + 0.14, yTop: S4 + 1.15, drop: 0.55, lod, closed: true, stripes: 64 });
+  velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: FACE + 0.08, dIn: FACE - 0.85, y0: S3 + 0.14, yTop: S4 + 0.95, drop: 0.22, lod, closed: true, stripes: 96 });
   // The paving round the foot.
   const N = lod === 0 ? 96 : 40;
   p.add('paving', M.flags, sweep(AT, [[FACE + 0.22, 0.015], [FACE + 0.75, 0.015]], N, { tint: () => 0.95 }));

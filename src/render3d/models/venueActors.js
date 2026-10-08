@@ -18,6 +18,9 @@ import { SEAT_H } from '../people/clips.js';
 import { togateActor, servantActor } from './domus.js';
 import { THEATRUM, THEATRUM_SPOTS } from './theatrum.js';
 import { AMPHITHEATRUM_SPOTS } from './amphitheatrum.js';
+import { ARENA_SPOTS } from './arena.js';
+import { SHOW_SPOTS } from './venueShow.js';
+import { CIRCUS_SPOTS, CIRCUS } from './circus.js';
 
 /** An actor of the stage (all men, as Rome's were): a long bright robe, a mask over the head. */
 function player(at, ry, seed, { clip = 'orate', comic = false, colours = {} } = {}) {
@@ -91,6 +94,65 @@ export function amphitheaterActors(state, acts = {}) {
     const [x, y, z] = AMPHITHEATRUM_SPOTS.stage;
     out.push(player([x - 0.05, y, z - 0.35], Math.PI / 2, 94, { clip: 'orate' }));
     out.push(player([x + 0.05, y, z + 0.4], Math.PI / 2 - 0.4, 95, { clip: 'talk', comic: true, colours: { tunic: DYES.sky, mantle: DYES.ochre } }));
+  }
+  return out;
+}
+
+/** The Great Arena's people (models/arena.js): the governor and his guests in the box, the editor across, a referee by each bout, the musicians. */
+export function colosseumActors(state, acts = {}) {
+  if (state === 'shut') return [];
+  if (state === 'out') return [raker([-2.4, 0.02, -0.9], Math.PI / 2, 101, 1.8), raker([1.4, 0.02, 1.0], -Math.PI / 2, 102, 1.5), raker([0.2, 0.02, -1.4], Math.PI / 2, 103, 1.2)];
+  const out = [];
+  // The governor in the middle in the purple-bordered toga, his guests either side.
+  ARENA_SPOTS.governor.forEach(([x, y, z, ry], k) => out.push(togateActor([x, y + 0.45 - SEAT_H, z], ry, 110 + k, { clip: 'sit', praetexta: k === 1 })));
+  ARENA_SPOTS.editor.forEach(([x, y, z, ry], k) => out.push(togateActor([x, y + 0.45 - SEAT_H, z], ry, 120 + k, { clip: 'sit', praetexta: k === 0 })));
+  if (acts.bouts) {
+    // A referee off each bout's circle, turned to it (clear of the hunt's on the other side).
+    [[-2.4, -0.75], [-1.3, -1.6]].forEach(([x, z], k) => {
+      const [cx, cz] = SHOW_SPOTS.colosseum.bouts[k];
+      out.push(referee([x, 0.02, z], Math.atan2(cx - x, cz - z), 130 + k));
+    });
+    out.push(piper([-3.2, 0.02, -1.0], Math.PI / 4, 135));
+    out.push(piper([-3.35, 0.02, -0.55], Math.PI / 3, 136));
+  }
+  return out;
+}
+
+/** A section's own metres from the circus's track metres (models/circus.js). */
+const inSection = (k, [X, y, z]) => [X - (k * 20 + 10), y, z];
+
+/**
+ * The hippodrome's people by section (models/circus.js): in the middle the
+ * governor and his guests in their box and the two attendants who counted
+ * the laps at the eggs and the dolphins; at the gates the magistrate in his
+ * box, his arm up with the white cloth that started the race; attendants
+ * raking the sand when no race is on.
+ */
+export function hippodromeActors(state, acts = {}, k = 0) {
+  if (state === 'shut') return [];
+  if (state === 'out') return [raker([-3, 0.02, 3.2], Math.PI / 2, 140 + k, 2.4), raker([2, 0.02, -3.4], -Math.PI / 2, 143 + k, 2.0)];
+  const out = [];
+  if (k === 1) {
+    CIRCUS_SPOTS.governor.forEach((g, j) => {
+      const [x, y, z] = inSection(1, g);
+      out.push(togateActor([x, y + 0.45 - SEAT_H, z], 0, 150 + j, { clip: 'sit', praetexta: j === 1 }));
+    });
+    // The lap counters on the spina, by their frames, watching the cars.
+    CIRCUS_SPOTS.counters.forEach((c, j) => {
+      const [x, y, z] = inSection(1, c);
+      // (Beside the frame, not under it: on the spina's coping a pace along.)
+      out.push(servantActor([x + (j ? -1.55 : 1.55), y + 0.06, z * 0.5], j ? Math.PI : 0, 155 + j, { clip: 'cheer' }));
+    });
+  }
+  if (k === 2) {
+    const [X, y, z, ry] = CIRCUS_SPOTS.magistrate;
+    const [x] = inSection(2, [X, y, z]);
+    out.push(togateActor([x, y, z], ry, 160, { clip: 'orate', praetexta: true }));
+    out.push(togateActor([x + 0.15, y, z + 0.7], ry, 161, { clip: 'listen' }));
+  }
+  if (k === 0 && acts.races) {
+    // A trumpeter on the arch's top? None: the arch's attic is too small; a groom waits by the end's lampstand instead.
+    out.push(servantActor([CIRCUS.curveX - 10 + 2.2, 0.02, 4.9], Math.PI, 165, { clip: 'cheer' }));
   }
   return out;
 }

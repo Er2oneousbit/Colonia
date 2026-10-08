@@ -877,6 +877,8 @@ export function buildQuad(species, opts, lod) {
     } else if (opts.has('bare')) {
       neckRope(m, A, J, lod);
     }
+  } else if (species === 'wolf' && opts.has('mane')) {
+    lionMane(m, lod);
   } else if (species === 'elephant') {
     bigEars(m, J, lod);
     elephantTrunk(m, A, J, R);
@@ -884,6 +886,28 @@ export function buildQuad(species, opts, lod) {
     if (opts.has('tower')) tower(m, A, J, lod);
   }
   return m;
+}
+
+/**
+ * A lion's mane and the tuft of its tail, on the wolf's frame (the venues'
+ * hunts: units/look.js `lion`): a ruff of shaggy lobes round the neck and
+ * the back of the head, carried by the neck and the head (so it follows the
+ * bite), in the leather's slot (the mane's dark tawny), the tail's tip a
+ * dark tassel.
+ */
+function lionMane(m, lod) {
+  const n = lod === 0 ? 14 : lod === 1 ? 8 : 5;
+  const rows = lod === 0 ? 4 : 3;
+  const cols = lod === 0 ? 7 : 5;
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
+    const c = [Math.sin(a) * 0.085, 0.8 + Math.cos(a) * 0.085, 0.44 - Math.abs(Math.cos(a)) * 0.02];
+    const w = weights([[QB.neck2, 0.6], [QB.head, 0.4]]);
+    ellipsoid(m, c, 0.07, 0.075, 0.1, rows, cols, w, SLOTS.LEATHER, (p) => 0.8 + 0.25 * Math.sin(p[0] * 60 + p[1] * 40));
+  }
+  // The ruff under the jaw and over the brow.
+  ellipsoid(m, [0, 0.82, 0.5], 0.1, 0.12, 0.09, rows, cols, weights([[QB.head, 0.7], [QB.neck2, 0.3]]), SLOTS.LEATHER, () => 0.85);
+  ellipsoid(m, [0, 0.42, -0.8], 0.03, 0.05, 0.03, 3, 5, weights([[QB.tail3, 1]]), SLOTS.DARK, () => 1);
 }
 
 /** A beast's piece key: `quad:<species>[:opt...]`. */

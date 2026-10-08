@@ -81,7 +81,7 @@ export function trackDirToMap(b, dU, dv) {
  * at radius `lane` (tiles), the chariots' laps counted from the start at
  * the starting gates' end. Matches models/circus.js's spina.
  */
-export const RACE = Object.freeze({ U0: 3.2, U1: 11.8, mid: 2.5, lanes: Object.freeze([0.62, 0.84, 1.06, 1.28]), speed: 0.23, laps: 7 });
+export const RACE = Object.freeze({ U0: 3.2, U1: 11.8, mid: 2.5, lanes: Object.freeze([0.58, 1.12, 0.58, 1.12]), speed: 0.23, laps: 7 });
 
 /** A point `s` tiles round a lane of radius r (from the start, along the far straight toward the rounded end): [U, v, dU, dv]. */
 export function laneAt(r, s) {
@@ -115,7 +115,9 @@ export function laneLength(r) {
  * run (tiles), where, which way. Each runs its own lane at the race's
  * speed made faster and slower by turns (two slow waves of its own), so
  * they pass and are passed; their distance is kept round the inside lane's
- * length so the laps are counted alike.
+ * length so the laps are counted alike. Two lanes, two cars to a lane a
+ * third of a lap apart (a quadriga is 2.3 m across: two run abreast, never
+ * three), the waves too small to close that gap.
  */
 export function chariotAt(k, tick) {
   const r = RACE.lanes[k];
@@ -123,7 +125,7 @@ export function chariotAt(k, tick) {
   // (The waves' integrals: the extra distance gained by now, a few tiles either way.)
   const w1 = 0.011 + k * 0.0017;
   const w2 = 0.0047 + k * 0.0011;
-  const extra = 1.8 * Math.sin(w1 * tick + k * 1.7) + 1.1 * Math.sin(w2 * tick + k * 2.9) - k * 0.6;
+  const extra = 1.8 * Math.sin(w1 * tick + k * 1.7) + 1.1 * Math.sin(w2 * tick + k * 2.9) - k * 6.1;
   const lap = laneLength(RACE.lanes[0]);
   const run = base + extra;
   const s = (run / lap) * laneLength(r);
@@ -212,23 +214,23 @@ export function huntAt(cx, cz, tick, idBase) {
   const hunter = unit(idBase, 'gladiator', { look: 'venator', state: 'fight' });
   const rushing = t >= 72;
   let a = (t / 72) * Math.PI * 1.6;
-  let r = 1.9;
+  let r = 1.4;
   if (rushing) {
     a = Math.PI * 1.6;
-    r = Math.max(0.95, 1.9 - (t - 72) * 0.12);
+    r = Math.max(0.9, 1.4 - (t - 72) * 0.08);
   }
   const lx = cx + r * Math.cos(a);
   const lz = cz + r * Math.sin(a);
   // He turns to face it and thrusts while it is close.
-  if (rushing && r < 1.2) hunter.strikeTick = lastBeat(tick, tick - t + 80, 20);
+  if (rushing && r < 1.1) hunter.strikeTick = lastBeat(tick, tick - t + 80, 20);
   out.push({ u: hunter, x: cx, z: cz, dx: 0, dz: 0, foe: [lx - cx, lz - cz] });
   const lion = unit(idBase - 1, 'wolf', { look: 'lion', state: rushing ? 'fight' : 'hunt' });
-  lion.moving = !rushing || r > 0.96;
+  lion.moving = !rushing || r > 0.91;
   // (The lion is drawn half again a wolf's size: its legs keep pace with the ground at that size.)
-  lion.walked = ((1.9 * Math.min(t, 72) / 72 * Math.PI * 1.6 + (rushing ? (1.9 - r) : 0)) / TILE_M / 1.45) % 100;
+  lion.walked = ((1.4 * Math.min(t, 72) / 72 * Math.PI * 1.6 + (rushing ? (1.4 - r) : 0)) / TILE_M / 1.45) % 100;
   const dx = rushing ? -Math.cos(a) : -Math.sin(a);
   const dz = rushing ? -Math.sin(a) : Math.cos(a);
-  if (rushing && r <= 0.96) lion.strikeTick = lastBeat(tick, tick - t + 81, 16);
+  if (rushing && r <= 0.91) lion.strikeTick = lastBeat(tick, tick - t + 81, 16);
   out.push({ u: lion, x: lx, z: lz, dx: lion.moving ? dx : 0, dz: lion.moving ? dz : 0, foe: [cx - lx, cz - lz] });
   return out;
 }
@@ -245,6 +247,32 @@ export function raceAt(tick, idBase) {
   return out;
 }
 
+/** The venue types whose shows are figures of the units' pass. */
+const SHOW_TYPES = new Set(['amphitheater', 'colosseum', 'hippodrome']);
+const SHOW_CTX = { people: '' };
+const SHOW_AT = { fx: 0, fy: 0, lift: 0, stride: 0, vt: 0, W: 0, H: 0, dx: 0, dy: 0, foe: null };
+
+/**
+ * Each frame, the shows of the venues drawn as models (`placed`: the back
+ * end's this frame, webglBackend.js) handed to the units' pass `units`
+ * after its frame began (renderer.js unitsFrame), by the units' own clock
+ * (the game's ticks): what cannot be drawn yet (its pieces not built) is
+ * left out that frame, as a unit keeps its sprite.
+ */
+export function venueShows(units, placed, r) {
+  const game = r.game;
+  if (!game || !game.map) return;
+  const tick = units.motion.tick;
+  for (const p of placed) {
+    const b = p.b;
+    if (!SHOW_TYPES.has(b.type) || b.main || b.id === null || b.id === undefined) continue;
+    for (const f of venueShowList(b, game, tick)) {
+      if (!units.canDraw(f.u, SHOW_CTX, f.at.foe)) continue;
+      units.add(f.u, Object.assign(SHOW_AT, f.at, { lift: 0, vt: r.viewTurn || 0, W: game.map.w, H: game.map.h }));
+    }
+  }
+}
+
 /** Ids for a venue's show figures: negative, from its id, clear of every other's. */
 export function showIds(b) {
   return -1000000 - (b.id || 0) * 16;
@@ -256,7 +284,7 @@ export function showIds(b) {
  */
 export const SHOW_SPOTS = Object.freeze({
   amphitheater: Object.freeze({ bouts: Object.freeze([Object.freeze([0.5, 0.15])]) }),
-  colosseum: Object.freeze({ bouts: Object.freeze([Object.freeze([-2.2, 0.35]), Object.freeze([0.4, -0.55])]), hunt: Object.freeze([2.2, 0.45]) }),
+  colosseum: Object.freeze({ bouts: Object.freeze([Object.freeze([-2.4, 0.5]), Object.freeze([-0.2, -0.75])]), hunt: Object.freeze([2.0, 0.3]) }),
 });
 
 /** The pairings of the bouts: a murmillo against a thraex, a retiarius against a secutor (the murmillo's helmet). */

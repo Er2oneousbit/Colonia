@@ -1840,7 +1840,10 @@ export class Renderer {
     if (kind === 'market' && b.efficiency > 0 && hasStock(b)) {
       items.push({ d: front + 0.0004, kind: K_EXTRA, b, wx, wy, live: 'market' });
     } else if (kind === 'venue' && b.def.venue === 'hippodrome') {
-      if (this.motionOn && b.shows && b.shows.hippodrome > 0 && b.efficiency > 0) this.raceItems(b, items);
+      // (Drawn as a model with the units' pass on, the race is the back end's 3D chariots: render3d/models/venueShow.js.)
+      if (this.motionOn && b.shows && b.shows.hippodrome > 0 && b.efficiency > 0 && !(model && this.be.drawsUnits)) this.raceItems(b, items);
+    } else if (kind === 'venue' && model) {
+      // (A venue drawn as a model seats its own crowd: render3d/models/venues.js.)
     } else if (kind === 'venue' && showOn(b)) {
       items.push({ d: front + 0.0003, kind: K_EXTRA, b, wx, wy, live: 'crowd' });
     } else if (b.type.startsWith('temple_')) {
@@ -2605,7 +2608,8 @@ export class Renderer {
       if (!it.ok) continue;
       const S = it.size || 1;
       const foot = this.footAt(it.x, it.y, S);
-      be.ghostModel({ type: it.type || plan.tool, x: it.x, y: it.y, size: S, T: ((it.turn || 0) + vt) & 3, vx: foot.vx, vy: foot.vy, ok: !it.noRoad, snow: this.pal.snow });
+      // (A hippodrome's other sections carry their place in the row as their state: sim/construction.js.)
+      be.ghostModel({ type: it.type || plan.tool, x: it.x, y: it.y, size: S, T: ((it.turn || 0) + vt) & 3, vx: foot.vx, vy: foot.vy, ok: !it.noRoad, snow: this.pal.snow, section: it.part ? it.state : 0 });
       (this.modelGhosts ??= new Set()).add(it);
     }
   }
