@@ -119,6 +119,11 @@ export function crewMaterial() {
     m.onBeforeCompile = (shader, renderer) => {
       look(shader, renderer);
       patchPeopleShader(shader, false, VARIANT);
+      // Little snow lies on a crew at sea: the spray washes it off the oars and men shake it off (on a ship's
+      // sweeps it read as a row of white planks).
+      const at = 'float cover = uLookSnow * uLookSnowMul * vPeopleMat.w;';
+      if (!shader.fragmentShader.includes(at)) throw new Error("ship crews: the snow line of the people's shader not found");
+      shader.fragmentShader = shader.fragmentShader.replace(at, 'float cover = uLookSnow * uLookSnowMul * vPeopleMat.w * 0.2;');
     };
     m.customProgramCacheKey = () => 'ship-crews1';
     return m;
