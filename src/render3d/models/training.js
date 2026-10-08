@@ -17,7 +17,7 @@
  * the beasts a menagerie holds, so its beasts are always in their cages;
  * the one on its way to the arena is gone from its cage while 'out'. A
  * build ghost (no walkers) shows each training. In a hard frost (snow 2 or
- * 3) a menagerie's and a stable's troughs freeze (their `:ice` looks).
+ * 3) a gladiator school's, a menagerie's and a stable's troughs freeze (their `:ice` looks).
  * Their people and beasts are actors (people/actors.js: each model's
  * *Actors(state), packed once a state); the stable's colours are its
  * faction's (one of the four, by the building's id).

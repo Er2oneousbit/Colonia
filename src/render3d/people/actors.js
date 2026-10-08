@@ -43,11 +43,16 @@
  *            colours' skin, mantle, hair, trim (units/quadMesh.js)
  *   rigid    a rigid piece instead ('cart:chariot': walkers/beasts.js), its
  *            wheels turned by the ground its orbit covers
- *   orbit    { r, speed, x, z }: round and round a circle of radius r about
- *            `at` at `speed` m/s (counter-clockwise seen from above), the
- *            figure set (x, z) from its line in its own frame (a team: the
- *            horses ahead of the car, either side of the pole); in place of
- *            a route. A walking clip plays at the speed (its feet hold)
+ *   orbit    { r, speed, x, z, face }: round and round a circle of radius r
+ *            about `at` at `speed` m/s (counter-clockwise seen from
+ *            above), the figure set (x, z) from its place on the circle in
+ *            its own frame and turned `face` from the circle's way (a car
+ *            whose pole points along a chord to its horses ahead); in place
+ *            of a route. A walking clip plays at the speed: a figure facing
+ *            along its own circle (x, z and face 0) keeps its feet on the
+ *            ground; give a team's horses each its own circle and a lead in
+ *            its `phase` rather than an offset ahead (a rigid offset ahead
+ *            would carry them crabwise)
  *
  * cast(list) packs a list once (frozen): what the batch copies into its
  * instance buffers. A model keeps its casts by state, as it keeps `more`.
@@ -209,7 +214,8 @@ export function pack(spec, index = 0) {
     route: r,
     col0: new Float32Array(cols.slice(0, 4)),
     col1: new Float32Array(cols.slice(4, 8)),
-    misc: new Float32Array([head, faceEnd, faceStart, 0]),
+    // (An orbit's facing from its circle's way in the end facing's place: a route and an orbit never go together.)
+    misc: new Float32Array([head, spec.orbit ? spec.orbit.face || 0 : faceEnd, faceStart, 0]),
     at: Object.freeze((spec.at || [0, 0, 0]).slice()),
     ry: spec.ry || 0,
     scale,
@@ -232,7 +238,7 @@ function orbitInto(o, r) {
 
 /** An orbit kept for the bounds and the CPU's twin: its radius, speed and the figure's offset. */
 function orbitOf(o) {
-  return Object.freeze({ r: o.r, speed: o.speed, x: o.x || 0, z: o.z || 0 });
+  return Object.freeze({ r: o.r, speed: o.speed, x: o.x || 0, z: o.z || 0, face: o.face || 0 });
 }
 
 /**
@@ -282,7 +288,7 @@ function packFigure(spec, index) {
     col0: new Float32Array(cols.slice(0, 4)),
     col1: new Float32Array(cols.slice(4, 8)),
     // (The head's scale 1: nothing of a beast or a car is a person's head.)
-    misc: new Float32Array([1, faceEnd, faceStart, beast ? 1 : 2]),
+    misc: new Float32Array([1, spec.orbit ? spec.orbit.face || 0 : faceEnd, faceStart, beast ? 1 : 2]),
     at: Object.freeze((spec.at || [0, 0, 0]).slice()),
     ry: spec.ry || 0,
     scale,
@@ -369,5 +375,5 @@ export function orbitPose(o, t) {
   const z = o.z;
   const c = Math.cos(a);
   const s = Math.sin(a);
-  return { x: c * x + s * z, z: -s * x + c * z, yaw: a, rolled: o.speed * t };
+  return { x: c * x + s * z, z: -s * x + c * z, yaw: a + (o.face || 0), way: a, rolled: o.speed * t };
 }

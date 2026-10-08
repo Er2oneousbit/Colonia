@@ -251,6 +251,10 @@ void main() {
       vec4 oc = actClip( aActClip.x );
       float rate = oc.w > 0.0 ? v / max( 1e-3, oc.w * oc.z / oc.y ) : 1.0;
       pSkin = aActMisc.w > 1.5 ? actRigid( v * tc ) : actSkin( aActClip.x, tc * rate );
+      // Turned its face (aActMisc.y) about its own feet from the circle's way, then set on the circle.
+      float fc = cos( aActMisc.y );
+      float fs = sin( aActMisc.y );
+      pSkin = mat4( fc, 0.0, -fs, 0.0, 0.0, 1.0, 0.0, 0.0, fs, 0.0, fc, 0.0, 0.0, 0.0, 0.0, 1.0 ) * pSkin;
       pSkin[ 3 ].xyz += vec3( aActRoute.z - R, 0.0, aActRoute.w );
       pYaw = v * tc / R;
     } else if ( aActRoute.x <= 0.0 ) {

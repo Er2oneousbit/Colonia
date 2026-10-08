@@ -185,14 +185,27 @@ test('training3d: the new gaits plant their feet; an orbit goes round its circle
   const b = orbitPose(o, 0.02);
   const dir = Math.atan2(b.x - a.x, b.z - a.z);
   assert.ok(Math.abs(Math.atan2(Math.sin(dir - a.yaw), Math.cos(dir - a.yaw))) < 0.02, 'it faces the way it goes');
-  // The stable's team: every horse at the car's angle at every moment (they turn as one), its speed its circle's.
+  // The stable's team: each horse moves along the way it faces (no crabbing: its trot keeps the ground), the
+  // pair side by side 2.05 m ahead of the car along the chord, the car's pole pointing at their middle.
   const team = MODELS.chariot_maker.variant(bOf('chariot_maker', 'open'), { snow: 0 }, { game }).actors.actors.filter((x) => x.orbit);
   assert.equal(team.length, 4);
-  for (const t of [0.3, 2.1, 5.7]) {
-    const yaws = team.map((x) => orbitPose(x.orbit, t).yaw);
-    for (const y of yaws) assert.ok(Math.abs(y - yaws[0]) < 1e-9);
-  }
   assert.ok(team.every((x) => x.sync), 'the team in step');
+  const at = (x, t) => orbitPose(x.orbit, t + x.clip[1]);
+  const car = team.find((x) => x.pieces[0] === 'cart:chariot');
+  const horses = team.filter((x) => x.beast);
+  for (const t of [0.3, 2.1, 5.7]) {
+    for (const h of horses) {
+      const q = at(h, t);
+      const q2 = at(h, t + 1e-3);
+      const dir = Math.atan2(q2.x - q.x, q2.z - q.z);
+      assert.ok(Math.abs(Math.atan2(Math.sin(dir - q.yaw), Math.cos(dir - q.yaw))) < 0.01, 'a horse goes the way it faces');
+    }
+    const c = at(car, t);
+    const mid = [(at(horses[0], t).x + at(horses[1], t).x) / 2, (at(horses[0], t).z + at(horses[1], t).z) / 2];
+    assert.ok(Math.abs(Math.hypot(mid[0] - c.x, mid[1] - c.z) - 2.05) < 0.02, 'the pair 2.05 m ahead of the car');
+    const pole = Math.atan2(mid[0] - c.x, mid[1] - c.z);
+    assert.ok(Math.abs(Math.atan2(Math.sin(pole - c.yaw), Math.cos(pole - c.yaw))) < 0.02, 'the pole points at the pair');
+  }
   // A beast packs as one piece on its own clips; a car as a rigid piece.
   const lion = pack({ beast: 'quad:lion', clip: 'lion:walk', route: { length: 2, speed: 0.8, clipEnd: 'lion:roar' } });
   assert.deepEqual([...lion.pieces], ['quad:lion']);

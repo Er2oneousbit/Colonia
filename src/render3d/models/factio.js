@@ -77,7 +77,7 @@ export const FACTIO = Object.freeze({
   tack: Object.freeze([-5.95, -3.6, -5.95, -2.5, 2.5]),
   /** The exercise: the turning post (x, z), the car's radius and speed (m/s). */
   meta: Object.freeze([0.9, 1.3]),
-  lap: Object.freeze([1.9, 2.3]),
+  lap: Object.freeze([2.3, 2.4]),
   /** The harnessed team: its car's place (x, z), turned. */
   team: Object.freeze([-4.3, 1.2, 0]),
   gate: Object.freeze([1.4, 2.9]),
@@ -227,12 +227,18 @@ export function factioActors(state, b) {
   const [mx, mz] = F.meta;
   const [R, v] = F.lap;
   const driver = { tunic: colour, trim: colour, leather: 0x4a3020, metal: 0x6e4a2e };
-  // The team going round: the car on its circle, each horse on its own (radius and speed), all in step.
-  list.push({ body: 'm', dress: ['tunic:short', 'helmet'], hair: 'crop', clip: 'drive', at: [mx, CHARIOT.floor, mz], orbit: { r: R, speed: v }, sync: true, seed: 110, colours: driver });
-  list.push({ rigid: 'cart:chariot', at: [mx, 0, mz], orbit: { r: R, speed: v }, sync: true, seed: 111, colours: { accent: colour } });
-  CHARIOT.horses.forEach(([hx, hz], i) => {
-    const rho = Math.hypot(hx - R, hz);
-    list.push(horse(4 + i, 'yoke', [mx, 0, mz], 0, 'horse:trot', { orbit: { r: rho, speed: (v * rho) / R, x: hx - R + rho, z: hz }, sync: true }));
+  // The team going round: each horse on its own circle (inside and outside the car's by half the pole's
+  // spread) at its own speed, facing its own way round, a lead of `lead` radians ahead of the car (its
+  // `phase`, all in step), so its hooves keep the ground; the car and its driver turned half that lead
+  // from their circle's way, so the pole points along the chord to the horses' middle (on so tight a
+  // turn the light car skids a little, as cars did round the meta).
+  const lead = 2 * Math.asin(CHARIOT.horses[0][1] / (2 * R));
+  list.push({ body: 'm', dress: ['tunic:short', 'helmet'], hair: 'crop', clip: 'drive', at: [mx, CHARIOT.floor, mz], orbit: { r: R, speed: v, face: lead / 2 }, sync: true, seed: 110, colours: driver });
+  list.push({ rigid: 'cart:chariot', at: [mx, 0, mz], orbit: { r: R, speed: v, face: lead / 2 }, sync: true, seed: 111, colours: { accent: colour } });
+  CHARIOT.horses.forEach(([hx], i) => {
+    // (The car's left, +x, is toward the circle's middle: its way round is counter-clockwise from above.)
+    const rho = R - hx;
+    list.push(horse(4 + i, 'yoke', [mx, 0, mz], 0, 'horse:trot', { orbit: { r: rho, speed: (v * rho) / R }, phase: (lead * R) / v, sync: true }));
   });
   if (state === 'open') {
     // The other team in its yoke at the left, facing the gate, grooms at their heads.
