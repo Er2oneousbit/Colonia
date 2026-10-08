@@ -126,7 +126,10 @@ function arcade(a, b, s, lod, p, M) {
     arch.rotateX(Math.PI / 2);
     arch.translate(xm, 1.05, z + s * 0.004);
     p.add('dark', M.dark, tintGeometry(boxUV(arch)));
-    p.add('trav', M.trav, box(0.24, 1.72, 0.08, X, 0, z + s * 0.03, 0.95));
+    // (A pilaster on a section's seam is cut in two, a half each side: the kit keeps to its footprint.)
+    if (X - a < 0.01) p.add('trav', M.trav, box(0.12, 1.72, 0.08, X + 0.06, 0, z + s * 0.03, 0.95));
+    else p.add('trav', M.trav, box(0.24, 1.72, 0.08, X, 0, z + s * 0.03, 0.95));
+    if (b - (X + 2) < 0.01) p.add('trav', M.trav, box(0.12, 1.72, 0.08, X + 2 - 0.06, 0, z + s * 0.03, 0.95));
     if (lod === 0) {
       // An upper window in each bay and the voussoirs round the arch.
       p.add('dark', M.dark, box(0.36, 0.34, 0.02, xm, 2.0, z + s * 0.004, 1));
@@ -169,7 +172,7 @@ function curvedEnd(lod, p, M) {
     // (A metre thick: the stands' gap for the arch ends against them.)
     p.add('trav', M.trav, box(x1 - x0, H, 1.0, (x0 + x1) / 2, 0, s * hw, 0.97));
     // Half columns on the piers' outer face.
-    if (lod < 2) p.add('marble', M.marble, tintGeometry(boxUV(new CylinderGeometry(0.1, 0.11, H - 0.9, lod ? 6 : 10).translate(x0 - 0.02, (H - 0.9) / 2, s * (hw - 0.25))), () => 0.97));
+    if (lod < 2) p.add('marble', M.marble, tintGeometry(boxUV(new CylinderGeometry(0.1, 0.11, H - 0.9, lod ? 6 : 10).translate(x0 + 0.1, (H - 0.9) / 2, s * (hw - 0.25))), () => 0.97));
   }
   const s = new Shape();
   s.moveTo(-hw, 0);
@@ -185,8 +188,8 @@ function curvedEnd(lod, p, M) {
   p.add('trav', M.trav, tintGeometry(boxUV(sp), () => 0.97));
   p.add('dark', M.dark, box(0.02, 2.4, 1.5, x0 - 0.01, 0, 0, 1));
   p.add('dark', M.dark, box(0.02, 2.4, 1.5, x1 + 0.01, 0, 0, 1));
-  p.add('marble', M.marble, box(x1 - x0 + 0.1, 0.4, 2 * hw + 0.1, (x0 + x1) / 2, H - 0.4, 0, 0.98));
-  p.add('trav', M.trav, box(x1 - x0 + 0.2, 0.1, 2 * hw + 0.2, (x0 + x1) / 2, H - 0.5, 0, 1.03));
+  p.add('marble', M.marble, box(x1 - x0 + 0.04, 0.4, 2 * hw + 0.1, (x0 + x1) / 2, H - 0.4, 0, 0.98));
+  p.add('trav', M.trav, box(x1 - x0 + 0.08, 0.1, 2 * hw + 0.2, (x0 + x1) / 2, H - 0.5, 0, 1.03));
   // A gilt quadriga's base on top would be lost from the game's camera; the arch's own torches instead.
 }
 

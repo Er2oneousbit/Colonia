@@ -58,7 +58,7 @@ import {
 export const ARENA = Object.freeze({
   half: 10,
   /** The sand's half axes (x, z). */
-  arena: Object.freeze([4.0, 2.5]),
+  arena: Object.freeze([3.85, 2.5]),
   podium: 0.8,
   /** The façade's bays round, and the storeys' tops (the base's, three arcades', the attic's). */
   bays: 40,
@@ -89,7 +89,7 @@ function bayPoints(n) {
   let j = 0;
   for (let i = 0; i <= n; i++) {
     const want = (total * i) / n;
-    while (j < fine && len[j + 1] < want) j++;
+    while (j < fine - 1 && len[j + 1] < want) j++;
     const f = (want - len[j]) / Math.max(1e-9, len[j + 1] - len[j]);
     const t = (j + f) / fine;
     const [x, z] = AT(FACE, t);
@@ -128,13 +128,26 @@ function bay(w, k, lod, entrance) {
   const out = { trav: [], dark: [], bronze: [], statue: [], marble: [] };
   const depth = FACE - BACK;
   const storeys = [[S0, S1, 0.098], [S1 + 0.1, S2, 0.086], [S2 + 0.08, S3, 0.076]];
-  const seg = lod === 0 ? 10 : 5;
+  const seg = lod === 0 ? 10 : 3;
   storeys.forEach(([y0, y1, cr], s) => {
     const entH = 0.12;
     const top = y1 - entH;
     const ow = Math.min(w * 0.62, (top - y0) * 0.66) * (entrance && s === 0 ? 1.1 : 1);
     const spring = top - ow / 2 - 0.1;
     const pw = (w - ow) / 2;
+    if (lod > 0) {
+      // From the middle distance out: the storey a slab of wall, the arch a dark shape on its face (a
+      // round head over its jambs), the entablature a band; the half-columns only at the middle level.
+      out.trav.push(box(w, top - y0, depth, 0, y0, -depth / 2, 0.84));
+      out.dark.push(box(ow, spring - y0, 0.02, 0, y0, 0.006, 1));
+      const head = new CylinderGeometry(ow / 2, ow / 2, 0.02, lod === 1 ? 6 : 3, 1, false, -Math.PI / 2, Math.PI);
+      head.rotateX(Math.PI / 2);
+      head.translate(0, spring, 0.006);
+      out.dark.push(tintGeometry(boxUV(head)));
+      out.trav.push(box(w + 0.002, entH, depth + 0.16, 0, top, -depth / 2 + 0.08, 1.12));
+      if (lod === 1) out.trav.push(tintGeometry(boxUV(new CylinderGeometry(cr * 1.05, cr * 1.15, top - y0, 4, 1, false, -Math.PI / 2, Math.PI).translate(-w / 2, y0 + (top - y0) / 2, 0)), () => 1.12));
+      return;
+    }
     // The half piers: each bay's own, either side of its opening.
     for (const sx of [-1, 1]) out.trav.push(box(pw, spring - y0, depth, sx * (w / 2 - pw / 2), y0, -depth / 2, 0.78));
     // The arch's wall over the opening, to the entablature.
@@ -153,11 +166,11 @@ function bay(w, k, lod, entrance) {
     // The engaged half-column at the bay's left edge, on a base, with its capital: Tuscan, Ionic, Corinthian.
     if (lod < 2) {
       const ch = top - y0;
-      const col = new CylinderGeometry(cr * 1.05, cr * 1.15, ch - 0.06, lod ? 6 : 10, 1, false, -Math.PI / 2, Math.PI);
+      const col = new CylinderGeometry(cr * 1.05, cr * 1.15, ch - 0.06, lod ? 4 : 10, 1, false, -Math.PI / 2, Math.PI);
       col.translate(-w / 2, y0 + 0.03 + (ch - 0.06) / 2, 0);
       out.trav.push(tintGeometry(boxUV(col), () => 1.12));
       const capH = s === 2 ? 0.09 : 0.05;
-      const cap = new CylinderGeometry(cr * (s === 2 ? 1.35 : 1.2), cr * 0.95, capH, lod ? 6 : 10, 1, false, -Math.PI / 2, Math.PI);
+      const cap = new CylinderGeometry(cr * (s === 2 ? 1.35 : 1.2), cr * 0.95, capH, lod ? 4 : 10, 1, false, -Math.PI / 2, Math.PI);
       cap.translate(-w / 2, top - capH / 2 - 0.02, 0);
       out.trav.push(tintGeometry(boxUV(cap), () => 1.02));
       if (s === 1 && lod === 0) for (const sx of [-1, 1]) out.trav.push(box(0.035, 0.035, 0.03, -w / 2 + sx * cr, top - 0.075, cr * 0.7, 1));
@@ -167,7 +180,7 @@ function bay(w, k, lod, entrance) {
     out.trav.push(box(w + 0.002, entH * 0.5, depth + 0.1, 0, top, -depth / 2 + 0.05, 1.05));
     out.trav.push(box(w + 0.002, entH * 0.5, depth + 0.2, 0, top + entH * 0.5, -depth / 2 + 0.1, 1.2));
     // A statue in the arch of the middle storey, every other bay (Titus's coins), and in the top one's.
-    if (s >= 1 && lod < 2 && (k + s) % 2 === 0) {
+    if (s >= 1 && (k + s) % 2 === 0) {
       out.statue.push(...figureMass(0, y0 + 0.05, -0.08, 0.36, lod + 1));
       out.trav.push(box(0.22, 0.05, 0.18, 0, y0, -0.08, 0.95));
     }
@@ -199,30 +212,66 @@ function bay(w, k, lod, entrance) {
 }
 
 /** The façade: the bays round, placed on the ellipse; the steps round its foot; the porch at the front. */
-function facade(lod, p, M) {
-  const n = lod === 2 ? 20 : A.bays;
-  const pts = bayPoints(n);
+/**
+ * The façade's bays round the oval: three kits (models/venues.js instances
+ * them, a copy a bay, as the government's colonnades are): 'even' and 'odd'
+ * bays (the statues and the attic's windows and shields alternate) and the
+ * four entrances on the axes; each built at the bays' mean width and
+ * stretched along its chord to its own. [{ kind, mat }] in the arena's
+ * metres.
+ */
+function bayPlaces() {
+  const pts = bayPoints(A.bays);
+  const out = [];
   const m = new Matrix4();
-  for (let k = 0; k < n; k++) {
-    const [t0, x0, z0] = pts[k];
+  const s = new Matrix4();
+  for (let k = 0; k < A.bays; k++) {
+    const [, x0, z0] = pts[k];
     const [, x1, z1] = pts[k + 1];
-    const w = Math.hypot(x1 - x0, z1 - z0);
+    const w = Math.hypot(x1 - x0, z1 - z0) + 0.004;
     const tm = (pts[k][0] + pts[k + 1][0]) / 2;
     const [cx, cz] = AT(FACE, tm);
-    const ry = Math.atan2(z1 - z0, x1 - x0);
     // (The face's chord between the bay's two points, outward: a turn about y.)
-    m.makeRotationY(-ry).setPosition(cx, 0, cz);
+    m.makeRotationY(-Math.atan2(z1 - z0, x1 - x0)).setPosition(cx, 0, cz);
+    m.multiply(s.makeScale(w / BAY_W, 1, 1));
     // The arches on the axes are the entrances: wider below.
-    const axis = [0, 0.25, 0.5, 0.75].some((a) => Math.min(Math.abs(tm - a), Math.abs(tm - a - 1)) < 0.5 / n);
-    const g = bay(w + 0.004, k, lod, axis);
-    for (const [key, list] of Object.entries(g)) {
-      for (const q of list) q.applyMatrix4(m);
-      if (!list.length) continue;
-      if (key === 'statue') p.add('statue', M.marble, list);
-      else p.add(key, M[key], list);
-    }
-    void t0;
+    const axis = [0, 0.25, 0.5, 0.75].some((a) => Math.min(Math.abs(tm - a), Math.abs(tm - a - 1)) < 0.5 / A.bays);
+    out.push({ kind: axis ? 'gate' : k % 2 ? 'odd' : 'even', mat: m.toArray(new Float32Array(16)) });
   }
+  return out;
+}
+
+/** The bays' mean width (m): the kits are built at it. */
+const BAY_W = (() => {
+  const pts = bayPoints(A.bays);
+  let sum = 0;
+  for (let k = 0; k < A.bays; k++) sum += Math.hypot(pts[k + 1][1] - pts[k][1], pts[k + 1][2] - pts[k][2]);
+  return sum / A.bays + 0.004;
+})();
+
+/** The façade's `more` (models/venues.js): each kind of bay one entry with the matrices of its bays. */
+export const ARENA_BAYS = Object.freeze(['even', 'odd', 'gate'].map((kind) => {
+  const list = bayPlaces().filter((b) => b.kind === kind);
+  const mats = new Float32Array(list.length * 16);
+  list.forEach((b, j) => mats.set(b.mat, j * 16));
+  return Object.freeze({ key: `colosseum:bay:${kind}`, n: list.length, mats, state: 'always' });
+}));
+
+/** A bay of the façade by kind ('even', 'odd', 'gate'), at the mean width, in its own frame (its face at z 0, outward +z). */
+export function buildArenaBay(kind, { lod = 0 } = {}) {
+  const M = venueMaterials();
+  const p = new TaggedParts(`arena-bay-${kind}`);
+  const g = bay(BAY_W, kind === 'odd' ? 1 : 0, lod, kind === 'gate');
+  for (const [key, list] of Object.entries(g)) {
+    if (!list.length) continue;
+    if (key === 'statue') p.add('statue', M.marble, list);
+    else p.add(key, M[key], list);
+  }
+  return p.build();
+}
+
+/** The façade's own parts (the bays are kits of their own: ARENA_BAYS): the steps, the ambulatory's back, the porch. */
+function facade(lod, p, M) {
   // The steps round the foot (the base), and the ambulatory's back wall behind the arches (dark).
   const N = lod === 0 ? 160 : lod === 1 ? 80 : 40;
   p.add('trav', M.trav, sweep(AT, [[FACE + 0.22, 0], [FACE + 0.22, 0.06], [FACE + 0.11, 0.06], [FACE + 0.11, S0], [FACE - 0.05, S0]], N, { tint: () => 0.9 }));
@@ -364,9 +413,6 @@ export function buildArena({ lod = 0 } = {}) {
   // The masts on the attic's corbels, and the awning over the top tier on show days.
   const masts = lod === 2 ? 16 : 32;
   velarium(p, M, AT, { ts: Array.from({ length: masts }, (_, k) => (k + 0.5) / masts), dm: FACE + 0.08, dIn: FACE - 0.85, y0: S3 + 0.14, yTop: S4 + 0.95, drop: 0.22, lod, closed: true, stripes: 96 });
-  // The paving round the foot.
-  const N = lod === 0 ? 96 : 40;
-  p.add('paving', M.flags, sweep(AT, [[FACE + 0.22, 0.015], [FACE + 0.75, 0.015]], N, { tint: () => 0.95 }));
   return p.build();
 }
 

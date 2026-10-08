@@ -42,7 +42,7 @@ import { cast, NOBODY, DYES, hash01 } from '../people/actors.js';
 import { buildCrowdGroup, CROWD_VARIANTS } from './venue.js';
 import { buildTheatrum, theatrumSeats, THEATRUM_LAMPS } from './theatrum.js';
 import { buildAmphitheatrum, buildAmphitheatrumStage, amphitheatrumSeats, AMPHITHEATRUM_LAMPS } from './amphitheatrum.js';
-import { buildArena, arenaSeats, ARENA_LAMPS } from './arena.js';
+import { buildArena, buildArenaBay, arenaSeats, ARENA_LAMPS, ARENA_BAYS } from './arena.js';
 import { buildCircus, buildLapCounter, circusSeats, circusLamps, LAP_PLACES } from './circus.js';
 import { lapsNow, leaderU } from './venueShow.js';
 import { theaterActors, amphitheaterActors, colosseumActors, hippodromeActors } from './venueActors.js';
@@ -226,16 +226,23 @@ const I16 = new Matrix4().toArray(new Float32Array(16));
 const EXTRA = {
   amphitheater: (acts) => (acts.play ? [Object.freeze({ key: 'amphitheater:stage', n: 1, mats: I16, state: 'always' })] : []),
 };
-/** A venue's `more`: its crowd and the kits of what is on, kept by signature (the crowd's lists are kept apart). */
+/** Kits a venue always shows, instanced apart: the Great Arena's façade, a kit a kind of bay (models/arena.js). */
+const BASE = { colosseum: ARENA_BAYS };
+/**
+ * A venue's `more`: its own kits (BASE), its crowd and the kits of what is
+ * on, the list kept by signature and made again only when the crowd's
+ * list changes (a beat of the show), never a frame.
+ */
 const MORE = new Map();
 function moreOf(type, section, state, acts, game, ctx) {
   const crowd = crowdNow(type, section, state, game, ctx);
   const extra = state === 'open' && EXTRA[type] ? EXTRA[type](acts) : [];
-  if (!extra.length) return crowd;
-  const sig = `${type}|${section}|${actsKey(acts)}`;
+  const base = BASE[type] || [];
+  if (!extra.length && !base.length) return crowd;
+  const sig = `${type}|${section}|${state}|${actsKey(acts)}`;
   let m = MORE.get(sig);
   if (!m || m.crowd !== crowd) {
-    m = { crowd, list: Object.freeze([...crowd, ...extra]) };
+    m = { crowd, list: Object.freeze([...base, ...crowd, ...extra]) };
     MORE.set(sig, m);
   }
   return m.list;
@@ -327,7 +334,7 @@ function entry(type, builds, lamps, warm = []) {
 export const VENUE_MODELS = Object.freeze({
   theater: entry('theater', { theater: buildTheatrum }, THEATRUM_LAMPS),
   amphitheater: entry('amphitheater', { amphitheater: buildAmphitheatrum, 'amphitheater:stage': buildAmphitheatrumStage }, AMPHITHEATRUM_LAMPS, ['amphitheater:stage']),
-  colosseum: entry('colosseum', { colosseum: buildArena }, ARENA_LAMPS),
+  colosseum: entry('colosseum', { colosseum: buildArena, 'colosseum:bay:even': (o) => buildArenaBay('even', o), 'colosseum:bay:odd': (o) => buildArenaBay('odd', o), 'colosseum:bay:gate': (o) => buildArenaBay('gate', o) }, ARENA_LAMPS, ARENA_BAYS.map((e) => e.key)),
   hippodrome: circusEntry(),
   hippodrome_part: circusEntry(),
 });
@@ -355,7 +362,7 @@ export function venueLook(type, lod, { state = 'open', acts = null, fill = FILL_
   own.traverse((o) => { if (o.isMesh) o.userData.state = state; });
   g.add(own);
   const a = acts || { play: true, bouts: true, hunt: true, races: true };
-  const more = state === 'open' ? [...crowdMore(type, section, fill, mood), ...(EXTRA[type] ? EXTRA[type](a) : [])] : [];
+  const more = [...(BASE[type] || []), ...(state === 'open' ? [...crowdMore(type, section, fill, mood), ...(EXTRA[type] ? EXTRA[type](a) : [])] : [])];
   for (const e of more) {
     const kit = e.key.startsWith('crowd:') ? buildCrowdPart(e.key, lod) : def.build(e.key, lod);
     for (let j = 0; j < e.n; j++) {

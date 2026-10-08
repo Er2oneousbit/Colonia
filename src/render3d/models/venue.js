@@ -352,7 +352,7 @@ function spectator(x, d, pose, arms, lod, rise) {
       hd = [x + s * 0.035, shY - 0.05, hipZ + 0.32];
     } else if (arms === 'one' && s < 0) {
       el = [x + s * 0.3, shY - 0.18, hipZ + 0.08];
-      hd = [x + s * 0.38, shY + 0.05, hipZ + 0.22];
+      hd = [x + s * 0.3, shY + 0.05, hipZ + 0.22];
     } else {
       el = [x + s * 0.28, shY + 0.24, hipZ + 0.06];
       hd = [x + s * 0.26, shY + 0.5, hipZ + 0.14];
@@ -415,7 +415,8 @@ export function buildCrowdGroup(pose, band, variant, lod = 0, rise = 0.33) {
  */
 export function rowSeats(at, d, y, t0, t1, skip = null, steps = 400) {
   const out = [];
-  let acc = GROUP_W / 2;
+  // (The first group a little in from the row's end: its people's arms stay over their own row's stone.)
+  let acc = GROUP_W / 2 - 0.14;
   let prev = at(d, t0);
   for (let k = 1; k <= steps; k++) {
     const t = t0 + ((t1 - t0) * k) / steps;

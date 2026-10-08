@@ -68,7 +68,7 @@ export const THEATRUM = Object.freeze({
   half: 4,
   /** The orchestra's centre (z) and radius: the cavea's half circles are about it. */
   cz: -1.0,
-  orchestra: 0.95,
+  orchestra: 0.82,
   /** The stage: its floor's height, its front's z, its half width; the scaenae frons's face. */
   stageY: 0.55,
   stageZ: -1.55,
@@ -99,6 +99,23 @@ const VOMITORIA = [D(38), D(90), D(142)];
 const MARBLE = {
   giallo: lin(0xe2c27a), cipollino: lin(0xb8c4b0), pavonazzetto: lin(0xece4e0), africano: lin(0x6a5a52), porphyry: lin(0x7a2e2e), white: lin(0xf2efe8), verde: lin(0x4f6a58),
 };
+
+/**
+ * A column (domus.js column, its shaft smooth: the stages' shafts were
+ * polished coloured stone, never fluted), made once by order, height and
+ * level and copied: a frons's sixteen columns were most of its kit's
+ * making.
+ */
+const COLUMNS = new Map();
+function columnCopy(order, h, lod) {
+  const key = `${order}|${h}|${lod}`;
+  let c = COLUMNS.get(key);
+  if (!c) {
+    c = column(order, h, lod, { smooth: true });
+    COLUMNS.set(key, c);
+  }
+  return { stone: c.stone.map((g) => g.clone()), cap: c.cap.map((g) => g.clone()) };
+}
 
 /** Paint a geometry's existing vertex colours times a linear colour. */
 function tinted(g, c) {
@@ -276,11 +293,11 @@ function frons(lod, p, M, state) {
   const ped = 0.24;
   xs.forEach((x, k) => {
     if (lod < 2) p.add('marble', M.marble, stone(lod, 0.26, ped, 0.26, x, Y, cz, { seed: k, tone: 0.02 }));
-    const lo = column('corinthian', lowH, lod, { smooth: lod > 0 });
+    const lo = columnCopy('corinthian', lowH, lod);
     for (const g of lo.stone) p.add('marble', M.marble, tinted(g.translate(x, Y + ped, cz), shafts[(k >> 1) % 4]));
     for (const g of lo.cap) p.add('marble', M.marble, g.translate(x, Y + ped, cz));
     if (lod < 2) {
-      const up = column('corinthian', upH, lod, { smooth: true });
+      const up = columnCopy('ionic', upH, lod);
       const y2 = Y + ped + lowH + 0.22;
       for (const g of up.stone) p.add('marble', M.marble, tinted(g.translate(x, y2, cz - 0.04), shafts[((k >> 1) + 2) % 4]));
       for (const g of up.cap) p.add('marble', M.marble, g.translate(x, y2, cz - 0.04));
@@ -351,15 +368,16 @@ function house(lod, p, M) {
   const y0 = T.frontTop - 0.1;
   const y1 = hb;
   const slopeL = Math.hypot(zf - zb, y0 - y1);
-  const tiles = box(2 * X + 0.16, 0.08, slopeL + 0.25, 0, -0.04, 0, 1);
+  // (Its eave over the back wall, within the footprint.)
+  const tiles = box(2 * X + 0.08, 0.08, slopeL + 0.04, 0, -0.04, 0, 1);
   tiles.rotateX(Math.atan2(y0 - y1, zf - zb));
-  tiles.translate(0, (y0 + y1) / 2, (zf + zb) / 2 - 0.08);
+  tiles.translate(0, (y0 + y1) / 2, (zf + zb) / 2);
   p.add('tile', M.tile, tiles);
   if (lod === 0) {
     // The imbrices' ridges down the slope.
     for (let k = 0; k < 22; k++) {
       const x = -X + (k + 0.5) * ((2 * X) / 22);
-      const r = staff([x, y0 + 0.03, zf + 0.04], [x, y1 + 0.03, zb - 0.16], 0.045, 5);
+      const r = staff([x, y0 + 0.03, zf + 0.04], [x, y1 + 0.03, zb + 0.06], 0.045, 5);
       p.add('tile', M.tile, tintGeometry(r, () => 0.9));
     }
   }
@@ -387,7 +405,8 @@ function velarium(lod, p, M) {
   const y0 = TOP.y + TOP.par;
   const top = y0 + MAST_H;
   for (const th of MASTS) {
-    const [x, z] = AT(TOP.d + TOP.wall + 0.08, th / Math.PI);
+    // (Standing in the parapet, braced by a console on the outer wall.)
+    const [x, z] = AT(TOP.d + TOP.wall * 0.5, th / Math.PI);
     p.add('wood', M.wood, staff([x, y0 - 0.4, z], [x, top, z], 0.032, lod ? 5 : 8));
     // The console the mast stands in, on the outer wall.
     if (lod < 2) p.add('trav', M.trav, box(0.16, 0.1, 0.16, x, y0 - 0.45, z, 0.92));
@@ -427,7 +446,7 @@ function velarium(lod, p, M) {
   // Its ropes from each mast's top down in to the inner edge.
   if (lod < 2) {
     for (const th of MASTS) {
-      const [x, z] = AT(TOP.d + TOP.wall + 0.08, th / Math.PI);
+      const [x, z] = AT(TOP.d + TOP.wall * 0.5, th / Math.PI);
       const ix = inR * Math.cos(th);
       const iz = T.cz + inR * Math.sin(th);
       p.add('rope', M.rope, staff([x, top, z], [ix, top - 0.62, iz], 0.012, 4), { when: 'open', cast: false });
