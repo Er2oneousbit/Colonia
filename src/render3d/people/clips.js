@@ -896,6 +896,38 @@ export const CLIPS = Object.freeze({
       P.rot('head', 0.2 - 0.25 * up, -0.05, 0);
     },
   },
+  // Lying abed on his back (a patient, a sleeper): the actor's place is the mattress's top under the middle
+  // of his length, his head toward -z (behind the facing) raised on a pillow, his face up. He breathes,
+  // turns his head on the pillow now and then, and lifts a hand to his brow and back (a fever).
+  lie: {
+    dur: 12, fps: 3,
+    pose(P, t) {
+      // (The hips' joint 0.1 over the mattress, a hand toward the head from the middle; laid back a quarter turn.)
+      P.root(0, 0.1 - 0.95, -0.1, -Math.PI / 2 + 0.006 * sn(t, 4), 0, 0);
+      P.rot('chest', 0.012 * sn(t, 4), 0, 0);
+      for (const s of [1, -1]) {
+        const k = s > 0 ? 'L' : 'R';
+        // The legs straight and a little apart, the feet fallen outward, toes down.
+        P.rot(`thigh${k}`, -0.06, 0, s * 0.05);
+        P.rot(`shin${k}`, 0.1, 0, 0);
+        P.rot(`foot${k}`, 0.55, s * 0.3, 0);
+      }
+      // The head on the pillow (raised by the neck's bend), turning to one side and the other, held.
+      const yaw = 0.45 * hold(t, 1, 0.15, 2);
+      P.rot('neck', 0.38, yaw * 0.3, 0);
+      P.rot('head', 0.12, yaw * 0.7, 0);
+      // The hands on the cover over his chest; the right up to his brow and back.
+      const brow = track(t, [[0, 0], [0.55, 0], [0.63, 1], [0.78, 1], [0.86, 0]]);
+      P.hand(1, 0.14, 0.27, -0.2, { pole: [0.6, -0.8, 0] });
+      const rest = [-0.12, 0.27, -0.28];
+      const up = [-0.05, 0.3, -0.66];
+      P.hand(-1, ...rest.map((v, i) => lerp(v, up[i], brow)), { pole: [-0.7, -0.6, 0] });
+      P.rot('handL', 0, 0, 0.3);
+      P.rot('handR', 0.4 * brow, 0, -0.3);
+      fingers(P, 1, 0.4);
+      fingers(P, -1, 0.4);
+    },
+  },
 });
 
 /**

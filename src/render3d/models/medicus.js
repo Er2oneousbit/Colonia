@@ -20,16 +20,17 @@
  *
  * So, in 4 m: a room under a gabled roof whose pediment faces the street,
  * its walls washed yellow ochre, a wide opening to the street, MEDICVS on
- * the board over it; inside, the patient sitting on the couch, his arm held
- * out to the doctor, who takes his wrist; an assistant grinding a remedy at
- * the table, its instruments laid out on a cloth, a brazier of coals for
+ * the board over it; inside, the patient sitting on the couch, the doctor
+ * standing before him, talking; an assistant grinding a remedy in the
+ * mortar on the table, its instruments laid out on a cloth, a brazier of coals for
  * the cautery; a cabinet of pots and instruments, open; a shelf of jars,
  * herbs hung to dry; outside, a woman waiting on the bench with her child,
  * herbs in pots, and the staff of Asclepius on its pillar by the door.
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed: the doctor, his assistant and patients, the cabinet
- *           open, the coals glowing, the lantern lit at night
+ *           open, the coals glowing, the lantern lit at night (the people
+ *           are actors: medicusActors)
  *   'shut'  no staff: the boards across the front, the cabinet shut, the
  *           brazier cold, nobody
  *
@@ -43,9 +44,11 @@ import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, gableRoof, D } from './rural.js';
-import { staff, inscribe, people } from './castra.js';
-import { person, bush, box } from './learning.js';
+import { staff, inscribe } from './castra.js';
+import { bush, box } from './learning.js';
 import { healthMaterials, lectus, table, potRow, pot, mortar, asclepius, towel, inFrame, coals, wallWindow } from './healing.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H, MORTAR } from '../people/clips.js';
 
 /** The physician's measures (metres): the tests, the lab and the game read them. */
 export const MEDICUS = Object.freeze({
@@ -58,8 +61,11 @@ export const MEDICUS = Object.freeze({
   lintel: 2.3,
   /** The eaves' height; the roof's pitch. */
   eave: 2.72,
-  /** The couch: its middle (x, z), along x. */
+  /** The couch: its middle (x, z), along x; its frame's height (the mattress's top then SEAT_H over the floor). */
   couch: Object.freeze([-0.62, -0.95]),
+  couchH: SEAT_H - 0.12,
+  /** The mortar on the table (x, z): its mouth MORTAR.height over the floor, where the assistant's pestle works (stir). */
+  mortar: Object.freeze([1.2, -0.13]),
   /** The staff of Asclepius's pillar (x, z). */
   sign: Object.freeze([1.5, 1.2]),
   /** The lantern on its bracket by the door (x, y, z), facing the street. */
@@ -166,20 +172,28 @@ function inside(lod, seed, out) {
   const back = -H + W;
   // The couch along the back of the room, a pillow at its left end.
   const [cx, cz] = M.couch;
-  const c = lectus(cx, cz, Math.PI / 2, { w: 0.72, l: 1.85, h: 0.42, lod, tick: 0xd8ccb0 });
+  // (Low enough to sit on: the mattress's top SEAT_H over the floor, the patient's seat.)
+  const c = lectus(cx, cz, Math.PI / 2, { w: 0.72, l: 1.85, h: M.couchH, lod, tick: 0xd8ccb0 });
   out.shelter.push(...c.wood.map((g) => g.translate(0, y0, 0)));
   out.linen.push(...c.cloth.map((g) => g.translate(0, y0, 0)));
   // The table by the right wall: its cloth, the instruments laid on it, a cupping vessel, the mortar.
+  // (Its top as high as puts the mortar's mouth where the assistant's pestle works: clips.js MORTAR.)
   const tx = H - W - 0.42;
   const tz = -0.45;
-  out.shelter.push(...table(tx, tz, 0.62, 1.1, 0.8).map((g) => g.translate(0, y0, 0)));
-  out.linen.push(box(0.5, 0.008, 0.9, tx, y0 + 0.8, tz, 0.95));
-  if (lod < 2) out.stone.push(...mortar(tx - 0.05, y0 + 0.808, tz + 0.32, lod));
+  const top = MORTAR.height - 0.12 - 0.008;
+  out.shelter.push(...table(tx, tz, 0.62, 1.1, top).map((g) => g.translate(0, y0, 0)));
+  out.linen.push(box(0.5, 0.008, 0.9, tx, y0 + top, tz, 0.95));
+  if (lod < 2) {
+    // The pestle is the assistant's while he grinds (an actor's prop): the kit's lies in the mortar only while shut.
+    const [mo, pestle] = mortar(M.mortar[0], y0 + top + 0.008, M.mortar[1], lod);
+    out.stone.push(mo);
+    out.pestle.push(pestle);
+  }
   if (lod === 0) {
     // Scalpels, probes and forceps of bronze in a row on the cloth, a cupping vessel (cucurbitula) beside them.
-    for (let k = 0; k < 7; k++) out.instruments.push(box(0.012, 0.008, 0.13 + (k % 3) * 0.03, tx - 0.17 + k * 0.045, y0 + 0.81, tz - 0.12, 0.9));
+    for (let k = 0; k < 7; k++) out.instruments.push(box(0.012, 0.008, 0.13 + (k % 3) * 0.03, tx - 0.17 + k * 0.045, y0 + top + 0.01, tz - 0.12, 0.9));
     const cup = revolve(profileOf([[0, 0], [0.05, 0], [0.065, 0.04], [0.06, 0.09], [0.035, 0.12], [0.02, 0.13], [0, 0.13]]), { segments: 12, metres: 0.2 });
-    out.instruments.push(tintGeometry(cup.translate(tx + 0.15, y0 + 0.81, tz - 0.32), () => 0.85));
+    out.instruments.push(tintGeometry(cup.translate(tx + 0.15, y0 + top + 0.01, tz - 0.32), () => 0.85));
   }
   // The cabinet (armarium) against the back wall right: shelves of pots and an instrument case; its doors open or shut.
   const ax = 0.95;
@@ -247,55 +261,53 @@ function boards(out) {
   out.boardsShut.push(box(o1 - o0 + 0.1, 0.07, 0.05, (o0 + o1) / 2, 1.15, M.front - 0.02, 0.6));
 }
 
-/** The people (only close up): the doctor taking a patient's wrist, the assistant at the mortar, a mother and child waiting. */
-function folk(mats) {
-  const list = [];
-  const things = { linen: [] };
+/** A towel over the couch's end (staffed: put away while shut). */
+function couchTowel(out) {
+  const [cx, cz] = M.couch;
+  out.linen.push(...towel(cx - 0.8, M.floorY + M.couchH + 0.12, cz, { w: 0.3, drop: 0.25, d: 0.72, ry: Math.PI / 2 }));
+}
+
+/**
+ * The physician's people while it is open (people/actors.js specs, the
+ * room's metres): the patient sitting on the couch's edge, turned to the
+ * doctor, who stands before him in his Greek mantle and talks (the two face
+ * each other across the street's diagonal, so the game's camera, which
+ * looks in from the street's corner, sees both in profile); the assistant
+ * standing at the table grinding a remedy in the mortar (stir: the clip's
+ * MORTAR is the mortar's mouth, placed to meet it); outside on the bench a
+ * mother in her stola and palla, her small son standing at her knee.
+ * Nobody while it is shut.
+ */
+export function medicusActors(state) {
+  if (state !== 'open') return [];
   const y0 = M.floorY;
   const [cx, cz] = M.couch;
-  // The patient, sitting on the couch's edge, turned toward the doctor, his arm held out to him (a
-  // bandage at the forearm). The two face each other across the street's diagonal, so the game's
-  // camera, which looks in from the street's corner, sees both in profile.
+  // (The couch's mattress is SEAT_H over the floor: the patient's feet on the floor.)
   const px = cx + 0.25;
   const pz = cz + 0.1;
   const pry = -Math.PI / 4;
-  list.push(...person(mats, { cloth: 0x8a5a3a, hair: 0x2e2119, skin: 0xb08060, sit: 0.56, arms: [[-0.12, 0.76, 0.3], [0.1, 0.95, 0.44]], lean: 0.06 }, px, y0, pz, pry));
-  const [wx, wz] = inFrame(px, pz, pry, 0.1, 0.44);
-  const [bx, bz] = inFrame(px, pz, pry, 0.12, 0.32);
-  const band = box(0.08, 0.07, 0.14, 0, 0, 0, 0.95);
-  band.rotateY(pry);
-  things.linen.push(band.translate(bx, y0 + 0.93, bz));
-  // The doctor, in a Greek mantle, standing before him: one hand at the wrist (the pulse), the other under the arm.
-  const [dx, dz] = inFrame(px, pz, pry, 0.05, 0.86);
-  const dry = pry + Math.PI;
-  const toLocal = (wx, wy, wz) => {
-    // (A point of the room in the doctor's own frame: his right +x, ahead +z.)
-    const c = Math.cos(dry);
-    const s = Math.sin(dry);
-    const ox = wx - dx;
-    const oz = wz - dz;
-    return [ox * c - oz * s, wy - y0, ox * s + oz * c];
-  };
-  list.push(...person(mats, { cloth: 0xe0d8c4, cloth2: 0x4a5a6a, hair: 0x6a625a, beard: true, long: true, arms: [toLocal(wx, y0 + 1.0, wz), toLocal(bx, y0 + 0.9, bz)] }, dx, y0, dz, dry));
-  // The assistant at the table, grinding: seated on a stool, leaning to the mortar.
-  const ax = H - W - 0.95;
-  const az = -0.12;
-  list.push(...person(mats, { cloth: 0xc9bca2, hair: 0x1e1812, skin: 0x8a5e40, sit: 0.46, arms: [[0.42, 0.88, 0.2], [0.36, 0.95, 0.06]], lean: 0.22 }, ax, y0, az, Math.PI / 2));
-  things.linen.push(box(0.3, 0.46, 0.3, ax - 0.02, y0, az, 0.6));
-  // Outside on the bench: a mother in her palla, her small son standing at her knee.
-  list.push(...person(mats, { cloth: 0x7a4a5a, cloth2: 0xb8a888, hair: 0x2e2119, skin: 0xc49a74, long: true, sit: 0.46, arms: 'lap', lean: 0.05 }, 1.62, 0.06, M.front + 0.2, 0.2));
-  const [kx, kz] = inFrame(1.62, M.front + 0.2, 0.2, -0.45, 0.42);
-  list.push(...person(mats, { cloth: 0xd8cdb4, hair: 0x3a2a1a, skin: 0xc49a74, arms: 'down' }, kx, 0.06, kz, 0.9, 0.62));
-  // A towel over the couch's end.
-  things.linen.push(...towel(cx - 0.8, y0 + 0.54, cz, { w: 0.3, drop: 0.25, d: 0.72, ry: Math.PI / 2 }));
-  return { list, things };
+  const [dx, dz] = inFrame(px, pz, pry, 0.05, 0.92);
+  // The assistant faces +x (ry pi/2): his ahead the model's +x, his left its -z; the mortar MORTAR.ahead before him.
+  const [mx, mz] = M.mortar;
+  const ax = mx - MORTAR.ahead;
+  const az = mz - 0.02;
+  // The mother's bench by the door: its top SEAT_H over the pavement.
+  const [bx, bz, bry] = [1.6, M.front + 0.22, 0.2];
+  const [kx, kz] = inFrame(bx, bz, bry, -0.48, 0.5);
+  return [
+    { body: 'm', dress: ['tunic:knee'], hair: 'curls', clip: 'sit', at: [px, y0, pz], ry: pry, seed: 331, colours: { tunic: DYES.madder } },
+    { body: 'm', dress: ['tunic:long', 'pallium'], hair: 'bald', beard: 'full', old: true, clip: 'talk', at: [dx, y0, dz], ry: pry + Math.PI, seed: 332, colours: { tunic: DYES.white, mantle: DYES.woad } },
+    { body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'stir', props: { R: 'pestle' }, at: [ax, y0, az], ry: Math.PI / 2, seed: 333, colours: { tunic: DYES.oatmeal, skin: 0x8c5e40 } },
+    { body: 'f', dress: ['tunic:long:stola', 'palla'], hair: 'bun', clip: 'sit', at: [bx, 0.06, bz], ry: bry, seed: 334, colours: { tunic: DYES.saffron, mantle: DYES.oxblood } },
+    { body: 'c', dress: ['tunic:knee', 'bulla'], hair: 'curls', clip: 'listen', at: [kx, 0.06, kz], ry: 2.3, seed: 335, colours: { tunic: DYES.white, trim: DYES.white } },
+  ];
 }
 
 /** Build the physician's: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
 export function buildMedicus({ lod = 0, seed = 331 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const keys = ['flags', 'floor', 'shelter', 'trav', 'stone', 'ochre', 'red', 'paint', 'tile', 'wood', 'dark', 'board', 'letters', 'iron', 'bronze', 'snake',
-    'linen', 'terracotta', 'soil', 'leaf', 'herbs', 'instruments', 'doorOpen', 'doorShut', 'boardsShut', 'coalsLit', 'coalsCold'];
+    'linen', 'terracotta', 'soil', 'leaf', 'herbs', 'instruments', 'doorOpen', 'doorShut', 'boardsShut', 'coalsLit', 'coalsCold', 'pestle'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   shell(lod, seed, out);
   front(lod, seed + 20, out);
@@ -342,10 +354,12 @@ export function buildMedicus({ lod = 0, seed = 331 } = {}) {
     p.add('lamp', lanternPane(), [l.pane], { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
   }
-  if (lod === 0) {
-    const { list, things } = folk(m);
-    people(p, m, 'patients', list, 'open');
-    p.add('dressings', m.linen, things.linen, { when: 'open', cast: false });
+  // The pestle in the mortar while nobody grinds; the towel on the couch while it is open. (The people are actors: medicusActors.)
+  p.add('pestle', m.trav, out.pestle, { when: 'shut', cast: false });
+  if (lod < 2) {
+    const towels = { linen: [] };
+    couchTowel(towels);
+    p.add('dressings', m.linen, towels.linen, { when: 'open', cast: false });
   }
   return p.build();
 }

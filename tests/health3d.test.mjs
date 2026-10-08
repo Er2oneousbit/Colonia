@@ -10,8 +10,10 @@
  *   - each level of detail is lighter than the one before, within budget
  *   - states from the sim's fields: staffed or not; the baths' water and
  *     staff (flowing, still, dry) and the hard frost's ice
- *   - every part's tag shows in some state; people only at work and close
- *     up; the baths' water, dry floor, smoke, steam and warm vaults by state
+ *   - every part's tag shows in some state; people (actors) only at work;
+ *     the baths' water, dry floor, smoke, steam and warm vaults by state
+ *   - the people meet their work: the barber's razor at his client's head,
+ *     the assistant's pestle in the mortar; nobody in a frozen pool
  *   - what a roof shelters takes no snow
  *   - the lanterns light at night only while at work, inside the footprint
  *   - the game's pass draws the baths' three states from one kit
@@ -21,11 +23,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { Box3, Group } from 'three';
+import { Box3, Group, Matrix4, Vector3 } from 'three';
 import { MODELS, hasModel, modelMatrix, modelLamps, partShows } from '../src/render3d/models.js';
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { healthState, bathsState } from '../src/render3d/models/health.js';
+import { tonstrinaActors, CLIENT_HEAD } from '../src/render3d/models/tonstrina.js';
+import { medicusActors, MEDICUS } from '../src/render3d/models/medicus.js';
+import { balneumActors } from '../src/render3d/models/balneum.js';
+import { valetudinariumActors } from '../src/render3d/models/valetudinarium.js';
+import { poseAt, BONE, SHAVE, MORTAR } from '../src/render3d/people/clips.js';
+import { REST } from '../src/render3d/people/pose.js';
+import { HEAD_C } from '../src/render3d/people/body.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 
 const TYPES = ['barber', 'clinic', 'baths', 'hospital'];
@@ -105,13 +114,15 @@ test('health3d: every part shows in some state, and each state shows what it sho
   for (const type of TYPES) {
     for (const p of shownIn(type, 0, type, type === 'baths')) assert.ok(p.states.length, `${type} ${p.name}|${p.when} shows in no state`);
   }
-  const people = { barber: 'customers-', clinic: 'patients-', baths: 'bathers-', hospital: 'sick-' };
+  // The people are actors (people/): a few at work, nobody in any other state; none merged into a kit.
+  const peopleOf = (type, s) => {
+    const b = { type, efficiency: s === 'still' || s === 'shut' ? 0 : 1, hasWater: s !== 'dry' };
+    return MODELS[type].variant(b, { snow: 0 }, null).actors.actors.length;
+  };
   for (const type of TYPES) {
-    const peopleIn = (s) => shownIn(type).filter((p) => p.name.startsWith(people[type]) && p.states.includes(s)).length;
-    assert.ok(peopleIn(AT_WORK[type]) >= 3, `${type}: people at work`);
-    for (const s of STATES[type].filter((q) => q !== AT_WORK[type])) assert.equal(peopleIn(s), 0, `${type}: nobody when ${s}`);
-    // People only close up: a dozen figures are thousands of triangles under a pixel each further out.
-    assert.equal(shownIn(type, 1).filter((p) => p.name.startsWith(people[type])).length, 0, `${type} lod 1`);
+    assert.ok(peopleOf(type, AT_WORK[type]) >= 3, `${type}: people at work`);
+    for (const s of STATES[type].filter((q) => q !== AT_WORK[type])) assert.equal(peopleOf(type, s), 0, `${type}: nobody when ${s}`);
+    assert.equal(shownIn(type).filter((p) => /^(customers|patients|bathers|sick)-/.test(p.name)).length, 0, `${type}: no still figures`);
   }
   const states = (type, name, ice = false) => shownIn(type, 0, ice ? `${type}:ice` : type, ice).filter((p) => p.name === name).map((p) => p.states.join('+')).sort();
   // The barber's and the physician's boards across the shop when shut; the physician's cabinet and coals.
@@ -190,4 +201,31 @@ test('health3d: the game\'s pass draws the baths\' three states from one kit', (
   assert.ok(shown('full') === 0 && shown('dry') >= 1 && shown('cold') >= 1, 'dry');
   assert.equal(mp.kits.get('baths|2'), kit, 'the same kit through the three states');
   mp.dispose();
+});
+
+test('health3d: the people meet their work: the razor at the client\'s head, the pestle in the mortar, nobody in a frozen pool', () => {
+  const frame = (a) => new Matrix4().makeRotationY(a.ry).setPosition(...a.at);
+  // The barber: the client's head (the shaved clip's, its middle as body.js makes it) where his shave clip has it.
+  const [client, barber] = tonstrinaActors('open');
+  const head = (t) => {
+    const p = poseAt('shaved', t);
+    return new Vector3(...HEAD_C).sub(REST[BONE.head]).applyMatrix4(p.world[BONE.head]).applyMatrix4(frame(client));
+  };
+  const want = new Vector3(...SHAVE.head).applyMatrix4(frame(barber));
+  for (const t of [0, 0.3, 0.6]) assert.ok(head(t).distanceTo(want) < 0.03, `the client's head ${head(t).distanceTo(want).toFixed(3)} from the barber's`);
+  assert.ok(Math.abs(CLIENT_HEAD[1] - head(0).y + client.at[1]) < 0.01);
+  // The physician's assistant: his clip's mortar on the kit's, its mouth at the height his pestle works.
+  const grinder = medicusActors('open').find((a) => a.clip === 'stir');
+  const mouth = new Vector3(-0.02, MORTAR.height, MORTAR.ahead).applyMatrix4(frame(grinder));
+  assert.ok(Math.hypot(mouth.x - MEDICUS.mortar[0], mouth.z - MEDICUS.mortar[1]) < 0.01, 'over the mortar');
+  // (mortar(): the kit's pestle leans in it 0.14 over its foot, the mouth 0.12 over it.)
+  let pestle = null;
+  MODELS.clinic.build('clinic', 0).traverse((o) => { if (o.isMesh && o.name === 'pestle') pestle = new Box3().setFromObject(o); });
+  const foot = (pestle.min.y + pestle.max.y) / 2 - 0.14;
+  assert.ok(Math.abs(foot + 0.12 - mouth.y) < 0.01, `the mouth at ${(foot + 0.12).toFixed(3)}, the pestle's work at ${mouth.y.toFixed(3)}`);
+  // The baths in a hard frost: nobody standing in the pool's ice; still or dry, nobody.
+  assert.equal(balneumActors('flowing', true).length, balneumActors('flowing', false).length - 1);
+  assert.equal(balneumActors('still').length + balneumActors('dry').length, 0);
+  // The hospital's sick lie abed (the lie clip), in the wards, on the couch, on the table.
+  assert.ok(valetudinariumActors('open').filter((a) => a.clip === 'lie').length >= 6);
 });

@@ -27,6 +27,7 @@ import { material } from '../render3d/materials.js';
 import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { modelFor, partShows } from '../render3d/models.js';
 import { DECOR_MODELS } from '../render3d/models/decor.js';
+import { labCrowd } from './labPeople.js';
 
 /** The scene's map: tiles W x H, 4 m each, its middle at the lab's origin. */
 const MW = 30;
@@ -129,7 +130,7 @@ were, in Roman capitals (S P Q R; D D, by decree of the council; P P, at public 
 marble, the bronze gone green, droppings, the wreath fallen.</p>
 <p><b>The gardeners' yard</b> (<i>topiaria</i>): the gardeners' shed, pots of seedlings (the Romans raised them in pierced pots,
 <i>ollae perforatae</i>, as found along Pompeii's garden walls), the hoe, the rake, the pruning knife, a watering jar, the compost;
-a gardener clipping a box into shape while it is staffed.</p>
+a gardener clipping a box hedge with his spring shears and another carrying compost while it is staffed.</p>
 <p><b>The triumphal arch</b> (<i>fornix</i>) after the Arch of Titus: one bay on piers faced with engaged columns, Victories in the
 spandrels, reliefs of the triumph inside the passage under a coffered vault, the attic cut SENATVS POPVLVSQVE ROMANVS in gilt
 bronze letters, and on top the bronze chariot of the triumph drawn by four horses. The road runs on under it.</p>
@@ -196,6 +197,7 @@ export function buildGardensScene() {
   };
   const shown = [];
   const ctx = { game, month: 4 };
+  const crowd = labCrowd(group);
   const _l = new Matrix4();
   function build() {
     built.clear();
@@ -204,6 +206,8 @@ export function buildGardensScene() {
     shown.length = 0;
     ctx.month = MONTHS[monthAt][0];
     game.time.month = ctx.month;
+    // (The people, as the game draws them: each variant's actors, the gardeners' yard's.)
+    crowd.batch.begin(lod);
     for (const b of game.buildings.values()) {
       const def = DECOR_MODELS[b.type];
       if (!def) continue;
@@ -217,7 +221,9 @@ export function buildGardensScene() {
         for (let j = 0; j < it.n; j++) place(it.key, m.clone().multiply(_l.fromArray(it.mats, j * 16)), it.state || 'always');
       }
       shown.push({ type: b.type, key: v.key, more: (v.more || []).map((it) => `${it.key} x${it.n}`) });
+      if (v.actors && v.actors.actors.length) crowd.batch.add(v.actors, m, b.id);
     }
+    crowd.batch.end();
   }
   /** Built once the scene is first shown (it is the lab's biggest). */
   let ready = false;
@@ -242,6 +248,7 @@ export function buildGardensScene() {
     // The lamp's light by the grand statue's lampstands.
     lamp: [mid(17, 0, 3)[0] - 2.15, 2.3, mid(17, 0, 3)[1] + 3.6],
     shadowBox: 64,
+    noAO: [crowd.batch.group],
     get lod() { return lod; },
     get month() { return MONTHS[monthAt][0]; },
     shown,

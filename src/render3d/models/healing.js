@@ -9,8 +9,10 @@
  * staff of Asclepius with its serpent, beds of herbs, and the baths' steam
  * and smoke.
  *
- * People are learning.js person(): standing or seated, posed by their
- * wrists. A patient abed is that person laid on his back.
+ * The four buildings' people are actors (people/actors.js: each model's
+ * *Actors(state)); a patient abed is one lying (clips.js lie) under a
+ * blanket() of the kit's. (abed() and sleeper() are the still mannequins
+ * they replaced.)
  *
  * Steam and smoke are soft ribbons (crossed sheets of a grid whose vertices
  * carry an alpha that fades to nothing at their edges and top), see-through,
@@ -128,6 +130,35 @@ export function sleeper(mats, { skin = 0xa87a58, hair = 0x2e2119, blanket = 0x8a
     q.g.translate(x, 0, z);
   }
   return parts;
+}
+
+/**
+ * The blanket over a patient lying abed as an actor (people/clips.js lie):
+ * at (x, y, z) the actor's place (the mattress's top under the middle of
+ * his length), turned ry as the actor (his head toward his -z); from his
+ * chest to past his feet, a little wider than he is, its top humped over
+ * him and his hands on it. `scale` the actor's. Returns a geometry in the
+ * blanket's colour (for the cloth's material).
+ */
+export function blanket(x, y, z, ry, { colour = 0x8a6a4a, scale = 1, lod = 0 } = {}) {
+  const s = scale;
+  const len = 1.3 * s;
+  const b = new BoxGeometry(0.66 * s, 0.2 * s, len, lod ? 2 : 4, 1, lod ? 1 : 3);
+  const p = b.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const u = p.getX(i) / (0.33 * s);
+    // (A hump over the body: the top's middle up, its edges down to the mattress.)
+    const top = p.getY(i) > 0;
+    p.setY(i, top ? 0.27 * s * (1 - 0.6 * u * u) : -0.02);
+    p.setX(i, p.getX(i) * (top ? 0.9 : 1));
+  }
+  b.computeVertexNormals();
+  // (From his chest, 0.42 toward his head, to past his feet.)
+  b.translate(0, y + 0.02, -0.42 * s + len / 2);
+  b.rotateY(ry);
+  b.translate(x, 0, z);
+  const rgb = lin(colour);
+  return tintGeometry(boxUV(b), (px, py) => [rgb[0] * (0.85 + 0.6 * (py - y)), rgb[1] * (0.85 + 0.6 * (py - y)), rgb[2] * (0.85 + 0.6 * (py - y))]);
 }
 
 /** A point of a frame at (x, z) turned ry, (dx right, dz ahead) in it: the model's [x, z]. */

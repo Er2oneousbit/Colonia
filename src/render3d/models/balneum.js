@@ -29,13 +29,14 @@
  * each; behind the caldarium's end, the service yard: the furnace's arched
  * mouth with its coals, the boiler on its base, the firewood, a flue stack,
  * a hole in the wall showing the pilae of the hypocaust; before them the
- * palaestra of sand, ball players, a man with his strigil by a labrum,
+ * palaestra of sand, bathers talking and resting, one splashing at a labrum,
  * benches, stone bowling balls, and the raised pool with its bronze spout;
  * a low wall to the street, the gate between piers under BALNEVM, lanterns.
  *
  * States (meshes tagged in userData.when, models.js partShows), from piped
  * water and staff as the 2D sprite and the fountain read them:
- *   'flowing'  water and staff: the bathers, the furnace's coals, smoke at
+ *   'flowing'  water and staff: the bathers, the capsarius and the stoker
+ *              (actors: balneumActors), the furnace's coals, smoke at
  *              the flue and the vents, the spout running into the pool, the
  *              doors open, the lanterns lit at night; steam from the dome's
  *              top, the window and the vents in a hard frost ('ice')
@@ -55,9 +56,11 @@ import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { material, shallowWaterMaterial, streamMaterial, iceMaterial } from '../materials.js';
 import { slab, paving, tuscanColumn, wallWithOpenings, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, woodpile, ruralMaterials, leanTo } from './rural.js';
-import { staff, inscribe, people } from './castra.js';
-import { person, roofSlope, box } from './learning.js';
+import { staff, inscribe } from './castra.js';
+import { roofSlope, box } from './learning.js';
 import { healthMaterials, steamMaterial, plume, towel, coals } from './healing.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H } from '../people/clips.js';
 
 /** The baths' measures (metres): the tests, the lab and the game read them. */
 export const BALNEUM = Object.freeze({
@@ -318,10 +321,12 @@ function portico(lod, seed, out) {
   out.wood.push(...roof.wood);
   // The end of the portico by the yard: a wall closing it.
   out.plaster.push(box(0.24, eave, cz + 0.2 - zb, x1 - 0.12 + 0.12, 0, (zb + cz + 0.2) / 2, 0.92));
-  // Benches along the walls (sheltered), pegs over them for the bathers' clothes.
+  // Benches along the walls (sheltered), pegs over them for the bathers' clothes. (Their tops SEAT_H
+  // over the floor: a sitter's feet on it.)
+  const legs = SEAT_H - 0.06;
   for (const [a, b] of [[-1.9, -0.95], [-0.7, 0.85], [2.05, 2.6]]) {
-    out.shelter.push(slab(b - a, 0.06, 0.4, { bevel: 0.01, seed: seed + a * 7, wobble: 0, tone: 0.03, grime: 0 }).translate((a + b) / 2, floor + 0.42, zb + 0.24));
-    for (const x of [a + 0.12, b - 0.12]) out.shelter.push(box(0.1, 0.42, 0.34, x, floor, zb + 0.22, 0.75));
+    out.shelter.push(slab(b - a, 0.06, 0.4, { bevel: 0.01, seed: seed + a * 7, wobble: 0, tone: 0.03, grime: 0 }).translate((a + b) / 2, floor + legs, zb + 0.24));
+    for (const x of [a + 0.12, b - 0.12]) out.shelter.push(box(0.1, legs, 0.34, x, floor, zb + 0.22, 0.75));
   }
   if (lod < 2) {
     out.shelter.push(box(1.6, 0.05, 0.05, 0.05, floor + 1.55, zb + 0.04, 0.6));
@@ -465,42 +470,52 @@ function pool(lod, seed, ice, out) {
   }
 }
 
-/** The people (only close up): the bathers, the ball players, the man with his strigil, the capsarius, the stoker. */
-function folk(mats, ice) {
+/** The clothes left on the pegs while the baths work. */
+function clothes() {
+  return [
+    ...towel(-0.34, B.portico.floor + 1.5, B.caldarium.z1 + 0.1, { w: 0.24, drop: 0.5, d: 0.02, tone: 0.9 }),
+    ...towel(0.18, B.portico.floor + 1.5, B.caldarium.z1 + 0.1, { w: 0.24, drop: 0.55, d: 0.02, tone: 0.7 }),
+  ];
+}
+
+/**
+ * The baths' people while they work ('flowing'; nobody while still or dry),
+ * in their own metres (people/actors.js specs). Bathers in a loincloth
+ * (limus) or a short tunic: one standing in the pool to his waist (not in a
+ * hard frost, `ice`: then the pool is ice), one sitting on its back rim, his
+ * feet in the water; two talking on the palaestra and one resting on its
+ * bench (Seneca's noise over a bath); one splashing his face from the
+ * labrum (his hand in its water: the stir clip's circling hand, no pestle);
+ * under the portico the capsarius minding the clothes on the bench, and a
+ * bather walking along it to the caldarium's door and back; in the yard the
+ * stoker raking the ash from the furnace's mouth (sweep).
+ */
+export function balneumActors(state, ice = false) {
+  if (state !== 'flowing') return [];
+  const sand = 0.03;
+  const P = B.portico;
+  const C = B.caldarium;
+  const bare = (c) => ({ body: 'm', dress: ['limus'], colours: { tunic: DYES.white, trim: DYES.white, ...c } });
   const list = [];
-  const things = { leather: [], bronze: [], wood: [], linen: [] };
-  const towelled = { cloth: 0xe8e0d0, hair: 0x2e2119 };
-  const { z0: pz0 } = B.pool;
-  if (!ice) {
-    // A bather standing in the pool to his waist, wiping his face.
-    list.push(...person(mats, { cloth: 0xa87a58, hair: 0x2e2119, skin: 0xa87a58, arms: [[-0.26, 0.92, 0.18], [0.12, 1.5, 0.2]] }, 2.75, 0.04, 2.3, 0.7));
-  }
-  // One sitting on the pool's back rim, his feet over the water, facing the street.
-  list.push(...person(mats, { ...towelled, skin: 0xb88a64, sit: 0.66, arms: 'lap', lean: 0.12 }, 1.15, B.pool.rim - 0.66 + 0.02, pz0 + 0.11, 0));
-  // Two at ball (trigon, pila), the ball between them; a man scraping his arm with a strigil by the labrum.
-  list.push(...person(mats, { cloth: 0xe0d6c0, hair: 0x4a3020, skin: 0xb08060, arms: 'reach' }, -3.0, 0.03, 1.55, 0.85));
-  list.push(...person(mats, { cloth: 0xd8cdb4, hair: 0x1e1812, skin: 0x9a6c4c, arms: [[-0.3, 1.3, 0.2], [0.3, 1.32, 0.22]] }, -1.55, 0.03, 2.75, -2.25));
-  const ball = new SphereGeometry(0.08, 12, 8);
-  ball.translate(-2.3, 1.75, 2.15);
-  things.leather.push(tintGeometry(boxUV(ball), () => 0.9));
-  list.push(...person(mats, { ...towelled, skin: 0xa87a58, arms: [[-0.16, 1.06, 0.26], [0.16, 1.14, 0.3]] }, -0.15, 0.03, 1.75, -Math.PI / 2 - 0.4));
-  things.bronze.push(tube([[-0.38, 1.16, 1.62], [-0.44, 1.12, 1.56], [-0.48, 1.04, 1.58]], 0.012, { radial: 5, segments: 6 }));
-  // Under the portico, the capsarius minding the clothes on the bench; a bather in his towel going in.
-  list.push(...person(mats, { cloth: 0x8a7a62, hair: 0x1e1812, skin: 0x8a5e40, sit: 0.48, arms: 'lap', lean: 0.1 }, -1.45, B.portico.floor, B.caldarium.z1 + 0.25, 0));
-  list.push(...person(mats, { ...towelled, cloth2: 0xece6d8, skin: 0xb88a64, arms: 'hold' }, 0.3, B.portico.floor, -0.75, Math.PI - 0.3));
-  // The stoker at the furnace's mouth with a log.
-  const F = B.furnace;
-  const xs = B.caldarium.x1 + 0.62;
-  list.push(...person(mats, { cloth: 0x6a5a48, hair: 0x2e2119, skin: 0x8a5e40, arms: [[-0.2, 0.86, 0.36], [0.2, 0.86, 0.36]] }, xs, 0.03, F.z - 0.08, -Math.PI / 2));
-  const log = new CylinderGeometry(0.06, 0.06, 0.6, 7, 1);
-  log.rotateZ(Math.PI / 2);
-  log.rotateY(Math.PI / 2);
-  log.translate(xs - 0.38, 0.86, F.z - 0.08);
-  things.wood.push(tintGeometry(boxUV(log), () => 0.8));
-  // The clothes left on the pegs, and a towel over the bench.
-  things.linen.push(...towel(-0.34, B.portico.floor + 1.5, B.caldarium.z1 + 0.1, { w: 0.24, drop: 0.5, d: 0.02, tone: 0.9 }));
-  things.linen.push(...towel(0.18, B.portico.floor + 1.5, B.caldarium.z1 + 0.1, { w: 0.24, drop: 0.55, d: 0.02, tone: 0.7 }));
-  return { list, things };
+  if (!ice) list.push({ ...bare({ skin: 0xa87452 }), hair: 'crop', clip: 'idle', at: [2.75, 0.04, 2.3], ry: 0.7, seed: 351 });
+  // (The rim's top SEAT_H over his feet, in the water.)
+  list.push({ ...bare({ skin: 0xb88560 }), hair: 'curls', clip: 'sit', at: [1.15, B.pool.rim + 0.02 - SEAT_H, B.pool.z0 + 0.14], ry: 0, seed: 352 });
+  list.push({ ...bare({ skin: 0xbf8b62 }), hair: 'crop', beard: 'short', clip: 'talk', at: [-2.8, sand, 1.5], ry: 0.85, seed: 353 });
+  list.push({ body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'listen', at: [-2.05, sand, 2.25], ry: -2.3, seed: 354, colours: { tunic: DYES.white } });
+  // (The palaestra's bench by the left wall, its top SEAT_H over the sand: his hips over it, facing the court.)
+  list.push({ ...bare({ skin: 0x9a6a4a }), hair: 'curls', clip: 'sit', at: [-H + 0.48 + 0.03, sand, 2.75], ry: Math.PI / 2, seed: 355 });
+  // At the labrum: the basin's rim MORTAR.height over the sand, his hand circling in its water.
+  list.push({ ...bare({ skin: 0xc8956c }), hair: 'crop', clip: 'stir', at: [-0.62, sand, 0.4], ry: 0, seed: 356 });
+  // Under the portico: the capsarius on the bench (its top SEAT_H over the floor), and a bather going in.
+  list.push({ body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'sit', at: [-1.45, P.floor, C.z1 + 0.27], ry: 0, seed: 357, colours: { tunic: DYES.fawn, skin: 0x8c5e40 } });
+  list.push({
+    body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'walk', at: [-0.4, P.floor, -0.46], ry: Math.PI / 2, seed: 358, colours: { tunic: DYES.white },
+    // (Along the portico between the benches' fronts and the columns, to the door, turned to it, and back.)
+    route: { length: 1.85, speed: 0.75, pauseEnd: 4, pauseStart: 5, clipEnd: 'idle', clipStart: 'listen', faceEnd: Math.PI, faceStart: -Math.PI / 2 },
+  });
+  // The stoker at the furnace's mouth, raking the ash, his broom's head at the mouth.
+  list.push({ body: 'm', dress: ['tunic:short'], hair: 'crop', clip: 'sweep', props: { R: 'broom' }, at: [C.x1 + 0.55, sand, B.furnace.z + 0.1], ry: -Math.PI / 2, seed: 359, colours: { tunic: DYES.brownWool, skin: 0x75492f } });
+  return list;
 }
 
 /** Build the baths: { group, meshes, triangles }; meshes tagged in userData.when ('full', 'flow', 'dry', 'cold', 'ice'). */
@@ -590,14 +605,8 @@ export function buildBalneum({ lod = 0, seed = 351, ice = false } = {}) {
     plume(B.window[0] - 0.05, B.window[1] + 0.2, B.window[2], { h: 0.9, r: 0.15, n: 3, seed: 6, rows, alpha: 0.9, lean: [-0.35, 0.2] }),
     ...(lod < 2 ? [-0.6, 0.6, 1.8].map((x, i) => plume(x, C.spring + 0.32, C.z0 + 0.12, { h: 1.0, r: 0.08, seed: 7 + i, rows, alpha: 0.9, lean: [-0.2, 0.3] })) : []),
   ], { when: 'ice', cast: false });
-  if (lod === 0) {
-    const { list, things } = folk(m, ice);
-    people(p, m, 'bathers', list, 'flow');
-    p.add('ball', m.leather, things.leather, { when: 'flow', cast: false });
-    p.add('strigil', m.bronze, things.bronze, { when: 'flow', cast: false });
-    p.add('log', m.wood, things.wood, { when: 'flow', cast: false });
-    p.add('clothes', m.linen, things.linen, { when: 'flow', cast: false });
-  }
+  // (The people are actors: balneumActors.)
+  if (lod < 2) p.add('clothes', m.linen, clothes(), { when: 'flow', cast: false });
   return p.build();
 }
 
