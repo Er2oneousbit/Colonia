@@ -71,7 +71,7 @@ export const GREX = Object.freeze({
   /** The rail of costumes: its line (x), from z0 to z1, its height. */
   rail: Object.freeze([-3.45, -0.25, 2.35, 1.85]),
   /** The touring cart: its middle (x, z), its turn. */
-  cart: Object.freeze([2.15, 2.15, -0.42]),
+  cart: Object.freeze([2.15, 1.45, -0.42]),
   /** The manager's stool (x, z), its top's height. */
   stool: Object.freeze([2.95, 0.15, 0.46]),
   /** The gate (x0, x1) and its lanterns. */
@@ -152,7 +152,7 @@ function house(lod, seed, out) {
   // GREX painted on the frieze.
   if (lod === 0) out.letters.push(...inscribe('GREX', G.eave - 0.29, z1 + 0.012, 0.15).map((g) => g.translate(2.7, 0, 0)));
   // The lean-to roof from the back wall down over the stage's wall to the yard.
-  const roof = roofSlope([[x0 - 0.12, G.eave, z1 + 0.42], [x1 + 0.12, G.eave, z1 + 0.42], [x1 + 0.12, G.top + 0.04, z0 - 0.1], [x0 - 0.12, G.top + 0.04, z0 - 0.1]], { lod, seed: seed + 9 });
+  const roof = roofSlope([[x0 - 0.03, G.eave, z1 + 0.42], [x1 + 0.03, G.eave, z1 + 0.42], [x1 + 0.03, G.top + 0.04, z0], [x0 - 0.03, G.top + 0.04, z0]], { lod, seed: seed + 9 });
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
 }

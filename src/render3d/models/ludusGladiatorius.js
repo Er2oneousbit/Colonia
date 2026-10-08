@@ -80,11 +80,11 @@ function range(lod, seed, out, x0, x1, { doors, lanista = null }) {
   const t = 0.24;
   const geo = [];
   const push = (key, g) => geo.push([key, g]);
-  push('ashlar', box(x1 - x0, 0.25, zp - zb + 0.25, (x0 + x1) / 2, 0, (zb + zp) / 2, 0.85));
+  push('ashlar', box(x1 - x0, 0.25, zp - zb + 0.15, (x0 + x1) / 2, 0, (zb + zp + 0.15) / 2, 0.85));
   // (The back wall stands a little over the roof's top, coped with tiles: the slope's upper edge, its
   // imbrices' open ends, hides behind it.)
   push('plaster', box(x1 - x0, L.top - 0.03, t, (x0 + x1) / 2, 0.25, zb + t / 2, 0.9));
-  push('tile', box(x1 - x0 + 0.08, 0.07, t + 0.1, (x0 + x1) / 2, L.top + 0.22, zb + t / 2, 0.85));
+  push('tile', box(x1 - x0, 0.07, t, (x0 + x1) / 2, L.top + 0.22, zb + t / 2, 0.85));
   // The cells' front: wall with doors (dark inside), a little barred window over each.
   const edges = [x0];
   for (const d of doors) edges.push(d - (d === lanista ? 0.6 : 0.42), d + (d === lanista ? 0.6 : 0.42));
@@ -115,7 +115,7 @@ function range(lod, seed, out, x0, x1, { doors, lanista = null }) {
     if (lod < 2) push('red', box(0.27, 0.8, 0.27, x, 0.12, zp, 0.75));
   }
   push('wood', box(x1 - x0, 0.2, 0.26, (x0 + x1) / 2, L.eave - 0.2, zp, 0.7));
-  const roof = roofSlope([[x0 - 0.1, L.eave, zp + 0.35], [x1 + 0.1, L.eave, zp + 0.35], [x1 + 0.1, L.top + 0.02, zb - 0.1], [x0 - 0.1, L.top + 0.02, zb - 0.1]], { lod, seed });
+  const roof = roofSlope([[x0, L.eave, zp + 0.35], [x1, L.eave, zp + 0.35], [x1, L.top + 0.02, zb + 0.05], [x0, L.top + 0.02, zb + 0.05]], { lod, seed });
   for (const g of roof.tile) push('tile', g);
   for (const g of roof.wood) push('wood', g);
   // Its end walls to the roof's line.

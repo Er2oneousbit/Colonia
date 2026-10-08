@@ -30,7 +30,7 @@
  *
  *   - The figures of the shows' buildings (appended): a beast skinned to its
  *     own skeleton from its own baked clips (units/quadRig.js, the units'
- *     texture: units/material.js beastUniforms), a rigid car whose wheels
+ *     texture: units/beastTexture.js), a rigid car whose wheels
  *     turn with the ground it covers, and an orbit: a figure going round a
  *     circle (a team exercised round a stable's yard), its walking clip at
  *     the speed it goes so its feet hold the ground.
@@ -53,7 +53,7 @@ import { LOOK, patchLook, surfaceTextures, cachedMaterial } from '../materials.j
 import { bakeClips, CLIP_NAMES, CLIP_INDEX, WALK_SPEED } from './clips.js';
 import { BONE, BONE_COUNT, BONES } from './rig.js';
 import { SLOTS, SLOT_COUNT } from './mesher.js';
-import { beastUniforms } from '../units/material.js';
+import { beastBones } from '../units/beastTexture.js';
 import { bakeBeasts } from '../units/quadRig.js';
 
 /** The clips' frames as a texture: BONE_COUNT x 3 texels a row, a row a frame. */
@@ -383,12 +383,6 @@ const FRAG_METAL = /* glsl */ `
 float metalnessFactor = vPeopleMat.y;
 `;
 
-/** The beasts' bones and clips for a building's figures: the units' very texture (one copy on the GPU). */
-function beastShared() {
-  const u = beastUniforms();
-  return { uBeastBones: u.uBeastBones, uBeastClips: u.uBeastClips };
-}
-
 /** Replace `what` in `text`, loudly if it is not there (a newer three, or the look's patch changed). */
 function swap(text, what, by, where) {
   if (!text.includes(what)) throw new Error(`people material: "${what.trim().slice(0, 50)}" not found in the ${where} shader`);
@@ -402,7 +396,7 @@ function swap(text, what, by, where) {
  * pose is placed (`begin`: `transformed` may be moved further).
  */
 export function patchPeopleShader(shader, depth, variant = null) {
-  Object.assign(shader.uniforms, shared(), depth ? { uLookTime: LOOK.uniforms.uLookTime } : {}, variant ? variant.uniforms : beastShared());
+  Object.assign(shader.uniforms, shared(), depth ? { uLookTime: LOOK.uniforms.uLookTime } : {}, variant ? variant.uniforms : beastBones());
   let v = shader.vertexShader;
   v = swap(v, '#include <common>', `#include <common>\n${depth ? '#define PEOPLE_DEPTH\nuniform float uLookTime;\n' : ''}${VERT_PARS()}${variant ? variant.pars : BEAST_PARS()}`, 'vertex');
   v = swap(v, 'void main() {', variant ? variant.main : VERT_MAIN, 'vertex');

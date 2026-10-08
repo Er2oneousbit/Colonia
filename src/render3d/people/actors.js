@@ -337,10 +337,18 @@ export function actorBounds(a, reach = 0.5) {
   // (A beast reaches from its middle to its nose and its rump: half its length, a horse's 1.15 m.)
   const r = (a.beast ? Math.max(reach, BEAST_REACH[a.beast.split(':')[1]] || 1) : reach) * a.scale;
   if (a.orbit) {
-    // Round the whole circle, at the figure's own distance from its middle.
-    const o = a.orbit;
-    const rho = Math.hypot(o.r - o.x, o.z) * a.scale;
-    return [...Array(12)].map((_, k) => ({ x: a.at[0] + Math.cos((k * Math.PI) / 6) * rho, z: a.at[2] + Math.sin((k * Math.PI) / 6) * rho, r }));
+    // Round the whole circle: the figure's corners (its reach ahead and behind along its facing, half its
+    // reach either side) as it goes round, each a point of its own.
+    const out = [];
+    for (let k = 0; k < 24; k++) {
+      const t = ((k / 24) * 2 * Math.PI * a.orbit.r) / a.orbit.speed;
+      const q = orbitPose(a.orbit, t);
+      const f = [Math.sin(q.yaw), Math.cos(q.yaw)];
+      for (const [ahead, side] of [[r, r / 2], [r, -r / 2], [-r, r / 2], [-r, -r / 2]]) {
+        out.push({ x: a.at[0] + (q.x + f[0] * ahead + f[1] * side) * a.scale, z: a.at[2] + (q.z + f[1] * ahead - f[0] * side) * a.scale, r: 0.05 });
+      }
+    }
+    return out;
   }
   const pts = [[a.at[0], a.at[2]]];
   if (a.routeLength) pts.push([a.at[0] + Math.sin(a.ry) * a.routeLength * a.scale, a.at[2] + Math.cos(a.ry) * a.routeLength * a.scale]);

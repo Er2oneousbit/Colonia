@@ -76,8 +76,8 @@ export const FACTIO = Object.freeze({
   /** The tack room: x0, x1, z0, z1, its eave. */
   tack: Object.freeze([-5.95, -3.6, -5.95, -2.5, 2.5]),
   /** The exercise: the turning post (x, z), the car's radius and speed (m/s). */
-  meta: Object.freeze([0.9, 1.5]),
-  lap: Object.freeze([2.25, 2.6]),
+  meta: Object.freeze([0.9, 1.3]),
+  lap: Object.freeze([1.9, 2.3]),
   /** The harnessed team: its car's place (x, z), turned. */
   team: Object.freeze([-4.3, 1.2, 0]),
   gate: Object.freeze([1.4, 2.9]),
@@ -91,7 +91,7 @@ function stalls(lod, seed, out) {
   const [zb, zp, x0, x1, n] = F.stalls;
   const t = 0.26;
   out.plaster.push(box(x1 - x0, F.top + 0.15, t, (x0 + x1) / 2, 0, zb + t / 2, 0.88));
-  out.tile.push(box(x1 - x0 + 0.08, 0.07, t + 0.1, (x0 + x1) / 2, F.top + 0.15, zb + t / 2, 0.85));
+  out.tile.push(box(x1 - x0, 0.07, t, (x0 + x1) / 2, F.top + 0.15, zb + t / 2, 0.85));
   out.red.push(box(x1 - x0, 0.9, 0.01, (x0 + x1) / 2, 0, zb + t + 0.005, 0.6));
   const w = (x1 - x0) / n;
   for (let k = 0; k <= n; k++) {
@@ -108,7 +108,7 @@ function stalls(lod, seed, out) {
     out.hay.push(box(w - 0.6, 0.1, 0.32, cx, 0.92, zp - 0.12, 0.9));
     out.straw.push(box(w - 0.1, 0.04, zp - zb - t, cx, 0, (zb + t + zp) / 2, (gx, gy, gz) => 0.7 + 0.3 * Math.sin(gx * 11 + gz * 7)));
   }
-  const roof = roofSlope([[x0 - 0.1, F.eave, zp + 0.4], [x1 + 0.1, F.eave, zp + 0.4], [x1 + 0.1, F.top + 0.02, zb + 0.15], [x0 - 0.1, F.top + 0.02, zb + 0.15]], { lod, seed });
+  const roof = roofSlope([[x0, F.eave, zp + 0.4], [x1, F.eave, zp + 0.4], [x1, F.top + 0.02, zb + 0.15], [x0, F.top + 0.02, zb + 0.15]], { lod, seed });
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
 }
@@ -125,18 +125,18 @@ function tackRoom(lod, seed, out, faction) {
   out.dark.push(box(0.9, 1.9, 0.02, x1 - 0.65, 0.3, z1 - t + 0.01));
   out.doorShut.push(box(0.86, 1.86, 0.05, x1 - 0.65, 0.32, z1 - 0.04, 0.66));
   out.red.push(box(x1 - x0 - 1.15, 0.7, 0.01, x0 + (x1 - x0 - 1.15) / 2, 0.3, z1 + 0.005, 0.6));
-  const roof = roofSlope([[x0 - 0.12, eave + 0.3, z1 + 0.3], [x1 + 0.12, eave + 0.3, z1 + 0.3], [x1 + 0.12, eave + 0.95, z0 - 0.1], [x0 - 0.12, eave + 0.95, z0 - 0.1]], { lod, seed: seed + 3 });
+  const roof = roofSlope([[x0, eave + 0.3, z1 + 0.3], [x1 + 0.12, eave + 0.3, z1 + 0.3], [x1 + 0.12, eave + 0.95, z0], [x0, eave + 0.95, z0]], { lod, seed: seed + 3 });
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
   const zf = z1 + 0.02;
   // The faction's board over the harness: its name in its colour on white, a palm each side, wreaths under.
   const { name, colour } = FACTIO_COLOURS[faction];
-  const bx = x0 + 0.85;
-  board(out, bx, 1.98, zf, 1.25, 0.3, 0xece4d0);
+  const bx = x0 + 0.95;
+  board(out, bx, 1.98, zf, 1.0, 0.3, 0xece4d0);
   if (lod < 2) {
     out.paint.push(...inscribe(name, 2.03, zf + 0.04, 0.13).map((g) => tintGeometry(g.translate(bx, 0, 0), () => lin(colour === 0xe8e2d4 ? 0x5a5040 : colour))));
-    palm(out, bx - 0.78, 1.7, zf + 0.06, -0.4, 0.75, lod);
-    palm(out, bx + 0.7, 1.7, zf + 0.06, Math.PI + 0.4, 0.75, lod);
+    palm(out, bx - 0.66, 1.7, zf + 0.06, -0.4, 0.75, lod);
+    palm(out, bx + 0.62, 1.7, zf + 0.06, Math.PI + 0.4, 0.75, lod);
     for (const [wx, gold] of [[bx - 0.35, false], [bx, true], [bx + 0.35, false]]) wreath(out, wx, 1.65, zf + 0.05, 0, 0.11, lod, { gold });
   }
   // The harness on pegs: yokes, collars, coiled reins, bridles.
