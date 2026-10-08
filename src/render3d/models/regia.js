@@ -34,11 +34,14 @@
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  lived in: the doors open, the fountains playing, the governor
- *           and his officers on the hall's steps, his lictors at the gate,
- *           the household in the garden; guards at the propylon; lamps lit
+ *           addressing the court from the hall's steps, his officers by
+ *           him, petitioners below, his lictors at the gate, the household
+ *           at work in the garden; guards at the propylon; lamps lit
  *   'shut'  no servants: shut up, the fountains still, nobody
  *   'out'   trouble near: the doors shut, the household gone in, soldiers
- *           lining the steps and the gate, the fountains playing, lamps lit
+ *           lining the steps and the gate, one on his round down the walk,
+ *           the fountains playing, lamps lit
+ * The people are actors (people/: regiaActors), moving on the GPU.
  *
  * Metres, the footprint's middle at the origin, y up, the street toward +z.
  * Levels of detail 0 to 2.
@@ -51,10 +54,11 @@ import { slab, paving, TaggedParts } from './masonry.js';
 import { aquila } from './castra.js';
 import { cypress } from './learning.js';
 import {
-  govMaterials, guard, dressWall, box, D, gable, slope, gableTri, rake, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, coping, slabs, ridgeCap,
-  court, column, statue, roundPool, labrum, jet, togate, lictor, servant, matron, addPeople, boxEdging, bedPlants, flowerBed, letters,
-  lantern, lanternPane,
+  govMaterials, dressWall, box, D, gable, slope, gableTri, rake, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, coping, slabs, ridgeCap,
+  court, column, statue, roundPool, labrum, jet, boxEdging, bedPlants, flowerBed, letters, lantern, lanternPane,
+  guardActor, togateActor, servantActor, matronActor,
 } from './domus.js';
+import { DYES } from '../people/actors.js';
 
 /** The palace's measures (metres): the tests, the lab and the game read them. */
 export const REGIA = Object.freeze({
@@ -375,19 +379,54 @@ function garden(lod, seed, out) {
   }
 }
 
-/** The household and the court (lived in, close up): the governor and his officers on the hall's steps, lictors at the gate, people in the garden. */
-function household(m) {
-  const list = [];
+/**
+ * The palace's people (people/actors.js specs, its metres), by state. Lived
+ * in ('open'): the governor in the toga praetexta on the hall's top step
+ * addressing the court, a tribune in his mail and a secretary with his
+ * tablet by him; two petitioners on the walk below, listening; his lictors
+ * on the top step of the stair with the fasces, two guards in the gate; a
+ * slave carrying a sack up the walk and back, another sweeping it; the lady
+ * of the house talking with her maid in the garden. Trouble near ('out'):
+ * the household gone in, soldiers at the foot of the stair, in the gate,
+ * by the fountains and on the hall's steps, one on his round down the walk.
+ * Nobody in a palace shut up.
+ */
+export function regiaActors(state) {
+  if (state === 'shut') return [];
   const gy = PY + 0.02;
+  const walkY = PY + 0.04;
+  const gate = [-1, 1].map((s, k) => guardActor([s * 1.5, PY + 0.04, ZP + 0.42], 0, 701 + k));
+  if (state === 'out') {
+    const list = [...gate];
+    for (const [k, [x, z]] of [[-1.8, 9.35], [1.8, 9.35], [-0.6, 1.0], [0.6, 1.0], [-1.2, R.hall.colZ + 0.75], [1.2, R.hall.colZ + 0.75]].entries()) {
+      // (At the stair's foot on the street, on the court's walk, on the hall's second step.)
+      const y = z > 8.5 ? 0.06 : z > 0 ? walkY : PY + (2 * R.hall.step) / 3;
+      list.push(guardActor([x, y, z], 0, 703 + k));
+    }
+    list.push(guardActor([0, walkY, 6.6], Math.PI, 710, { clip: 'march', route: { length: 4.6, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard' } }));
+    return list;
+  }
   const zs = R.hall.colZ + 0.6;
-  list.push(...togate(m, 0.0, HY, zs, 0, { praetexta: true, arms: 'orate', hair: 0x3a2a1c }));
-  list.push(...togate(m, -1.1, HY, zs - 0.2, 0.3, { arms: 'hold', hair: 0x6a6058 }));
-  list.push(...togate(m, 1.2, HY, zs - 0.1, -0.4, { arms: 'down', hair: 0x2a1e14 }));
-  list.push(...matron(m, -3.6, gy, 3.75, 0.9, { palla: 0x6e1a3c }));
-  list.push(...servant(m, -3.0, gy, 4.1, -2.3, { cloth: 0xc8b898, arms: 'hold' }));
-  list.push(...lictor(m, -1.25, PY, 8.35, 0.1));
-  list.push(...lictor(m, 1.25, PY, 8.35, -0.1));
-  return list;
+  const lictor = { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'shoulder', props: { L: 'fasces' }, colours: { tunic: DYES.madder, accent: DYES.madder } };
+  return [
+    ...gate,
+    // On the hall's top step: the governor addressing the court, his tribune and his secretary by him.
+    togateActor([0, HY, zs], 0, 711, { praetexta: true, clip: 'orate' }),
+    { body: 'm', dress: ['tunic:knee', 'lorica', 'caligae'], hair: 'crop', clip: 'listen', at: [-1.1, HY, zs - 0.2], ry: 0.3, seed: 712, colours: { tunic: DYES.white, metal: 0xb08848 } },
+    servantActor([1.2, HY, zs - 0.1], -0.4, 713, { clip: 'hold', props: { R: 'tablet' }, dress: ['tunic:knee'], colours: { tunic: DYES.white } }),
+    // Two petitioners on the walk at the foot of the steps.
+    togateActor([-0.4, walkY, -0.15], Math.PI + 0.1, 714, { clip: 'listen', broad: false }),
+    { body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'curls', clip: 'listen', at: [0.42, walkY, -0.05], ry: Math.PI - 0.2, seed: 715, colours: { mantle: DYES.walnut } },
+    // His lictors on the stair's top step, the fasces on their shoulders.
+    { ...lictor, at: [-0.6, PY, ZP + 0.75], ry: 0.1, seed: 716 },
+    { ...lictor, at: [0.6, PY, ZP + 0.75], ry: -0.1, seed: 717 },
+    // A slave carrying a sack up the walk to the hall and back; another sweeping the walk.
+    servantActor([0.62, walkY, 6.7], Math.PI, 718, { clip: 'carry', props: { L: 'sack' }, route: { length: 6.0, speed: 0.75, pauseEnd: 2.5, pauseStart: 2.5, clipEnd: 'shoulder', clipStart: 'shoulder' } }),
+    servantActor([-0.55, walkY, 4.6], 0.4, 719, { clip: 'sweep', props: { R: 'broom' } }),
+    // The lady of the house in the garden, her maid listening.
+    matronActor([-3.5, gy, 3.75], 0.9, 720, { clip: 'talk', colours: { tunic: DYES.white, mantle: DYES.oxblood, trim: DYES.weld } }),
+    { body: 'f', dress: ['tunic:long'], hair: 'bun', clip: 'listen', at: [-2.75, gy, 4.05], ry: -2.2, seed: 721, colours: { tunic: DYES.oatmeal } },
+  ];
 }
 
 /** Build the palace: { group, meshes, triangles }; meshes tagged in userData.when. Its court's and hall's columns are not in it (government.js). */
@@ -459,14 +498,7 @@ export function buildRegia({ lod = 0, seed = 491 } = {}) {
   }
   p.add('lamp', lanternPane(), out.pane, { when: 'staffed', cast: false });
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
-  if (lod === 0) {
-    addPeople(p, m, 'household', household(m), 'open');
-    for (const s of [-1, 1]) addPeople(p, m, 'guard', guard(m, s * 1.5, PY, ZP + 0.42, 0), 'staffed');
-    for (const [x, z] of [[-1.8, 9.35], [1.8, 9.35], [-0.6, 1.0], [0.6, 1.0], [-1.2, R.hall.colZ + 0.75], [1.2, R.hall.colZ + 0.75]]) {
-      const y = z > 8.5 ? 0.06 : z > 0 ? PY + 0.02 : PY + 0.3;
-      addPeople(p, m, 'guard-more', guard(m, x, y, z, 0), 'out');
-    }
-  }
+  // (The court, the household, the lictors and the guard are actors: regiaActors.)
   return p.build();
 }
 

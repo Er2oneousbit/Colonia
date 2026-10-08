@@ -29,27 +29,32 @@
  * on the mole the corvus, its bridge raised against its pole.
  *
  * States: the building's parts are tagged 'open' (staffed: the drill
- * master on the quay, the lanterns lit) and 'shut'; what drill shows is
- * kits of its own (models/fleet.js): the oars in their racks, or, while a
- * new ship's crew trains here, the rowers at the frame pulling with the
- * hortator giving the stroke, marines on the hulk and the corvus dropped
- * onto its deck (buildPortusPart).
+ * master on the quay, the lanterns lit) and 'shut'; what drill moves is
+ * kits of its own (models/fleet.js, buildPortusPart): the oars in their
+ * racks, or, while a new ship's crew trains here, the racks empty and the
+ * corvus dropped onto the hulk's deck. The people are actors (people/:
+ * portusActors), moving on the GPU: at drill the rowers at the frame pull
+ * their oars in step with the hortator beating the stroke, marines spar on
+ * the hulk.
  *
  * Metres, the middle at the origin, y up, the water side toward +z (as
  * models/harbour.js says). Levels of detail 0 to 2.
  * ----------------------------------------------------------------------------
  */
 
-import { BoxGeometry, CylinderGeometry, Vector3, Quaternion } from 'three';
+import { BoxGeometry, CylinderGeometry } from 'three';
 import { boxUV, tintGeometry, tube, revolve, profileOf } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { leanTo, beam, jar } from './rural.js';
-import { figureParts } from './figure.js';
+import { ROW, BEAT } from '../people/clips.js';
+import { DYES } from '../people/actors.js';
 import {
-  HARBOUR, harbourMaterials, board, pile, pileFoam, pierFoam, deck, ashlar, bollard, mooringRing, waterSteps, oar, ropeCoil, liburnianHull,
-  rower, rowerMaterials, sweep,
+  HARBOUR, harbourMaterials, board, pile, pileFoam, pierFoam, deck, ashlar, bollard, mooringRing, waterSteps, oar, ropeCoil, liburnianHull, sweep,
 } from './harbour.js';
+
+/** A drill oar's loom where it rides the thole (people/props.js oar): its radius. */
+const OAR_R = 0.035;
 
 /** The harbour's measures (metres): the tests, the lab and the game read them. */
 export const PORTUS = Object.freeze({
@@ -58,8 +63,14 @@ export const PORTUS = Object.freeze({
   pier: Object.freeze([-5.92, -4.6]), // the west pier (x0, x1)
   mole: Object.freeze([4.25, 5.95]), // the east mole (x0, x1)
   moleTop: 0.6,
-  /** The rowing frame: along x from its stern end (the hortator's) x0 to x1, its middle line at z. */
-  frame: Object.freeze({ x0: -4.6, x1: 1.4, z: -3.95, rail: 0.92, half: 0.66, benches: 6 }),
+  /**
+   * The rowing frame: along x from its stern end (the hortator's) x0 to x1,
+   * its middle line at z, its rails `half` either side; its floor's top
+   * `floor`, the rails' top `rail` (a rower's oar rides on it by its thole
+   * pin: people/clips.js ROW, a rower's feet on the floor), the benches'
+   * tops `seat`; the hortator's dais `dais` high.
+   */
+  frame: Object.freeze({ x0: -4.6, x1: 1.4, z: -3.95, floor: 0.16, rail: 0.16 + ROW.up - OAR_R, seat: 0.16 + ROW.seat, half: 0.8, benches: 6, dais: 0.36 }),
   /** The practice hulk in the basin: its middle (x, z), its keel's depth under the water, its scale. */
   hulk: Object.freeze({ x: -0.25, z: 1.95, keel: -0.3, scale: 0.85 }),
   /** The corvus on the mole: its pole (x, z) and the bridge's pivot height, its length. */
@@ -69,6 +80,36 @@ export const PORTUS = Object.freeze({
 });
 
 const P = PORTUS;
+
+/**
+ * Where rower k (0 at the stern end) on side s (+1 the +z rail) sits: his
+ * feet's place (x, y, z) and facing, so that his oar's line through its
+ * thole (people/clips.js ROW: `out` to the oar's side, `up`, `ahead`) runs
+ * along the rail's top against the stern side of his thole pin, as the oar
+ * presses forward on the pin through the drive. He faces the stern (-x),
+ * the hortator; his left is +z, so the +z side rows with the oar on his
+ * left (the row clip), the -z side on his right (rowRight).
+ */
+export function rowerPlace(k, s) {
+  const F = P.frame;
+  const pin = tholePin(k, s);
+  return { at: [pin[0] - 0.02 - OAR_R + ROW.ahead, F.floor, F.z + s * (F.half - ROW.out)], ry: -Math.PI / 2, clip: s > 0 ? 'row' : 'rowRight' };
+}
+
+/** The thole pin of rower k on side s: its foot on the rail's top (x, y, z). */
+export function tholePin(k, s) {
+  const F = P.frame;
+  return [benchX(k) - 0.18, F.rail, F.z + s * F.half];
+}
+
+/**
+ * The hortator on his dais at the frame's stern end, facing the crews (+x),
+ * and his block on its post: its top BEAT.height over his feet, BEAT.ahead
+ * before him, BEAT.side to his right (+z here), where his mallet comes down.
+ */
+const HORT_AT = Object.freeze([-5.55, 0.36, -3.95 - 0.07]);
+export const HORTATOR = Object.freeze({ at: HORT_AT, ry: Math.PI / 2, block: Object.freeze([HORT_AT[0] + BEAT.ahead, HORT_AT[1] + BEAT.height, HORT_AT[2] - BEAT.side]) });
+const BLOCK = HORTATOR.block;
 
 /** Turn and move a geometry list of the hulk's frame into the basin (its bow to +x). */
 function onHulk(g) {
@@ -122,25 +163,38 @@ function harbourWorks(out, lod, seed) {
   }
 }
 
-/** The rowing frame: two rails on posts, thole pins, benches, a floor; the hortator's platform at its stern end. */
+/** The rowing frame: two rails on posts, thole pins, benches with their stretchers, a floor; the hortator's platform at its stern end. */
 function frame(out, lod, seed) {
   const F = P.frame;
   const L = F.x1 - F.x0;
-  out.wood.push(...deck(F.x0 - 0.2, F.x1 + 0.2, F.z - F.half - 0.15, F.z + F.half + 0.15, 0.16, { along: 'x', seed, lod, plank: 0.3, t: 0.05, bearers: 1.0 }).map((g) => g));
+  out.wood.push(...deck(F.x0 - 0.2, F.x1 + 0.2, F.z - F.half - 0.15, F.z + F.half + 0.15, F.floor, { along: 'x', seed, lod, plank: 0.3, t: 0.05, bearers: 1.0 }).map((g) => g));
   for (const s of [-1, 1]) {
     const z = F.z + s * F.half;
-    for (let k = 0; k <= 4; k++) out.wood.push(board(0.12, F.rail, 0.12, { tone: 0.8 }).translate(F.x0 + (L * k) / 4, 0.06, z));
-    out.wood.push(board(L + 0.3, 0.1, 0.12, { tone: 0.9 }).translate((F.x0 + F.x1) / 2, F.rail - 0.04, z));
-    // A thole pin for each oar, on the rail.
-    if (lod < 2) for (let k = 0; k < F.benches; k++) out.wood.push(board(0.04, 0.16, 0.04).translate(benchX(k) - 0.18, F.rail + 0.06, z));
+    for (let k = 0; k <= 4; k++) out.wood.push(board(0.12, F.rail - 0.1 - 0.06, 0.12, { tone: 0.8 }).translate(F.x0 + (L * k) / 4, 0.06, z));
+    out.wood.push(board(L + 0.3, 0.1, 0.12, { tone: 0.9 }).translate((F.x0 + F.x1) / 2, F.rail - 0.1, z));
+    // A thole pin for each oar, on the rail (the oar against its stern side: rowerPlace).
+    if (lod < 2) for (let k = 0; k < F.benches; k++) out.wood.push(board(0.04, 0.16, 0.04).translate(...tholePin(k, s)));
   }
-  for (let k = 0; k < F.benches; k++) out.wood.push(board(0.24, 0.06, F.half * 2 - 0.12, { tone: 0.95 }).translate(benchX(k), 0.42, F.z));
-  // The hortator's platform at the stern end: a low dais, his block and mallet.
+  for (let k = 0; k < F.benches; k++) {
+    // The bench under the rowers' hips (a hand aft of their feet's place), on two legs; the stretcher
+    // their feet are braced on (people/clips.js ROW.brace), across the floor before them.
+    const hip = rowerPlace(k, 1).at[0] + 0.03;
+    out.wood.push(board(0.26, 0.06, F.half * 2 - 0.12, { tone: 0.95 }).translate(hip, F.seat - 0.06, F.z));
+    if (lod < 2) for (const s of [-1, 1]) out.wood.push(board(0.2, F.seat - 0.06 - F.floor, 0.07, { tone: 0.8 }).translate(hip, F.floor, F.z + s * (F.half - 0.2)));
+    const brace = rowerPlace(k, 1).at[0] - ROW.brace - 0.2;
+    if (lod < 2) {
+      const st = board(0.05, 0.16, F.half * 2 - 0.2, { tone: 0.85 });
+      // (Leaning back toward the rower, as a boat's stretcher does.)
+      st.rotateZ(-0.35).translate(brace, F.floor, F.z);
+      out.wood.push(st);
+    }
+  }
+  // The hortator's platform at the stern end: a low dais, his block on a post where his mallet comes down.
   const hx = F.x0 - 0.7;
-  out.wood.push(board(0.9, 0.3, 1.3, { tone: 0.85 }).translate(hx, 0.06, F.z));
-  if (lod < 2) {
-    out.wood.push(revolve(profileOf([[0, 0], [0.2, 0], [0.22, 0.05], [0.22, 0.4], [0.2, 0.44], [0, 0.44]]), { segments: lod ? 8 : 14, metres: 1 }).translate(hx + 0.15, 0.36, F.z + 0.35));
-  }
+  out.wood.push(board(0.9, F.dais - 0.06, 1.3, { tone: 0.85 }).translate(hx, 0.06, F.z));
+  const [bx, by, bz] = BLOCK;
+  out.wood.push(revolve(profileOf([[0, 0], [0.09, 0], [0.07, 0.04], [0.06, 0.1], [0.06, by - F.dais - 0.2], [0.075, by - F.dais - 0.17], [0.075, by - F.dais - 0.16], [0, by - F.dais - 0.16]]), { segments: lod ? 6 : 10, metres: 1 }).translate(bx, F.dais, bz));
+  out.wood.push(revolve(profileOf([[0, 0], [0.16, 0], [0.17, 0.02], [0.17, 0.14], [0.16, 0.16], [0, 0.16]]), { segments: lod === 2 ? 6 : lod ? 8 : 14, metres: 1, tint: (q) => (q.y > 0.15 ? 0.7 : 0.9) }).translate(bx, by - 0.16, bz));
 }
 
 /** Where bench k stands along the frame. */
@@ -240,21 +294,8 @@ export function buildPortus({ lod = 0, seed = 83, ice = false } = {}) {
     p.add('lamp', lanternPane(), panes, { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), panes.map((g) => g.clone()), { when: 'shut', cast: false });
   }
-  // The drill master on the quay while it is staffed.
-  if (lod === 0) {
-    const f = figureParts({ cloth: 0x7a3326, cloth2: 0x8a7a5a }, -1.2, P.quayTop, P.quayZ - 0.6, Math.PI * 0.85);
-    for (const g of f) p.add(`master-${g.material.name}`, g.material, [g.g], { when: 'open' });
-  }
+  // (The drill master, and the crews at drill, are actors: portusActors.)
   return p.build();
-}
-
-const UP = new Vector3(0, 0, 1);
-
-/** An oar lying from point a (its loom's end) out through b, `len` long: wood geometries. */
-function oarAlong(a, b, len, lod) {
-  const d = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize();
-  const q = new Quaternion().setFromUnitVectors(UP, d);
-  return oar(len, lod).map((g) => g.applyQuaternion(q).translate(a[0], a[1], a[2]));
 }
 
 /** The oars in their racks under the lean-to (while no crew is at drill). */
@@ -283,7 +324,7 @@ function corvusBridge(down, lod) {
   const rope = [];
   const y0 = P.moleTop + C.pivot - 0.6;
   // Down: across onto the hulk's deck; up: tipped up at 70 degrees against the pole.
-  const ang = down ? -0.13 : 1.2;
+  const ang = down ? CORVUS_DOWN : 1.2;
   const dir = [-Math.cos(ang), Math.sin(ang), 0];
   const end = [C.x - 0.15 + dir[0] * C.len, y0 + dir[1] * C.len, C.z];
   const a = [C.x - 0.15, y0, C.z];
@@ -317,39 +358,56 @@ function corvusBridge(down, lod) {
 }
 
 /**
- * The crews at drill: twelve rowers at the frame pulling their oars, the
- * hortator on his dais beating the stroke, two marines on the hulk's deck
- * and one on the dropped corvus. People only close up (lod 0); farther out
- * the oars out over the frame show the drill.
+ * The Portus's people (people/actors.js specs, its metres facing +z;
+ * models/fleet.js turns them to the water): staffed ('open') the drill
+ * master walking the quay; while a new ship's crew trains here (`drill`),
+ * also twelve rowers at the frame pulling their oars (props.js oar) to the
+ * hortator's stroke, all in step with him (`sync`) but each a little early
+ * or late, as a crew learning it is; the hortator on his dais beating it
+ * with his mallet on the block; two marines sparring with sword and shield
+ * on the hulk's deck (Vegetius's drill at the post, against each other)
+ * and one standing guard on the dropped corvus. Nobody when unstaffed.
  */
-function drill(lod) {
+export function portusActors(state, drill = false) {
+  if (state !== 'open') return [];
+  const list = [
+    { body: 'm', dress: ['tunic:knee', 'lorica', 'caligae'], hair: 'crop', clip: 'walk', at: [-3.6, P.quayTop, P.quayZ - 0.6], ry: Math.PI / 2, seed: 831, colours: { tunic: DYES.madder, metal: 0x8a8c90 },
+      route: { length: 4.4, speed: 0.6, pauseEnd: 6, pauseStart: 6, clipEnd: 'idle', clipStart: 'idle', faceEnd: Math.PI, faceStart: Math.PI } },
+  ];
+  if (!drill) return list;
   const F = P.frame;
-  const wood = [];
-  const people = [];
   for (let k = 0; k < F.benches; k++) {
-    const x = benchX(k);
     for (const s of [-1, 1]) {
-      // The stroke: the benches a little out of time, as a crew learning it is.
-      const pull = 0.55 + 0.2 * Math.sin(k * 1.7 + (s > 0 ? 0.4 : 0));
-      const thole = [x - 0.18, F.rail + 0.06, F.z + s * F.half];
-      const hand = [x - 0.62 + pull * 0.3, 0.86, F.z + s * 0.18];
-      const blade = [thole[0] + (thole[0] - hand[0]) * 2.2, 0.4, thole[2] + s * 1.05];
-      wood.push(...oarAlong(hand, blade, Math.hypot(blade[0] - hand[0], blade[1] - hand[1], blade[2] - hand[2]) + 0.25, lod));
-      if (lod === 0) {
-        const r = rower(pull, k * 2 + (s > 0 ? 1 : 0), lod);
-        const turn = (g) => g.rotateY(Math.PI / 2).translate(x, 0.0, F.z + s * 0.24);
-        const cloth = [0x9a6a44, 0x7a6a5a, 0xb09070, 0x6a5040][(k + (s > 0 ? 1 : 0)) % 4];
-        people.push({ cloth, geos: { cloth: r.cloth.map(turn), skin: r.skin.map(turn), hair: r.hair.map(turn) } });
-      }
+      const r = rowerPlace(k, s);
+      const i = k * 2 + (s > 0 ? 1 : 0);
+      // (Each a few hundredths of a stroke early or late: a crew learning to keep time.)
+      const phase = 0.1 * (((i * 0.618) % 1) - 0.5);
+      list.push({ body: 'm', dress: ['tunic:short'], hair: i % 3 ? 'crop' : 'curls', clip: r.clip, props: { R: 'oar' }, at: r.at, ry: r.ry, sync: true, phase, seed: 840 + i,
+        colours: { tunic: [DYES.undyed, DYES.fawn, DYES.oatmeal, DYES.brownWool, DYES.sky][i % 5] } });
     }
   }
-  return { wood, people };
+  list.push({ body: 'm', dress: ['tunic:knee'], hair: 'bald', beard: 'short', old: true, clip: 'beat', props: { R: 'hammer' }, at: HORTATOR.at, ry: HORTATOR.ry, sync: true, phase: 0, seed: 860, colours: { tunic: DYES.madder } });
+  // The marines: two sparring along the hulk's deck, one on the corvus.
+  const H = P.hulk;
+  const marine = { body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', clip: 'drill', props: { R: 'gladius', L: 'scutum' }, colours: { tunic: DYES.madder, accent: DYES.madder, metal: 0x8a8c90 } };
+  list.push({ ...marine, at: [H.x - 0.35, HULK_DECK, H.z], ry: Math.PI / 2, seed: 861 });
+  list.push({ ...marine, at: [H.x + 1.25, HULK_DECK, H.z], ry: -Math.PI / 2, seed: 862, phase: 1.1 });
+  const C = P.corvus;
+  const t = 0.45;
+  const ang = CORVUS_DOWN;
+  list.push({ ...marine, clip: 'guard', props: { R: 'spear', L: 'scutum' }, at: [C.x - 0.15 - Math.cos(ang) * C.len * t, P.moleTop + C.pivot - 0.6 + Math.sin(ang) * C.len * t + 0.08, C.z], ry: -Math.PI / 2, seed: 863 });
+  return list;
 }
+
+/** The hulk's deck over the water (its sheer at the hulk's scale, harbour.js LIBURNIAN): where the marines stand. */
+const HULK_DECK = 0.42;
+/** The corvus's tilt when dropped onto the hulk (radians, down toward it). */
+const CORVUS_DOWN = -0.13;
 
 /**
  * A kit of the Portus's own by its key (models/fleet.js `more`):
- *   'rack'          the oars in their racks
- *   'drill'         the crews at drill (rowers, hortator, marines)
+ *   'rack'          the oars in their racks (gone while a crew drills:
+ *                   their oars are at the frame, in the rowers' hands)
  *   'corvus:up'     the corvus raised against its pole
  *   'corvus:down'   the corvus dropped onto the hulk
  * Returns { group, meshes, triangles }.
@@ -366,25 +424,6 @@ export function buildPortusPart(kind, { lod = 0 } = {}) {
     if (lod < 2) {
       p.add('spike', m.iron, c.iron);
       p.add('rope', m.rope, c.rope);
-    }
-  } else if (kind === 'drill') {
-    const d = drill(lod);
-    p.add('oars', m.wood, d.wood);
-    for (const { cloth, geos } of d.people) {
-      const mats = rowerMaterials(cloth);
-      for (const k of ['cloth', 'skin', 'hair']) p.add(`rowers-${mats[k].name}`, mats[k], geos[k], { cast: lod === 0 });
-    }
-    if (lod === 0) {
-      const F = P.frame;
-      // The hortator on his dais, his mallet raised over the block.
-      for (const f of figureParts({ cloth: 0x7a3326, reach: 1 }, F.x0 - 0.75, 0.36, F.z - 0.1, Math.PI / 2)) p.add(`hortator-${f.material.name}`, f.material, [f.g]);
-      // Marines on the hulk's deck and one crossing the corvus, shields up.
-      const H = P.hulk;
-      for (const [x, z, ry] of [[H.x + 1.8, H.z + 0.1, -Math.PI / 2], [H.x + 0.6, H.z - 0.2, Math.PI / 2 + 0.3]]) {
-        for (const f of figureParts({ cloth: 0x8a3a2c, reach: 0.6 }, x, 0.42, z, ry)) p.add(`marine-${f.material.name}`, f.material, [f.g]);
-      }
-      const C = P.corvus;
-      for (const f of figureParts({ cloth: 0x8a3a2c, reach: 0.4 }, C.x - 1.4, P.moleTop + C.pivot - 0.6 + 0.2, C.z, -Math.PI / 2)) p.add(`boarder-${f.material.name}`, f.material, [f.g]);
     }
   }
   return p.build();

@@ -35,9 +35,10 @@
  * the warehouse's loads).
  *
  * States (meshes tagged in userData.when, models.js partShows):
- *   'open'  staffed: a man at the windlass, its bars in, the lantern lit
- *   'shut'  no staff: nobody, the bars laid down, the lantern out
- * The hull's kit adds the shipwrights at the hull while staffed.
+ *   'open'  staffed: a man turning the windlass's crank, the lantern lit
+ *   'shut'  no staff: nobody, the crank hanging, the lantern out
+ * The people are actors (people/: navaliaActors), moving on the GPU: the
+ * winder, a clerk, a carrier, and the shipwrights at a hull on the slip.
  *
  * Metres, the middle at the origin, y up, the water side toward +z (as
  * models/harbour.js says). Levels of detail 0 to 2.
@@ -50,7 +51,7 @@ import { material } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, paving, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { gableRoof, beam, D } from './rural.js';
-import { figureParts } from './figure.js';
+import { WINDLASS } from '../people/clips.js';
 import {
   HARBOUR, harbourMaterials, sweep, board, pile, pileFoam, pierFoam, deck, oar, ropeCoil, liburnianHull, hullPoint, LIBURNIAN,
 } from './harbour.js';
@@ -76,8 +77,14 @@ export const NAVALIA = Object.freeze({
   /** Where the hull's middle lies on the slip (z), its keel this high over the ways. */
   hullZ: 0.85,
   keelBlocks: 0.32,
-  /** The windlass at the slip's head: its drum's axis (x, y, z). */
-  windlass: Object.freeze([2.85, 0.84, -5.35]),
+  /**
+   * The windlass at the slip's head: its drum's axis (x, y, z), at a man's
+   * crank height over the flags beside the slip (people/clips.js WINDLASS);
+   * its axle runs out over the slip's west edge to `crankX`, where the
+   * winder turns it.
+   */
+  windlass: Object.freeze([2.85, 0.06 + WINDLASS.height, -5.0]),
+  crankX: 1.2,
   /** The lanterns (x, y, z): on the shed's front pillar by the slip and at the slip's head. */
   lamps: Object.freeze([Object.freeze([0.35, 1.45, 5.76]), Object.freeze([4.62, 1.95, -2.2])]),
   /**
@@ -256,7 +263,7 @@ function shed(out, lod, seed) {
   out.rope.push(...ropeCoil(S.x1 - 1.2, 0.86, S.z0 + 0.9, 0.32, 4, lod), ...ropeCoil(S.x0 + 2.2, 0.86, S.z0 + 0.95, 0.26, 3, lod));
 }
 
-/** The windlass at the building slip's head: standards, the drum with its rope, the bars. */
+/** The windlass at the building slip's head: standards, the drum with its rope, its axle out to a crank, spare bars. */
 function windlass(out, lod, seed) {
   const [x, y, z] = N.windlass;
   for (const s of [-1, 1]) {
@@ -271,6 +278,20 @@ function windlass(out, lod, seed) {
   const drum = new CylinderGeometry(0.17, 0.17, 1.32, seg);
   drum.rotateZ(Math.PI / 2).translate(x, y, z);
   out.wood.push(tintGeometry(boxUV(drum), () => 0.8));
+  // Its axle out to the west over the slip's edge, on a post of its own, to the crank at its end.
+  const cx = N.crankX;
+  const axle = new CylinderGeometry(0.06, 0.06, x - 0.66 - cx, lod ? 6 : 10);
+  axle.rotateZ(Math.PI / 2).translate((x - 0.66 + cx) / 2, y, z);
+  out.wood.push(tintGeometry(boxUV(axle), () => 0.75));
+  out.wood.push(board(0.16, y + 0.12 - slipY(z), 0.16, { tone: 0.85 }).translate(cx + 0.24, slipY(z), z));
+  // The crank at rest while nobody turns it: its iron boss, the arm hanging, the handle toward the flags.
+  const hub = new CylinderGeometry(0.03, 0.03, 0.06, lod ? 6 : 10);
+  hub.rotateZ(Math.PI / 2).translate(cx - 0.03, y, z);
+  out.crankIron.push(tintGeometry(boxUV(hub), () => 0.8));
+  out.crank.push(board(0.04, WINDLASS.arm + 0.06, 0.05, { tone: 0.85 }).translate(cx - 0.03, y - WINDLASS.arm - 0.03, z));
+  const handle = new CylinderGeometry(0.022, 0.022, 0.4, lod ? 5 : 8);
+  handle.rotateZ(Math.PI / 2).translate(cx - 0.03 - 0.2, y - WINDLASS.arm, z);
+  out.crank.push(tintGeometry(boxUV(handle), () => 0.72));
   if (lod < 2) {
     // The hawser wound round the drum's middle.
     for (let k = 0; k < 7; k++) {
@@ -284,11 +305,8 @@ function windlass(out, lod, seed) {
       out.iron.push(tintGeometry(boxUV(band), () => 0.8));
     }
   }
-  // The bars (handspikes): through the drum's ends while men work it; laid down on the ground when not.
-  for (const s of [-1, 1]) {
-    out.barsIn.push(beam([x + s * 0.52, y - 0.8, z - 0.25], [x + s * 0.52, y + 0.8, z + 0.25], 0.06, seed + 9 + s, lod));
-    out.barsDown.push(board(0.07, 0.07, 1.6).translate(x + s * 0.3, slipY(z + 0.7) + 0.0, z + 0.75));
-  }
+  // The bars (handspikes) for a heavy haul, laid down by the drum while the crank does.
+  for (const s of [-1, 1]) out.bars.push(board(0.07, 0.07, 1.6).translate(x + s * 0.3, slipY(z + 0.7) + 0.0, z + 0.75));
 }
 
 /** The staging beside the slip: a narrow deck on piles over the water, a ladder down at its end. */
@@ -347,7 +365,7 @@ function yard(out, lod, seed) {
 /** Build the Navalia's building (no hull, no stock: those are kits of their own): { group, meshes, triangles }. */
 export function buildNavalia({ lod = 0, seed = 61, ice = false } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const out = { flags: [], stone: [], tufa: [], brick: [], wood: [], ways: [], tile: [], iron: [], rope: [], oars: [], foam: [], barsIn: [], barsDown: [] };
+  const out = { flags: [], stone: [], tufa: [], brick: [], wood: [], ways: [], tile: [], iron: [], rope: [], oars: [], foam: [], bars: [], crank: [], crankIron: [] };
   yard(out, lod, seed);
   slipway(out, N.slipX, N.slipHalf, N.headZ, lod, seed + 100);
   shed(out, lod, seed + 400);
@@ -369,8 +387,10 @@ export function buildNavalia({ lod = 0, seed = 61, ice = false } = {}) {
   }
   // (Where the water laps the piles and piers; gone in a hard frost, when the margins freeze.)
   if (!ice) p.add('foam', m.foam, out.foam, { cast: false });
-  p.add('bars', m.wood, out.barsIn, { when: 'open' });
-  p.add('bars', m.wood, out.barsDown, { when: 'shut' });
+  p.add('bars', m.wood, out.bars);
+  // The windlass's crank at rest while the yard is idle (at work the winder turns his own: navaliaActors).
+  p.add('crank', m.wood, out.crank, { when: 'shut' });
+  if (lod < 2) p.add('crank-iron', m.iron, out.crankIron, { when: 'shut' });
   // The lanterns: on the shed's front pillar and on a post at the slip's head.
   if (lod < 2) {
     const panes = [];
@@ -391,15 +411,36 @@ export function buildNavalia({ lod = 0, seed = 61, ice = false } = {}) {
     p.add('lamp', lanternPane(), panes, { when: 'open', cast: false });
     p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), panes.map((g) => g.clone()), { when: 'shut', cast: false });
   }
-  // A man at the windlass while it is staffed, and one at the stock.
-  if (lod === 0) {
-    const [wx, , wz] = N.windlass;
-    const a = figureParts({ cloth: 0x8a6a4a, reach: 0.8 }, wx - 0.52, slipY(wz), wz + 0.5, Math.PI);
-    for (const f of a) p.add(`winder-${f.material.name}`, f.material, [f.g], { when: 'open' });
-    const b = figureParts({ cloth: 0xa89070, cloth2: 0x6a5240 }, -2.2, 0.06, -4.1, 0.4);
-    for (const f of b) p.add(`tallyman-${f.material.name}`, f.material, [f.g], { when: 'open' });
-  }
+  // (The yard's men are actors: navaliaActors.)
   return p.build();
+}
+
+/**
+ * The yard's people (people/actors.js specs, its metres facing +z;
+ * models/fleet.js turns them to the water) while it is staffed: the winder
+ * at the windlass's crank on the flags by the slip (his own crank: props.js
+ * crank, WINDLASS), a clerk with his tablet tallying the iron behind the
+ * shed, a man carrying a sack out along the staging to the boats; with a
+ * hull on the slip (`hull`), two shipwrights driving the pegs of its
+ * planking with mallet and chisel, one either side. Nobody when idle.
+ */
+export function navaliaActors(state, hull = false) {
+  if (state !== 'open') return [];
+  const [, wy, wz] = N.windlass;
+  const tunic = (seed, tone) => ({ body: 'm', dress: ['tunic:short'], hair: seed % 2 ? 'curls' : 'crop', seed, colours: { tunic: tone } });
+  const list = [
+    // Facing the water (+z), the crank's axle WINDLASS.ahead before him and up, the axle running off to his left.
+    { ...tunic(611, 0x8a6a4a), clip: 'windlass', props: { R: 'crank' }, at: [N.crankX - WINDLASS.x - 0.06, wy - WINDLASS.height, wz - WINDLASS.ahead], ry: 0 },
+    { body: 'm', dress: ['tunic:knee', 'paenula'], hair: 'crop', beard: 'short', clip: 'hold', props: { R: 'tablet' }, at: [-4.95, 0.06, -4.2], ry: Math.PI, seed: 612, colours: { tunic: 0xa89070, mantle: 0x6a5240 } },
+    { ...tunic(613, 0x7a6a5a), clip: 'carry', props: { L: 'sack' }, at: [(N.staging[0] + N.staging[1]) / 2, HARBOUR.deckY, HARBOUR.shore + 0.4], ry: 0,
+      route: { length: 5.0, speed: 0.75, pauseEnd: 2.5, pauseStart: 2.5, clipEnd: 'shoulder', clipStart: 'shoulder' } },
+  ];
+  if (hull) {
+    for (const [s, z, seed, tone] of [[1, 1.4, 614, 0x7a5a3a], [-1, -0.9, 615, 0x5f5a50]]) {
+      list.push({ ...tunic(seed, tone), clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [N.slipX + s * (N.slipHalf - 0.25), slipY(z), z], ry: s > 0 ? -Math.PI / 2 : Math.PI / 2 });
+    }
+  }
+  return list;
 }
 
 /** Where the hull sits: its keel's bottom amidships (x, y, z) over the building slip, and its tilt. */
@@ -419,8 +460,7 @@ function onSlip(p) {
  * The liburnian on the slip at a step of its building (1 to 4: models/
  * harbour.js liburnianHull), with what holds it there: the keel blocks,
  * the shores along its sides, the braces of the posts while the shell is
- * low, the windlass's hawser to its stern; while the yard is staffed
- * ('open'), the shipwrights at work beside it. The model's metres.
+ * low, the windlass's hawser to its stern. The model's metres.
  */
 export function buildNavaliaHull(step, { lod = 0, seed = 7 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
@@ -475,13 +515,6 @@ export function buildNavaliaHull(step, { lod = 0, seed = 7 } = {}) {
     const mid = [(wx + st[0]) / 2, Math.min(wy, st[1]) - 0.05, (wz + st[2]) / 2];
     p.add('hawser', m.rope, [tube([[wx, wy - 0.2, wz + 0.05], mid, st], 0.025, { radial: lod ? 4 : 6, segments: lod ? 6 : 14, around: 0.06 })]);
   }
-  // The shipwrights: one with an adze at the planking, one with a mallet driving the tenons' pegs.
-  if (lod === 0) {
-    for (const [s, z, cloth, reach, seedF] of [[1, 1.4, 0x7a5a3a, 0.9, 1], [-1, -0.9, 0x5f5a50, 0.6, 2]]) {
-      const x = N.slipX + s * (N.slipHalf - 0.25);
-      const f = figureParts({ cloth, reach }, x, slipY(z), z, s > 0 ? -Math.PI / 2 : Math.PI / 2);
-      for (const g of f) p.add(`shipwright${seedF}-${g.material.name}`, g.material, [g.g], { when: 'open' });
-    }
-  }
+  // (The shipwrights at work beside it are actors: navaliaActors.)
   return p.build();
 }

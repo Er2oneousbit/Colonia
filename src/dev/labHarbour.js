@@ -16,8 +16,9 @@
  * Each is drawn as the game draws it: models.js MODELS' variant from a
  * building record (its water side, staff, progress, stock, and for the
  * Portus a training ship), its kits built by the same `build` and placed by
- * the same matrices of `more`. A strait of open sea between the shores, a
- * paved street behind each row.
+ * the same matrices of `more`, its people (the variant's actors) by the
+ * same batch. A strait of open sea between the shores, a paved street
+ * behind each row.
  *
  * The world is in metres (4 a tile), the map's middle at the origin.
  * ----------------------------------------------------------------------------
@@ -30,6 +31,7 @@ import { SITE, siteWord, WATER_KIND } from '../render3d/ground/groundMap.js';
 import { MODELS, partShows } from '../render3d/models.js';
 import { kitOf } from '../render3d/kit.js';
 import { triangles } from '../render3d/shapes.js';
+import { PeopleBatch } from '../render3d/people/batch.js';
 
 export const HARBOUR_INFO = `
 <button class="close" type="button" aria-label="Close">Close</button>
@@ -103,6 +105,8 @@ export function harbourScenes(lab) {
       on = name === 'harbour';
       s.group.visible = s.ground.group.visible = on;
       if (on) {
+        // (The people are posed on the GPU: GTAO's normal pass would see them at rest, so they throw no AO.)
+        if (!look.noAO.includes(s.crowd.group)) look.noAO.push(s.crowd.group);
         const sc = look.sun.shadow.camera;
         sc.left = -SHADOW_BOX;
         sc.right = SHADOW_BOX;
@@ -223,7 +227,10 @@ export function buildHarbourScene(tex, quality = 'high') {
     return { ...s, holder, id: 100 + k, tris: 0 };
   });
   const _m = new Matrix4();
+  // The people, as the game draws them: each variant's cast at its building's place.
+  const crowd = new PeopleBatch(group);
   function build() {
+    crowd.begin(lod);
     for (const it of items) {
       it.holder.clear();
       it.tris = 0;
@@ -244,13 +251,16 @@ export function buildHarbourScene(tex, quality = 'high') {
           it.holder.add(c);
         }
       }
+      if (v.actors && v.actors.actors.length) crowd.add(v.actors, _m.makeTranslation(it.holder.position.x, 0, it.holder.position.z), it.id);
     }
+    crowd.end();
   }
   build();
   return {
     group,
     ground,
     items,
+    crowd,
     get lod() { return lod; },
     setLod(l) {
       if (l === lod) return;

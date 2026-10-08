@@ -28,11 +28,14 @@
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  lived in: the doors and shutters open, the governor in his
- *           toga with a client in the garden, the lady of the house on her
- *           bench, the servants about; the guard at the door; lamps lit
+ *           toga praetexta talking with a friend in the garden, the lady
+ *           of the house reading on her bench, the servants at work,
+ *           clients waiting on the street benches; the guard at the door;
+ *           lamps lit
  *   'shut'  no servants: shut up, doors and shutters closed, nobody
  *   'out'   trouble near: doors and shutters shut, the household indoors,
  *           three guards at the door, the lamps lit
+ * The people are actors (people/: praetoriumActors), moving on the GPU.
  *
  * Metres, the footprint's middle at the origin, y up, the street toward +z.
  * Levels of detail 0 to 2.
@@ -44,10 +47,12 @@ import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { slab, TaggedParts } from './masonry.js';
 import { staff } from './castra.js';
 import {
-  govMaterials, guard, dressWall, box, gableTri, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, ringRoof, coping, rectMinus, slabs, court,
-  architraveRound, columnsRound, impluvium, threshold, togate, servant, matron, addPeople, boxEdging, bedPlants, flowerBed, gardenTree,
-  lantern, lanternPane,
+  govMaterials, dressWall, box, gableTri, porch, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, shutters, ringRoof, coping, rectMinus, slabs, court,
+  architraveRound, columnsRound, impluvium, threshold, boxEdging, bedPlants, flowerBed, gardenTree, lantern, lanternPane,
+  guardActor, togateActor, servantActor, matronActor,
 } from './domus.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H } from '../people/clips.js';
 
 /** The house's measures (metres): the tests, the lab and the game read them. */
 export const PRAETORIUM = Object.freeze({
@@ -72,6 +77,8 @@ const P = PRAETORIUM;
 const FY = P.floorY;
 const T = 0.3;
 const BEAM = 0.3;
+/** The street benches' tops: a seat's height over the pavement (0.06). */
+const BENCH_Y = 0.06 + SEAT_H;
 
 /** The atrium's and the peristyle's columns: [x, z] places and their height (base to abacus), for government.js. */
 export const PRAETORIUM_COLS = Object.freeze({
@@ -141,8 +148,9 @@ function walls(lod, seed, out) {
   out.pave.push(box(2 * xs + 0.1, 0.06, 5.96 - zf, 0, 0, (5.96 + zf) / 2, 0.92));
   out.trav.push(box(2 * xs + 0.1, 0.12, 0.16, 0, 0, 5.88, 0.85));
   for (const s of [-1, 1]) {
-    out.trav.push(slab(1.5, 0.08, 0.38, { bevel: 0.01, seed: seed + 5 + s, wobble: 0, tone: 0, grime: 0.1 }).translate(s * 2.1, 0.36, zf + 0.21));
-    out.stucco.push(box(1.44, 0.36, 0.34, s * 2.1, 0, zf + 0.19, 0.85));
+    // (Their tops a seat's height over the pavement: the clients waiting on them sit there, people/clips.js SEAT_H.)
+    out.trav.push(slab(1.5, 0.08, 0.38, { bevel: 0.01, seed: seed + 5 + s, wobble: 0, tone: 0, grime: 0.1 }).translate(s * 2.1, BENCH_Y - 0.08, zf + 0.21));
+    out.stucco.push(box(1.44, BENCH_Y - 0.08, 0.34, s * 2.1, 0, zf + 0.19, 0.85));
   }
 }
 
@@ -238,22 +246,46 @@ function peristyle(lod, seed, out) {
     out.bronze.push(box(0.16, 0.06, 0.08, 0.2, FY + 0.9, z + 0.25));
   }
   // A marble bench along the back portico.
-  out.marble.push(slab(1.6, 0.07, 0.42, { bevel: 0.01, seed: seed + 60, wobble: 0, tone: 0, grime: 0 }).translate(2.7, FY + 0.4, zb + T + 0.32));
-  for (const e of [-1, 1]) out.marble.push(slab(0.14, 0.4, 0.38, { bevel: 0.01, seed: seed + 61 + e, wobble: 0, tone: 0.03, grime: 0.2 }).translate(2.7 + e * 0.66, FY, zb + T + 0.32));
+  // (A seat's height, people/clips.js SEAT_H: the lady reads on it.)
+  out.marble.push(slab(1.6, 0.07, 0.42, { bevel: 0.01, seed: seed + 60, wobble: 0, tone: 0, grime: 0 }).translate(2.7, FY + 0.38, zb + T + 0.32));
+  for (const e of [-1, 1]) out.marble.push(slab(0.14, 0.38, 0.38, { bevel: 0.01, seed: seed + 61 + e, wobble: 0, tone: 0.03, grime: 0.2 }).translate(2.7 + e * 0.66, FY, zb + T + 0.32));
   return cols;
 }
 
-/** The household (lived in, close up): the governor and a client in the garden, the lady on her bench, servants. */
-function household(m) {
-  const list = [];
-  const zb = P.back + T;
-  list.push(...togate(m, -0.8, FY - 0.08, -2.5, Math.PI / 2 - 0.3, { praetexta: true, arms: 'orate', hair: 0x3a2a1c }));
-  list.push(...togate(m, 0.8, FY - 0.08, -2.4, -Math.PI / 2 + 0.2, { arms: 'hold', hair: 0x6a6058 }));
-  list.push(...matron(m, 2.55, FY, zb + 0.34, 0, { sit: 0.44, palla: 0x7a3a52 }));
-  list.push(...servant(m, 3.6, FY, zb + 0.75, -0.5, { cloth: 0xb8a888, arms: 'hold' }));
-  list.push(...servant(m, -3.0, FY - 0.08, -3.9, 0.6, { cloth: 0x8a7a5a, arms: 'reach' }));
-  list.push(...servant(m, -4.9, FY, -1.5, 1.4, { cloth: 0xa89a7a }));
-  return list;
+/**
+ * The house's people (people/actors.js specs, its metres), by state. Lived
+ * in ('open'): the governor in the toga praetexta talking with a senator
+ * friend at the cistern's mouth where the garden's walks cross; a servant
+ * sweeping the walk, another carrying a sack of provisions along it; the
+ * lady of the house reading on her bench in the back portico, her maid by
+ * her with a cup; out on the street the morning's clients waiting on the
+ * benches for the salutatio (one in his toga, a freedman writing his
+ * petition on a tablet), and the guard at the door. Trouble near ('out'):
+ * the household gone in behind the barred door, three soldiers at the
+ * front. Nobody in a house shut up.
+ */
+export function praetoriumActors(state) {
+  if (state === 'shut') return [];
+  const door = guardActor([1.75, 0.06, P.front + 0.55], 0.15, 501);
+  if (state === 'out') return [door, guardActor([-3.3, 0.06, P.front + 0.5], -0.1, 502), guardActor([3.4, 0.06, P.front + 0.5], 0.1, 503)];
+  const gy = FY - 0.08;
+  const cz = (P.peri.inner[2] + P.peri.inner[3]) / 2;
+  const bench = BENCH_Y - SEAT_H;
+  return [
+    door,
+    // At the cistern's mouth: the governor making his point, his friend listening.
+    togateActor([-0.8, gy, cz], Math.PI / 2 - 0.3, 504, { praetexta: true, clip: 'talk' }),
+    togateActor([0.8, gy, cz + 0.1], -Math.PI / 2 + 0.2, 505, { clip: 'listen' }),
+    // The walk swept; a sack carried in along it and out again.
+    servantActor([-2.6, gy, cz], -Math.PI / 2, 506, { clip: 'sweep', props: { R: 'broom' } }),
+    servantActor([3.9, gy, cz - 0.05], -Math.PI / 2, 507, { clip: 'carry', props: { L: 'sack' }, route: { length: 2.0, speed: 0.75, pauseEnd: 2.5, pauseStart: 3, clipEnd: 'shoulder', clipStart: 'shoulder' } }),
+    // The lady reading on the marble bench, her maid by her with a cup.
+    matronActor([2.7, FY + 0.45 - SEAT_H, P.back + T + 0.37], 0, 508, { clip: 'read', props: { R: 'rollOpen' }, colours: { tunic: DYES.white, mantle: DYES.madder, trim: DYES.oxblood } }),
+    servantActor([3.75, FY, P.back + T + 0.85], -0.7, 509, { clip: 'hold', props: { R: 'cup' }, body: 'f', dress: ['tunic:long'], hair: 'bun' }),
+    // The clients on the street benches, waiting for the door to open to them.
+    togateActor([-2.55, bench, P.front + 0.26], 0, 511, { clip: 'sit', broad: false }),
+    { body: 'm', dress: ['tunic:knee'], hair: 'crop', clip: 'write', props: { L: 'tablet', R: 'stylus' }, at: [2.45, bench, P.front + 0.26], ry: 0, seed: 512, colours: { tunic: DYES.oatmeal } },
+  ];
 }
 
 /** Build the house: { group, meshes, triangles }; meshes tagged in userData.when. Its columns are not in it (government.js). */
@@ -324,12 +356,7 @@ export function buildPraetorium({ lod = 0, seed = 431 } = {}) {
   p.add('standard', m.cloth, st.cloth, { when: 'staffed' });
   p.add('lamp', lanternPane(), out.pane, { when: 'staffed', cast: false });
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
-  if (lod === 0) {
-    addPeople(p, m, 'household', household(m), 'open');
-    addPeople(p, m, 'guard', guard(m, 1.75, 0.06, P.front + 0.55, 0.15), 'staffed');
-    addPeople(p, m, 'guard-more', guard(m, -3.3, 0.06, P.front + 0.5, -0.1), 'out');
-    addPeople(p, m, 'guard-more', guard(m, 3.4, 0.06, P.front + 0.5, 0.1), 'out');
-  }
+  // (The household, the clients and the guard are actors: praetoriumActors.)
   return p.build();
 }
 

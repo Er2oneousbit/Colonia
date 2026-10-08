@@ -37,6 +37,7 @@ import { slab, GLYPHS, lantern, lanternPane, tuscanColumn } from './masonry.js';
 import { lin, D } from './rural.js';
 import { box, staff, people } from './castra.js';
 import { learningMaterials, person, at, bush, hedge } from './learning.js';
+import { DYES } from '../people/actors.js';
 
 export { box, D, lin, lantern, lanternPane };
 
@@ -1109,6 +1110,45 @@ export function servant(mats, x, y, z, ry, { cloth = 0x9c8a6a, arms = 'down', sk
 /** A Roman lady in a long stola and a coloured palla over it, at (x, y, z) facing ry. */
 export function matron(mats, x, y, z, ry, { cloth = 0xe6d8bc, palla = 0x4f6f86, sit = 0, arms } = {}) {
   return person(mats, { cloth, cloth2: palla, long: true, skin: 0xc49272, hair: 0x2c1a10, sit, arms }, x, y, z, ry, 0.95);
+}
+
+// ---------------------------------------------------------------------------
+// The residences' people as actors (people/actors.js specs)
+// ---------------------------------------------------------------------------
+
+/**
+ * A soldier of the governor's guard (men seconded from the legions): the
+ * red tunic under the mail shirt (lorica hamata), the helmet, hobnailed
+ * caligae, his spear at his right and the curved scutum at his left, as the
+ * senate's guard. `clip` 'guard' standing, 'march' on a round.
+ */
+export function guardActor(at, ry, seed, extra = {}) {
+  return {
+    body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', clip: 'guard', props: { R: 'spear', L: 'scutum' },
+    colours: { tunic: DYES.madder, accent: DYES.madder, metal: 0x8a8c90 }, at, ry, seed, ...extra,
+  };
+}
+
+/**
+ * A man in the toga over a white tunic: a senator's broad purple stripe
+ * (the latus clavus) on his tunic; a magistrate's (the governor's) toga
+ * bordered in purple (the praetexta: `praetexta`).
+ */
+export function togateActor(at, ry, seed, { praetexta = false, broad = true, ...extra } = {}) {
+  return {
+    body: 'm', dress: [broad ? 'tunic:knee:broad' : 'tunic:knee', 'toga'], hair: seed % 3 ? 'crop' : 'bald', old: seed % 3 === 0,
+    colours: { tunic: DYES.white, mantle: DYES.candida, trim: DYES.purple, ...(praetexta ? { accent: DYES.murex } : {}) }, at, ry, seed, ...extra,
+  };
+}
+
+/** A household slave or freedman: a short tunic of undyed or cheaply dyed wool. */
+export function servantActor(at, ry, seed, extra = {}) {
+  return { body: 'm', dress: ['tunic:short'], hair: seed % 2 ? 'curls' : 'crop', colours: { tunic: [DYES.oatmeal, DYES.fawn, DYES.undyed, DYES.brownWool][seed % 4] }, at, ry, seed, ...extra };
+}
+
+/** The lady of the house, or a daughter: a stola over the long tunic, a palla of a rich dye. */
+export function matronActor(at, ry, seed, extra = {}) {
+  return { body: 'f', dress: ['tunic:long:stola', 'palla'], hair: 'bun', at, ry, seed, ...extra };
 }
 
 // ---------------------------------------------------------------------------

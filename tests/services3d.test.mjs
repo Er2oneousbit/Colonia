@@ -26,7 +26,7 @@ import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { prefectureState, engineerState, crewOut } from '../src/render3d/models/services.js';
 import { PUMP_WATER, prefectureActors } from '../src/render3d/models/prefecture.js';
-import { ENGINEER } from '../src/render3d/models/engineer.js';
+import { ENGINEER, engineerActors } from '../src/render3d/models/engineer.js';
 import { iceMaterial } from '../src/render3d/materials.js';
 
 const TYPES = ['prefecture', 'engineer_post'];
@@ -124,8 +124,11 @@ test('services3d: every part shows in some state, and each state shows what it s
   const e = [...shownIn('engineer_post').values()];
   assert.deepEqual(e.filter((v) => v.name === 'block').map((v) => v.states.join()).sort(), ['open', 'shut']);
   assert.ok(e.some((v) => v.name === 'rollers' && v.states.join() === 'shut'));
-  const builders = (s) => new Set(e.filter((v) => /^(winder|surveyor)-/.test(v.name) && v.states.includes(s)).map((v) => v.name.split('-')[0])).size;
-  assert.deepEqual([builders('open'), builders('shut')], [2, 0]);
+  // Four builders at work (actors: people/): the winder at the crank, the surveyor, a mason, a carpenter; nobody when idle.
+  assert.deepEqual([engineerActors('open').length, engineerActors('shut').length], [4, 0]);
+  assert.ok(engineerActors('open').some((a) => a.clip === 'windlass' && a.props.R === 'crank'));
+  // The windlass's crank: the winder turns his own; the kit's hangs on the roller only while the yard is idle.
+  assert.deepEqual(e.filter((v) => v.name === 'crank').map((v) => v.states.join('+')), ['shut']);
   // The groma stands whatever the state, it is the yard's sign: its cross (the bracket's end, at the
   // staff's top) is in parts shown in both states.
   const [gx, gz, gh] = ENGINEER.groma;

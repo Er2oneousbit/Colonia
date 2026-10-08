@@ -14,7 +14,9 @@
  *                  beacon lit at night), 'shut' not
  *   portus         the training harbour (models/portus.js): 'open' staffed,
  *                  'shut' not, and its crews at the rowing frame while a new
- *                  ship's crew trains there (portusDrill)
+ *                  ship's crew trains there (portusDrill): the rowers, the
+ *                  hortator and the marines (actors), the racks empty, the
+ *                  corvus down
  *
  * A waterside building never turns (sim/construction.js turnRule); it faces
  * its water, `b.waterSide` (0 = -y, 1 = +x, 2 = +y, 3 = -x, sim/berths.js
@@ -23,14 +25,17 @@
  * at art turn 0) and turned to their side by the matrices of `more`: the
  * building's own kit is empty, and everything it shows (the building, the
  * hull, the stock, the rowers) is a kit drawn in its frame, so one kit
- * serves all four sides.
+ * serves all four sides. Their people are actors (people/: navaliaActors,
+ * statioActors, portusActors) in the model's frame, turned to the side
+ * here (turnActors) and packed once a side and state.
  * ----------------------------------------------------------------------------
  */
 
 import { Group, Matrix4, Quaternion, Vector3 } from 'three';
-import { buildNavalia, buildNavaliaHull, NAVALIA } from './navalia.js';
-import { buildStatio, STATIO } from './statio.js';
-import { buildPortus, buildPortusPart, PORTUS } from './portus.js';
+import { buildNavalia, buildNavaliaHull, NAVALIA, navaliaActors } from './navalia.js';
+import { buildStatio, STATIO, statioActors } from './statio.js';
+import { buildPortus, buildPortusPart, PORTUS, portusActors } from './portus.js';
+import { cast } from '../people/actors.js';
 import { waterRowsSide } from '../../sim/entities.js';
 
 /** A hard frost: the sprites' deep snow (levels 2 and 3 of 0..3), as models.js reads it; the water's margins freeze. */
@@ -122,6 +127,32 @@ export function turnPoint([x, y, z], side) {
 }
 
 /**
+ * Actor specs (people/actors.js) of a model facing +z turned to face
+ * `side`: their places, facings and their routes' end facings, as the
+ * matrices of `more` turn its kits.
+ */
+export function turnActors(list, side) {
+  const a = sideAngle(side);
+  const turn = (f) => (f === undefined ? undefined : f + a);
+  return list.map((s) => {
+    const out = { ...s, at: turnPoint(s.at || [0, 0, 0], side), ry: (s.ry || 0) + a };
+    if (s.route) out.route = { ...s.route, faceEnd: turn(s.route.faceEnd), faceStart: turn(s.route.faceStart) };
+    return out;
+  });
+}
+
+/** A fleet building's casts by type, side and state (a handful in a city: kept). */
+const CASTS = new Map();
+function castOf(sig, make) {
+  let c = CASTS.get(sig);
+  if (!c) {
+    c = cast(make());
+    CASTS.set(sig, c);
+  }
+  return c;
+}
+
+/**
  * Lamps for models.js modelLamps, turned to the building's side. One that
  * hangs in the open (on a post, the beacon's fire) is given facing both
  * ways, so whichever the view sees is kept; one on a face (`faces[i]`, its
@@ -178,8 +209,9 @@ export const FLEET_MODELS = Object.freeze({
         if (l) list.push({ key: 'warehouse:load:linen', n: l, mats: S.linen.subarray(0, l * 16), state: 'always' });
         return list;
       });
-      // (The building's own kit is empty: everything is in `more`, turned to its water.)
-      return { key: 'navalia:none', state, ice: false, more };
+      // (The building's own kit is empty: everything is in `more`, turned to its water; its people too.)
+      const actors = castOf(`navalia|${side}|${state}|${step ? 1 : 0}`, () => turnActors(navaliaActors(state, step > 0), side));
+      return { key: 'navalia:none', state, ice: false, more, actors };
     },
     build(key, lod) {
       const [, kind, arg] = key.split(':');
@@ -198,7 +230,8 @@ export const FLEET_MODELS = Object.freeze({
       const state = staffedState(b);
       const ice = frost(place);
       const more = cached(`statio|${side}|${state}|${ice ? 1 : 0}`, () => [{ key: ice ? 'naval_station:ice' : 'naval_station', n: 1, mats: SIDE_MATS[side], state }]);
-      return { key: 'naval_station:none', state, ice: false, more };
+      const actors = castOf(`statio|${side}|${state}`, () => turnActors(statioActors(state), side));
+      return { key: 'naval_station:none', state, ice: false, more, actors };
     },
     build(key, lod) {
       const kind = key.split(':')[1];
@@ -208,7 +241,7 @@ export const FLEET_MODELS = Object.freeze({
   }),
   portus: Object.freeze({
     fits: overWater,
-    warm: ['portus', 'portus:drill', 'portus:corvus:up'],
+    warm: ['portus', 'portus:rack', 'portus:corvus:up'],
     lamps: (b) => (b.efficiency > 0 ? PORTUS_LAMPS[waterSideOf(b, null)] : []),
     variant(b, place, ctx) {
       const side = waterSideOf(b, ctx);
@@ -217,14 +250,16 @@ export const FLEET_MODELS = Object.freeze({
       const drill = portusDrill(b, ctx && ctx.game);
       const more = cached(`portus|${side}|${state}|${ice ? 1 : 0}|${drill ? 1 : 0}`, () => {
         const mats = SIDE_MATS[side];
+        // At drill the oars are at the frame in the rowers' hands (the actors') and the corvus is down
+        // on the hulk; else the oars racked and the corvus raised.
         return [
           { key: ice ? 'portus:ice' : 'portus', n: 1, mats, state },
-          // At drill the oars are at the frame and the corvus is down on the hulk; else racked and raised.
-          drill ? { key: 'portus:drill', n: 1, mats, state: 'always' } : { key: 'portus:rack', n: 1, mats, state: 'always' },
+          ...(drill ? [] : [{ key: 'portus:rack', n: 1, mats, state: 'always' }]),
           { key: drill ? 'portus:corvus:down' : 'portus:corvus:up', n: 1, mats, state: 'always' },
         ];
       });
-      return { key: 'portus:none', state, ice: false, more };
+      const actors = castOf(`portus|${side}|${state}|${drill ? 1 : 0}`, () => turnActors(portusActors(state, drill), side));
+      return { key: 'portus:none', state, ice: false, more, actors };
     },
     build(key, lod) {
       const kind = key.split(':').slice(1).join(':');
