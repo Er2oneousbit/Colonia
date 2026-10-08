@@ -36,7 +36,7 @@ const SEG = [10, 6, 4];
  * A solid of revolution about an axis: profile [[r, t], ...] along the axis
  * from `a` toward `dir` (unit), `seg` round; slot by profile point.
  */
-function lathe(m, a, dir, profile, seg, slot, bone, { tone = () => 1, closed = true } = {}) {
+export function lathe(m, a, dir, profile, seg, slot, bone, { tone = () => 1, closed = true } = {}) {
   // Two axes square to dir.
   const up = Math.abs(dir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
   let u = [dir[1] * up[2] - dir[2] * up[1], dir[2] * up[0] - dir[0] * up[2], dir[0] * up[1] - dir[1] * up[0]];
@@ -56,7 +56,7 @@ function lathe(m, a, dir, profile, seg, slot, bone, { tone = () => 1, closed = t
 }
 
 /** A box w x h x d about `c` (axis-aligned), on `bone`. */
-function boxAt(m, c, w, h, d, slot, bone, tone = 1) {
+export function boxAt(m, c, w, h, d, slot, bone, tone = 1) {
   const W = rigid(bone);
   const corners = (sx, sy, sz) => [c[0] + (sx * w) / 2, c[1] + (sy * h) / 2, c[2] + (sz * d) / 2];
   const faces = [

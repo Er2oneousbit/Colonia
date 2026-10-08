@@ -397,6 +397,8 @@ export class ModelPass {
     this.people.end();
     // (The people's CPU a frame: gathering the casts, and writing them when the set changed.)
     peopleMs += performance.now() - tp;
+    // More copies of kits asked for this frame by others (the walkers' cart loads: walkers/pass.js).
+    if (this.extra) this.extra(this, lod);
     for (const g of ghosts) this.placeGhost(g, lod);
     this.prefetch(lod);
     this.buildUntil = 0;
