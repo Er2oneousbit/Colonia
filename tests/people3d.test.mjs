@@ -56,8 +56,8 @@ test('people3d: every clip loops seamlessly, is baked as its poses, and plants i
   // (The texture's rows within 8,192: every desktop and laptop GPU of the targets reads textures 16,384
   // tall or more, and the texture is only as tall as its rows, so the limit costs nothing until it is used.)
   assert.ok(baked.rows <= 8192, `${baked.rows} rows`);
-  // (A route's two pause clips share one float, b + 64 a (actors.js, the shader): every clip's index under 64.)
-  assert.ok(CLIP_NAMES.length <= 64, `${CLIP_NAMES.length} clips`);
+  // (A route's two pause clips share one float, b + 128 a (actors.js, the shader): every clip's index under 128.)
+  assert.ok(CLIP_NAMES.length <= 128, `${CLIP_NAMES.length} clips`);
   for (const name of CLIP_NAMES) {
     // The pose at the loop's end is the one at its start.
     const a = poseAt(name, 0);
@@ -159,7 +159,7 @@ test('people3d: actors pack their pieces, clips, colours and routes as specified
   // A route: its length and speed, its ends' clips, their facings in the actor's frame.
   const r = pack({ clip: 'walk', ry: Math.PI / 2, route: { length: 2, speed: 0.8, clipEnd: 'sacrifice', clipStart: 'pray', faceEnd: Math.PI, faceStart: 0 } });
   assert.deepEqual([...r.route.slice(0, 2)], [2, Math.fround(0.8)]);
-  assert.equal(r.clip[3], CLIP_INDEX.sacrifice + 64 * CLIP_INDEX.pray);
+  assert.equal(r.clip[3], CLIP_INDEX.sacrifice + 128 * CLIP_INDEX.pray);
   assert.ok(Math.abs(r.misc[1] - Math.PI / 2) < 1e-6, 'faces the end\'s way: a quarter turn from its walk');
   assert.ok(r.misc[2] > 0 && r.misc[2] <= 2 * Math.PI);
 });
