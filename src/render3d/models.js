@@ -59,6 +59,7 @@ import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
 import { buildVesselPart } from './ships/hulls.js';
+import { VILLAGE_MODELS, VILLAGE_PARTS } from './models/villages.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -151,6 +152,8 @@ export const MODELS = Object.freeze({
   ...GOVERNMENT_MODELS,
   // The temples, the oracle and the mission post (models/religion.js says how).
   ...RELIGION_MODELS,
+  // The native villages' huts, meeting places and plots (models/villages.js says how).
+  ...VILLAGE_MODELS,
 });
 
 /**
@@ -165,6 +168,8 @@ export const MODEL_PARTS = Object.freeze({
   ...RELIGION_PARTS,
   // The ships' hulls, yards and sails, a cast net, a basket of the catch, a wreck's debris (ships/hulls.js).
   vessel: Object.freeze({ build: buildVesselPart }),
+  // The villages' huts, yards, fires, oak, plots and flocks (models/villages.js).
+  ...VILLAGE_PARTS,
 });
 
 /** The builder of a kit's key: a building type's (MODELS) or a part's (MODEL_PARTS). */

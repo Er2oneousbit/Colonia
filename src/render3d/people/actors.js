@@ -93,7 +93,7 @@ export function pick(list, seed, salt = 0) {
 // Packing
 // ---------------------------------------------------------------------------
 
-const GARMENT = /^(tunic|toga|pallium|palla|paenula|lorica|limus|caligae|helmet|bulla|wreath)/;
+const GARMENT = /^(tunic|toga|pallium|palla|paenula|lorica|limus|caligae|helmet|bulla|wreath|ugear)/;
 
 /** The clip an actor plays, its toga variant if it wears a toga and the clip has one. */
 function clipFor(name, toga) {

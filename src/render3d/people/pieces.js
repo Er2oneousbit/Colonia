@@ -14,6 +14,8 @@
  *   caligae:<kind>  helmet:<kind>  bulla:<kind>  wreath:<kind>
  *   hair:<crop|curls|bun|bald>:<kind>      beard:<full|short>:<kind>
  *   prop:<name>:<L|R>
+ *   ugear:<kind>:<name>[:opt]   the units' gear worn at home (a villager's
+ *                              sheepskin, cloak, long hair: units/gear.js)
  * ----------------------------------------------------------------------------
  */
 
@@ -21,6 +23,7 @@ import { buildBody } from './body.js';
 import { tunic, toga, palla, paenula, lorica, limus, caligae, helmet, bulla, wreath } from './garments.js';
 import { hair, beard } from './hair.js';
 import { prop } from './props.js';
+import { unitGear } from '../units/gear.js';
 
 /** The Mesher of a piece by its key at level `lod`. */
 export function pieceMesher(key, lod) {
@@ -45,6 +48,7 @@ export function pieceMesher(key, lod) {
     case 'hair': return hair(a, b || 'm', lod);
     case 'beard': return beard(a, b || 'm', lod);
     case 'prop': return prop(a, b || 'R', lod);
+    case 'ugear': return unitGear(b, a, lod, new Set(rest));
     default: throw new Error(`No people piece ${key}`);
   }
 }
