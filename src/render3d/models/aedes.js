@@ -343,13 +343,14 @@ export function templeActors(M, state) {
   const y = 0.05;
   const list = [];
   const priestDress = { body: 'm', dress: ['tunic:long', 'toga:velato'], hair: 'bald', old: true, props: { R: 'patera' }, colours: { tunic: DYES.white, mantle: DYES.candida, skin: 0xb88560, hair: 0x8a8478 } };
-  // At the altar's left, facing it (+x): the patera held out over its top.
-  const at = [ax - aw / 2 - 0.36, y, az];
+  // At the altar's left, facing it (+x), clear of its step: the patera held out over its top.
+  const at = [ax - aw / 2 - 0.45, y, az];
   const boy = { body: 'c', dress: ['tunic:knee', 'bulla'], hair: 'curls', props: { R: 'acerra' }, clip: 'hold', at: [at[0] - 0.42, y, az + 0.5], ry: Math.PI / 2 + 0.35, colours: { tunic: DYES.white, trim: DYES.white } };
   if (state === 'open') {
     // The priest's way: from the foot of the steps (where he prays toward the god) to the altar and back.
     const [, sz] = stepAt(M, 0);
-    const foot = [ax - 0.42 * k, y, sz + 0.28];
+    // (Straight along z: his way passes beside the altar, never through it or its step.)
+    const foot = [at[0], y, sz + 0.28];
     const dx = at[0] - foot[0];
     const dz = at[2] - foot[2];
     list.push({

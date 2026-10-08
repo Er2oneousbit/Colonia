@@ -357,9 +357,10 @@ export function schoolActors(state) {
   list.push({ body: 'm', dress: ['tunic:knee', 'pallium'], hair: 'bald', beard: 'full', old: true, clip: 'teach', at: [cx, L.dais[4] + 0.47 - SEAT_H, cz + 0.02], ry: 0, seed: 59, colours: { tunic: DYES.oatmeal, mantle: DYES.walnut } });
   // The paedagogus: in from the gate a few steps and back, a roll under his arm for his boy.
   list.push({
-    body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'walk', props: { L: 'roll' }, at: [1.45, L.floorY, 3.45], ry: Math.PI + 0.25, seed: 60,
+    // (His way beside the front bench's end, clear of it and of the boy on it.)
+    body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'walk', props: { L: 'roll' }, at: [1.68, L.floorY, 3.5], ry: Math.PI, seed: 60,
     colours: { tunic: DYES.fawn, skin: 0x8c5e40 },
-    route: { length: 1.5, speed: 0.7, pauseEnd: 7, pauseStart: 4, clipEnd: 'listen', clipStart: 'idle', faceEnd: Math.PI, faceStart: Math.PI },
+    route: { length: 1.0, speed: 0.7, pauseEnd: 7, pauseStart: 4, clipEnd: 'listen', clipStart: 'idle', faceEnd: Math.PI + 0.6, faceStart: 0 },
   });
   return list;
 }

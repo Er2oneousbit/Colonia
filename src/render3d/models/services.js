@@ -19,12 +19,12 @@
 
 import { buildPrefecture, PREFECTURE, PUMP_WATER, prefectureActors } from './prefecture.js';
 import { cast } from '../people/actors.js';
+import { buildEngineerPost, ENGINEER } from './engineer.js';
+import { iceMaterial } from '../materials.js';
 
 /** The watch house's people by state (prefecture.js prefectureActors), packed once each. */
 const PREFECTURE_CASTS = {};
 const prefectureCast = (state) => (PREFECTURE_CASTS[state] ??= cast(prefectureActors(state)));
-import { buildEngineerPost, ENGINEER } from './engineer.js';
-import { iceMaterial } from '../materials.js';
 
 /**
  * How many of a prefecture's men are on fire duty: running to a fire or at

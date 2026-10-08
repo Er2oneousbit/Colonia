@@ -343,7 +343,7 @@ export function curiaActors(state) {
   list.push(senator(92, { clip: 'listen', at: [-0.55, y3, z3 - 0.1], ry: Math.PI - 0.9 }));
   list.push(senator(93, { clip: 'idle', at: [0.9, y1, z1], ry: Math.PI - 0.15 }));
   // Pacing before the steps, stopping to look up at the door.
-  list.push(senator(94, { clip: 'walk', at: [-2.4, 0.06, sz + 0.95], ry: Math.PI / 2, route: { length: 4.6, speed: 0.8, pauseEnd: 5, pauseStart: 6, clipEnd: 'listen', clipStart: 'idle', faceEnd: Math.PI, faceStart: Math.PI } }));
+  list.push(senator(94, { clip: 'walk', at: [-2.4, 0.06, sz + 1.35], ry: Math.PI / 2, route: { length: 4.6, speed: 0.8, pauseEnd: 5, pauseStart: 6, clipEnd: 'listen', clipStart: 'idle', faceEnd: Math.PI, faceStart: Math.PI } }));
   // Two talking in the porch.
   list.push(senator(95, { clip: 'talk', at: [-3.05, PY, 2.25], ry: 0.85 }));
   list.push(senator(96, { clip: 'listen', at: [-2.35, PY, 2.75], ry: -2.3 }));

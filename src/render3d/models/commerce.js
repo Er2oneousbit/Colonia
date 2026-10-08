@@ -31,12 +31,12 @@ import { Matrix4 } from 'three';
 import { buildMarket, marketWares, marketState, buildTholosFish } from './market.js';
 import { buildForum, forumState, FORUM, forumActors } from './forum.js';
 import { cast, NOBODY } from '../people/actors.js';
+import { buildWarehouse, warehouseLoads, warehouseState, WAREHOUSE } from './warehouse.js';
+import { buildLoad, buildDisplay, wareMaterials } from './wares.js';
 
 /** The forum's people at work (forum.js forumActors), packed once on first use. */
 let forumCast = null;
 const FORUM_CAST = () => (forumCast ??= cast(forumActors('open')));
-import { buildWarehouse, warehouseLoads, warehouseState, WAREHOUSE } from './warehouse.js';
-import { buildLoad, buildDisplay, wareMaterials } from './wares.js';
 
 /**
  * A good's kit as the game draws it: casting shadows only close up. A

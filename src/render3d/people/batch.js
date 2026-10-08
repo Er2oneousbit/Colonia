@@ -53,6 +53,7 @@ export class PeopleBatch {
     parent.add(this.group);
     this.pieces = new Map(); // `${key}|${lod}` -> { geometry, mesh, n, seen, key, lod, ms }
     this.byId = []; // the frame's level's pieces by their number (actors.js pieceId)
+    this.found = []; // (a person's pieces, gathered before any is written)
     this.list = []; // this frame's [cast, matrix, seed]
     this.used = 0;
     this.sig = 0;
@@ -114,15 +115,26 @@ export class PeopleBatch {
     for (let k = 0; k < this.used; k++) {
       const { cast, m, seed } = this.list[k];
       for (const a of cast.actors) {
+        // Every piece of this person first: one not built yet and not buildable this frame (the budget
+        // spent, no other level to stand in) leaves the whole person for a later frame, never half dressed.
+        const ps = this.found;
+        let all = true;
+        for (let j = 0; j < a.pieces.length; j++) {
+          ps[j] = this.byId[a.pieceIds[j]] || this.pieceFor(a.pieces[j], this.lod, a.pieceIds[j]);
+          if (!ps[j]) all = false;
+        }
+        if (!all) {
+          this.dirty = true;
+          continue;
+        }
         people++;
         _a.fromArray(a.local);
         _m.multiplyMatrices(m, _a);
         // Each building its own phases and a speed a little its own, from its seed: two alike never move in step.
         const ph = ((seed * 0.6180339 + a.index * 0.3819660) % 1) * 61;
         const sp = 0.94 + ((seed * 0.7548777 + a.index * 0.5698403) % 1) * 0.12;
-        for (let k = 0; k < a.pieces.length; k++) {
-          const p = this.byId[a.pieceIds[k]] || this.pieceFor(a.pieces[k], this.lod, a.pieceIds[k]);
-          if (!p) continue;
+        for (let j = 0; j < a.pieces.length; j++) {
+          const p = ps[j];
           const i = p.n;
           if (i >= p.room) this.grow(p, i + 1);
           _m.toArray(p.mesh.instanceMatrix.array, i * 16);
@@ -192,6 +204,12 @@ export class PeopleBatch {
         }
       }
     }
+    // Nothing to stand in for it: built now if this is the frame's first build or the budget has room, else
+    // later (null: the caller waits).
+    if (this.buildUntil && this.builtThisFrame && performance.now() > this.buildUntil) {
+      this.stats.deferred++;
+      return null;
+    }
     const t0 = performance.now();
     const geometry = buildPiece(key, lod);
     p = this.make(geometry, FIRST_ROOM);
@@ -252,16 +270,6 @@ export class PeopleBatch {
   setCasting(on) {
     this.casting = on;
     for (const p of this.pieces.values()) p.mesh.castShadow = on && p.lod < 2;
-  }
-
-  /** Hide everyone (a frame with no models drawn). */
-  hide() {
-    for (const p of this.pieces.values()) {
-      p.mesh.count = 0;
-      p.mesh.visible = false;
-    }
-    this.lastSig = -1;
-    this.stats.people = 0;
   }
 
   drop(id) {

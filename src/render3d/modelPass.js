@@ -45,7 +45,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement, WebGLRenderTarget } from 'three';
+import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement, WebGLRenderTarget, Group } from 'three';
 import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
 import { kitOf, disposeKit } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
@@ -580,6 +580,7 @@ export class ModelPass {
       // scene's lights and sky, without the ground's own shader), under the very output state it is
       // drawn in (tone mapping and sRGB are part of a program).
       job = rig.withOutput(() => this.gl.compileAsync(rig.modelSlot, camera, rig.scene));
+      job = Promise.all([job, this.warmPeopleDepth(camera)]);
     } catch (err) {
       // This threw once and the models waited for good, a sprite where each stood and nothing
       // said: now it is said, tried again, and given up after a few tries.
@@ -614,6 +615,25 @@ export class ModelPass {
       p.mesh.name = 'people-warm';
       return p.mesh;
     });
+    // The shadow caster's proxy apart: the sun's pass draws into its shadow map (linear, no tone
+    // mapping), so its program is compiled under a render target, not the slot's output (warm).
+    const depth = this.peopleProxies[1];
+    depth.removeFromParent();
+    this.peopleDepthScene = new Group();
+    this.peopleDepthScene.add(depth);
+  }
+
+  /** Compile the people's shadow caster as the shadow pass will draw it (into a target): a promise. */
+  warmPeopleDepth(camera) {
+    if (!this.peopleDepthScene) return Promise.resolve();
+    this.peopleTarget ??= new WebGLRenderTarget(1, 1);
+    const prev = this.gl.getRenderTarget();
+    this.gl.setRenderTarget(this.peopleTarget);
+    try {
+      return this.gl.compileAsync(this.peopleDepthScene, camera, this.rig.scene);
+    } finally {
+      this.gl.setRenderTarget(prev);
+    }
   }
 
   /**
@@ -686,6 +706,15 @@ export class ModelPass {
   dispose() {
     for (const id of [...this.kits.keys()]) this.dropKit(id);
     this.tiers.clear();
+    for (const m of this.peopleProxies || []) {
+      m.removeFromParent();
+      m.dispose();
+      m.geometry.dispose();
+    }
+    this.peopleProxies = null;
+    this.peopleDepthScene = null;
+    if (this.peopleTarget) this.peopleTarget.dispose();
+    this.peopleTarget = null;
     this.people.dispose();
   }
 }

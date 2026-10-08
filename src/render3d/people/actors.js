@@ -155,6 +155,7 @@ export function pack(spec, index = 0) {
   const r = new Float32Array(4);
   let pauses = 0;
   if (route && route.length > 0) {
+    if (route.speed !== undefined && !(route.speed > 0)) throw new Error(`A route's speed must be over 0 (${route.speed})`);
     r[0] = route.length;
     r[1] = route.speed ?? WALK_SPEED * 0.85;
     r[2] = route.pauseEnd ?? 4;
@@ -196,6 +197,32 @@ export function cast(list) {
 
 /** An empty cast (a building with nobody at it). */
 export const NOBODY = cast([]);
+
+/**
+ * The route's state at time t (s, the instance's own clock), as the vertex
+ * shader works it out (material.js VERT_MAIN, kept in step with it: the
+ * tests read this twin): how far along (adv), the turn (yaw), the clip
+ * playing and its time, the clip faded from, and how long since the fade
+ * began (`since`: under FADE the two are blended). `walkRate` the walk's
+ * playback rate for this speed (the shader's `rate`).
+ */
+export function routePose(a, t, walkRate) {
+  const TURN = 0.9;
+  const [L, v, pb, pa] = a.route;
+  const tw = L / v;
+  const C = 2 * tw + pa + pb + 2 * TURN;
+  const s = ((t % C) + C) % C;
+  const fy = a.misc[1];
+  const fs = a.misc[2];
+  const ease = (k) => k * k * (3 - 2 * k);
+  const mix = (x, y, k) => x + (y - x) * k;
+  if (s < tw) return { seg: 1, adv: v * s, yaw: 0, clip: 'walk', clipT: s * walkRate, prevT: (s + C) * walkRate, since: s };
+  if (s < tw + pb) return { seg: 2, adv: L, yaw: fy * ease(Math.min(1, (s - tw) / 0.35)), clip: 'end', since: s - tw };
+  if (s < tw + pb + TURN) return { seg: 3, adv: L, yaw: mix(fy, fy >= 0 ? Math.PI : -Math.PI, ease((s - tw - pb) / TURN)), clip: 'walk', clipT: s * walkRate, since: s - tw - pb };
+  if (s < 2 * tw + pb + TURN) return { seg: 4, adv: L - v * (s - tw - pb - TURN), yaw: Math.PI, clip: 'walk', clipT: s * walkRate, since: 1e3 };
+  if (s < 2 * tw + pb + TURN + pa) return { seg: 5, adv: 0, yaw: mix(Math.PI, fs, ease(Math.min(1, (s - 2 * tw - pb - TURN) / 0.35))), clip: 'start', since: s - 2 * tw - pb - TURN };
+  return { seg: 6, adv: 0, yaw: mix(fs, fs < Math.PI ? 0 : 2 * Math.PI, ease((s - 2 * tw - pb - TURN - pa) / TURN)), clip: 'walk', clipT: s * walkRate, since: s - 2 * tw - pb - TURN - pa };
+}
 
 /**
  * Where an actor may reach (the tests check every building keeps its people

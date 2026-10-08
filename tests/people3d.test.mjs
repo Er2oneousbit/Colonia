@@ -16,7 +16,9 @@
  *     state, writes them again only when the set changes (a turn, a state, a
  *     building in or out of view), and draws nobody for a building not drawn
  *   - every converted building keeps its people on its own footprint at
- *     every view turn
+ *     every view turn; its walkers turn the short way, never jump, keep
+ *     the walk's clock (routePose, the shader's twin); the temples' priests
+ *     walk clear of their altars
  * ----------------------------------------------------------------------------
  */
 
@@ -27,7 +29,9 @@ import { Group, Matrix4, Vector3, ShaderLib } from 'three';
 import { BONES, BONE, BONE_COUNT } from '../src/render3d/people/rig.js';
 import { CLIPS, CLIP_NAMES, CLIP_INDEX, poseAt, bakeClips, clipFrames, FRAME_FLOATS } from '../src/render3d/people/clips.js';
 import { buildPiece } from '../src/render3d/people/pieces.js';
-import { pack, cast, actorBounds, hash01 } from '../src/render3d/people/actors.js';
+import { pack, cast, actorBounds, hash01, routePose } from '../src/render3d/people/actors.js';
+import { AEDES } from '../src/render3d/models/aedes.js';
+import { TEMPLUM } from '../src/render3d/models/templum.js';
 import { peopleMaterial, peopleDepthMaterial, patchPeopleShader } from '../src/render3d/people/material.js';
 import { MODELS, modelMatrix, TILE_M } from '../src/render3d/models.js';
 import { ModelPass, peopleLodFor } from '../src/render3d/modelPass.js';
@@ -46,7 +50,7 @@ test('people3d: the rig has its 25 bones, each after its parent, and a prop bone
 test('people3d: every clip loops seamlessly, is baked as its poses, and plants its feet', () => {
   const baked = bakeClips();
   assert.equal(baked.table.length, CLIP_NAMES.length);
-  // (The texture's rows fit a GPU's smallest limit.)
+  // (The texture's rows within 4,096: every desktop and laptop GPU of the targets reads that tall.)
   assert.ok(baked.rows <= 4096, `${baked.rows} rows`);
   for (const name of CLIP_NAMES) {
     // The pose at the loop's end is the one at its start.
@@ -252,4 +256,56 @@ test('people3d: the people\'s level of detail follows a tile\'s size on the scre
   const { b, game } = scene('senate', { efficiency: 1 });
   assert.equal(MODELS.senate.variant(b, {}, { game }).actors, MODELS.senate.variant({ ...b, id: 9, x: 40 }, {}, { game }).actors);
   assert.equal(cast([]).actors.length, 0);
+});
+
+test('people3d: a route turns the short way, moves without a jump, and keeps the walk\'s clock running', () => {
+  const casts = [];
+  for (const [type, states] of Object.entries(CONVERTED)) {
+    for (const s of states) {
+      const { b, game } = scene(type, s);
+      casts.push([type, MODELS[type].variant(b, { snow: 0 }, { game }).actors]);
+    }
+  }
+  const walkers = casts.flatMap(([type, c]) => c.actors.filter((a) => a.routeLength > 0).map((a) => [type, a]));
+  assert.ok(walkers.length >= 4, 'the converted buildings have walkers');
+  const angle = (x, y) => Math.abs(Math.atan2(Math.sin(x - y), Math.cos(x - y)));
+  for (const [type, a] of walkers) {
+    const rate = 1.1;
+    const dt = 0.005;
+    let last = routePose(a, 0, rate);
+    let turned = 0;
+    for (let t = dt; t < 60; t += dt) {
+      const p = routePose(a, t, rate);
+      assert.ok(angle(p.yaw, last.yaw) < 0.06, `${type}: its facing jumps at ${t.toFixed(2)}`);
+      assert.ok(Math.abs(p.adv - last.adv) <= a.route[1] * dt + 1e-6, `${type}: it jumps along its way at ${t.toFixed(2)}`);
+      // The walk's clock: continuous from a turn into the walk back (no fade there); across the loop's
+      // wrap the new walk fades in from the turn's (its prevT continues the turn's clock).
+      if (last.seg === 3 && p.seg === 4) assert.ok(Math.abs(p.clipT - last.clipT - dt * rate) < 1e-6, `${type}: the walk back starts where the turn's left off`);
+      if (last.seg === 6 && p.seg === 1) assert.ok(Math.abs(p.prevT - last.clipT - dt * rate) < 1e-3 && p.since < 0.35, `${type}: the wrap fades from the turn's walk`);
+      if (p.seg === 3 || p.seg === 6) turned += angle(p.yaw, last.yaw);
+      if ((last.seg === 3 && p.seg === 4) || (last.seg === 6 && p.seg === 1)) {
+        assert.ok(turned <= Math.PI + 1e-3, `${type}: a turn of ${turned.toFixed(2)} rad, more than half a circle`);
+        turned = 0;
+      }
+      last = p;
+    }
+  }
+});
+
+test('people3d: the temples\' priests walk clear of their altars and the altar\'s step', () => {
+  for (const type of ['temple_ceres', 'temple_large_mars']) {
+    const { b, game } = scene(type, { efficiency: 1 });
+    const M = type === 'temple_ceres' ? AEDES : TEMPLUM;
+    const [ax, az, aw, ad] = M.altar;
+    const priest = MODELS[type].variant(b, { snow: 0 }, { game }).actors.actors.find((a) => a.routeLength > 0);
+    assert.ok(priest, type);
+    // (The altar's die and its step, 0.25 round it, and a man's half breadth.)
+    const r = 0.25 + 0.15;
+    for (let k = 0; k <= 20; k++) {
+      const d = (priest.routeLength * k) / 20;
+      const x = priest.at[0] + Math.sin(priest.ry) * d;
+      const z = priest.at[2] + Math.cos(priest.ry) * d;
+      assert.ok(Math.abs(x - ax) > aw / 2 + r - 1e-6 || Math.abs(z - az) > ad / 2 + r, `${type}: the priest's way at ${x.toFixed(2)}, ${z.toFixed(2)} crosses the altar`);
+    }
+  }
 });

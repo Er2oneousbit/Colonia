@@ -861,8 +861,10 @@ async function main() {
   // The loop.
   let last = performance.now();
   const clockStart = last;
+  /** The clock held at a time (s) for a sequence of stills (setClock), or null: running. */
+  let heldClock = null;
   function life(now) {
-    const t = (now - clockStart) / 1000;
+    const t = heldClock ?? (now - clockStart) / 1000;
     LOOK.uniforms.uLookTime.value = t;
     // The water's ripples drift; the bucket and rope swing a little.
     const wm = waterMaterial();
@@ -965,6 +967,8 @@ async function main() {
     /** When the first frame was drawn and the well's and the ground's textures were all in (performance.now()). */
     timings,
     setMood, setView, setTurn, stats, bench, wells100, setScene, setSeason, setSnow, setWet, ground: gs.ground,
+    /** Hold the look's clock at `t` seconds (frames of a motion, 0.2 s apart), or let it run again (null). */
+    setClock(t) { heldClock = t; },
     gallery: gal.ground, cards: gal.cards.map((c) => ({ id: c.id, name: c.name, note: c.note })), setCard, overview,
     /** The Fountain scene's fountains (tier, state, where), its level of detail, and each tier's triangles at one. */
     get fountains() { return fs.fountains.map((o) => ({ tier: o.tier, name: o.name, state: o.state, x: o.x, z: o.z, triangles: o.f.triangles })); },

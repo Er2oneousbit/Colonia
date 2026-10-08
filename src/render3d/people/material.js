@@ -194,16 +194,21 @@ void main() {
       float clipB = mod( aActClip.w, 64.0 );
       float clipA = floor( aActClip.w / 64.0 );
       float walk = aActClip.x;
-      float rate = v / uPeopleWalk;
+      // The walk played so its feet keep the ground at this speed: its own stride over its loop (a laden
+      // man's is shorter: clips.js carry).
+      vec4 wc = uPeopleClips[ int( walk + 0.5 ) ];
+      float rate = v / max( 1e-3, wc.w * wc.z / wc.y );
       float tc = uLookTime * speed + aActClip.y;
       float cur = walk;
       float curT = t * rate;
       float prev = walk;
       float prevT = t * rate;
       float since = 1e3;
+      // (The walk's clock runs on through the turns, so the legs never jump; across the loop's wrap,
+      // where it would, the turn's walk fades into the new one.)
       if ( t < tw ) {
         pAdv = v * t;
-        prev = walk; since = 1e3;
+        prev = walk; prevT = ( t + C ) * rate; since = t;
       } else if ( t < tw + pb ) {
         // At the end: turned to what it does there (an altar beside the way), then that clip.
         float k = min( 1.0, ( t - tw ) / FADE );
@@ -214,8 +219,9 @@ void main() {
       } else if ( t < tw + pb + TURN ) {
         float k = ( t - tw - pb ) / TURN;
         pAdv = L;
-        pYaw = mix( aActMisc.y, 3.14159265, k * k * ( 3.0 - 2.0 * k ) );
-        cur = walk; curT = t * rate * 0.6;
+        // (The short way round: to +pi from a facing on the left, to -pi from one on the right.)
+        pYaw = mix( aActMisc.y, aActMisc.y >= 0.0 ? 3.14159265 : -3.14159265, k * k * ( 3.0 - 2.0 * k ) );
+        cur = walk; curT = t * rate;
         prev = clipB; prevT = tc; since = t - tw - pb;
       } else if ( t < 2.0 * tw + pb + TURN ) {
         float s = t - tw - pb - TURN;
@@ -228,8 +234,8 @@ void main() {
         prev = walk; prevT = t * rate; since = t - 2.0 * tw - pb - TURN;
       } else {
         float k = ( t - 2.0 * tw - pb - TURN - pa ) / TURN;
-        pYaw = mix( aActMisc.z, 6.2831853, k * k * ( 3.0 - 2.0 * k ) );
-        cur = walk; curT = t * rate * 0.6;
+        pYaw = mix( aActMisc.z, aActMisc.z < 3.14159265 ? 0.0 : 6.2831853, k * k * ( 3.0 - 2.0 * k ) );
+        cur = walk; curT = t * rate;
         prev = clipA; prevT = tc; since = t - 2.0 * tw - pb - TURN - pa;
       }
       pSkin = peopleSkin( cur, curT );
