@@ -352,7 +352,7 @@ export function praetoriumMaiusActors(state) {
   if (state === 'out') {
     return [
       door, guardActor([-1.55, 0.06, ZF + 0.55], -0.15, 602), guardActor([4.4, 0.06, ZF + 0.55], 0.1, 603),
-      guardActor([-2.8, gy, 2.75], Math.PI / 2, 604, { clip: 'march', route: { ...walk, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard' } }),
+      guardActor([-2.8, gy, 2.75], Math.PI / 2, 604, { clip: 'patrol', route: { ...walk, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard' } }),
     ];
   }
   // A diner stands his feet DINE.top under the couch's top, at its front edge where his hips lie, facing the table.

@@ -401,7 +401,7 @@ export function regiaActors(state) {
       const y = z > 8.5 ? 0.06 : z > 0 ? walkY : PY + (2 * R.hall.step) / 3;
       list.push(guardActor([x, y, z], 0, 703 + k));
     }
-    list.push(guardActor([0, walkY, 6.6], Math.PI, 710, { clip: 'march', route: { length: 4.6, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard' } }));
+    list.push(guardActor([0, walkY, 6.6], Math.PI, 710, { clip: 'patrol', route: { length: 4.6, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard' } }));
     return list;
   }
   const zs = R.hall.colZ + 0.6;

@@ -285,7 +285,7 @@ export function turrisActors(state) {
     archer(-0.6, -(WALK - 0.1), Math.PI, 72),
     // (His spear only: a shield on his arm would scrape the wall and the rail of a gallery 0.62 m wide.)
     soldier('archer', {
-      clip: 'march', props: { R: 'spear' }, at: [WALK, DECK, -2.4], ry: 0, seed: 73,
+      clip: 'patrol', props: { R: 'spear' }, at: [WALK, DECK, -2.4], ry: 0, seed: 73,
       route: { length: 4.8, speed: 0.7, pauseEnd: 6, pauseStart: 5, clipEnd: 'guard', clipStart: 'guard', faceEnd: Math.PI / 2, faceStart: Math.PI / 2 },
     }),
   ];

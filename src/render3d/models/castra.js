@@ -948,7 +948,7 @@ export function soldier(arm, extra = {}) {
 }
 
 /**
- * A sentry pacing a wall's walk (or a gate's): he marches (clips.js march:
+ * A sentry pacing a wall's walk (or a gate's): he marches (clips.js patrol:
  * the spear upright, the shield on his arm) from x0 to x1 at the walk's
  * height y and z, in the front side's frame (as the rampart is built), and
  * back; at each end he stands on guard, turned to look out over the
@@ -961,7 +961,7 @@ export function wallSentry(arm, x0, x1, y, z, seed, k = 0) {
   const c = Math.cos(a);
   const s = Math.sin(a);
   return soldier(arm, {
-    clip: 'march', at: [x0 * c + z * s, y, z * c - x0 * s], ry: (x1 > x0 ? Math.PI / 2 : -Math.PI / 2) + a, seed,
+    clip: 'patrol', at: [x0 * c + z * s, y, z * c - x0 * s], ry: (x1 > x0 ? Math.PI / 2 : -Math.PI / 2) + a, seed,
     route: { length: Math.abs(x1 - x0), speed: 0.75, pauseEnd: 5 + (seed % 3), pauseStart: 4 + (seed % 4), clipEnd: 'guard', clipStart: 'guard', faceEnd: a, faceStart: a },
   });
 }

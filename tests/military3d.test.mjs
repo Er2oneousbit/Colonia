@@ -263,7 +263,7 @@ test('military3d: the people by state: the forts\' watch while manned, the clerk
   const none = gameWith();
   for (const type of FORTS) {
     assert.ok(castFor(type, { efficiency: 1 }, none).length >= 2, `${type}: its watch while manned`);
-    assert.ok(castFor(type, { efficiency: 1 }, none).some((a) => a.routeLength > 0 && a.clipName === 'march'), `${type}: a sentry pacing a walk`);
+    assert.ok(castFor(type, { efficiency: 1 }, none).some((a) => a.routeLength > 0 && a.clipName === 'patrol'), `${type}: a sentry pacing a walk`);
     assert.equal(castFor(type, { efficiency: 1, rally: { x: 1, y: 1 } }, none).length, 0, `${type}: nobody on watch while deployed`);
     assert.equal(castFor(type, { efficiency: 0 }, none).length, 0, `${type}: nobody when empty`);
   }

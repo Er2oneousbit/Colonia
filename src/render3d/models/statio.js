@@ -371,7 +371,7 @@ export function statioActors(state) {
   const marine = { body: 'm', dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], hair: 'crop', props: { R: 'spear', L: 'scutum' }, colours: { tunic: DYES.madder, accent: DYES.madder, metal: 0x8a8c90 } };
   return [
     { ...marine, clip: 'guard', at: [S.hq.door + 0.95, S.top, S.hq.porchZ + 0.5], ry: 0.2, seed: 711 },
-    { ...marine, clip: 'march', at: [-4.7, S.top, S.quayZ - 0.6], ry: Math.PI / 2, seed: 712,
+    { ...marine, clip: 'patrol', at: [-4.7, S.top, S.quayZ - 0.6], ry: Math.PI / 2, seed: 712,
       route: { length: 4.4, speed: 0.9, pauseEnd: 3, pauseStart: 3, clipEnd: 'guard', clipStart: 'guard', faceEnd: 0, faceStart: 0 } },
     { body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'carry', props: { L: 'sack' }, at: [(S.west[0] + S.west[1]) / 2 - 0.0, S.top - 0.02, S.quayZ + 0.8], ry: 0, seed: 713, colours: { tunic: DYES.sky },
       route: { length: 4.4, speed: 0.75, pauseEnd: 2.5, pauseStart: 2.5, clipEnd: 'shoulder', clipStart: 'shoulder' } },

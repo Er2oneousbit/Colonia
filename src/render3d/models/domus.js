@@ -1020,7 +1020,7 @@ export function architraveRound(rect, y0, y1, sides = 'fblr', w = 0.26) {
  * A soldier of the governor's guard (men seconded from the legions): the
  * red tunic under the mail shirt (lorica hamata), the helmet, hobnailed
  * caligae, his spear at his right and the curved scutum at his left, as the
- * senate's guard. `clip` 'guard' standing, 'march' on a round.
+ * senate's guard. `clip` 'guard' standing, 'patrol' on a round.
  */
 export function guardActor(at, ry, seed, extra = {}) {
   return {

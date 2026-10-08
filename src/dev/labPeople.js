@@ -100,7 +100,7 @@ const ACTS = [
   ['shaved', 'his client', { clip: 'shaved', seat: true }],
   ['stir', 'pestle and mortar', { clip: 'stir', props: { R: 'pestle' }, furn: 'mortar', beard: 'short', old: true }],
   ['dine', 'reclining on a couch', { clip: 'dine', props: { L: 'cup' }, dress: ['tunic:knee', 'pallium'], furn: 'couch', colours: { mantle: DYES.madder } }],
-  ['march', 'a sentry\'s round', { clip: 'march', props: { R: 'spear', L: 'scutum' }, dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], route: { length: 3.2, pauseEnd: 2, pauseStart: 2, clipEnd: 'guard', clipStart: 'guard' }, colours: { tunic: DYES.madder, accent: DYES.madder } }],
+  ['patrol', 'a sentry\'s round', { clip: 'patrol', props: { R: 'spear', L: 'scutum' }, dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], route: { length: 3.2, pauseEnd: 2, pauseStart: 2, clipEnd: 'guard', clipStart: 'guard' }, colours: { tunic: DYES.madder, accent: DYES.madder } }],
   ['shoot', 'the composite bow', { clip: 'shoot', props: { L: 'bow', R: 'arrow' }, dress: ['tunic:knee', 'helmet'], colours: { tunic: DYES.green } }],
   ['windlass', 'turning the crank', { clip: 'windlass', props: { R: 'crank' }, dress: ['tunic:short'], furn: 'windlass' }],
   ['prune', 'clipping the box', { clip: 'prune', props: { R: 'shears' }, dress: ['tunic:short'], furn: 'hedge' }],

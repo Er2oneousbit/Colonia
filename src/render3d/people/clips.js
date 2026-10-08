@@ -778,7 +778,7 @@ export const CLIPS = Object.freeze({
     },
   },
   // A sentry's walk on his round (a route): the spear upright at his right, the shield on his left arm.
-  march: {
+  patrol: {
     dur: WALK_DUR, fps: 30, walk: true,
     pose(P, t) {
       walkLegs(P, t);
