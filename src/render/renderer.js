@@ -521,6 +521,9 @@ export function bridgeSpan(map, fx, fy, onWater, turn = 0) {
  * How far ahead of a carter (world px, at zoom 1) his cart reaches: a hand
  * cart's far end, or a farm wagon and its ox (walkerArt.js drawCart).
  */
+/** A facing (N E S W, as the view sees it) as a step in the view's tiles. */
+const FACING = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
 export function cartReach(originDef) {
   return isWagon(originDef) ? 30 : 15;
 }
@@ -559,6 +562,9 @@ export class Renderer {
     this.unitSpots = []; // where each soldier, raider and imperial legionary was drawn this frame (pickUnit)
     this.follow = null; // { id } of a walker the view follows (until the map is moved)
     this.walkerSpots = []; // where each walker was drawn this frame, for clicks (pickWalker)
+    this.walkers3d = []; // this frame's walkers drawn as 3D people (their items: lanterns, the ring)
+    this.walkerAt = { fx: 0, fy: 0, lift: 0, stride: 0, vt: 0, W: 0, H: 0, aim: null }; // (handed to the back end, copied)
+    this.walkerCtx = { origin: null, venue: null };
     this.coverStrips = []; // the building strips drawn this frame, for clicks (coverDepthAt: what hides a figure)
     this.noRoadMarks = []; // buildings in view with no road to use, and their height (the red sign)
     this.noRoadSpots = []; // where those signs were drawn this frame (device px)
@@ -1156,6 +1162,11 @@ export class Renderer {
 
     // --- walkers ------------------------------------------------------------
     this.walkerSpots = [];
+    // (The WebGL back end drawing the buildings as models draws the walkers as 3D people,
+    // render3d/walkers/: those are handed to it, not drawn as sprites. Their items are kept
+    // here for the night's lanterns and the selected one's ring.)
+    this.walkers3d.length = 0;
+    const w3 = !!be.drawsWalkers;
     for (const w of game.walkers.values()) {
       if (overlayOn && ov.walkers && !ov.walkers.includes(w.type)) continue;
       const { fx, fy, wx, wy: groundY, d: fd } = walkerWorld(w, alpha, vt, map.w, map.h);
@@ -1175,15 +1186,24 @@ export class Renderer {
       // A prefect putting out a fire faces it and throws his water at it:
       // `aim` is the burning tile's middle from his feet, in world px.
       let aim = null;
+      let aimTiles = null;
       if (w.state === 'extinguish' && w.fireTile !== undefined && game.fires.has(w.fireTile)) {
         const [fdx, fdy] = viewDir(map.xOf(w.fireTile) - w.x, map.yOf(w.fireTile) - w.y, vt);
         if (fdx !== fdy) dirX = Math.sign(fdx - fdy);
         aim = { x: (fdx - fdy) * HALF_W, y: (fdx + fdy) * HALF_H };
+        aimTiles = [fdx, fdy];
       }
       // A carter's cart (and a wagon's ox) is drawn ahead of him and is most
       // of what the eye sees: clicks on it pick the carter (cartReach).
       // (Its depth goes with the spot: a click asks what was drawn over it, coverDepthAt.)
       const d = span.d ?? fd + 0.003;
+      if (w3 && this.walker3d(w, be, { fx, fy, lift: span.lift, stride, vt, W: map.w, H: map.h, aim: aimTiles }, origin, sdx, sdy, last, wx, wy, d)) {
+        const it = { d, kind: K_WALKER, w, wx, wy, stride, origin, dirX, dirY: Math.sign(ddy), aim, clipY: null };
+        this.walkers3d.push(it);
+        // (Its figure is the GPU's; the ring at the feet of the selected one is still painted.)
+        if (w.id === this.selectedWalker) items.push({ ...it, ringOnly: true });
+        continue;
+      }
       this.walkerSpots.push({ id: w.id, wx, wy, d, ship: w.kind === 'ship', ahead: w.type === 'cart' ? dirX * cartReach(origin) : 0 });
       // A ship under a bridge's deck is cut off at its far parapet, and
       // coming out in front is drawn in two pieces (mastClip).
@@ -1578,9 +1598,9 @@ export class Renderer {
         L.pool(sx, sy, tile * 2.2, 0.55 * lamps * f, true);
         for (const side of [1, -1]) L.glow(sx + side * mg.ox * k, sy + (side * mg.oy - GATE_H - 2) * k, 5.5 * k * f, 0.9 * lamps * f, true);
       }
-      // Lanterns and torches on the move.
-      for (const it of items) {
-        if (it.kind === K_WALKER) {
+      // Lanterns and torches on the move (the walkers drawn in 3D too).
+      for (const it of this.walkers3d.length ? items.concat(this.walkers3d) : items) {
+        if (it.kind === K_WALKER && !it.ringOnly) {
           const w = it.w;
           const ship = w.type === 'ship';
           if (!ship && w.id % 3) continue;
@@ -1649,6 +1669,7 @@ export class Renderer {
     const { tick, selFort, motion, pal } = this.frameInfo;
     switch (it.kind) {
       case K_WALKER:
+        if (it.ringOnly) { this.drawWalkerRing(it, ctx); break; } // (a walker drawn in 3D: its ring alone)
         if (it.w.id === this.selectedWalker && !it.front) this.drawWalkerRing(it, ctx); // (once for a ship in two pieces)
         if (it.clipY != null) this.clipTo(it.clipY, ctx);
         drawWalker(ctx, it.w, Math.round((it.wx - cam.x) * k), Math.round((it.wy - cam.y) * k), k, this.time, it.dirX, it.dirY, it.stride, it.origin, it.aim);
@@ -2349,6 +2370,29 @@ export class Renderer {
   }
 
   /**
+   * Hand walker `w` to a back end that draws walkers as 3D people
+   * (render3d/walkers/), if it can draw this one now (its pieces built; else
+   * its sprite this frame): `at` where walkerWorld puts it, `origin` a
+   * cart's sender, (sdx, sdy) its step and `last` its facing in the view.
+   * Its click spot reaches over what goes with it (the cart before him, the
+   * wagon, the team or the family behind), so a click there picks him.
+   * True: drawn in 3D.
+   */
+  walker3d(w, be, at, origin, sdx, sdy, last, wx, wy, d) {
+    const ctx = this.walkerCtx;
+    ctx.origin = origin;
+    ctx.venue = w.type === 'entertainer' ? this.game.buildings.get(w.origin)?.def.venue || null : null;
+    if (!be.canDrawWalker(w, ctx)) return false;
+    be.walker(w, at, ctx);
+    let du = sdx;
+    let dv = sdy;
+    if (!w.moving || (!du && !dv)) [du, dv] = last >= 0 ? FACING[last] : [0, 0];
+    const reach = be.walkerReach(w); // (tiles along his facing: + ahead, - behind)
+    this.walkerSpots.push({ id: w.id, wx, wy, d, ship: false, reachX: (du - dv) * HALF_W * reach, reachY: (du + dv) * HALF_H * reach });
+    return true;
+  }
+
+  /**
    * The walker drawn at CSS pixel (sx, sy) of the screen, or 0: the figure
    * nearest the point among those whose box holds it. The box is the figure
    * itself (a little bigger, never under about 12 x 22 CSS px) or, with
@@ -2372,12 +2416,16 @@ export class Renderer {
       const bottom = generous ? Math.max(5, 6 * css) : Math.max(4, 3 * css);
       const dx = p.x - s.wx;
       const dy = p.y - s.wy;
-      // The box runs from the figure to the far end of its cart, if it has one.
-      const near = Math.min(0, s.ahead || 0);
-      const far = Math.max(0, s.ahead || 0);
-      if (dx < near - hw || dx > far + hw || dy < -top || dy > bottom) continue;
-      const ex = dx < near ? dx - near : dx > far ? dx - far : 0;
-      const d = Math.hypot(ex, dy + top / 2);
+      // The box runs from the figure to the far end of its cart, if it has one: along the
+      // screen's x (a sprite's), or any way (a 3D walker's cart, wagon, team or family: reachX, reachY).
+      const rx = s.reachX ?? (s.ahead || 0);
+      const ry = s.reachY || 0;
+      const L2 = rx * rx + ry * ry;
+      const k = L2 ? Math.max(0, Math.min(1, (dx * rx + dy * ry) / L2)) : 0;
+      const ex = dx - k * rx;
+      const ey = dy - k * ry;
+      if (ex < -hw || ex > hw || ey < -top || ey > bottom) continue;
+      const d = Math.hypot(ex, ey + top / 2);
       if (d < bestD && !covered(s)) { bestD = d; best = s.id; }
     }
     return best;
