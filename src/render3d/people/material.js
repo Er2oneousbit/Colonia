@@ -28,12 +28,21 @@
  *     neck by the instance's head scale (a child is drawn at three quarters
  *     with a head nearer a grown man's).
  *
+ *   - The figures of the shows' buildings (appended): a beast skinned to its
+ *     own skeleton from its own baked clips (units/quadRig.js, the units'
+ *     texture: units/material.js beastUniforms), a rigid car whose wheels
+ *     turn with the ground it covers, and an orbit: a figure going round a
+ *     circle (a team exercised round a stable's yard), its walking clip at
+ *     the speed it goes so its feet hold the ground.
+ *
  * Instance attributes (actors.js packs them):
  *   aActClip   clip index, phase (s), speed, the route's pause clips (b + 128 a)
- *   aActRoute  length (m, 0 for none), speed (m/s), pause at its end, at its start (s)
+ *   aActRoute  length (m, 0 for none), speed (m/s), pause at its end, at its start (s);
+ *              an orbit: minus its radius, its speed, the figure's offset x and z
  *   aActCol0   tunic, mantle, skin, hair    (24-bit sRGB each)
  *   aActCol1   trim, leather, accent, metal
- *   aActMisc   head scale, the facing at a route's end and at its start (rad, the actor's frame), -
+ *   aActMisc   head scale, the facing at a route's end and at its start (rad, the actor's frame),
+ *              what it is: 0 a person, 1 a beast, 2 a rigid piece (a car)
  * ----------------------------------------------------------------------------
  */
 
@@ -44,6 +53,8 @@ import { LOOK, patchLook, surfaceTextures, cachedMaterial } from '../materials.j
 import { bakeClips, CLIP_NAMES, CLIP_INDEX, WALK_SPEED } from './clips.js';
 import { BONE, BONE_COUNT, BONES } from './rig.js';
 import { SLOTS, SLOT_COUNT } from './mesher.js';
+import { beastUniforms } from '../units/material.js';
+import { bakeBeasts } from '../units/quadRig.js';
 
 /** The clips' frames as a texture: BONE_COUNT x 3 texels a row, a row a frame. */
 let BONES_TEX = null;
@@ -168,8 +179,60 @@ vec3 peopleUnpack( float v ) {
 `;
 
 /**
+ * A building's beasts and cars (no variant: the units' and the walkers'
+ * bring their own): the beasts' clips from the units' baked texture
+ * (units/material.js), and the skinning by what a piece is (aActMisc.w).
+ */
+const BEAST_PARS = () => /* glsl */ `
+uniform highp sampler2D uBeastBones;
+uniform vec4 uBeastClips[ ${bakeBeasts().table.length} ];
+mat4 beastBone( float row, float b ) {
+  ivec2 c = ivec2( int( b + 0.5 ) * 3, int( row + 0.5 ) );
+  vec4 r0 = texelFetch( uBeastBones, c, 0 );
+  vec4 r1 = texelFetch( uBeastBones, c + ivec2( 1, 0 ), 0 );
+  vec4 r2 = texelFetch( uBeastBones, c + ivec2( 2, 0 ), 0 );
+  return mat4( r0.x, r1.x, r2.x, 0.0, r0.y, r1.y, r2.y, 0.0, r0.z, r1.z, r2.z, 0.0, r0.w, r1.w, r2.w, 1.0 );
+}
+mat4 beastFrame( float row ) {
+  mat4 m = aWeights.x * beastBone( row, aBones.x );
+  if ( aWeights.y > 0.0 ) m += aWeights.y * beastBone( row, aBones.y );
+  if ( aWeights.z > 0.0 ) m += aWeights.z * beastBone( row, aBones.z );
+  if ( aWeights.w > 0.0 ) m += aWeights.w * beastBone( row, aBones.w );
+  return m;
+}
+mat4 beastSkin( float clip, float time ) {
+  vec4 c = uBeastClips[ int( clip + 0.5 ) ];
+  float f = mod( time * c.z, c.y );
+  float f0 = floor( f );
+  float k = f - f0;
+  mat4 a = beastFrame( c.x + f0 );
+  mat4 b = beastFrame( c.x + mod( f0 + 1.0, c.y ) );
+  return a + ( b - a ) * k;
+}
+// A building's figure: a person's clip (aActMisc.w 0), a beast's (1); a rigid piece has none (2).
+mat4 actSkin( float clip, float time ) {
+  if ( aActMisc.w > 1.5 ) return mat4( 1.0 );
+  return aActMisc.w > 0.5 ? beastSkin( clip, time ) : peopleSkin( clip, time );
+}
+vec4 actClip( float clip ) {
+  return aActMisc.w > 0.5 ? uBeastClips[ int( clip + 0.5 ) ] : uPeopleClips[ int( clip + 0.5 ) ];
+}
+// A rigid piece's hinge (walkers/beasts.js): a wheel (1) turned by the metres rolled about its axle
+// (its radius and pivot in its weights), the rest still.
+mat4 actRigid( float rolled ) {
+  if ( int( aBones.x + 0.5 ) != 1 ) return mat4( 1.0 );
+  float a = rolled / max( 0.05, aWeights.y );
+  float c = cos( a );
+  float s = sin( a );
+  vec2 pv = aWeights.yz;
+  return mat4( 1.0, 0.0, 0.0, 0.0, 0.0, c, s, 0.0, 0.0, -s, c, 0.0, 0.0, pv.x - c * pv.x + s * pv.y, pv.y - s * pv.x - c * pv.y, 1.0 );
+}
+`;
+
+/**
  * The skinning and the route, at the top of main(): pSkin (the blended
  * skinning matrix), pYaw and pAdv (the route's turn and how far along it).
+ * (Its clips through actSkin and actClip: a person's, or a building's beast's.)
  */
 const VERT_MAIN = /* glsl */ `
 void main() {
@@ -178,8 +241,20 @@ void main() {
   mat4 pSkin;
   {
     float speed = aActClip.z;
-    if ( aActRoute.x <= 0.0 ) {
-      pSkin = peopleSkin( aActClip.x, uLookTime * speed + aActClip.y );
+    if ( aActRoute.x < 0.0 ) {
+      // An orbit: round a circle of radius R about the actor's place at v m/s, counter-clockwise from above,
+      // the figure set (x, z) from the line it runs on (actors.js orbitPose is its twin); its clip played so
+      // a walking one's feet hold the ground, a car's wheels turned by the metres covered.
+      float R = -aActRoute.x;
+      float v = aActRoute.y;
+      float tc = uLookTime * speed + aActClip.y;
+      vec4 oc = actClip( aActClip.x );
+      float rate = oc.w > 0.0 ? v / max( 1e-3, oc.w * oc.z / oc.y ) : 1.0;
+      pSkin = aActMisc.w > 1.5 ? actRigid( v * tc ) : actSkin( aActClip.x, tc * rate );
+      pSkin[ 3 ].xyz += vec3( aActRoute.z - R, 0.0, aActRoute.w );
+      pYaw = v * tc / R;
+    } else if ( aActRoute.x <= 0.0 ) {
+      pSkin = actSkin( aActClip.x, uLookTime * speed + aActClip.y );
     } else {
       // A route: out, a pause, a turn, back, a pause, a turn (TURN s each), round and round.
       const float TURN = 0.9;
@@ -196,7 +271,7 @@ void main() {
       float walk = aActClip.x;
       // The walk played so its feet keep the ground at this speed: its own stride over its loop (a laden
       // man's is shorter: clips.js carry).
-      vec4 wc = uPeopleClips[ int( walk + 0.5 ) ];
+      vec4 wc = actClip( walk );
       float rate = v / max( 1e-3, wc.w * wc.z / wc.y );
       float tc = uLookTime * speed + aActClip.y;
       float cur = walk;
@@ -238,10 +313,10 @@ void main() {
         cur = walk; curT = t * rate;
         prev = clipA; prevT = tc; since = t - 2.0 * tw - pb - TURN - pa;
       }
-      pSkin = peopleSkin( cur, curT );
+      pSkin = actSkin( cur, curT );
       if ( since < FADE ) {
         float k = since / FADE;
-        pSkin = peopleSkin( prev, prevT ) + ( pSkin - peopleSkin( prev, prevT ) ) * ( k * k * ( 3.0 - 2.0 * k ) );
+        pSkin = actSkin( prev, prevT ) + ( pSkin - actSkin( prev, prevT ) ) * ( k * k * ( 3.0 - 2.0 * k ) );
       }
     }
   }
@@ -308,6 +383,12 @@ const FRAG_METAL = /* glsl */ `
 float metalnessFactor = vPeopleMat.y;
 `;
 
+/** The beasts' bones and clips for a building's figures: the units' very texture (one copy on the GPU). */
+function beastShared() {
+  const u = beastUniforms();
+  return { uBeastBones: u.uBeastBones, uBeastClips: u.uBeastClips };
+}
+
 /** Replace `what` in `text`, loudly if it is not there (a newer three, or the look's patch changed). */
 function swap(text, what, by, where) {
   if (!text.includes(what)) throw new Error(`people material: "${what.trim().slice(0, 50)}" not found in the ${where} shader`);
@@ -321,9 +402,9 @@ function swap(text, what, by, where) {
  * pose is placed (`begin`: `transformed` may be moved further).
  */
 export function patchPeopleShader(shader, depth, variant = null) {
-  Object.assign(shader.uniforms, shared(), depth ? { uLookTime: LOOK.uniforms.uLookTime } : {}, variant ? variant.uniforms : {});
+  Object.assign(shader.uniforms, shared(), depth ? { uLookTime: LOOK.uniforms.uLookTime } : {}, variant ? variant.uniforms : beastShared());
   let v = shader.vertexShader;
-  v = swap(v, '#include <common>', `#include <common>\n${depth ? '#define PEOPLE_DEPTH\nuniform float uLookTime;\n' : ''}${VERT_PARS()}${variant ? variant.pars : ''}`, 'vertex');
+  v = swap(v, '#include <common>', `#include <common>\n${depth ? '#define PEOPLE_DEPTH\nuniform float uLookTime;\n' : ''}${VERT_PARS()}${variant ? variant.pars : BEAST_PARS()}`, 'vertex');
   v = swap(v, 'void main() {', variant ? variant.main : VERT_MAIN, 'vertex');
   v = swap(v, '#include <begin_vertex>', VERT_BEGIN + (variant ? variant.begin : ''), 'vertex');
   if (!depth) v = swap(v, '#include <beginnormal_vertex>', VERT_NORMAL, 'vertex');

@@ -60,7 +60,7 @@ export function unitFigureTexture(rows) {
 
 /** The beasts' baked clips as a texture (QBONE_COUNT x 3 texels a row, a row a frame), and their table. */
 let BEASTS = null;
-function beastUniforms() {
+export function beastUniforms() {
   if (BEASTS) return BEASTS;
   const b = bakeBeasts();
   const t = new DataTexture(b.data, QBONE_COUNT * 3, b.rows, RGBAFormat, FloatType);

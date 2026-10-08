@@ -32,6 +32,22 @@
  *   sync     true: in step with the building's other sync actors (a crew
  *            rowing to its hortator's beat): the batch gives them the
  *            building's phase and speed alike, `phase` their own on top
+ * and, for the buildings of the shows (appended):
+ *   gear     the units' gear by name ('murmillo', 'manica', 'greaves:left':
+ *            units/gear.js), worn as garments are
+ *   props    a hand's prop may be given by its piece's full key's start:
+ *            'uprop:net', 'wprop:staff', 'sprop:rudis' (pieces.js)
+ *   beast    a beast on its own skeleton instead of a person: its piece's
+ *            key ('quad:lion', 'quad:horse:yoke'); its clips the beasts'
+ *            (units/quadRig.js BEAST_CLIPS), a route's too; its coat the
+ *            colours' skin, mantle, hair, trim (units/quadMesh.js)
+ *   rigid    a rigid piece instead ('cart:chariot': walkers/beasts.js), its
+ *            wheels turned by the ground its orbit covers
+ *   orbit    { r, speed, x, z }: round and round a circle of radius r about
+ *            `at` at `speed` m/s (counter-clockwise seen from above), the
+ *            figure set (x, z) from its line in its own frame (a team: the
+ *            horses ahead of the car, either side of the pole); in place of
+ *            a route. A walking clip plays at the speed (its feet hold)
  *
  * cast(list) packs a list once (frozen): what the batch copies into its
  * instance buffers. A model keeps its casts by state, as it keeps `more`.
@@ -40,6 +56,7 @@
 
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import { CLIP_INDEX, CLIPS, WALK_SPEED, clipDef } from './clips.js';
+import { BEAST_CLIPS, BEAST_CLIP_INDEX } from '../units/quadRig.js';
 
 // ---------------------------------------------------------------------------
 // The palette: Roman dyes and the people's own colours
@@ -120,6 +137,7 @@ export function pieceId(key) {
  * col1, misc, index, at, ry, reach } (Float32Arrays where the batch copies).
  */
 export function pack(spec, index = 0) {
+  if (spec.beast || spec.rigid) return packFigure(spec, index);
   const seed = spec.seed ?? index * 7.3 + 1;
   const body = spec.body || 'm';
   const scale = spec.scale ?? (body === 'c' ? 0.78 : 1);
@@ -134,7 +152,9 @@ export function pack(spec, index = 0) {
   }
   if (spec.hair) pieces.push(`hair:${spec.hair}:${body}`);
   if (spec.beard) pieces.push(`beard:${spec.beard}:${body}`);
-  for (const side of ['L', 'R']) if (spec.props && spec.props[side]) pieces.push(`prop:${spec.props[side]}:${side}`);
+  for (const g of spec.gear || []) pieces.push(`ugear:${g}`);
+  // (A prop given by its key's start, 'uprop:net', is the units', the walkers' or the shows'.)
+  for (const side of ['L', 'R']) if (spec.props && spec.props[side]) pieces.push(spec.props[side].includes(':') ? `${spec.props[side]}:${side}` : `prop:${spec.props[side]}:${side}`);
   const clipName = clipFor(spec.clip || 'idle', toga);
   const c = CLIP_INDEX[clipName];
   const def = clipDef(clipName).def;
@@ -157,7 +177,8 @@ export function pack(spec, index = 0) {
   const route = spec.route;
   const r = new Float32Array(4);
   let pauses = 0;
-  if (route && route.length > 0) {
+  if (spec.orbit) orbitInto(spec.orbit, r);
+  else if (route && route.length > 0) {
     if (route.speed !== undefined && !(route.speed > 0)) throw new Error(`A route's speed must be over 0 (${route.speed})`);
     r[0] = route.length;
     r[1] = route.speed ?? WALK_SPEED * 0.85;
@@ -193,8 +214,82 @@ export function pack(spec, index = 0) {
     ry: spec.ry || 0,
     scale,
     routeLength: route ? route.length : 0,
+    orbit: spec.orbit ? orbitOf(spec.orbit) : null,
     clipName,
     // (In step with the building's other `sync` actors: the batch gives them its phase and speed alike.)
+    sync: !!spec.sync,
+  });
+}
+
+/** An orbit's numbers into a route's four floats (the shader reads a negative length as an orbit's radius). */
+function orbitInto(o, r) {
+  if (!(o.r > 0) || !(o.speed > 0)) throw new Error(`An orbit's radius and speed must be over 0 (${o.r}, ${o.speed})`);
+  r[0] = -o.r;
+  r[1] = o.speed;
+  r[2] = o.x || 0;
+  r[3] = o.z || 0;
+}
+
+/** An orbit kept for the bounds and the CPU's twin: its radius, speed and the figure's offset. */
+function orbitOf(o) {
+  return Object.freeze({ r: o.r, speed: o.speed, x: o.x || 0, z: o.z || 0 });
+}
+
+/**
+ * Pack a beast or a rigid piece (a spec's `beast` or `rigid`: see the
+ * header) as pack() packs a person: one piece, its clip one of the beasts'
+ * (none for a rigid piece), aActMisc.w saying which (1 a beast, 2 rigid),
+ * its colours as given (a coat: skin, mantle, hair, trim; a car: accent).
+ */
+function packFigure(spec, index) {
+  const seed = spec.seed ?? index * 7.3 + 1;
+  const scale = spec.scale ?? 1;
+  const beast = !!spec.beast;
+  const key = beast ? spec.beast : spec.rigid;
+  const clipOf = (name) => {
+    if (!(name in BEAST_CLIP_INDEX)) throw new Error(`No beast clip ${name}`);
+    return BEAST_CLIP_INDEX[name];
+  };
+  const clipName = beast ? spec.clip || `${key.split(':')[1]}:stand` : null;
+  const c = beast ? clipOf(clipName) : 0;
+  const dur = beast ? BEAST_CLIPS[clipName].dur : 1;
+  const local = new Matrix4().compose(new Vector3(...(spec.at || [0, 0, 0])), new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), spec.ry || 0), new Vector3(scale, scale, scale));
+  const col = spec.colours || {};
+  const cols = [col.tunic ?? 0x9a7a5a, col.mantle ?? 0x9a7a5a, col.skin ?? 0x9a7a5a, col.hair ?? 0x4a3020, col.trim ?? 0xd8c8a8, col.leather ?? 0x5a3a24, col.accent ?? 0xb08848, col.metal ?? 0x8a8c90];
+  const route = spec.route;
+  const r = new Float32Array(4);
+  let pauses = 0;
+  if (spec.orbit) orbitInto(spec.orbit, r);
+  else if (beast && route && route.length > 0) {
+    if (!(route.speed > 0)) throw new Error(`A beast's route needs its speed (${route.speed})`);
+    r[0] = route.length;
+    r[1] = route.speed;
+    r[2] = route.pauseEnd ?? 4;
+    r[3] = route.pauseStart ?? 3;
+    pauses = clipOf(route.clipEnd || clipName) + 128 * clipOf(route.clipStart || clipName);
+  }
+  const wrap = (a, mid) => mid + (((((a - mid + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI);
+  const faceEnd = route && route.faceEnd !== undefined ? wrap(route.faceEnd - (spec.ry || 0), 0) : 0;
+  const faceStart = route && route.faceStart !== undefined ? wrap(route.faceStart - (spec.ry || 0), Math.PI) : Math.PI;
+  const phase = spec.phase ?? (spec.sync ? 0 : hash01(seed, 9) * dur * 3);
+  return Object.freeze({
+    index,
+    pieces: Object.freeze([key]),
+    pieceIds: new Int32Array([pieceId(key)]),
+    local: new Float32Array(local.elements),
+    clip: new Float32Array([c, phase, spec.speed ?? 1, pauses]),
+    route: r,
+    col0: new Float32Array(cols.slice(0, 4)),
+    col1: new Float32Array(cols.slice(4, 8)),
+    // (The head's scale 1: nothing of a beast or a car is a person's head.)
+    misc: new Float32Array([1, faceEnd, faceStart, beast ? 1 : 2]),
+    at: Object.freeze((spec.at || [0, 0, 0]).slice()),
+    ry: spec.ry || 0,
+    scale,
+    routeLength: !spec.orbit && route ? route.length : 0,
+    orbit: spec.orbit ? orbitOf(spec.orbit) : null,
+    clipName,
+    beast: beast ? key : null,
     sync: !!spec.sync,
   });
 }
@@ -239,7 +334,32 @@ export function routePose(a, t, walkRate) {
  * radius for the shoulders and a reaching hand.
  */
 export function actorBounds(a, reach = 0.5) {
+  // (A beast reaches from its middle to its nose and its rump: half its length, a horse's 1.15 m.)
+  const r = (a.beast ? Math.max(reach, BEAST_REACH[a.beast.split(':')[1]] || 1) : reach) * a.scale;
+  if (a.orbit) {
+    // Round the whole circle, at the figure's own distance from its middle.
+    const o = a.orbit;
+    const rho = Math.hypot(o.r - o.x, o.z) * a.scale;
+    return [...Array(12)].map((_, k) => ({ x: a.at[0] + Math.cos((k * Math.PI) / 6) * rho, z: a.at[2] + Math.sin((k * Math.PI) / 6) * rho, r }));
+  }
   const pts = [[a.at[0], a.at[2]]];
   if (a.routeLength) pts.push([a.at[0] + Math.sin(a.ry) * a.routeLength * a.scale, a.at[2] + Math.cos(a.ry) * a.routeLength * a.scale]);
-  return pts.map(([x, z]) => ({ x, z, r: reach * a.scale }));
+  return pts.map(([x, z]) => ({ x, z, r }));
+}
+
+/** Half a beast's length (metres, its own scale 1): how far it reaches from where it stands. */
+const BEAST_REACH = Object.freeze({ wolf: 0.65, horse: 1.15, elephant: 1.9, lion: 1.0, leopard: 0.65, bear: 0.9 });
+
+/**
+ * An orbit's place and facing at time t (s, the instance's own clock), as
+ * the vertex shader works it out (material.js, its twin for the tests):
+ * the figure's middle in its actor's frame and its facing (rad).
+ */
+export function orbitPose(o, t) {
+  const a = (o.speed * t) / o.r;
+  const x = o.x - o.r;
+  const z = o.z;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return { x: c * x + s * z, z: -s * x + c * z, yaw: a, rolled: o.speed * t };
 }
