@@ -177,7 +177,8 @@ export function buildSmoke(kind = 'thin', lod = 0) {
   const opt = {
     thin: { h: 2.4, r: 0.1, n: lod ? 2 : 3, rgb: [0.95, 0.94, 0.92], alpha: 0.55, lean: [0.35, 0.2] },
     thick: { h: 3.4, r: 0.16, n: lod ? 2 : 4, rgb: [0.92, 0.9, 0.88], alpha: 0.7, lean: [0.55, 0.3] },
-    wrath: { h: 3.8, r: 0.26, n: lod ? 3 : 5, rgb: [1, 1, 1], alpha: 1, lean: [1.1, 0.55] },
+    // (Leaning back over the steps, not out over the street: a plume must stay over its own footprint.)
+    wrath: { h: 3.8, r: 0.26, n: lod ? 3 : 5, rgb: [1, 1, 1], alpha: 1, lean: [0.6, -0.45] },
     // The breath of an oracle's cleft: pale, low and wide, hanging over the rock.
     vapour: { h: 1.5, r: 0.2, n: lod ? 2 : 3, rgb: [0.98, 0.98, 0.97], alpha: 0.38, lean: [0.2, 0.25] },
   }[kind];

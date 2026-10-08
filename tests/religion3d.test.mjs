@@ -62,8 +62,9 @@ test('religion3d: every look fits its footprint at every turn and level of detai
   for (const type of RELIGION_TYPES) {
     const S = SIZE(type);
     for (let lod = 0; lod < 3; lod++) {
-      for (const state of type.startsWith('temple') ? STATES : ['open']) {
-        const g = religionLook(type, lod, { state, extra });
+      // (Angry too: an angry god's smoke is the tallest and widest thing a temple shows.)
+      for (const [state, angry] of type.startsWith('temple') ? [...STATES.map((s) => [s, false]), ['open', true], ['out', true]] : [['open', false]]) {
+        const g = religionLook(type, lod, { state, angry, extra });
         g.updateMatrixWorld(true);
         const local = new Box3().setFromObject(g);
         for (let T = 0; T < 4; T++) {

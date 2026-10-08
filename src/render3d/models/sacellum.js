@@ -68,7 +68,7 @@ const OUT = WX + WT;
 /** Where the olive tree stands in the yard [x, z]. */
 export const SACELLUM_TREE = Object.freeze([1.8, -1.7]);
 /** The gifts set out in the yard: [good, x, z, turn] (the warehouse's loads). */
-export const SACELLUM_GIFTS = Object.freeze([['wine', 2.45, 0.75, 0], ['clothing', 2.45, 1.95, 0], ['pottery', 1.25, 2.4, D(90)]]);
+export const SACELLUM_GIFTS = Object.freeze([['wine', 2.4, -0.1, 0], ['clothing', 2.4, 1.1, 0], ['pottery', 1.35, 0.5, D(90)]]);
 
 /** The lamps for models.js modelLamps: the gate's lantern and the altar's fire, facing the street. */
 export const SACELLUM_LAMPS = Object.freeze([Object.freeze([...S.lamp, 1]), Object.freeze([S.altar[0], 1.2, S.altar[1], 1])]);

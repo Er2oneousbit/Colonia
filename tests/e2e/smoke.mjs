@@ -4887,8 +4887,8 @@ try {
       // 8a6. The temples, the oracle and the mission post as models (render3d/models/religion.js):
       //      the console's `temples` in a sandbox with native villages (the mission post is
       //      built only there); each draws as a model (waited for: under a software GL kits
-      //      are built a few a frame), the small temples' body one kit whatever their god, and
-      //      a click on its footprint opens its panel.
+      //      are built a few a frame) and a click on its footprint opens its panel (the shared
+      //      kits are tests/religion3d.test.mjs's).
       {
         const gt = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
         const terrs = [];
