@@ -4547,6 +4547,67 @@ try {
         await fp.close();
       }
 
+      // 8a. The ships in 3D (render3d/ships/): a raid by sea on a coast, its ships drawn as models
+      //     with their crews, not as sprites (waited for: the crews' programs compile in the
+      //     background, kits are built a few a frame under a software GL), and a click on a hull
+      //     picks its ship.
+      {
+        const sp = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const serrs = [];
+        sp.on('pageerror', (e) => serrs.push(`pageerror: ${e.message}`));
+        sp.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) serrs.push(m.text()); });
+        await sp.goto(`${url}?skipmenu=1&maptype=coast&map=small&seed=demo&mute=1&money=90000&renderer=3d&scale=1`);
+        await sp.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const raid = await sp.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const said = app.ui.console.run('searaid 10');
+          app.game.runDays(2);
+          app.paused = true;
+          const u = [...app.game.units.values()].find((v) => v.type === 'raider_ship');
+          if (u) {
+            app.renderer.camera.zoomIndex = 4;
+            app.renderer.camera.centerOnTile(Math.floor(u.x), Math.floor(u.y));
+          }
+          return { said, id: u ? u.id : 0 };
+        });
+        // Drawn in 3D: the ships' pass on, the ship among them, no piece or kit left to build.
+        const in3d = raid.id ? await sp.waitForFunction(() => {
+          const r = window.colonia.renderer;
+          const s = r.stats.ships3d;
+          return !!s && s.ships >= 1 && !s.deferred && !(r.stats.modelPass || {}).deferred && r.stats.modelPass.kits > 0;
+        }, null, { timeout: 60000, polling: 100 }).then(() => true, () => false) : false;
+        const ship = await sp.evaluate((id) => {
+          const r = window.colonia.renderer;
+          const s = r.shipSpots.find((o) => o.id === id);
+          const kits = [...r.backend.models.kits.keys()].filter((k) => k.startsWith('vessel:'));
+          const hull = kits.map((k) => r.backend.models.kits.get(k)).find((k) => k.key.endsWith(':hull'));
+          return { stats: r.stats.ships3d, spot: s ? { reach: Math.hypot(s.reachX || 0, s.reachY || 0) } : null, kits: kits.length, hulls: hull ? Math.max(...hull.meshes.map((im) => im.count)) : 0, sprite: r.stats.live };
+        }, raid.id);
+        // A click on the middle of its hull (its spot runs from the stern to the bow) opens its panel.
+        const at = await sp.evaluate((id) => {
+          const app = window.colonia;
+          const r = app.renderer;
+          const s = r.shipSpots.find((o) => o.id === id);
+          if (!s) return null;
+          const cam = r.camera;
+          const rect = app.canvas.getBoundingClientRect();
+          const wx = s.wx + (s.reachX || 0) / 2;
+          const wy = s.wy + (s.reachY || 0) / 2 - 8;
+          return { x: rect.left + ((wx - cam.x) * cam.scale) / cam.dpr, y: rect.top + ((wy - cam.y) * cam.scale) / cam.dpr };
+        }, raid.id);
+        if (at) await sp.mouse.click(at.x, at.y);
+        await sp.waitForFunction((id) => window.colonia.ui.info.target?.id === id, raid.id, { timeout: 5000, polling: 50 }).catch(() => {});
+        const picked = await sp.evaluate(() => ({ kind: window.colonia.ui.info.target?.kind, id: window.colonia.ui.info.target?.id }));
+        if (shots) await sp.screenshot({ path: path.join(shots, 'smoke-webgl-ships.png') });
+        check('WebGL renderer: the ships are 3D models with crews (a raid by sea), and a click on a hull picks its ship',
+          !!raid.id && in3d && ship.stats && ship.stats.ships >= 1 && ship.stats.people >= 1 && ship.hulls >= 1 && ship.spot && ship.spot.reach > 20
+            && picked.kind === 'unit' && picked.id === raid.id,
+          JSON.stringify({ raid, in3d, ship, picked }));
+        check('WebGL renderer, 3D ships: no page errors', serrs.length === 0, serrs.join(' | '));
+        await sp.close();
+      }
+
       // 8a. The forts, the barracks and the military academy as models (render3d/models/
       //     militaryModels.js): the console's garrison and academy build them; each draws as
       //     a model (waited for: kits are built within a frame's budget, slowly under a
