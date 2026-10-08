@@ -263,6 +263,8 @@ export function unitClips(h) {
         P.hand(1, 0.08, 1.12 + 0.01 * sn(t, 3), 0.32, { pole: [0.6, -0.6, -0.4] });
         P.rot('handL', 0.3, 0, 0.6);
         fingers(P, 1, 0.95);
+        // (The shield hung on the left forearm, its face out to the left; the hand on the reins.)
+        P.prop(1, 0.27, 1.12, 0.1, 0, 1.35, 0.1);
         P.prop(-1, -0.26, 1.18, 0.14, 0.1, 0, 0);
         P.hand(-1, -0.26, 1.16, 0.12, { pole: [-0.6, -0.7, -0.3] });
         P.rot('handR', 0, 0, -1.4);
@@ -283,6 +285,7 @@ export function unitClips(h) {
         P.hand(1, 0.08, 1.12, 0.32, { pole: [0.6, -0.6, -0.4] });
         P.rot('handL', 0.3, 0, 0.6);
         fingers(P, 1, 0.95);
+        P.prop(1, 0.27, 1.12, 0.1, 0, 1.35 - 0.3 * Math.max(0, k), 0.1);
         const grip = [-0.3 - 0.05 * Math.max(0, k), 1.45 - 0.2 * Math.max(0, k), lerp(0.0, 0.55, (k + 0.5) / 1.5)];
         P.prop(-1, grip[0], grip[1], grip[2], Math.PI / 2 + 0.45, 0.1, 0);
         P.hand(-1, grip[0], grip[1] + 0.02, grip[2], { pole: [-0.8, 0.3, -0.5] });

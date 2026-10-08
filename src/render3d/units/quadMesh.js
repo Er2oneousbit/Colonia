@@ -56,7 +56,7 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 
 /** Rings and columns by level of detail. */
 const RES = [
-  { trunk: 22, round: 20, neck: 8, head: 12, headR: 14, leg: 14, legR: 10, tail: 8, tailR: 8 },
+  { trunk: 24, round: 22, neck: 8, head: 14, headR: 16, leg: 16, legR: 14, tail: 10, tailR: 10 },
   { trunk: 11, round: 12, neck: 4, head: 6, headR: 8, leg: 7, legR: 6, tail: 4, tailR: 5 },
   { trunk: 6, round: 7, neck: 2, head: 3, headR: 5, leg: 4, legR: 4, tail: 2, tailR: 4 },
 ];
@@ -115,32 +115,32 @@ function ringPt(phi, w, hu, hd, keel = 0, n = 2.2) {
 const ANATOMY = {
   wolf: {
     trunk: [
-      [-0.555, 0.655, 0.56, 0.035, 0, 2], [-0.53, 0.675, 0.49, 0.08, 0, 2.2], [-0.45, 0.695, 0.455, 0.108, 0, 2.3], [-0.36, 0.7, 0.47, 0.106, 0.1, 2.2],
-      [-0.24, 0.703, 0.515, 0.088, 0.2, 2.1], [-0.12, 0.706, 0.525, 0.085, 0.2, 2.1], [0.0, 0.715, 0.475, 0.1, 0.3, 2.1],
-      [0.1, 0.738, 0.425, 0.113, 0.42, 2.1], [0.2, 0.77, 0.405, 0.112, 0.5, 2.1], [0.29, 0.775, 0.43, 0.104, 0.52, 2.1],
-      [0.35, 0.745, 0.475, 0.088, 0.45, 2.1], [0.385, 0.71, 0.53, 0.06, 0.3, 2],
+      [-0.57, 0.62, 0.585, 0.008, 0, 2], [-0.555, 0.65, 0.54, 0.05, 0, 2], [-0.53, 0.672, 0.49, 0.08, 0, 2.1], [-0.45, 0.69, 0.455, 0.112, 0, 2.2], [-0.36, 0.7, 0.47, 0.11, 0.1, 2.1],
+      [-0.24, 0.704, 0.51, 0.092, 0.2, 2.1], [-0.12, 0.708, 0.505, 0.095, 0.25, 2.0], [0.0, 0.72, 0.455, 0.112, 0.3, 2.0],
+      [0.1, 0.745, 0.405, 0.124, 0.42, 2.0], [0.2, 0.775, 0.385, 0.122, 0.5, 2.0], [0.29, 0.785, 0.41, 0.114, 0.5, 2.0],
+      [0.35, 0.76, 0.45, 0.1, 0.45, 2.0], [0.39, 0.72, 0.52, 0.07, 0.3, 2],
     ],
-    neck: [[0, 0.62, 0.29, 0.09, 0.13, 0.11], [0.3, 0.68, 0.38, 0.088, 0.11, 0.12], [0.6, 0.76, 0.46, 0.08, 0.095, 0.11], [1, 0.84, 0.53, 0.068, 0.075, 0.09]],
+    neck: [[0, 0.6, 0.2, 0.1, 0.17, 0.15], [0.35, 0.68, 0.35, 0.097, 0.135, 0.135], [0.7, 0.77, 0.45, 0.086, 0.105, 0.11], [1, 0.835, 0.52, 0.074, 0.08, 0.09]],
     head: {
-      from: [0, 0.875, 0.5], to: [0, 0.85, 0.87],
-      keys: [[0, 0.045, -0.04, 0.035], [0.09, 0.07, -0.06, 0.06], [0.22, 0.078, -0.065, 0.075], [0.36, 0.07, -0.05, 0.078], [0.48, 0.052, -0.035, 0.058],
-        [0.62, 0.04, -0.022, 0.042], [0.78, 0.033, -0.016, 0.034], [0.92, 0.03, -0.014, 0.026], [1, 0.012, -0.012, 0.012]],
-      jaw: [[0.2, -0.035, -0.07, 0.05], [0.4, -0.03, -0.055, 0.048], [0.6, -0.02, -0.038, 0.034], [0.85, -0.016, -0.03, 0.024], [0.97, -0.016, -0.024, 0.012]],
-      eye: [0.42, 0.034, 0.05, 0.0115], nose: [1.0, 0.0, 0.0175], ear: { base: 0.052, deep: 0.035, h: 0.11, tilt: 0.25 },
+      from: [0, 0.87, 0.49], to: [0, 0.825, 0.79],
+      keys: [[0, 0.05, -0.045, 0.045], [0.1, 0.076, -0.066, 0.068], [0.25, 0.083, -0.07, 0.08], [0.4, 0.07, -0.05, 0.073], [0.52, 0.05, -0.036, 0.052],
+        [0.68, 0.041, -0.028, 0.037], [0.85, 0.035, -0.023, 0.029], [0.95, 0.031, -0.02, 0.023], [1, 0.012, -0.012, 0.012]],
+      jaw: [[0.25, -0.035, -0.072, 0.052], [0.45, -0.03, -0.056, 0.046], [0.65, -0.022, -0.04, 0.034], [0.85, -0.018, -0.032, 0.025], [0.97, -0.018, -0.026, 0.013]],
+      eye: [0.41, 0.036, 0.052, 0.012], nose: [1.0, 0.0, 0.019], ear: { base: 0.05, deep: 0.032, h: 0.085, tilt: 0.22 },
     },
-    fore: [[-0.9, 0.05, 0.075, 0.065], [-0.5, 0.055, 0.07, 0.06], [0, 0.05, 0.05, 0.05], [0.45, 0.045, 0.038, 0.048], [1, 0.033, 0.03, 0.036],
-      [1.3, 0.03, 0.028, 0.026], [1.85, 0.02, 0.019, 0.018], [2.05, 0.021, 0.02, 0.02], [2.6, 0.016, 0.016, 0.015], [3, 0.019, 0.02, 0.018]],
-    hind: [[-0.7, 0.07, 0.1, 0.09], [-0.3, 0.075, 0.09, 0.095], [0.15, 0.068, 0.07, 0.085], [0.55, 0.055, 0.05, 0.065], [1, 0.04, 0.035, 0.045],
-      [1.3, 0.034, 0.025, 0.04], [1.85, 0.021, 0.017, 0.022], [2.05, 0.019, 0.016, 0.03], [2.5, 0.016, 0.015, 0.016], [3, 0.019, 0.02, 0.018]],
-    paw: { len: 0.075, w: 0.032, h: 0.03 },
-    tail: [[0, 0.04], [0.5, 0.055], [1.2, 0.065], [2, 0.062], [2.6, 0.048], [3, 0.012]],
+    fore: [[-0.35, 0.042, 0.062, 0.058], [0, 0.046, 0.058, 0.055], [0.45, 0.045, 0.045, 0.052], [1, 0.037, 0.035, 0.04],
+      [1.3, 0.035, 0.033, 0.03], [1.85, 0.024, 0.023, 0.021], [2.05, 0.025, 0.025, 0.024], [2.6, 0.02, 0.02, 0.019], [3, 0.022, 0.022, 0.02]],
+    hind: [[-0.35, 0.055, 0.085, 0.085], [0.15, 0.056, 0.075, 0.085], [0.55, 0.05, 0.055, 0.07], [1, 0.042, 0.04, 0.05],
+      [1.3, 0.037, 0.03, 0.046], [1.85, 0.024, 0.02, 0.026], [2.05, 0.022, 0.019, 0.032], [2.5, 0.02, 0.019, 0.019], [3, 0.022, 0.022, 0.02]],
+    paw: { len: 0.066, w: 0.029, h: 0.027 },
+    tail: [[0, 0.035], [0.5, 0.045], [1.2, 0.055], [2, 0.054], [2.6, 0.042], [3, 0.01]],
     hairy: 1,
   },
   horse: {
     trunk: [
-      [-0.9, 1.3, 1.12, 0.06, 0, 2], [-0.85, 1.36, 1.0, 0.15, 0, 2.2], [-0.72, 1.41, 0.93, 0.2, 0.05, 2.4], [-0.55, 1.42, 0.88, 0.215, 0.1, 2.4],
-      [-0.3, 1.39, 0.84, 0.22, 0.15, 2.3], [-0.05, 1.38, 0.8, 0.225, 0.18, 2.3], [0.18, 1.41, 0.78, 0.22, 0.25, 2.3],
-      [0.36, 1.46, 0.79, 0.2, 0.35, 2.2], [0.5, 1.43, 0.86, 0.18, 0.45, 2.2], [0.6, 1.35, 0.95, 0.15, 0.4, 2.1], [0.66, 1.25, 1.03, 0.1, 0.3, 2],
+      [-0.92, 1.25, 1.17, 0.012, 0, 2], [-0.9, 1.3, 1.1, 0.07, 0, 2], [-0.85, 1.36, 1.0, 0.15, 0, 2.0], [-0.72, 1.41, 0.93, 0.2, 0.05, 2.0], [-0.55, 1.42, 0.88, 0.215, 0.1, 2.0],
+      [-0.3, 1.39, 0.84, 0.22, 0.15, 2.0], [-0.05, 1.38, 0.8, 0.225, 0.18, 2.0], [0.18, 1.41, 0.78, 0.22, 0.25, 2.0],
+      [0.36, 1.46, 0.79, 0.2, 0.35, 2.0], [0.5, 1.43, 0.86, 0.18, 0.45, 2.0], [0.6, 1.35, 0.95, 0.15, 0.4, 2.0], [0.66, 1.25, 1.03, 0.1, 0.3, 2],
     ],
     neck: [[0, 1.2, 0.56, 0.15, 0.24, 0.2], [0.3, 1.34, 0.68, 0.125, 0.2, 0.15], [0.62, 1.5, 0.8, 0.095, 0.16, 0.11], [1, 1.66, 0.91, 0.075, 0.11, 0.1]],
     head: {
@@ -150,16 +150,16 @@ const ANATOMY = {
       jaw: [[0.82, -0.04, -0.07, 0.04], [0.95, -0.04, -0.07, 0.035], [1, -0.05, -0.065, 0.02]],
       eye: [0.2, 0.03, 0.078, 0.018], nose: [0.98, 0.03, 0.016], ear: { base: 0.04, deep: 0.03, h: 0.13, tilt: 0.1 },
     },
-    fore: [[-1, 0.09, 0.16, 0.12], [-0.5, 0.095, 0.15, 0.12], [0, 0.09, 0.11, 0.1], [0.5, 0.075, 0.07, 0.08], [1, 0.065, 0.06, 0.07],
+    fore: [[-0.35, 0.08, 0.13, 0.11], [0, 0.085, 0.11, 0.1], [0.5, 0.075, 0.07, 0.08], [1, 0.065, 0.06, 0.07],
       [1.3, 0.06, 0.055, 0.05], [1.9, 0.04, 0.042, 0.035], [2.05, 0.045, 0.048, 0.04], [2.5, 0.033, 0.03, 0.035], [2.95, 0.04, 0.042, 0.045], [3, 0.04, 0.042, 0.042]],
-    hind: [[-0.8, 0.13, 0.17, 0.17], [-0.3, 0.13, 0.15, 0.17], [0.2, 0.11, 0.11, 0.13], [0.6, 0.085, 0.08, 0.1], [1, 0.07, 0.06, 0.08],
+    hind: [[-0.35, 0.1, 0.14, 0.15], [0.2, 0.1, 0.11, 0.13], [0.6, 0.085, 0.08, 0.1], [1, 0.07, 0.06, 0.08],
       [1.3, 0.06, 0.05, 0.075], [1.85, 0.042, 0.035, 0.045], [2.05, 0.04, 0.035, 0.06], [2.5, 0.033, 0.03, 0.034], [2.95, 0.04, 0.042, 0.045], [3, 0.04, 0.042, 0.042]],
     hoof: { r: 0.06, h: 0.085 },
     tail: [[0, 0.055], [0.6, 0.045], [1.2, 0.035], [2, 0.025], [3, 0.015]],
   },
   elephant: {
     trunk: [
-      [-1.5, 2.05, 1.6, 0.25, 0, 2], [-1.42, 2.3, 1.35, 0.5, 0, 2.3], [-1.2, 2.44, 1.22, 0.62, 0.05, 2.4], [-0.9, 2.45, 1.18, 0.66, 0.08, 2.4],
+      [-1.53, 1.9, 1.75, 0.03, 0, 2], [-1.5, 2.05, 1.6, 0.25, 0, 2], [-1.42, 2.3, 1.35, 0.5, 0, 2.3], [-1.2, 2.44, 1.22, 0.62, 0.05, 2.4], [-0.9, 2.45, 1.18, 0.66, 0.08, 2.4],
       [-0.5, 2.38, 1.12, 0.68, 0.1, 2.4], [-0.1, 2.4, 1.1, 0.7, 0.1, 2.4], [0.3, 2.5, 1.12, 0.67, 0.15, 2.3], [0.6, 2.52, 1.25, 0.6, 0.2, 2.2],
       [0.85, 2.42, 1.42, 0.5, 0.2, 2.1], [0.98, 2.3, 1.6, 0.36, 0.1, 2],
     ],
@@ -260,8 +260,15 @@ function along(pts, u) {
 function limbLoft(m, pts, { u0, u1, rows, cols, rad, w, slot, tone, fwd = [0, 0, 1], side = 1 }) {
   m.grid(rows, cols, (i, j) => {
     const u = u0 + ((u1 - u0) * i) / rows;
-    const { p, d } = along(pts, Math.max(0, Math.min(pts.length - 1, u)));
-    const c = u < 0 ? add(pts[0], mul(nrm(sub(pts[0], pts[1])), -u * len(sub(pts[1], pts[0])))) : p;
+    let { p, d } = along(pts, Math.max(0, Math.min(pts.length - 1, u)));
+    if (u < 0) {
+      // (Above its top joint a limb rises straight up into the body: the shoulder's or the haunch's mass.)
+      // (Rising a little and in toward the middle, so it stays inside the body that hides its top.)
+      const k = -u;
+      p = add(pts[0], [-pts[0][0] * 0.45 * Math.min(1, k), k * 0.35 * len(sub(pts[1], pts[0])), 0]);
+      d = nrm(add(mul([0, -1, 0], Math.min(1, -u * 2)), mul(d, Math.max(0, 1 + u * 2))));
+    }
+    const c = p;
     // The ring's axes: x the beast's side, `fw` its front square to the line.
     let fw = sub(fwd, mul(d, fwd[0] * d[0] + fwd[1] * d[1] + fwd[2] * d[2]));
     if (len(fw) < 1e-4) fw = [0, 1, 0];
@@ -291,8 +298,11 @@ function wolfSlot(phi, y, below) {
   const c = Math.cos(phi);
   if (c > 0.55) return SLOTS.HAIR;
   if (c < below) return SLOTS.TRIM;
-  return SLOTS.SKIN;
+  // (The coat in the mantle's slot: rough and woven, as fur takes the light; not the skin's sheen.)
+  return SLOTS.MANTLE;
 }
+/** A wolf's coat's slot where a body piece would take the skin's. */
+const FUR = SLOTS.MANTLE;
 
 /** Fur's grizzle: a fine tone noise (wolf), a short coat's sheen (horse), a hide's wrinkles (elephant). */
 function coatTone(sp, p, base = 1) {
@@ -322,7 +332,7 @@ function trunk(m, sp, A, J, R) {
     if (sp === 'wolf') {
       slot = wolfSlot(phi, yc + y, -0.45 + 0.25 * smooth(0, 0.3, z));
       // The saddle's dark fading down the flanks.
-      if (slot === SLOTS.SKIN) tone *= 0.92 + 0.12 * (1 - Math.cos(phi));
+      if (slot === FUR) tone *= 0.92 + 0.12 * (1 - Math.cos(phi));
     } else if (sp === 'horse') {
       tone *= 0.9 + 0.1 * Math.cos(phi) - 0.05 * gauss((Math.cos(phi) + 1) / 0.4);
     }
@@ -345,7 +355,9 @@ function trunk(m, sp, A, J, R) {
     }
     const cv = m.vertex(ctr, [0, 0], trunkWeights(J, ctr), SLOTS.SKIN, 0.85);
     void base;
-    m.fan(ring, cv, end === 0);
+    // (Both faces: a cap seen from inside the body is hidden by it anyway.)
+    m.fan(ring, cv, false);
+    m.fan(ring, cv, true);
   }
 }
 
@@ -368,7 +380,7 @@ function neck(m, sp, A, J, R) {
     let tone = coatTone(sp, p);
     if (sp === 'wolf') {
       // The ruff: the throat cream, the back of the neck dark.
-      slot = Math.cos(phi) > 0.5 ? SLOTS.HAIR : Math.cos(phi) < -0.2 ? SLOTS.TRIM : SLOTS.SKIN;
+      slot = Math.cos(phi) > 0.5 ? SLOTS.HAIR : Math.cos(phi) < -0.2 ? SLOTS.TRIM : FUR;
       tone *= 1 + 0.05 * Math.sin(phi * 7 + s * 9);
     }
     return { p, c, uv: [phi * 0.3, s], w: wt, slot, tone };
@@ -399,7 +411,7 @@ function head(m, sp, A, J, R, lod) {
     if (sp === 'wolf') {
       const cphi = Math.cos(phi);
       // A wolf's mask: the cheeks and the muzzle's sides pale, the top of the muzzle and the brow darker; the lips dark.
-      slot = cphi > 0.6 ? SLOTS.HAIR : cphi < -0.55 ? (s > 0.5 ? SLOTS.DARK : SLOTS.TRIM) : s > 0.3 && Math.abs(Math.sin(phi)) > 0.5 && cphi < 0.3 ? SLOTS.TRIM : SLOTS.SKIN;
+      slot = cphi > 0.6 ? SLOTS.HAIR : cphi < -0.55 ? (s > 0.5 ? SLOTS.DARK : SLOTS.TRIM) : s > 0.3 && Math.abs(Math.sin(phi)) > 0.5 && cphi < 0.3 ? SLOTS.TRIM : FUR;
       if (s > 0.94) slot = SLOTS.DARK;
     } else if (sp === 'horse') {
       // The muzzle darker and softer.
@@ -501,7 +513,7 @@ function leg(m, sp, A, J, R, l, lod) {
         // The legs pale inside and behind, the front of the forelegs' lower part with a dark streak.
         const inside = Math.sin(phi) < -0.3;
         if (u > 1.6 && fore && Math.cos(phi) > 0.6) return SLOTS.HAIR;
-        return inside || u > 1.9 ? SLOTS.TRIM : u < 0.4 && Math.cos(phi) > 0.7 ? SLOTS.HAIR : SLOTS.SKIN;
+        return inside || u > 1.9 ? SLOTS.TRIM : u < 0.4 && Math.cos(phi) > 0.7 ? SLOTS.HAIR : FUR;
       }
       if (sp === 'horse') return u > 1.8 ? SLOTS.TRIM : SLOTS.SKIN;
       return SLOTS.SKIN;
@@ -568,8 +580,8 @@ function tail(m, sp, A, J, R, lod) {
       return [r, r * (sp === 'wolf' ? 1.1 : 1), r * (sp === 'wolf' ? 0.95 : 1)];
     },
     w: (u) => chainW(bones, Math.min(2.99, u), QB.root),
-    slot: (u, phi) => (sp === 'wolf' ? (u > 2.4 ? SLOTS.DARK : Math.cos(phi) > 0 ? SLOTS.HAIR : SLOTS.SKIN) : sp === 'horse' ? SLOTS.HAIR : SLOTS.SKIN),
-    tone: (u, phi, p) => coatTone(sp, p) * (sp === 'wolf' && u > 2.4 ? 1.6 : 1) * (1 + (sp === 'wolf' ? 0.08 * Math.sin(phi * 6 + u * 8) : 0)),
+    slot: (u, phi) => (sp === 'wolf' ? (u > 2.75 ? SLOTS.DARK : Math.cos(phi) > 0.75 && u < 2 ? SLOTS.HAIR : FUR) : sp === 'horse' ? SLOTS.HAIR : SLOTS.SKIN),
+    tone: (u, phi, p) => coatTone(sp, p) * 1 * (1 + (sp === 'wolf' ? 0.08 * Math.sin(phi * 6 + u * 8) : 0)),
   });
   if (sp === 'horse') {
     // The hair of the tail: a long full fall from the dock, swinging with it.
@@ -577,8 +589,8 @@ function tail(m, sp, A, J, R, lod) {
     limbLoft(m, fall, {
       u0: 0.3, u1: 4, rows: lod === 0 ? 10 : lod === 1 ? 5 : 3, cols: lod === 0 ? 10 : 6, fwd: [0, 1, 0],
       rad: (u) => {
-        const r = 0.05 + 0.05 * smooth(0.3, 2.2, u) - 0.06 * smooth(3.2, 4, u);
-        return [r * 0.8, r, r * 1.1];
+        const r = 0.035 + 0.035 * smooth(0.3, 2.2, u) - 0.045 * smooth(3.2, 4, u);
+        return [r * 0.85, r, r];
       },
       w: (u) => chainW(bones, Math.min(2.99, u)),
       slot: () => SLOTS.HAIR,

@@ -169,7 +169,7 @@ void main() {
 
 /** After the rest pose is placed and turned: a flag's ripple, the figure's own scale, and its place. */
 const BEGIN = /* glsl */ `
-if ( aBones.w > ${WAVE_BASE - 0.5}.0 && aActRoute.w < 0.5 ) {
+if ( aBones.w > ${(WAVE_BASE - 0.5).toFixed(1)} && aActRoute.w < 0.5 ) {
   // A flag's cloth: a travelling wave out from its staff, growing with the distance, along the cloth's normal.
   float d = ( aBones.w - ${WAVE_BASE}.0 ) / ${WAVE_SCALE}.0;
   vec3 n = normalize( mat3( pSkin ) * normal );
