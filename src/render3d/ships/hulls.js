@@ -65,6 +65,7 @@ const PITCH = lin(0x2a2522);
  * linen and hide let the sun through (pass.js sets it each frame).
  */
 export function sailGlow(day) {
+  // (Asked of the look's cache: a lost context or a new renderer makes new materials, resetLook.)
   const m = shipMaterials();
   m.cloth.emissiveIntensity = 0.13 * day;
   m.hide.emissiveIntensity = 0.12 * day;

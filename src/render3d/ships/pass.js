@@ -59,6 +59,8 @@ export const CREW_LOD_STEP = 1;
 const SAIL_STRIPE = Object.freeze({ liburnian: 0x8e1c14, punic: 0x4a1030 });
 /** Most vertices of the wakes' mesh (64 ships' worth). */
 const WAKE_VERTS = 64 * (WAKE_POINTS * 9 + 12);
+/** The quads across a row of the wake (between its nine vertices: the two arms' and the middle's bright lines). */
+const WAKE_STRIPS = Object.freeze([0, 1, 3, 4, 6, 7]);
 /** Most indices of the wakes' mesh (six quads a row of the trail, four of the bow wave). */
 const WAKE_INDICES = 64 * (WAKE_POINTS * 36 + 24);
 
@@ -167,9 +169,12 @@ export class ShipPass {
     if (rows <= this.rows) return;
     let r = Math.max(1, this.rows);
     while (r < rows) r *= 2;
+    const old = this.data;
     if (this.tex) this.tex.dispose();
     this.tex = shipTexture(r);
     this.data = this.tex.image.data;
+    // (Grown mid-frame: the cells already written this frame kept.)
+    if (old) this.data.set(old);
     this.rows = r;
     this.lastSig = -1;
   }
@@ -187,6 +192,8 @@ export class ShipPass {
     this.r = r;
     this.game = r.game;
     this.clock = clock;
+    // (Real seconds, for what goes on with motion reduced too: a wreck's going down.)
+    this.wall = (this.wall || 0) + Math.max(0, Math.min(0.25, dt));
     // The crews a level coarser than the town's people (CREW_LOD_STEP): measured, a ship's crew of
     // twenty at the people's own level cost a frame more than its sprite did.
     const people = peopleLodFor(r.camera.scale);
@@ -207,7 +214,11 @@ export class ShipPass {
     sailGlow(Math.max(0, Math.min(1, env.sun ?? 1)) * (1 - 0.6 * (env.overcast || 0)));
     // The view turned: every heading turns with it (a quarter turn takes the map's +x from the view's +u to +v), the wakes start again.
     const vt = r.viewTurn || 0;
-    if (this.turn !== null && vt !== this.turn) this.motion.turned(vt - this.turn);
+    if (this.turn !== null && vt !== this.turn) {
+      this.motion.turned(vt - this.turn);
+      // (A wreck going down where it was in the last turn's view: let it go rather than draw it elsewhere.)
+      this.wrecks.clear();
+    }
     this.turn = vt;
     if (this.game !== this.lastGame) {
       // A new game or a load: another city's ships and wrecks.
@@ -215,6 +226,8 @@ export class ShipPass {
       this.prev.clear();
       this.wrecks.clear();
       this.owners.clear();
+      // (Ids start again in another game: none of its ships may take an old one's heading, sail or wake.)
+      this.motion.states.clear();
     }
   }
 
@@ -501,10 +514,11 @@ export class ShipPass {
       const e = rec.e;
       const gone = rec.unit ? !game.units.has(e.id) : !game.walkers.has(e.id);
       const sunk = gone && (rec.unit ? e.hp <= 0 : e.type === 'fishing_boat');
-      if (sunk && rec.st) this.wrecks.set(id, { kind: rec.kind, x: rec.st.x, z: rec.st.z, yaw: rec.st.yaw, at: this.clock, st: { ...rec.st, wake: [] } });
+      if (sunk && rec.st) this.wrecks.set(id, { kind: rec.kind, x: rec.st.x, z: rec.st.z, yaw: rec.st.yaw, at: this.wall, st: { ...rec.st, wake: [] } });
     }
     for (const [id, w] of this.wrecks) {
-      const age = this.clock - w.at;
+      // (By real time, not the look's clock: with motion reduced that stands still, and a wreck would stay afloat for good.)
+      const age = this.wall - w.at;
       if (age > DEBRIS_S || age < -1) {
         this.wrecks.delete(id);
         continue;
@@ -617,7 +631,7 @@ export class ShipPass {
       // (No room left for this ship's whole wake: the rest go without.)
       if (n + pts.length * 9 + 12 > WAKE_VERTS || ni + pts.length * 36 + 24 > WAKE_INDICES) break;
       const len = pts[pts.length - 1].dist || 1;
-      let prev = null;
+      let prev = -1;
       for (let i = 0; i < pts.length; i++) {
         const p = pts[i];
         const q = pts[Math.min(pts.length - 1, i + 1)];
@@ -638,13 +652,19 @@ export class ShipPass {
         const mid = 0.55 * v * Math.max(0, 1 - f * 1.8) ** 1.2;
         const lw = 0.22 + p.dist * 0.03;
         const cw = beam * 0.35 + p.dist * 0.05;
-        const row = [
-          [-w - lw, 0], [-w, arm], [-w + lw, 0],
-          [-cw, 0], [0, mid], [cw, 0],
-          [w - lw, 0], [w, arm], [w + lw, 0],
-        ].map(([off, al]) => vert(p.x + sx * off, p.z + sz * off, al));
-        if (prev) for (const j of [0, 1, 3, 4, 6, 7]) quad(prev[j], row[j], row[j + 1], prev[j + 1]);
-        prev = row;
+        // Nine across (no arrays made: the wake is rebuilt every frame), each row's first vertex its index.
+        const r0 = n;
+        vert(p.x - sx * (w + lw), p.z - sz * (w + lw), 0);
+        vert(p.x - sx * w, p.z - sz * w, arm);
+        vert(p.x - sx * (w - lw), p.z - sz * (w - lw), 0);
+        vert(p.x - sx * cw, p.z - sz * cw, 0);
+        vert(p.x, p.z, mid);
+        vert(p.x + sx * cw, p.z + sz * cw, 0);
+        vert(p.x + sx * (w - lw), p.z + sz * (w - lw), 0);
+        vert(p.x + sx * w, p.z + sz * w, arm);
+        vert(p.x + sx * (w + lw), p.z + sz * (w + lw), 0);
+        if (prev >= 0) for (const j of WAKE_STRIPS) quad(prev + j, r0 + j, r0 + j + 1, prev + j + 1);
+        prev = r0;
       }
       // The bow wave: from the stem curling out and back along both sides.
       const bx = st.x + fx * (half - 0.1);

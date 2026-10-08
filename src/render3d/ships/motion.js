@@ -199,9 +199,12 @@ export class ShipMotion {
     s.moor += Math.sign(toward - s.moor) * Math.min(Math.abs(toward - s.moor), dt / MOOR_S);
     const k = s.moor * s.moor * (3 - 2 * s.moor);
     s.moored = s.moor > 0.999;
-    if (o.moor && k > 0) {
-      s.x = at.x + (o.moor.x - at.x) * k;
-      s.z = at.z + (o.moor.z - at.z) * k;
+    // (The mooring kept while it is given: casting off, the sim gives none, and the ship glides out from it.)
+    if (o.moor) s.moorAt = o.moor;
+    const mp = s.moorAt;
+    if (mp && k > 0) {
+      s.x = at.x + (mp.x - at.x) * k;
+      s.z = at.z + (mp.z - at.z) * k;
     } else {
       s.x = at.x;
       s.z = at.z;
@@ -243,6 +246,8 @@ export class ShipMotion {
       s.yaw = wrapAngle(s.yaw - (dq * Math.PI) / 2);
       s.wake.length = 0;
       s.simX = NaN;
+      // (A mooring kept from the last turn's view is somewhere else now: the next frame gives the new one.)
+      s.moorAt = null;
     }
   }
 

@@ -159,6 +159,15 @@ test('ships3d: a ship faces the way it goes, turns the short way and eased, lies
   }
   assert.ok(Math.hypot(st.x - moor.x, st.z - moor.z) < 1e-6 && Math.abs(st.yaw - moor.yaw) < 0.02 && st.moored, JSON.stringify({ x: st.x, z: st.z, yaw: st.yaw }));
   assert.ok(MOOR_S > 0.5 && MOOR_S < 6);
+  // Casting off (the sim gives no mooring once it leaves): it glides out from its mooring, no jump.
+  let px = st.x;
+  for (let i = 0; i < 40; i++) {
+    m.begin(18 + i * 0.1, 0.1);
+    st = m.update(3, { x: 12, z: 4 }, { moving: true, moor: null, size: 6, wind: [1, 0] });
+    assert.ok(Math.abs(st.x - px) < 0.5, `a jump casting off at ${i}: ${px} -> ${st.x}`);
+    px = st.x;
+  }
+  assert.ok(Math.abs(st.x - 12) < 1e-6, 'and then where the sim has it');
   // The sail: full with the wind astern, square; shivering (aback a little) with it ahead.
   const astern = trimFor(yawOf(1, 0), 1, 0);
   const ahead = trimFor(yawOf(-1, 0), 1, 0);
@@ -261,8 +270,11 @@ test('ships3d: the pass places a ship where the sim puts it, facing its heading,
   pass.begin(r, 2, 1 / 60);
   pass.end();
   assert.equal(pass.stats.wrecks, 1);
-  pass.begin(r, 2 + SINK_S + 2, 1 / 60);
-  pass.end();
+  // (Its going down by real time: the frames' seconds.)
+  for (let t = 0; t < SINK_S + 2; t += 0.25) {
+    pass.begin(r, 2, 0.25);
+    pass.end();
+  }
   assert.ok(pass.kits.slice(0, pass.nKits).some(([key]) => key === 'vessel:debris'), 'its debris floats');
   assert.ok(!pass.kits.slice(0, pass.nKits).some(([key]) => key === 'vessel:liburnian:hull'), 'and it is gone');
   pass.dispose();
