@@ -26,6 +26,7 @@
 
 import { cast } from '../people/actors.js';
 import { buildGrex, GREX, grexActors } from './grex.js';
+import { buildFactio, FACTIO, factioActors, factionOf, FACTIO_COLOURS } from './factio.js';
 import { buildVivarium, VIVARIUM, vivariumActors } from './vivarium.js';
 import { buildLudusGladiatorius, LUDUS_GLADIATORIUS, ludusActors } from './ludusGladiatorius.js';
 
@@ -85,6 +86,7 @@ const ACTORS = {
   actor_troupe: grexActors,
   gladiator_school: ludusActors,
   menagerie: vivariumActors,
+  chariot_maker: factioActors,
 };
 
 /** A training building's actors' specs in `state` (people/actors.js). */
@@ -103,5 +105,13 @@ export const TRAINING_MODELS = Object.freeze({
     type: 'menagerie', lamps: VIVARIUM.lamps, actors: vivariumActors,
     keyOf: (b, ice) => (ice ? 'menagerie:ice' : 'menagerie'),
     build: (key, lod) => buildVivarium({ lod, ice: key.endsWith(':ice') }),
+  }),
+  // (A look a faction: its name and colours are painted on its board; its driver's cast by the faction too.)
+  chariot_maker: entry({
+    type: 'chariot_maker', lamps: FACTIO.lamps, actors: factioActors,
+    warm: ['chariot_maker:0'],
+    keyOf: (b, ice) => `chariot_maker:${factionOf(b)}${ice ? ':ice' : ''}`,
+    castKey: (state, b) => `${state}:${factionOf(b)}`,
+    build: (key, lod) => buildFactio({ lod, faction: Number(key.split(':')[1]), ice: key.endsWith(':ice') }),
   }),
 });
