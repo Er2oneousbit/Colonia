@@ -33,9 +33,12 @@
  * street between two piers with lanterns.
  *
  * States (meshes tagged in userData.when, models.js partShows):
- *   'open'  staffed: the cupboards open, the gates swung back, a reader on
- *           the bench, the scribe at his desk, a library slave bringing
- *           rolls, the lanterns lit at night
+ *   'open'  staffed: the cupboards open, the gates swung back, the
+ *           lanterns lit at night; its people (libraryActors): two readers
+ *           on the bench with their rolls open, the scribe copying at his
+ *           desk, the librarian walking along the cupboards in the hall
+ *           and taking rolls down from their shelves, a library slave
+ *           holding rolls by his capsa
  *   'shut'  no staff: the cupboards and the gates shut, nobody
  *
  * Metres, the footprint's middle at the origin, y up, the street toward +z.
@@ -48,8 +51,10 @@ import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, tuscanColumn, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, gableRoof, D } from './rural.js';
-import { staff, inscribe, people } from './castra.js';
-import { learningMaterials, person, at, armarium, herm, capsa, bush, box } from './learning.js';
+import { staff, inscribe } from './castra.js';
+import { learningMaterials, person, armarium, herm, capsa, bush, box } from './learning.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H, SHELF } from '../people/clips.js';
 
 /** The library's measures (metres): the tests, the lab and the game read them. */
 export const BIBLIOTHECA = Object.freeze({
@@ -128,9 +133,9 @@ function hall(lod, seed, out) {
   if (lod < 2) out.paint.push(box(2 * H - 2 * T, 0.04, 0.014, 0, py + 0.75, zi + 0.002, lin(0x2a1e18)));
   // The cupboards of rolls: five along the back wall, one at each end.
   // (The outer two narrower and in from the corners, clear of the end ones and their doors.)
-  const cupboards = [[-2.6, 0.8], [-1.35, 1.1], [0, 1.0], [1.35, 1.1], [2.6, 0.8]];
+  const cupboards = CUPBOARDS;
   const hc = 1.72;
-  const dc = 0.44;
+  const dc = CUP_D;
   const add = (a, m) => {
     for (const [k, list] of Object.entries(a)) for (const g of list) out[`arm_${k}`].push(g.applyMatrix4(m));
   };
@@ -270,34 +275,55 @@ function court(lod, seed, out) {
   }
 }
 
-/** The people (only close up): a reader on the bench, the scribe at his desk, a library slave bringing rolls in a capsa. */
-function readers(mats) {
+/** What the scribe has on his desk, and the slave's capsa at his feet (close up only). */
+function deskThings() {
   const y0 = B.floorY;
-  const list = [];
   const things = { paper: [], leather: [], strap: [] };
-  // The reader, a roll open before him.
-  const [rx, rz, rry] = [-2.05, 0.16, 0];
-  list.push(...person(mats, { cloth: 0xe8e0cc, cloth2: 0xf0ead8, hair: 0x3a2a1a, long: true, sit: 0.45, arms: 'read', lean: 0.12 }, rx, y0, rz, rry));
-  const [ox, oz] = at(rx, rz, rry, 0, 0.32);
-  for (const s of [-1, 1]) things.paper.push(tintGeometry(boxUV(new CylinderGeometry(0.024, 0.024, 0.24, 6, 1).translate(ox + s * 0.17, y0 + 0.87, oz)), () => [0.78, 0.66, 0.46]));
-  const sheet = new BoxGeometry(0.34, 0.2, 0.004);
-  sheet.rotateX(-0.5);
-  sheet.translate(ox, y0 + 0.87, oz);
-  things.paper.push(tintGeometry(boxUV(sheet), () => [0.88, 0.78, 0.58]));
-  // The scribe on his stool, copying at the desk (he faces it: -x).
-  const [dx, dz] = [1.95, 0.75];
-  list.push(...person(mats, { cloth: 0x9a8a6a, hair: 0x2e2119, skin: 0x9a6c4c, sit: 0.52, arms: 'write', lean: 0.22 }, dx + 0.62, y0, dz, -Math.PI / 2));
+  const [dx, dz] = DESK;
   const sh = new BoxGeometry(0.3, 0.004, 0.22);
   sh.translate(dx + 0.05, y0 + 0.745, dz);
   things.paper.push(tintGeometry(boxUV(sh), () => [0.88, 0.78, 0.58]));
   things.paper.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.03, 0.24, 6, 1).rotateX(Math.PI / 2).translate(dx - 0.13, y0 + 0.77, dz)), () => [0.78, 0.66, 0.46]));
-  // The library's slave bringing rolls for the reader, a capsa at his feet.
-  list.push(...person(mats, { cloth: 0x7a6a52, hair: 0x1e1812, skin: 0x8a5e40, arms: 'hold' }, -0.95, y0, 0.9, -Math.PI * 0.72));
-  const [hx, hz] = at(-0.95, 0.9, -Math.PI * 0.72, 0, 0.27);
-  for (let k = 0; k < 3; k++) things.paper.push(tintGeometry(boxUV(new CylinderGeometry(0.03, 0.03, 0.3, 6, 1).rotateZ(Math.PI / 2).rotateY(-Math.PI * 0.72 + Math.PI / 2).translate(hx, y0 + 1.12 + k * 0.05, hz)), () => [0.8, 0.68, 0.48]));
   const c = capsa(-0.6, y0, 1.25, { open: true, seed: 3 });
   for (const k of ['leather', 'paper', 'strap']) things[k].push(...c[k]);
-  return { list, things };
+  return things;
+}
+
+/** The scribe's desk (x, z): its stool on its +x side, its top 0.74 over the court. */
+const DESK = [1.95, 0.75];
+/** The cupboards along the hall's back wall (x, width), their depth and height. */
+const CUPBOARDS = [[-2.6, 0.8], [-1.35, 1.1], [0, 1.0], [1.35, 1.1], [2.6, 0.8]];
+const CUP_D = 0.44;
+
+/**
+ * The library's people (people/actors.js specs, its metres), while it is
+ * open: two readers on the marble bench, their rolls held open; the scribe
+ * on his stool copying onto his tablet at the desk; the librarian walking
+ * the length of the hall along the cupboards, at each end taking a roll
+ * down from a shelf and reading its tag (clips.js reach: the shelf SHELF
+ * ahead of him, at the cupboard's face); a slave by the capsa, holding
+ * rolls for the readers. Nobody when shut.
+ */
+export function libraryActors(state) {
+  if (state !== 'open') return [];
+  const y0 = B.floorY;
+  const seat = y0 + 0.45 - SEAT_H;
+  const hallY = B.podiumY + 0.02;
+  // (The librarian faces the cupboards, the shelf SHELF.ahead before him at their open face.)
+  const cz = B.backZ + CUP_D + 0.02 + SHELF.ahead;
+  const reader = { body: 'm', hair: 'crop', clip: 'read', props: { R: 'rollOpen' } };
+  return [
+    { ...reader, dress: ['tunic:long', 'pallium'], beard: 'short', old: true, at: [-2.35, seat, 0.12], ry: 0, seed: 501, colours: { tunic: DYES.white, mantle: DYES.oatmeal } },
+    { ...reader, dress: ['tunic:knee', 'pallium'], at: [-1.6, seat, 0.12], ry: 0, seed: 502, colours: { mantle: DYES.sky } },
+    { body: 'm', dress: ['tunic:knee'], hair: 'curls', clip: 'write', props: { L: 'tablet', R: 'stylus' }, at: [DESK[0] + 0.65, y0 + 0.52 - SEAT_H, DESK[1]], ry: -Math.PI / 2, seed: 503, colours: { tunic: DYES.fawn } },
+    {
+      body: 'm', dress: ['tunic:long'], hair: 'bald', beard: 'short', old: true, clip: 'walk', props: { R: 'roll' }, seed: 504,
+      at: [CUPBOARDS[1][0], hallY, cz], ry: Math.PI / 2,
+      route: { length: CUPBOARDS[3][0] - CUPBOARDS[1][0], speed: 0.6, clipEnd: 'reach', clipStart: 'reach', faceEnd: Math.PI, faceStart: Math.PI, pauseEnd: 8, pauseStart: 8 },
+      colours: { tunic: DYES.white },
+    },
+    { body: 'm', dress: ['tunic:short'], hair: 'curls', clip: 'hold', props: { R: 'roll' }, at: [-0.95, y0, 0.9], ry: -Math.PI * 0.72, seed: 505, colours: { tunic: DYES.brownWool } },
+  ];
 }
 
 /** Build the library: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
@@ -344,8 +370,8 @@ export function buildLibrary({ lod = 0, seed = 241 } = {}) {
     }
   }
   if (lod === 0) {
-    const { list, things } = readers(m);
-    people(p, m, 'readers', list, 'open');
+    // (The people are actors: libraryActors. What they left on the desk and the capsa stay.)
+    const things = deskThings();
     p.add('held-rolls', m.papyrus, things.paper, { when: 'open', cast: false });
     p.add('capsa', m.leather, [...things.leather, ...things.strap], { when: 'open', cast: false });
   }

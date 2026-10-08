@@ -50,8 +50,9 @@ test('people3d: the rig has its 25 bones, each after its parent, and a prop bone
 test('people3d: every clip loops seamlessly, is baked as its poses, and plants its feet', () => {
   const baked = bakeClips();
   assert.equal(baked.table.length, CLIP_NAMES.length);
-  // (The texture's rows within 4,096: every desktop and laptop GPU of the targets reads that tall.)
-  assert.ok(baked.rows <= 4096, `${baked.rows} rows`);
+  // (The texture's rows within 8,192: every desktop and laptop GPU of the targets reads textures 16,384
+  // tall or more, and the texture is only as tall as its rows, so the limit costs nothing until it is used.)
+  assert.ok(baked.rows <= 8192, `${baked.rows} rows`);
   for (const name of CLIP_NAMES) {
     // The pose at the loop's end is the one at its start.
     const a = poseAt(name, 0);
@@ -165,6 +166,8 @@ const CONVERTED = {
   oracle: [{}],
   mission_post: [{ efficiency: 1 }, { efficiency: 0 }],
   school: [{ efficiency: 1 }, { efficiency: 0 }],
+  library: [{ efficiency: 1 }, { efficiency: 0 }],
+  academy: [{ efficiency: 1 }, { efficiency: 0 }],
   forum: [{ efficiency: 1 }, { efficiency: 0 }],
   senate: [{ efficiency: 1 }, { efficiency: 1, alarm: true }, { efficiency: 0 }],
   prefecture: [{ efficiency: 1 }, { efficiency: 1, fire: true }, { efficiency: 0 }],

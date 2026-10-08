@@ -19,8 +19,8 @@
 
 import { buildSchool, LUDUS, schoolActors } from './ludus.js';
 import { cast, NOBODY } from '../people/actors.js';
-import { buildLibrary, BIBLIOTHECA } from './bibliotheca.js';
-import { buildAcademia, ACADEMIA } from './academia.js';
+import { buildLibrary, BIBLIOTHECA, libraryActors } from './bibliotheca.js';
+import { buildAcademia, ACADEMIA, academyActors } from './academia.js';
 
 /** A school's, a library's or an academy's state: 'open' staffed, 'shut' not. */
 export function educationState(b) {
@@ -51,6 +51,6 @@ function entry(type, build, lamps, actors = null) {
 
 export const EDUCATION_MODELS = Object.freeze({
   school: entry('school', buildSchool, [LUDUS.lamp], schoolActors),
-  library: entry('library', buildLibrary, BIBLIOTHECA.lamps),
-  academy: entry('academy', buildAcademia, ACADEMIA.lamps),
+  library: entry('library', buildLibrary, BIBLIOTHECA.lamps, libraryActors),
+  academy: entry('academy', buildAcademia, ACADEMIA.lamps, academyActors),
 });

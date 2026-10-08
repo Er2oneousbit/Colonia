@@ -30,10 +30,11 @@
  * architrave cut ACADEMIA, lanterns on its columns.
  *
  * States (meshes tagged in userData.when, models.js partShows):
- *   'open'  staffed: the master in the exedra among his pupils, a pupil
- *           declaiming from the platform to two listeners, a reader on the
- *           long bench, two walking in the covered walk, the rooms' and the
- *           gate's doors open, the lanterns lit at night
+ *   'open'  staffed: the rooms' and the gate's doors open, the lanterns
+ *           lit at night; its people (academyActors): the master in the
+ *           exedra teaching his pupils, a young man declaiming from the
+ *           platform to two listeners, a reader on the long bench, two
+ *           philosophers walking up and down the covered walk
  *   'shut'  no staff: the doors shut, nobody
  *
  * Metres, the middle at the origin, y up, the gate toward +z.
@@ -46,8 +47,10 @@ import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, tuscanColumn, lantern, lanternPane, TaggedParts } from './masonry.js';
 import { lin, gableRoof, D } from './rural.js';
-import { staff, inscribe, people, gravel } from './castra.js';
-import { learningMaterials, person, at, herm, capsa, arcSweep, roofSlope, cypress, hedge, box } from './learning.js';
+import { staff, inscribe, gravel } from './castra.js';
+import { DYES } from '../people/actors.js';
+import { SEAT_H } from '../people/clips.js';
+import { learningMaterials, herm, capsa, arcSweep, roofSlope, cypress, hedge, box } from './learning.js';
 
 /** The academy's measures (metres): the tests, the lab and the game read them. */
 export const ACADEMIA = Object.freeze({
@@ -304,52 +307,43 @@ function gate(lod, seed, out) {
   out.trav.push(slab(g1 - g0 + 0.2, 0.06, t + 0.1, { bevel: 0.01, seed: seed + 3, wobble: 0, tone: 0.03, grime: 0.3 }).translate(0, 0, zc));
 }
 
-/** The people (only close up): the master and his pupils in the exedra, a declaimer and his listeners, a reader, two walking. */
-function scholars(mats) {
-  const list = [];
-  const things = { paper: [], leather: [], strap: [] };
+/** The capsa of rolls by the exedra's bench (close up only). */
+function capsaThings() {
+  const { x, z, step } = A.exedra;
+  return capsa(x + 1.1, step, z - 1.6, { open: true, seed: 9 });
+}
+
+/**
+ * The academy's people (people/actors.js specs, its metres), while it is
+ * open: the master seated at the back of the exedra, his hand raised as he
+ * teaches, three pupils on the half-round bench (one reading his roll, one
+ * taking notes on his tablet, one listening); a young man in the toga
+ * declaiming from the platform to two listening below it; a reader on the
+ * long bench by the right wall; and two philosophers walking up and down
+ * the covered walk side by side, talking at each end (the peripatos), in
+ * step (sync). Nobody when shut.
+ */
+export function academyActors(state) {
+  if (state !== 'open') return [];
   const { x, z, r0, r1, step } = A.exedra;
-  const rs = (r0 + r1) / 2 - 0.08;
-  const onBench = (a) => [x + rs * Math.sin(a), z + rs * Math.cos(a), Math.atan2(-Math.sin(a), -Math.cos(a))];
-  // The master at the back of the exedra, his hand raised; three pupils on the bench either side of him.
-  {
-    const [mx, mz, ry] = onBench(Math.PI);
-    list.push(...person(mats, { cloth: 0xe0d8c4, cloth2: 0x5a4a6a, hair: 0x8a8680, beard: true, long: true, sit: 0.45, arms: 'teach', lean: 0.05 }, mx, step, mz, ry));
-  }
-  const pupils = [[Math.PI * 0.72, 0x9a4a3a, 'read'], [Math.PI * 1.25, 0xc9bca2, 'chin'], [Math.PI * 1.4, 0x5a6a7a, 'lap']];
-  pupils.forEach(([a, cloth, arms], i) => {
-    const [px, pz, ry] = onBench(a);
-    list.push(...person(mats, { cloth, cloth2: i === 0 ? 0xd8d0bc : null, hair: [0x2e2119, 0x4a3020, 0x1e1812][i], skin: [0xa87a58, 0xb88a64, 0x9a6c4c][i], sit: 0.45, arms, lean: 0.12 }, px, step, pz, ry));
-    if (arms === 'read') {
-      const [ox, oz] = at(px, pz, ry, 0, 0.32);
-      const sheet = new BoxGeometry(0.34, 0.2, 0.004);
-      sheet.rotateX(-0.5);
-      sheet.rotateY(ry);
-      sheet.translate(ox, step + 0.87, oz);
-      things.paper.push(tintGeometry(boxUV(sheet), () => [0.88, 0.78, 0.58]));
-    }
-  });
-  const c = capsa(x + 1.1, step, z - 1.6, { open: true, seed: 9 });
-  for (const k of ['leather', 'paper', 'strap']) things[k].push(...c[k]);
-  // A pupil declaiming from the platform, two listening below it.
+  const rs = (r0 + r1) / 2 - 0.02;
+  // (On the bench, facing the exedra's middle: its seat 0.45 over the step.)
+  const onBench = (a) => ({ at: [x + rs * Math.sin(a), step + 0.45 - SEAT_H, z + rs * Math.cos(a)], ry: Math.atan2(-Math.sin(a), -Math.cos(a)) });
+  const scholar = { body: 'm', dress: ['tunic:knee', 'pallium'], hair: 'crop' };
   const [rx, rz, , , rh] = A.rostra;
-  list.push(...person(mats, { cloth: 0xe8e0cc, cloth2: 0xf0e8d6, hair: 0x2e2119, long: true, arms: 'orate' }, rx, 0.03 + rh + 0.06, rz, -Math.PI / 2 - 0.25));
-  list.push(...person(mats, { cloth: 0x7a5a8a, hair: 0x3a2a1a, arms: 'hold' }, rx - 1.45, 0.03, rz + 0.35, Math.PI / 2 + 0.2));
-  list.push(...person(mats, { cloth: 0xb0884a, cloth2: 0xd8d0bc, hair: 0x2e2119, long: true }, rx - 1.35, 0.03, rz - 0.55, Math.PI / 2 - 0.3));
-  // A reader on the long bench by the right wall.
-  list.push(...person(mats, { cloth: 0x6a7a5a, hair: 0x4a3020, sit: 0.48, arms: 'read', lean: 0.15 }, H - 0.58, 0.0, 3.3, -Math.PI / 2));
-  {
-    const [ox, oz] = at(H - 0.58, 3.3, -Math.PI / 2, 0, 0.32);
-    const sheet = new BoxGeometry(0.34, 0.2, 0.004);
-    sheet.rotateX(-0.5);
-    sheet.rotateY(-Math.PI / 2);
-    sheet.translate(ox, 0.9, oz);
-    things.paper.push(tintGeometry(boxUV(sheet), () => [0.88, 0.78, 0.58]));
-  }
-  // Two walking and talking in the covered walk.
-  list.push(...person(mats, { cloth: 0xd8d0bc, cloth2: 0x8a3a2a, hair: 0x6a625a, beard: true, long: true, arms: 'reach' }, -4.95, 0.12, 0.6, Math.PI * 0.95));
-  list.push(...person(mats, { cloth: 0xc9bca2, hair: 0x2e2119, arms: 'hold' }, -5.15, 0.12, -0.3, Math.PI * 0.05));
-  return { list, things };
+  const walk = { length: 5.4, speed: 0.55, clipEnd: 'talk', clipStart: 'talk', pauseEnd: 6, pauseStart: 6 };
+  return [
+    { ...scholar, ...onBench(Math.PI), clip: 'teach', hair: 'bald', beard: 'full', old: true, seed: 601, colours: { tunic: DYES.oatmeal, mantle: DYES.walnut } },
+    { ...scholar, ...onBench(Math.PI * 0.72), clip: 'read', props: { R: 'rollOpen' }, seed: 602, colours: { mantle: DYES.madder } },
+    { ...scholar, ...onBench(Math.PI * 1.25), dress: ['tunic:knee'], clip: 'write', props: { L: 'tablet', R: 'stylus' }, hair: 'curls', seed: 603 },
+    { ...scholar, ...onBench(Math.PI * 1.42), clip: 'sit', seed: 604, colours: { mantle: DYES.woad } },
+    { body: 'm', dress: ['tunic:knee', 'toga'], hair: 'crop', clip: 'orate', at: [rx, 0.03 + rh, rz], ry: -Math.PI / 2 - 0.25, seed: 605, colours: { tunic: DYES.white, mantle: DYES.candida } },
+    { ...scholar, dress: ['tunic:knee'], clip: 'listen', at: [rx - 1.45, 0.03, rz + 0.35], ry: Math.PI / 2 + 0.2, seed: 606 },
+    { ...scholar, clip: 'listen', at: [rx - 1.35, 0.03, rz - 0.55], ry: Math.PI / 2 - 0.3, seed: 607, colours: { mantle: DYES.olive } },
+    { ...scholar, dress: ['tunic:knee'], clip: 'read', props: { R: 'rollOpen' }, at: [H - 0.55, 0.48 - SEAT_H, 3.3], ry: -Math.PI / 2, seed: 608 },
+    { ...scholar, hair: 'bald', beard: 'full', old: true, clip: 'walk', sync: true, at: [-5.18, 0.12, 3.7], ry: Math.PI, route: walk, seed: 609, colours: { tunic: DYES.white, mantle: DYES.fawn } },
+    { ...scholar, clip: 'walk', sync: true, at: [-4.82, 0.12, 3.7], ry: Math.PI, route: walk, seed: 610, colours: { mantle: DYES.green } },
+  ];
 }
 
 /** Build the academy: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut'). */
@@ -399,10 +393,10 @@ export function buildAcademia({ lod = 0, seed = 271 } = {}) {
     }
   }
   if (lod === 0) {
-    const { list, things } = scholars(m);
-    people(p, m, 'scholars', list, 'open');
-    p.add('held-rolls', m.papyrus, things.paper, { when: 'open', cast: false });
-    p.add('capsa', m.leather, [...things.leather, ...things.strap], { when: 'open', cast: false });
+    // (The people are actors: academyActors. Their capsa stays by the bench.)
+    const c = capsaThings();
+    p.add('held-rolls', m.papyrus, c.paper, { when: 'open', cast: false });
+    p.add('capsa', m.leather, [...c.leather, ...c.strap], { when: 'open', cast: false });
   }
   return p.build();
 }
