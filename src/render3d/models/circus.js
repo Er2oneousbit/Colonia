@@ -123,7 +123,7 @@ function arcade(a, b, s, lod, p, M) {
     // The shop's arched mouth (dark) and its pilasters either side, a string course over the arcade.
     p.add('dark', M.dark, box(1.0, 1.05, 0.02, xm, 0, z + s * 0.004, 1));
     const arch = new CylinderGeometry(0.5, 0.5, 0.02, lod ? 8 : 14, 1, false, -Math.PI / 2, Math.PI);
-    arch.rotateX(Math.PI / 2);
+    arch.rotateX(-Math.PI / 2);
     arch.translate(xm, 1.05, z + s * 0.004);
     p.add('dark', M.dark, tintGeometry(boxUV(arch)));
     // (A pilaster on a section's seam is cut in two, a half each side: the kit keeps to its footprint.)

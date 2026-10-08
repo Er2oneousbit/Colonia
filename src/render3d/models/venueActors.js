@@ -53,7 +53,8 @@ export function theaterActors(state, acts = {}) {
   if (acts.play !== false) {
     // The play: a tragic hero declaiming, a slave of the comedy answering him, the piper at the side.
     out.push(player([-0.55, Y, zs + 0.12], 0.25, 51, { clip: 'orate' }));
-    out.push(player([0.7, Y, zs + 0.05], -0.45, 52, { clip: 'talk', comic: true, colours: { tunic: DYES.sky, mantle: DYES.ochre } }));
+    // (The comic mask's face is the trim colour: a slave's ruddy face.)
+    out.push(player([0.7, Y, zs + 0.05], -0.45, 52, { clip: 'talk', comic: true, colours: { tunic: DYES.sky, mantle: DYES.ochre, trim: 0xb07a52 } }));
     out.push(player([1.65, Y, zs - 0.25], -0.6, 53, { clip: 'listen', colours: { tunic: DYES.white, mantle: DYES.woad } }));
     out.push(piper([-2.2, Y, zs - 0.1], 0.6, 54));
   }
@@ -93,7 +94,7 @@ export function amphitheaterActors(state, acts = {}) {
   if (acts.play) {
     const [x, y, z] = AMPHITHEATRUM_SPOTS.stage;
     out.push(player([x - 0.05, y, z - 0.35], Math.PI / 2, 94, { clip: 'orate' }));
-    out.push(player([x + 0.05, y, z + 0.4], Math.PI / 2 - 0.4, 95, { clip: 'talk', comic: true, colours: { tunic: DYES.sky, mantle: DYES.ochre } }));
+    out.push(player([x + 0.05, y, z + 0.4], Math.PI / 2 - 0.4, 95, { clip: 'talk', comic: true, colours: { tunic: DYES.sky, mantle: DYES.ochre, trim: 0xb07a52 } }));
   }
   return out;
 }

@@ -46,7 +46,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { CylinderGeometry, Shape, ExtrudeGeometry, Matrix4, SphereGeometry, ConeGeometry } from 'three';
+import { CylinderGeometry, Shape, ExtrudeGeometry, Matrix4, SphereGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { TaggedParts } from './masonry.js';
 import { lin, figureMass } from './domus.js';
@@ -141,7 +141,7 @@ function bay(w, k, lod, entrance) {
       out.trav.push(box(w, top - y0, depth, 0, y0, -depth / 2, 0.84));
       out.dark.push(box(ow, spring - y0, 0.02, 0, y0, 0.006, 1));
       const head = new CylinderGeometry(ow / 2, ow / 2, 0.02, lod === 1 ? 6 : 3, 1, false, -Math.PI / 2, Math.PI);
-      head.rotateX(Math.PI / 2);
+      head.rotateX(-Math.PI / 2);
       head.translate(0, spring, 0.006);
       out.dark.push(tintGeometry(boxUV(head)));
       out.trav.push(box(w + 0.002, entH, depth + 0.16, 0, top, -depth / 2 + 0.08, 1.12));
@@ -155,7 +155,7 @@ function bay(w, k, lod, entrance) {
     // The voussoirs' ring: a band proud of the face round the arch (full detail).
     if (lod === 0) {
       const ring = new CylinderGeometry(ow / 2 + 0.05, ow / 2 + 0.05, 0.03, 12, 1, true, -Math.PI / 2, Math.PI);
-      ring.rotateX(Math.PI / 2);
+      ring.rotateX(-Math.PI / 2);
       ring.translate(0, spring, 0.012);
       out.trav.push(tintGeometry(boxUV(ring), () => 0.97));
       // An impost moulding at the springing.
@@ -286,13 +286,7 @@ function facade(lod, p, M) {
     p.add('marble', M.marble, box(0.2, 0.06, 0.2, px + sx, 0, pz + 0.55, 0.95));
   }
   p.add('marble', M.marble, box(1.42, 0.12, 0.7, px, ph - 0.06, pz + 0.3, 0.97));
-  const ped = new ConeGeometry(0.78, 0.36, 3, 1);
-  ped.rotateY(Math.PI / 2);
-  ped.rotateX(Math.PI / 2);
-  ped.rotateZ(Math.PI);
-  ped.scale(1, 1, 0.9);
   const tri = new CylinderGeometry(0.0001, 0.78, 0.34, 4, 1);
-  void ped;
   tri.rotateY(Math.PI / 4);
   tri.scale(1, 1, 0.42);
   tri.translate(px, ph + 0.06 + 0.17, pz + 0.3);
@@ -314,7 +308,6 @@ function cavea(lod, p, M) {
   // The podium in marble: its face and coping, and the senators' terrace's balustrade.
   p.add('marble', M.marble, sweep(AT, [[-0.02, 0.02], [-0.02, A.podium], [-0.05, A.podium], [-0.05, A.podium + 0.07], [0.12, A.podium + 0.07]], n, { tint: (x, y) => (y < 0.12 ? 0.8 : 0.97) }));
   // The baltei's marble copings and the mouths of the vomitoria in them (dark), sixteen round.
-  for (const r of CAVEA.rows) void r;
   const walls = [];
   let d = CAVEA.rows[2].d + CAVEA.rows[2].depth;
   walls.push([d, CAVEA.rows[2].y]);

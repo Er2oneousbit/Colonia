@@ -214,22 +214,23 @@ export function huntAt(cx, cz, tick, idBase) {
   const hunter = unit(idBase, 'gladiator', { look: 'venator', state: 'fight' });
   const rushing = t >= 72;
   let a = (t / 72) * Math.PI * 1.6;
-  let r = 1.4;
+  let r = 1.6;
   if (rushing) {
     a = Math.PI * 1.6;
-    r = Math.max(0.9, 1.4 - (t - 72) * 0.08);
+    // (To its head's reach of him, not through him: the lion's middle stops a body's length off.)
+    r = Math.max(1.3, 1.6 - (t - 72) * 0.06);
   }
   const lx = cx + r * Math.cos(a);
   const lz = cz + r * Math.sin(a);
   // He turns to face it and thrusts while it is close.
-  if (rushing && r < 1.1) hunter.strikeTick = lastBeat(tick, tick - t + 80, 20);
+  if (rushing && r < 1.45) hunter.strikeTick = lastBeat(tick, tick - t + 80, 20);
   out.push({ u: hunter, x: cx, z: cz, dx: 0, dz: 0, foe: [lx - cx, lz - cz] });
   const lion = unit(idBase - 1, 'wolf', { look: 'lion', state: rushing ? 'fight' : 'hunt' });
-  lion.moving = !rushing || r > 0.91;
-  lion.walked = ((1.4 * Math.min(t, 72) / 72 * Math.PI * 1.6 + (rushing ? (1.4 - r) : 0)) / TILE_M) % 100;
+  lion.moving = !rushing || r > 1.31;
+  lion.walked = ((1.6 * Math.min(t, 72) / 72 * Math.PI * 1.6 + (rushing ? (1.6 - r) : 0)) / TILE_M) % 100;
   const dx = rushing ? -Math.cos(a) : -Math.sin(a);
   const dz = rushing ? -Math.sin(a) : Math.cos(a);
-  if (rushing && r <= 0.91) lion.strikeTick = lastBeat(tick, tick - t + 81, 16);
+  if (rushing && r <= 1.31) lion.strikeTick = lastBeat(tick, tick - t + 81, 16);
   out.push({ u: lion, x: lx, z: lz, dx: lion.moving ? dx : 0, dz: lion.moving ? dz : 0, foe: [cx - lx, cz - lz] });
   return out;
 }

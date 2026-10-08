@@ -55,7 +55,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { CylinderGeometry, ConeGeometry } from 'three';
+import { CylinderGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { TaggedParts } from './masonry.js';
 import { column, statue, lin, D } from './domus.js';
@@ -160,7 +160,7 @@ function cavea(lod, p, M) {
     const ry = -th + Math.PI / 2;
     const mouth = box(0.62, 1.05, 0.03, 0, 0, 0, 1);
     const arch = new CylinderGeometry(0.31, 0.31, 0.03, lod ? 8 : 14, 1, false, -Math.PI / 2, Math.PI);
-    arch.rotateX(Math.PI / 2);
+    arch.rotateX(-Math.PI / 2);
     arch.translate(0, 1.05, 0);
     for (const g of [mouth, tintGeometry(boxUV(arch))]) {
       g.rotateY(ry);
@@ -316,15 +316,15 @@ function frons(lod, p, M, state) {
   // Pediments: a triangle over each guests' door, a curved one over the royal door.
   if (lod < 2) {
     for (const x of [-1.55, 1.55]) {
-      const g = new ConeGeometry(0.42, 0.22, 3, 1);
-      g.rotateZ(Math.PI);
-      g.rotateX(Math.PI / 2);
-      g.scale(1.3, 1, 0.3);
-      g.translate(x, Y + 1.32, zf + 0.06);
+      // (A four-sided cone turned to face front and flattened: a triangle, its apex up.)
+      const g = new CylinderGeometry(0.0001, 0.42, 0.24, 4, 1);
+      g.rotateY(Math.PI / 4);
+      g.scale(1.3, 1, 0.22);
+      g.translate(x, Y + 1.32 + 0.12, zf + 0.06);
       p.add('marble', M.marble, tintGeometry(boxUV(g), () => 0.94));
     }
     const arc = new CylinderGeometry(0.46, 0.46, 0.12, lod ? 8 : 16, 1, false, -Math.PI / 2, Math.PI);
-    arc.rotateX(Math.PI / 2);
+    arc.rotateX(-Math.PI / 2);
     arc.translate(0, Y + 1.42, zf + 0.06);
     p.add('marble', M.marble, tintGeometry(boxUV(arc), () => 0.94));
   }
