@@ -88,6 +88,7 @@ import { buildGovernmentScene } from './labGovernment.js';
 import { buildTemplesScene } from './labTemples.js';
 import { buildPeopleScene } from './labPeople.js';
 import { buildWalkersScene } from './labWalkers.js';
+import { buildArmyScene } from './labUnits.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -338,6 +339,8 @@ async function main() {
   commerce.people = buildPeopleScene();
   // The Walkers scene (labWalkers.js, the = key): every walker type drawn in 3D, each on its loop of road.
   commerce.walkers = buildWalkersScene();
+  // The Army scene (labUnits.js, the backslash key): every fighting unit drawn in 3D, in cells of open ground.
+  commerce.army = buildArmyScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -774,6 +777,7 @@ async function main() {
     else if (k === '5') setScene('temples');
     else if (k === '-') setScene('people');
     else if (k === '=') setScene('walkers');
+    else if (k === '\\') setScene('army');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
@@ -790,7 +794,7 @@ async function main() {
   /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
   function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
     // (The People scene's figures, or the Walkers scene's loops when it is the one shown.)
-    const f = (state.scene === 'walkers' ? commerce.walkers : commerce.people).figures[i];
+    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'army' ? commerce.army : commerce.people).figures[i];
     if (!f) {
       setView('game1');
       return;
@@ -1028,6 +1032,15 @@ async function main() {
       get loops() { return commerce.walkers.figures.map((f) => ({ ...f })); },
       where: (i) => commerce.walkers.where(i),
       stats: () => commerce.walkers.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Army scene (labUnits.js): a cell close up, the cells, the pass's stats, the level of detail. */
+    army: {
+      closeUp: (i, o) => closeUp(i, o),
+      get cells() { return commerce.army.cells.map((c) => ({ ...c })); },
+      get units() { return commerce.army.figures; },
+      where: (i) => commerce.army.where(i),
+      stats: () => commerce.army.stats(),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */

@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.20.26)
+
+* **Soldiers, raiders and wolves in 3D** (under WebGL): legionaries in crested bronze helmets and mail behind the painted curved scutum, throwing the pilum and fighting with the gladius, a signifer with each fort's standard; Syrian archers in conical helmets; cavalry in the four-horned saddle at a four-beat gallop; Caesar's legions in plate with the eagle; each raiding people as history shows them (Gauls and Boii with long swords, axes and a war chariot, Ligurian hillmen and slingers, Carthaginian foot, Numidian riders and the war elephant, Lusitanians with the falcata, Cimbri and Teutones), rebel gladiators, villagers with farm tools, and grey wolves at the trot and lope. They march in step, close into a shield wall, strike on the sim's blow, flinch when hit, fall and lie a while. A 300-unit battle draws faster than the sprites did (2x: 49 to 31 ms). Lab: the Army scene (backslash key)
+* Headless sim: identical to v0.20.25 on every difficulty
+* 1328 unit tests, 274 browser checks
+
 ## Done (v0.20.25)
 
 * **Every building's people move** (under WebGL): the library's readers, scribe and librarian at the cupboards; the academy's master, pupils, declaimer and philosophers walking the colonnade; the barber shaving a client; the physician and his assistant at the mortar; bathers, the attendant and the stoker; the hospital's sick, orderlies and surgeon; the governor's household, the villa's diners reclined on their couches, the palace's petitioners and lictors, guards when trouble comes near; the engineer's winder, surveyor and masons; sentries pacing the forts' walls, archers shooting, cavalrymen by their horses (as many as the stalls hold), recruits drilling at the post; shipwrights at the Navalia, marines at the Statio, twelve rowers pulling in time to the hortator's mallet at the Portus; gardeners clipping hedges. Fourteen new motions (rowing, the drill, archery, shaving, dining, a windlass, pruning, lying sick, among others)
