@@ -281,8 +281,8 @@ function drawRaiderShip(ctx, u, sx, sy, k, t, tick, highlight, stride, facing = 
   if (u.hp < u.maxHp) health(ctx, u, sx, Y(-28), K, tick);
 }
 
-/** A health bar over a damaged ship; it flashes white for a moment after a hit. */
-function health(ctx, u, sx, y, K, tick) {
+/** A health bar over a damaged ship; it flashes white for a moment after a hit. (Also over a ship drawn in 3D: render3d/ships/pass.js.) */
+export function health(ctx, u, sx, y, K, tick) {
   const w = 16 * K;
   const h = 1.8 * K;
   const fr = Math.max(0, u.hp / u.maxHp);

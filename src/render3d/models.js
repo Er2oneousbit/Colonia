@@ -58,6 +58,7 @@ import { RELIGION_MODELS, RELIGION_PARTS } from './models/religion.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
+import { buildVesselPart } from './ships/hulls.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -162,6 +163,8 @@ export const MODEL_PARTS = Object.freeze({
   gstock: Object.freeze({ build: buildGranaryPart }),
   // The temples' shared bodies, columns and smoke (models/religion.js).
   ...RELIGION_PARTS,
+  // The ships' hulls, yards and sails, a cast net, a basket of the catch, a wreck's debris (ships/hulls.js).
+  vessel: Object.freeze({ build: buildVesselPart }),
 });
 
 /** The builder of a kit's key: a building type's (MODELS) or a part's (MODEL_PARTS). */

@@ -32,12 +32,14 @@
  *             once it is loosed)
  *   crank     a windlass's crank, turned about its axle by clips.js windlass
  *   shears    a gardener's spring shears
+ *   sweep     a ship's long oar (clips.js ROW_SHIP), rocked about its thole
+ *             by clips.js rowShip
  * ----------------------------------------------------------------------------
  */
 
 import { Mesher, SLOTS, rigid } from './mesher.js';
 import { BONE, BONES } from './rig.js';
-import { ROW, WINDLASS, BOW } from './clips.js';
+import { ROW, ROW_SHIP, WINDLASS, BOW } from './clips.js';
 
 const TAU = Math.PI * 2;
 
@@ -295,6 +297,14 @@ const PROPS = {
     for (const s of [1, -1]) boxAt(m, [s * 0.008, 0.11, 0], 0.012, 0.12, 0.004, SLOTS.IRON, b, 1.1);
     for (const s of [1, -1]) boxAt(m, [s * 0.012, 0.01, 0], 0.008, 0.1, 0.006, SLOTS.IRON, b, 0.85);
     lathe(m, [0, -0.045, 0], [0, -1, 0], [[0.016, 0], [0.012, 0.012]], Math.max(4, SEG[lod] - 4), SLOTS.IRON, b, { tone: () => 0.8 });
+  },
+  sweep(m, lod, b) {
+    // A ship's oar (clips.js ROW_SHIP): from the handle's end along +y, the grip worn dark, the loom
+    // thick at the thole, the shaft tapering out to a long narrow blade, flat in the bone's x.
+    const L = ROW_SHIP.oar;
+    const I = ROW_SHIP.inboard;
+    lathe(m, [0, 0, 0], [0, 1, 0], [[0.02, 0], [0.021, 0.02], [0.021, 0.26], [0.034, I - 0.06], [0.038, I + 0.12], [0.03, I + 0.4], [0.022, L - 0.62]], SEG[lod], SLOTS.WOOD, b, { tone: (i) => (i < 3 ? 0.66 : 1) });
+    boxAt(m, [0, L - 0.33, 0], 0.15, 0.66, 0.018, SLOTS.WOOD, b, 0.88);
   },
 };
 

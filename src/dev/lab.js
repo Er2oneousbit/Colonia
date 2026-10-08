@@ -55,6 +55,8 @@
  * (the Walkers scene, labWalkers.js: the = key, every walker type as the
  * WebGL renderer draws it in 3D, each on a loop of road, with
  * walkers.closeUp(i), walkers.loops, walkers.stats(), walkers.setLod(n)).
+ * (the Ships scene, labShips.js: Shift+B, every vessel in 3D on the game's water, with
+ * ships.closeUp(i), ships.where(i), ships.ships, ships.stats(), ships.setLod(n)).
  * ----------------------------------------------------------------------------
  */
 
@@ -88,6 +90,7 @@ import { buildGovernmentScene } from './labGovernment.js';
 import { buildTemplesScene } from './labTemples.js';
 import { buildPeopleScene } from './labPeople.js';
 import { buildWalkersScene } from './labWalkers.js';
+import { buildShipsScene } from './labShips.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -338,6 +341,8 @@ async function main() {
   commerce.people = buildPeopleScene();
   // The Walkers scene (labWalkers.js, the = key): every walker type drawn in 3D, each on its loop of road.
   commerce.walkers = buildWalkersScene();
+  // The Ships scene (labShips.js, Shift+B): every vessel drawn in 3D on the game's water, under sail, rowing and moored.
+  commerce.ships = buildShipsScene(groundTex, look);
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -459,6 +464,7 @@ async function main() {
   grounds.push(woods.ground);
   harbour = harbourScenes({ scene, look, groundTex, group, el, app });
   grounds.push(...harbour.grounds);
+  grounds.push(commerce.ships.ground);
   // The commerce scenes' labels, one over each building.
   const cLabels = el('div', { class: 'cardlabels' });
   app.appendChild(cLabels);
@@ -736,6 +742,11 @@ async function main() {
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
+    // Shift+B: the Ships scene (B alone is the hundred wells).
+    if (e.shiftKey && k === 'b') {
+      setScene('ships');
+      return;
+    }
     const moods = Object.keys(MOODS);
     if (k >= '1' && k <= String(moods.length)) setMood(moods[Number(k) - 1]);
     else if (k === 'q') setTurn(state.turn - 1);
@@ -790,7 +801,7 @@ async function main() {
   /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
   function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
     // (The People scene's figures, or the Walkers scene's loops when it is the one shown.)
-    const f = (state.scene === 'walkers' ? commerce.walkers : commerce.people).figures[i];
+    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : commerce.people).figures[i];
     if (!f) {
       setView('game1');
       return;
@@ -1028,6 +1039,14 @@ async function main() {
       get loops() { return commerce.walkers.figures.map((f) => ({ ...f })); },
       where: (i) => commerce.walkers.where(i),
       stats: () => commerce.walkers.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Ships scene (labShips.js): a ship close up, where each is, the pass's stats, the level of detail. */
+    ships: {
+      closeUp: (i, o) => closeUp(i, o),
+      get ships() { return commerce.ships.ships.map((s) => ({ ...s })); },
+      where: (i) => commerce.ships.where(i),
+      stats: () => commerce.ships.stats(),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */

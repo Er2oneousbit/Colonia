@@ -66,7 +66,7 @@ import {
   DoubleSide, Box2, Vector2,
 } from 'three';
 import { HALF_W, HALF_H, CONFIG } from '../config.js';
-import { K_STRIP, spriteRect } from '../render/items.js';
+import { K_STRIP, K_WALKER, K_UNIT, spriteRect } from '../render/items.js';
 import { makeCanvas } from '../render/sprites.js';
 import { hasModel, MODELS, TILE_M, modelLamps } from './models.js';
 import { liveBox } from './liveBox.js';
@@ -87,6 +87,7 @@ import { drawGulls } from '../render/waterArt.js';
 import { AutoScale, startRung, fixedScale } from './renderScale.js';
 import { gpuOf, isSoftwareGpu } from '../render/perf.js';
 import { WalkerPass } from './walkers/pass.js';
+import { ShipPass } from './ships/pass.js';
 
 /** The 2D canvas's background (Renderer.render fills it first). */
 const BACKGROUND = 0x2a241c;
@@ -203,6 +204,7 @@ export class WebGLBackend {
       this.models.lose();
       this.flora.lose();
       this.walkers.restored();
+      this.ships.restored();
     }, false);
     this.canvas.addEventListener('webglcontextrestored', () => {
       this.lost = false;
@@ -231,6 +233,15 @@ export class WebGLBackend {
     this.drawsWalkers = false;
     this.walkersOn = true;
     this.models.extra = (mp, lod) => this.walkers.placeLoads(mp, lod);
+    // The ships and boats in 3D (ships/pass.js): hulls and sails as the model pass's kits, crews of the people system.
+    this.ships = new ShipPass(this.rig.modelSlot);
+    this.drawsShips = false;
+    this.shipsOn = true;
+    const walkersExtra = this.models.extra;
+    this.models.extra = (mp, lod) => {
+      walkersExtra(mp, lod);
+      if (this.drawsShips) this.ships.placeKits(mp, lod);
+    };
     this.lastBegin = 0;
     // The trees and rocks as models (flora/floraPass.js), with the 3D ground: `drawsFlora` tells the
     // renderer to leave their sprites out this frame.
@@ -451,6 +462,10 @@ export class WebGLBackend {
     if (this.models.ready && this.walkersOn) this.walkers.warm(this.gl, this.camera, this.rig.scene, (fn) => this.rig.withOutput(fn));
     this.drawsWalkers = this.walkersOn && this.models.ready && this.walkers.compiled;
     if (this.drawsWalkers) this.walkers.begin(cam.scale, r.motionOn ? r.time || 0 : 0, dt);
+    // The ships in 3D: once the models draw and the crews' programs are compiled.
+    if (this.models.ready && this.shipsOn) this.ships.warm(this.gl, this.camera, this.rig.scene, (fn) => this.rig.withOutput(fn));
+    this.drawsShips = this.shipsOn && this.models.ready && this.ships.compiled;
+    if (this.drawsShips) this.ships.begin(r, r.motionOn ? r.time || 0 : 0, dt);
   }
 
   /** Can walker `w` be drawn as a 3D person this frame (walkers/pass.js canDraw)? `ctx`: its cart's sender, its venue. */
@@ -632,6 +647,10 @@ export class WebGLBackend {
     for (const it of items) {
       if (it.kind === K_STRIP) {
         this.sprite(it.spr, it.wx, it.wy, it.d, it.full ? 0 : it.j, it.full ? 0 : it.n, it.alpha || 1);
+      } else if (this.drawsShips && (it.kind === K_WALKER || it.kind === K_UNIT) && !it.ringOnly && this.ships.take(it)) {
+        // A ship or boat drawn in 3D (ships/pass.js): only its marks (the selected one's ring, a warship's health) as live art.
+        const mk = this.ships.marks;
+        if (mk) this.live(mk.draw, mk.box, it.d);
       } else {
         this.live((ctx) => r.drawLive(ctx, it), liveBox(it, cam), it.d);
       }
@@ -797,10 +816,13 @@ export class WebGLBackend {
     let walkers = 0;
     if (this.drawsWalkers) walkers = this.walkers.end();
     else this.walkers.hide();
+    let ships = 0;
+    if (this.drawsShips) ships = this.ships.end();
+    else this.ships.hide();
     const built = this.models.update(r, this.placed, lodFor(this.groundMode === 'low' ? cam.scale / 2 : cam.scale), this.ghosts);
     // The trees and rocks in view (or, while they cannot draw yet, their kits and programs prepared).
     const flora = this.flora.update(r, this.camera, this.drawsFlora, this.groundMode);
-    const models = built + flora + walkers;
+    const models = built + flora + walkers + ships;
     if (this.drawsGround || models || this.ghosts.length) {
       const vw = cam.viewW / cam.scale;
       const vh = cam.viewH / cam.scale;
@@ -812,6 +834,7 @@ export class WebGLBackend {
       this.models.setCasting(shadows);
       this.flora.setCasting(shadows);
       this.walkers.setCasting(shadows);
+      this.ships.setCasting(shadows);
     }
     if (this.drawsGround) {
       const gp = this.groundPass;
@@ -846,6 +869,8 @@ export class WebGLBackend {
     st.modelPass = this.models.stats;
     // (The walkers drawn as 3D people: how many, their figures, draws, triangles, writes, CPU ms.)
     st.walkers3d = this.drawsWalkers ? this.walkers.stats : null;
+    // (The ships drawn in 3D: how many, their kits, crews, wrecks, CPU ms.)
+    st.ships3d = this.drawsShips ? this.ships.stats : null;
     st.flora = this.drawsFlora ? flora : 0;
     st.floraPass = this.flora.stats;
     st.drawCalls = gl.info.render.calls;
@@ -875,6 +900,7 @@ export class WebGLBackend {
     this.geometry.dispose();
     this.models.dispose();
     this.walkers.dispose();
+    this.ships.dispose();
     this.flora.dispose();
     resetFloraMaterials();
     if (this.groundPass) this.groundPass.dispose();

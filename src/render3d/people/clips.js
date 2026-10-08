@@ -121,6 +121,20 @@ export const ROW = Object.freeze({ seat: 0.34, out: 0.42, up: 0.82, ahead: 0.3, 
  */
 export const BEAT = Object.freeze({ height: 0.92, ahead: 0.48, side: -0.14 });
 
+/**
+ * A ship's rowing bench (rowShip, rowShipRight): as ROW, but the thole close
+ * over the seat (on the gunwale or an oar box) and a long sweep (props.js
+ * sweep, `oar` long, `inboard` of it inside the thole) dipped `dip` (rad,
+ * the handle up) through the drive and `lift` through the recovery, so its
+ * blade goes deep into the water and comes out clear of it on a hull whose
+ * thole stands a little over the waterline (ships/: the hulls put their
+ * tholes there).
+ */
+export const ROW_SHIP = Object.freeze({ seat: 0.38, out: 0.62, up: 0.58, ahead: 0.2, inboard: 0.6, oar: 3.0, brace: 0.55, dip: 0.32, lift: -0.02 });
+
+/** The line a hauler pulls in (haul a line): where his hands reach out to along it, in his frame. */
+export const HAUL = Object.freeze({ reach: Object.freeze([0, 0.62, 0.62]) });
+
 /** A windlass's axle (windlass): along x, `ahead` of the man and `height` up, its crank `arm` long, at `x`. */
 export const WINDLASS = Object.freeze({ ahead: 0.44, height: 1.0, arm: 0.24, x: 0.18 });
 
@@ -1139,7 +1153,73 @@ export const CLIPS = Object.freeze({
       fingers(P, -1, 0.4);
     },
   },
+  // The ships' rowers (ships/: the liburnian's and the raiders' benches, a fishing boat's oars): rowing at a
+  // ship's bench (ROW_SHIP), the sweep out on his left, and on his right. Their loop is the ship's stroke,
+  // its clock the ship's own (the distance it rows), so every bench pulls together.
+  rowShip: { dur: 2.4, fps: 15, pose(P, t) { rowShipPose(P, t, 1); } },
+  rowShipRight: { dur: 2.4, fps: 15, pose(P, t) { rowShipPose(P, t, -1); } },
+  // Hauling a line hand over hand (HAUL): a fisherman's net over the side, a sailor's sheet.
+  haulLine: { dur: 2.4, fps: 15, pose(P, t) { haulPose(P, t); } },
 });
+
+/**
+ * A ship's rower's stroke (ROW_SHIP), the oar on side `so` (+1 his left):
+ * rowPose's stroke at a ship's bench, the thole close over the seat and the
+ * long sweep steeply down into the water through the drive (the handle at
+ * his chest), the handle pressed down to the knees at the finish so the
+ * blade comes out and rides clear over the water through the recovery.
+ */
+function rowShipPose(P, t, so) {
+  const a = track(t, [[0, 0.5], [0.08, 0.46], [0.42, -0.4], [0.5, -0.42], [0.62, -0.28], [0.92, 0.5], [0.97, 0.51]]);
+  const q = track(t, [[0, ROW_SHIP.dip], [0.42, ROW_SHIP.dip], [0.5, ROW_SHIP.lift], [0.9, ROW_SHIP.lift], [0.97, ROW_SHIP.dip]]);
+  const feather = track(t, [[0, 0], [0.44, 0], [0.52, 1], [0.88, 1], [0.95, 0]]);
+  const lean = track(t, [[0, 0.4], [0.08, 0.36], [0.42, -0.25], [0.5, -0.22], [0.62, -0.05], [0.92, 0.4]]);
+  P.root(0, ROW_SHIP.seat + 0.1 - 0.95, -0.03, lean * 0.55, 0, 0);
+  P.rot('spine', 0.04 + lean * 0.35, 0, 0);
+  P.rot('chest', lean * 0.15, -so * 0.07, 0);
+  for (const s of [1, -1]) P.foot(s, s * 0.13, 0.11, ROW_SHIP.brace, -0.35, s * 0.1, { pole: [s * 0.1, 1, 0.6] });
+  const thole = [so * ROW_SHIP.out, ROW_SHIP.up, ROW_SHIP.ahead];
+  const L = ROW_SHIP.inboard;
+  const handle = [thole[0] - so * L * Math.cos(a) * Math.cos(q), thole[1] + L * Math.sin(q), thole[2] + L * Math.sin(a) * Math.cos(q)];
+  propAlong(P, -1, handle, thole, so * (Math.PI / 2) * (1 - feather));
+  const inner = along(handle, thole, 0.04);
+  const outer = along(handle, thole, 0.26);
+  const hi = so > 0 ? -1 : 1;
+  P.hand(hi, inner[0], inner[1] - 0.02, inner[2] - 0.03, { pole: [hi * 0.7, -0.6, -0.3] });
+  P.hand(-hi, outer[0], outer[1] - 0.02, outer[2] - 0.03, { pole: [-hi * 0.7, -0.6, -0.3] });
+  for (const s of [1, -1]) {
+    P.rot(s > 0 ? 'handL' : 'handR', 0, 0, s * 1.3);
+    fingers(P, s, 0.95);
+  }
+  P.rot('neck', -0.1 * lean, 0, 0);
+  P.rot('head', -0.15 * lean, 0, 0);
+}
+
+/**
+ * Hauling a line hand over hand (HAUL): braced, leaning over it, each hand in
+ * turn reaching out and down along the line to `reach`, gripping and pulling
+ * it in to the chest, the body rocking back with each pull. A fisherman
+ * hauling his net over the side, a sailor sweating up a sheet.
+ */
+function haulPose(P, t) {
+  stand(P, t, { shift: 0.2, ph: 0.4, look: 0.15, lean: 0.22, feet: 0.16 });
+  // Two pulls a loop, one a hand.
+  const rock = 0.5 + 0.5 * cs(t, 2);
+  P.rot('spine', 0.16 + 0.12 * rock, 0, 0);
+  P.rot('chest', 0.05 * rock, 0, 0);
+  for (const s of [1, -1]) {
+    const ph = s > 0 ? 0 : 0.5;
+    // Out along the line, then gripping and in: a saw of the hand between `reach` and the chest.
+    const k = saw(((t + ph) % 1));
+    const out = [s * 0.06, HAUL.reach[1], HAUL.reach[2]];
+    const chest = [s * 0.12, 1.08, 0.24];
+    P.hand(s, lerp(out[0], chest[0], k), lerp(out[1], chest[1], k), lerp(out[2], chest[2], k), { pole: [s * 0.8, -0.5, -0.3] });
+    P.rot(s > 0 ? 'handL' : 'handR', 0.3, 0, s * 0.8);
+    fingers(P, s, 0.5 + 0.45 * k);
+  }
+  P.rot('neck', 0.18, 0, 0);
+  P.rot('head', 0.12, 0, 0);
+}
 
 /**
  * A rower's stroke (ROW), the oar on side `so` (+1 his left). The oar turns
