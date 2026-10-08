@@ -52,6 +52,7 @@ export class PeopleBatch {
     this.group.userData.opaque = true;
     parent.add(this.group);
     this.pieces = new Map(); // `${key}|${lod}` -> { geometry, mesh, n, seen, key, lod, ms }
+    this.byId = []; // the frame's level's pieces by their number (actors.js pieceId)
     this.list = []; // this frame's [cast, matrix, seed]
     this.used = 0;
     this.sig = 0;
@@ -65,6 +66,7 @@ export class PeopleBatch {
   /** Start a frame at level `lod`; `buildUntil` the time (performance.now()) building must stop by. */
   begin(lod, buildUntil = 0) {
     this.frame++;
+    if (lod !== this.lod) this.byId = [];
     this.lod = lod;
     this.buildUntil = buildUntil;
     this.builtThisFrame = false;
@@ -118,8 +120,8 @@ export class PeopleBatch {
         // Each building its own phases and a speed a little its own, from its seed: two alike never move in step.
         const ph = ((seed * 0.6180339 + a.index * 0.3819660) % 1) * 61;
         const sp = 0.94 + ((seed * 0.7548777 + a.index * 0.5698403) % 1) * 0.12;
-        for (const key of a.pieces) {
-          const p = this.pieceFor(key, this.lod);
+        for (let k = 0; k < a.pieces.length; k++) {
+          const p = this.byId[a.pieceIds[k]] || this.pieceFor(a.pieces[k], this.lod, a.pieceIds[k]);
           if (!p) continue;
           const i = p.n;
           if (i >= p.room) this.grow(p, i + 1);
@@ -144,6 +146,8 @@ export class PeopleBatch {
       p.mesh.visible = n > 0;
       if (!n) continue;
       p.seen = this.frame;
+      // (Far out a person's shadow is a few pixels: no shadow draw for the far level, half the draws.)
+      p.mesh.castShadow = this.casting && p.lod < 2;
       draws++;
       tris += n * p.tris;
       const im = p.mesh.instanceMatrix;
@@ -165,10 +169,14 @@ export class PeopleBatch {
   }
 
   /** A piece at a level, built the first time (within the frame's budget, else another level's). */
-  pieceFor(key, lod) {
+  pieceFor(key, lod, num = -1) {
     const id = `${key}|${lod}`;
     let p = this.pieces.get(id);
-    if (p) return p;
+    if (p) {
+      // (Found by its number next time, while this level is the frame's.)
+      if (num >= 0 && p.lod === this.lod) this.byId[num] = p;
+      return p;
+    }
     if (this.buildUntil) {
       for (const l of [lod + 1, lod - 1, lod + 2, lod - 2]) {
         const o = this.pieces.get(`${key}|${l}`);
@@ -190,6 +198,7 @@ export class PeopleBatch {
     Object.assign(p, { key, lod, seen: this.frame, ms: performance.now() - t0, tris: geometry.index.count / 3 });
     this.pieces.set(id, p);
     this.builtThisFrame = true;
+    if (num >= 0 && lod === this.lod) this.byId[num] = p;
     return p;
   }
 
@@ -242,7 +251,7 @@ export class PeopleBatch {
   /** Cast shadows or not (the sun's shadow map on or off). */
   setCasting(on) {
     this.casting = on;
-    for (const p of this.pieces.values()) p.mesh.castShadow = on;
+    for (const p of this.pieces.values()) p.mesh.castShadow = on && p.lod < 2;
   }
 
   /** Hide everyone (a frame with no models drawn). */
@@ -263,6 +272,7 @@ export class PeopleBatch {
     p.geometry.dispose();
     p.base.dispose();
     this.pieces.delete(id);
+    this.byId = [];
   }
 
   dispose() {

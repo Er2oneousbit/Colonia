@@ -101,6 +101,17 @@ function clipFor(name, toga) {
 
 let NEXT_ID = 1;
 
+/** A number for every piece key named so far (the batch's index of its meshes). */
+const PIECE_IDS = new Map();
+export function pieceId(key) {
+  let id = PIECE_IDS.get(key);
+  if (id === undefined) {
+    id = PIECE_IDS.size;
+    PIECE_IDS.set(key, id);
+  }
+  return id;
+}
+
 /**
  * Pack an actor spec (see the header): { pieces, local, clip, route, col0,
  * col1, misc, index, at, ry, reach } (Float32Arrays where the batch copies).
@@ -162,6 +173,8 @@ export function pack(spec, index = 0) {
   return Object.freeze({
     index,
     pieces: Object.freeze(pieces),
+    // (Each piece's number: the batch finds its meshes by it, with no string made a frame.)
+    pieceIds: new Int32Array(pieces.map(pieceId)),
     local: new Float32Array(local.elements),
     clip: new Float32Array([c, phase, speed, pauses]),
     route: r,

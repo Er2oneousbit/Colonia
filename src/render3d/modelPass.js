@@ -363,6 +363,7 @@ export class ModelPass {
     this.buildUntil = performance.now() + BUILD_MS;
     this.deferred = 0;
     const scale = r.camera ? r.camera.scale : 1;
+    let peopleMs = 0;
     this.people.begin(peopleLodFor(scale), this.buildUntil);
     for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
     const byType = {};
@@ -385,10 +386,17 @@ export class ModelPass {
         }
       }
       // Its people: their cast at the building's matrix (written to the GPU only when the set changes).
-      if (v.actors && this.peopleOn) this.people.add(v.actors, _m, seedOf(m.b));
+      if (v.actors && this.peopleOn) {
+        const t0 = performance.now();
+        this.people.add(v.actors, _m, seedOf(m.b));
+        peopleMs += performance.now() - t0;
+      }
       byType[m.b.type] = (byType[m.b.type] || 0) + 1;
     }
+    const tp = performance.now();
     this.people.end();
+    // (The people's CPU a frame: gathering the casts, and writing them when the set changed.)
+    peopleMs += performance.now() - tp;
     for (const g of ghosts) this.placeGhost(g, lod);
     this.prefetch(lod);
     this.buildUntil = 0;
@@ -414,7 +422,7 @@ export class ModelPass {
     }
     const ps = this.people.stats;
     tris += ps.triangles;
-    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod, deferred: this.deferred + ps.deferred, people: ps.people, peopleDraws: ps.draws, peopleLod: this.people.lod };
+    this.stats = { kits: this.kits.size, triangles: Math.round(tris), drawn: placed.length, byType, lod, deferred: this.deferred + ps.deferred, people: ps.people, peopleDraws: ps.draws, peopleLod: this.people.lod, peopleMs };
     return placed.length;
   }
 
