@@ -517,13 +517,13 @@ export function bridgeSpan(map, fx, fy, onWater, turn = 0) {
   return onWater ? { d: deck - 0.004, lift: 0 } : { d: deck + 0.004, lift: deckLift(map, fx, fy, feet) };
 }
 
+/** A facing (N E S W, as the view sees it) as a step in the view's tiles. */
+const FACING = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
 /**
  * How far ahead of a carter (world px, at zoom 1) his cart reaches: a hand
  * cart's far end, or a farm wagon and its ox (walkerArt.js drawCart).
  */
-/** A facing (N E S W, as the view sees it) as a step in the view's tiles. */
-const FACING = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-
 export function cartReach(originDef) {
   return isWagon(originDef) ? 30 : 15;
 }
@@ -1197,7 +1197,7 @@ export class Renderer {
       // of what the eye sees: clicks on it pick the carter (cartReach).
       // (Its depth goes with the spot: a click asks what was drawn over it, coverDepthAt.)
       const d = span.d ?? fd + 0.003;
-      if (w3 && this.walker3d(w, be, { fx, fy, lift: span.lift, stride, vt, W: map.w, H: map.h, aim: aimTiles }, origin, sdx, sdy, last, wx, wy, d)) {
+      if (w3 && this.walker3d(w, be, Object.assign(this.walkerAt, { fx, fy, lift: span.lift, stride, vt, W: map.w, H: map.h, aim: aimTiles }), origin, sdx, sdy, last, wx, wy, d)) {
         const it = { d, kind: K_WALKER, w, wx, wy, stride, origin, dirX, dirY: Math.sign(ddy), aim, clipY: null };
         this.walkers3d.push(it);
         // (Its figure is the GPU's; the ring at the feet of the selected one is still painted.)

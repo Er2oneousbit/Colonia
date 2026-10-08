@@ -135,6 +135,9 @@ export class WalkerMotion {
     this.frame++;
     this.time = time;
     this.dt = Math.max(0, Math.min(0.25, dt || 0));
+    // A clock of real seconds for the fades and the moving flag's hold: the look's clock stands at 0
+    // with reduced motion, and a fade timed by it would never end.
+    this.clock = (this.clock || 0) + this.dt;
   }
 
   /** Forget the walkers not seen for a while. */
@@ -190,11 +193,12 @@ export class WalkerMotion {
     s.lastStride = at.stride;
     const step = d * TILE_M;
     s.odo += step;
-    if (w.moving && step > 0) s.movedAt = this.time;
+    if (w.moving && step > 0) s.movedAt = this.clock;
     // (Held a moment: a stop of a tick on a tile is not a stop.)
-    const moving = w.moving || this.time - s.movedAt < MOVING_HOLD;
+    const moving = w.moving || this.clock - s.movedAt < MOVING_HOLD;
     if (target !== undefined) {
-      const k = step > 0 ? 1 - Math.exp(-step / TURN_M) : 1 - Math.exp(-this.dt / TURN_S);
+      // Walking, the turn by the ground covered (none while paused); standing, by time (a prefect to his fire).
+      const k = step > 0 ? 1 - Math.exp(-step / TURN_M) : w.moving ? 0 : 1 - Math.exp(-this.dt / TURN_S);
       s.yaw = turnToward(s.yaw, target, k);
     }
     // His trail: a point every TRAIL_STEP walked, the oldest dropped. Put somewhere far from where he
@@ -218,7 +222,6 @@ export class WalkerMotion {
     const lead = { x, y, z, yaw: s.yaw };
     const F = look.figures;
     const places = this.places || (this.places = []);
-    places.length = 0;
     for (let k = 0; k < F.length; k++) {
       const f = F[k];
       const st = s.figs[k];
@@ -247,7 +250,9 @@ export class WalkerMotion {
         fz = _p[2] - Math.sin(fyaw) * (pl.side || 0);
         fy = _p[1];
       }
-      places.push({ x: fx, y: fy, z: fz, yaw: fyaw, odo });
+      // (The places reused frame to frame: no object a figure a frame.)
+      const pk = places[k] || (places[k] = { x: 0, y: 0, z: 0, yaw: 0, odo: 0 });
+      pk.x = fx; pk.y = fy; pk.z = fz; pk.yaw = fyaw; pk.odo = odo;
     }
     // Facing another figure (a wagon its ox: its pole on the yoke), then the ropes between figures.
     for (let k = 0; k < F.length; k++) {
@@ -293,12 +298,12 @@ export class WalkerMotion {
           if (st.clip >= 0) {
             st.prev = st.clip;
             st.prevT = st.t;
-            st.fadeAt = this.time;
+            st.fadeAt = this.clock;
           }
           st.clip = clip;
         }
         st.t = t;
-        const u = Math.min(1, Math.max(0, (this.time - st.fadeAt) / FADE));
+        const u = Math.min(1, Math.max(0, (this.clock - st.fadeAt) / FADE));
         const fade = st.prev < 0 ? 1 : u * u * (3 - 2 * u);
         out[o + 4] = clip; out[o + 5] = t; out[o + 6] = st.prev < 0 ? clip : st.prev; out[o + 7] = st.prevT;
         out[o + 8] = fade; out[o + 9] = 0; out[o + 10] = 0; out[o + 11] = st.mv;

@@ -250,7 +250,8 @@ export class WalkerPass {
     for (let r = 0; r < rows; r++) tex.addUpdateRange(r * FIGURES_ROW * FIGURE_FLOATS, Math.min(FIGURES_ROW, base - r * FIGURES_ROW) * FIGURE_FLOATS);
     if (rows) tex.needsUpdate = true;
     if (this.frame % 120 === 0) {
-      for (const [id, p] of this.pieces) if (this.frame - p.seen > KEEP_FRAMES) this.drop(id);
+      // (A piece drawn now is in use however long since the set was last written: a still view writes nothing.)
+      for (const [id, p] of this.pieces) if (p.n === 0 && this.frame - p.seen > KEEP_FRAMES) this.drop(id);
       for (const id of this.looks.keys()) if (!this.motion.states.has(id)) this.looks.delete(id);
     }
     this.stats.walkers = this.used;
@@ -438,7 +439,10 @@ export class WalkerPass {
    */
   warm(gl, camera, scene, withOutput) {
     if (this.warming) return this.warming;
+    // (A compile started before a lost context must not count as this one.)
+    const gen = this.warmGen = (this.warmGen || 0) + 1;
     const g = buildPiece('body:m', 2);
+    this.proxyBase = g;
     this.proxies = [walkerMaterial(), walkerDepthMaterial('depth')].map((mat) => {
       const p = this.make(g, 1);
       p.mesh.material = mat;
@@ -460,7 +464,7 @@ export class WalkerPass {
     } finally {
       gl.setRenderTarget(prev);
     }
-    const done = () => { this.compiled = true; };
+    const done = () => { if (gen === this.warmGen) this.compiled = true; };
     this.warming = Promise.all([a, b]).then(done, done);
     return this.warming;
   }
@@ -468,6 +472,7 @@ export class WalkerPass {
   /** The context was lost: compile again when it is back. */
   restored() {
     this.compiled = false;
+    this.warmGen = (this.warmGen || 0) + 1;
     this.warming = null;
     this.disposeProxies();
   }
@@ -476,8 +481,11 @@ export class WalkerPass {
     for (const m of this.proxies || []) {
       m.removeFromParent();
       m.dispose();
+      m.geometry.dispose();
     }
     this.proxies = null;
+    if (this.proxyBase) this.proxyBase.dispose();
+    this.proxyBase = null;
     if (this.target) this.target.dispose();
     this.target = null;
   }

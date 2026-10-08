@@ -209,7 +209,8 @@ test('walkers3d: a prefect runs to a fire and throws water at it; stopping fades
   assert.equal(r.out[4], CLIP_INDEX.douse);
   assert.equal(r.out[6], CLIP_INDEX.run, 'faded from the run');
   assert.ok(r.out[8] < 0.05, 'the fade starts');
-  r = place(motion, w, look, 0, 0, 2 + FADE + 0.01);
+  r = place(motion, w, look, 0, 0, 2 + FADE + 0.01, Math.min(0.25, FADE));
+  r = place(motion, w, look, 0, 0, 2 + FADE + 0.02, 0.1);
   assert.equal(r.out[8], 1, 'the fade done');
 });
 
@@ -299,4 +300,55 @@ test('walkers3d: a click on a 3D walker\'s cart picks him, whichever way the car
     assert.equal(pick(100 + rx, 100 + ry - 4), 5, `the cart's far end (${rx}, ${ry})`);
     assert.equal(pick(100 - rx, 100 - ry - 4), 0, `not the other way (${rx}, ${ry})`);
   }
+});
+
+test('walkers3d: with reduced motion (the look\'s clock held at 0) fades still finish and a stopped walker stands', () => {
+  const motion = new WalkerMotion();
+  const w = walker('prefect', { state: 'toFire' });
+  const look = walkerLook(w);
+  const out = new Float32Array(FIGURE_FLOATS);
+  const at = { ...walkerWorld(w, 0), lift: 0, stride: w.walked, vt: 0, W: 60, H: 50, aim: null };
+  for (let k = 0; k < 3; k++) {
+    w.walked += 0.01;
+    motion.begin(0, 1 / 60);
+    motion.place(w, look, { ...at, stride: w.walked }, out, 0);
+  }
+  w.moving = false;
+  w.state = 'extinguish';
+  for (let k = 0; k < 60; k++) {
+    motion.begin(0, 1 / 60);
+    motion.place(w, look, { ...at, stride: w.walked }, out, 0);
+  }
+  assert.equal(out[4], CLIP_INDEX.douse, 'he stands and throws');
+  assert.equal(out[8], 1, 'the fade done');
+});
+
+test('walkers3d: paused mid-corner, a walker does not turn; a still view keeps its pieces', () => {
+  const motion = new WalkerMotion();
+  const w = walker('teacher');
+  const look = walkerLook(w);
+  const out = new Float32Array(FIGURE_FLOATS);
+  const at = { ...walkerWorld(w, 0), lift: 0, stride: w.walked, vt: 0, W: 60, H: 50, aim: null };
+  motion.begin(0, 1 / 60);
+  motion.place(w, look, at, out, 0);
+  const yaw = out[3];
+  // His next step turns north, but the game is paused: nothing walked.
+  w.tx = w.x; w.ty = w.y - 1;
+  for (let k = 0; k < 30; k++) {
+    motion.begin(k / 60, 1 / 60);
+    motion.place(w, look, at, out, 0);
+  }
+  assert.equal(out[3], yaw, 'no turn while paused');
+  // A still view for longer than the pieces' keep: none freed while drawn.
+  const pass = new WalkerPass(new Group());
+  const v = walker('barber', { id: 30 });
+  for (let k = 0; k < 1300; k++) {
+    pass.begin(2, k / 60, 1 / 60);
+    if (pass.canDraw(v, {})) pass.add(v, { ...walkerWorld(v, 0), lift: 0, stride: v.walked, vt: 0, W: 60, H: 50, aim: null }, {});
+    pass.end();
+  }
+  assert.equal(pass.stats.walkers, 1);
+  assert.ok([...pass.pieces.values()].filter((p) => p.n > 0).length >= 3, 'still drawn');
+  assert.ok(pass.stats.writes <= 4, `written ${pass.stats.writes} times`);
+  pass.dispose();
 });
