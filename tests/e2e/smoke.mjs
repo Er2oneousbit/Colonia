@@ -5000,7 +5000,9 @@ try {
         const d = r.composedImage().data;
         const seen = new Set();
         for (let i = 0; i < d.length; i += 4 * 997) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]);
-        return { ground: r.stats.ground, backend: r.stats.backend, colours: seen.size, redraws: r.stats.groundRedraws, objects: r.stats.objects };
+        // (The city's things: its sprites and its 3D models. A building drawn as a model has no sprite
+        // in the list, so with the demo city's temples drawn as models the sprites alone fell under 50.)
+        return { ground: r.stats.ground, backend: r.stats.backend, colours: seen.size, redraws: r.stats.groundRedraws, objects: r.stats.objects + (r.stats.models || 0) };
       });
       if (shots) await gq.screenshot({ path: path.join(shots, 'smoke-ground3d.png') });
       check('3D ground: the console\'s "ground low" draws the 3D ground under the city', lowDrawn.ground === 'low' && lowDrawn.backend === 'webgl' && lowDrawn.colours > 50 && lowDrawn.redraws >= 1 && lowDrawn.objects > 50, JSON.stringify(lowDrawn));
