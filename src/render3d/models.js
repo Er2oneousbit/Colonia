@@ -54,6 +54,7 @@ import { EDUCATION_MODELS } from './models/education.js';
 import { DECOR_MODELS } from './models/decor.js';
 import { HEALTH_MODELS } from './models/health.js';
 import { GOVERNMENT_MODELS } from './models/government.js';
+import { RELIGION_MODELS, RELIGION_PARTS } from './models/religion.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -147,6 +148,8 @@ export const MODELS = Object.freeze({
   ...HEALTH_MODELS,
   // The senate house and the governor's residences (models/government.js says how).
   ...GOVERNMENT_MODELS,
+  // The temples, the oracle and the mission post (models/religion.js says how).
+  ...RELIGION_MODELS,
 });
 
 /**
@@ -157,6 +160,8 @@ export const MODELS = Object.freeze({
 export const MODEL_PARTS = Object.freeze({
   ...FARM_PARTS,
   gstock: Object.freeze({ build: buildGranaryPart }),
+  // The temples' shared bodies, columns and smoke (models/religion.js).
+  ...RELIGION_PARTS,
 });
 
 /** The builder of a kit's key: a building type's (MODELS) or a part's (MODEL_PARTS). */

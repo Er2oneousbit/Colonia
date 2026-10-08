@@ -47,6 +47,8 @@
  * the hospital, with commerceTriangles('health', lod)).
  * (the Government scene, labGovernment.js: 6, the senate house and the
  * governor's residences, with commerceTriangles('government', lod)).
+ * (the Temples scene, labTemples.js: 5, the temples, the oracle and the
+ * mission post, with commerceTriangles('temples', lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -77,6 +79,7 @@ import { buildMilitaryScene } from './labMilitary.js';
 import { buildLearningScene } from './labLearning.js';
 import { buildHealthScene } from './labHealth.js';
 import { buildGovernmentScene } from './labGovernment.js';
+import { buildTemplesScene } from './labTemples.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -321,6 +324,8 @@ async function main() {
   const commerce = { ...buildCommerceScenes(), ...buildWallsScene(), military: buildMilitaryScene(), learning: buildLearningScene(), health: buildHealthScene() };
   // The Government scene (labGovernment.js, 6): the senate house and the governor's residences.
   commerce.government = buildGovernmentScene();
+  // The Temples scene (labTemples.js, 5): the small and grand temples, the oracle, the mission post.
+  commerce.temples = buildTemplesScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -752,6 +757,7 @@ async function main() {
     else if (k === '9') setScene('water');
     else if (k === '0') setScene('gardens');
     else if (k === '6') setScene('government');
+    else if (k === '5') setScene('temples');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
