@@ -14,8 +14,8 @@
  *                     helmsman, the master, two sailors hauling on the
  *                     sheets; moored, the hands with sacks on their
  *                     shoulders and the master at the hatch
- *   fishing_boat      a fishing boat: out and home under sail (the helmsman
- *                     and two fishermen at ease), at the grounds the sail
+ *   fishing_boat      a fishing boat: out and home under sail, the two
+ *                     fishermen at the oars, the helmsman aft; at the grounds the sail
  *                     brailed up and the net out, one casting, one hauling,
  *                     the helmsman holding her; home with a basket of the
  *                     catch; moored, one man left aboard with the nets
@@ -79,7 +79,8 @@ export function vesselMode(e, moving) {
   if (t === 'fishing_boat') {
     if (e.state === 'fishing') return { mode: 'fishing', row: false, sail: false, net: true };
     if (e.state === 'moored' || e.state === 'spare') return { mode: 'moored', row: false, sail: false };
-    return { mode: 'sail', row: false, sail: true, catch: e.state === 'homeWithCatch' };
+    // (Out and home under its sail, and the two fishermen at the oars as well: a small boat's way.)
+    return { mode: 'sail', row: true, sail: true, catch: e.state === 'homeWithCatch' };
   }
   if (t === 'liburnian') {
     if (e.state === 'berthed' || e.state === 'training') return { mode: 'moored', row: false, sail: false };
@@ -182,8 +183,8 @@ export function crewOf(kind, m, { people = null, throwing = false } = {}) {
       list.push({ ...sailor(713), clip: 'haulLine', at: [0.12, P.point(0.42, 0.3)[1], at(kind, 0.42, 0, 0)[2]], ry: Math.PI / 2 });
       return list;
     }
-    list.push({ ...sailor(712), clip: 'sit', at: [0, on(P, 0.5) - 0.5, at(kind, 0.5, 0, 0)[2]], ry: Math.PI / 2 + 0.3 });
-    list.push({ ...sailor(713), clip: 'sit', at: [0, on(P, 0.3) - 0.5, at(kind, 0.3, 0, 0)[2]], ry: -Math.PI / 2 - 0.2 });
+    // Out and home: the two at the oars (or easy on their thwarts while it lies still).
+    list.push(...rowers(kind, P, m.row, 712, (sd) => sailor(sd)));
     return list;
   }
   if (kind === 'liburnian') {

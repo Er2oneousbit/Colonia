@@ -58,7 +58,9 @@ export const CREW_LOD_STEP = 1;
 /** Rome's red stripe on a liburnian's sail; the Punic purple. */
 const SAIL_STRIPE = Object.freeze({ liburnian: 0x8e1c14, punic: 0x4a1030 });
 /** Most vertices of the wakes' mesh (64 ships' worth). */
-const WAKE_VERTS = 64 * (WAKE_POINTS * 36 + 24);
+const WAKE_VERTS = 64 * (WAKE_POINTS * 9 + 12);
+/** Most indices of the wakes' mesh (six quads a row of the trail, four of the bow wave). */
+const WAKE_INDICES = 64 * (WAKE_POINTS * 36 + 24);
 
 const _m = new Matrix4();
 const _h = new Matrix4();
@@ -143,6 +145,10 @@ export class ShipPass {
       a.setUsage(DynamicDrawUsage);
       g.setAttribute(name, a);
     }
+    this.wakeIdx = new Uint16Array(WAKE_INDICES);
+    const ix = new BufferAttribute(this.wakeIdx, 1);
+    ix.setUsage(DynamicDrawUsage);
+    g.setIndex(ix);
     g.setDrawRange(0, 0);
     this.wake = new Mesh(g, withCM(() => material('ship-wake', { color: 0xf4f8f6, roughness: 0.5, opacity: 0.62, snow: 0, wet: 0 })));
     this.wake.name = 'ship-wakes';
@@ -569,9 +575,12 @@ export class ShipPass {
     const P = this.wakePos;
     const U = this.wakeUv;
     const C = this.wakeCol;
+    const I = this.wakeIdx;
     let n = 0;
+    let ni = 0;
+    // (Indexed: a vertex shared by the quads round it, so a frame sends a quarter of the floats.)
     const vert = (x, z, a) => {
-      if (n >= WAKE_VERTS) return;
+      if (n >= WAKE_VERTS) return 0;
       P[n * 3] = x;
       P[n * 3 + 1] = 0.02;
       P[n * 3 + 2] = z;
@@ -581,11 +590,12 @@ export class ShipPass {
       C[n * 4 + 1] = 1;
       C[n * 4 + 2] = 1;
       C[n * 4 + 3] = Math.max(0, Math.min(1, a));
-      n++;
+      return n++;
     };
     const quad = (a, b, c, e) => {
-      vert(...a); vert(...b); vert(...c);
-      vert(...a); vert(...c); vert(...e);
+      if (ni + 6 > WAKE_INDICES) return;
+      I[ni++] = a; I[ni++] = b; I[ni++] = c;
+      I[ni++] = a; I[ni++] = c; I[ni++] = e;
     };
     for (let k = 0; k < this.used; k++) {
       const rec = this.list[k];
@@ -604,6 +614,8 @@ export class ShipPass {
         pts.push({ x: w.x, z: w.z, dist: dd - half * 0.85 });
       }
       if (pts.length < 2) continue;
+      // (No room left for this ship's whole wake: the rest go without.)
+      if (n + pts.length * 9 + 12 > WAKE_VERTS || ni + pts.length * 36 + 24 > WAKE_INDICES) break;
       const len = pts[pts.length - 1].dist || 1;
       let prev = null;
       for (let i = 0; i < pts.length; i++) {
@@ -630,7 +642,7 @@ export class ShipPass {
           [-w - lw, 0], [-w, arm], [-w + lw, 0],
           [-cw, 0], [0, mid], [cw, 0],
           [w - lw, 0], [w, arm], [w + lw, 0],
-        ].map(([off, al]) => [p.x + sx * off, p.z + sz * off, al]);
+        ].map(([off, al]) => vert(p.x + sx * off, p.z + sz * off, al));
         if (prev) for (const j of [0, 1, 3, 4, 6, 7]) quad(prev[j], row[j], row[j + 1], prev[j + 1]);
         prev = row;
       }
@@ -647,16 +659,16 @@ export class ShipPass {
         const o2 = [st.x - fx * half * 0.2 + s * sx * (beam + 0.6 * v + 0.4), st.z - fz * half * 0.2 + s * sz * (beam + 0.6 * v + 0.4), 0];
         const tip = [bx, bz, a];
         const tipO = [bx + fx * 0.3 + s * sx * 0.25, bz + fz * 0.3 + s * sz * 0.25, 0];
-        quad(tip, m1, o1, tipO);
-        quad(m1, m2, o2, o1);
+        const [vt, v1, w1, v2, w2, vo] = [tip, m1, o1, m2, o2, tipO].map((q) => vert(...q));
+        quad(vt, v1, w1, vo);
+        quad(v1, v2, w2, w1);
       }
     }
     const g = this.wake.geometry;
-    g.setDrawRange(0, n);
-    for (const name of ['position', 'uv', 'color']) {
-      const a = g.getAttribute(name);
+    g.setDrawRange(0, ni);
+    for (const a of [g.getAttribute('position'), g.getAttribute('uv'), g.getAttribute('color'), g.index]) {
       a.clearUpdateRanges();
-      a.addUpdateRange(0, n * a.itemSize);
+      a.addUpdateRange(0, (a === g.index ? ni : n) * a.itemSize);
       a.needsUpdate = true;
     }
     if (n && !this.nWakeNorm) {
@@ -664,7 +676,7 @@ export class ShipPass {
       a.needsUpdate = true;
       this.nWakeNorm = true;
     }
-    this.wake.visible = n > 0;
+    this.wake.visible = ni > 0;
     this.nWake = n;
   }
 
