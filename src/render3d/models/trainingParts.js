@@ -120,8 +120,10 @@ export function lamps(p, m, list, lod) {
  * doorShut).
  */
 export function enclosure(out, { e, g0, g1, sides = null, h = 0.85, t = 0.24, seed = 1 }) {
-  const [s0, s1] = sides || [-e + 1, e];
-  const runs = [['x', -e, g0, e - t / 2], ['x', g1, e, e - t / 2], ['z', s0, s1, -e + t / 2], ['z', s0, s1, e - t / 2]];
+  // (`sides` one run for both, or { l, r } a run each: a side closed by the building for part of its length.)
+  const [l0, l1] = (sides && sides.l) || sides || [-e + 1, e];
+  const [r0, r1] = (sides && sides.r) || sides || [-e + 1, e];
+  const runs = [['x', -e, g0, e - t / 2], ['x', g1, e, e - t / 2], ['z', l0, l1, -e + t / 2], ['z', r0, r1, e - t / 2]];
   for (const [ax, a, b, at] of runs) {
     if (b - a < 0.05) continue;
     out.plaster.push(ax === 'x' ? box(b - a, h, t, (a + b) / 2, 0, at, 0.85) : box(t, h, b - a, at, 0, (a + b) / 2, 0.85));

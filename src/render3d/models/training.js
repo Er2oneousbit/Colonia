@@ -26,6 +26,7 @@
 
 import { cast } from '../people/actors.js';
 import { buildGrex, GREX, grexActors } from './grex.js';
+import { buildVivarium, VIVARIUM, vivariumActors } from './vivarium.js';
 import { buildLudusGladiatorius, LUDUS_GLADIATORIUS, ludusActors } from './ludusGladiatorius.js';
 
 /** A hard frost: the sprites' deep snow (levels 2 and 3 of 0..3), as models.js reads it. */
@@ -83,6 +84,7 @@ function entry({ type, build, lamps, actors, keyOf = () => type, castKey = (stat
 const ACTORS = {
   actor_troupe: grexActors,
   gladiator_school: ludusActors,
+  menagerie: vivariumActors,
 };
 
 /** A training building's actors' specs in `state` (people/actors.js). */
@@ -96,5 +98,10 @@ export const TRAINING_MODELS = Object.freeze({
     type: 'gladiator_school', lamps: LUDUS_GLADIATORIUS.lamps, actors: ludusActors, warm: ['gladiator_school'],
     keyOf: (b, ice) => (ice ? 'gladiator_school:ice' : 'gladiator_school'),
     build: (key, lod) => buildLudusGladiatorius({ lod, ice: key.endsWith(':ice') }),
+  }),
+  menagerie: entry({
+    type: 'menagerie', lamps: VIVARIUM.lamps, actors: vivariumActors,
+    keyOf: (b, ice) => (ice ? 'menagerie:ice' : 'menagerie'),
+    build: (key, lod) => buildVivarium({ lod, ice: key.endsWith(':ice') }),
   }),
 });
