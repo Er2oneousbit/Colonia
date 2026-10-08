@@ -390,5 +390,5 @@ function cartLook(w, seed, ctx) {
     { rigid: 'cart:handcart', place: { at: 'ahead', x: 0, y: 0, z: 0 }, scale: 1, colours: {}, wheels: true },
   ];
   const spots = [[-0.15, -0.24], [0.15, 0.24], [0.15, -0.24], [-0.15, 0.24]];
-  return { figures: figs, loads: n ? [{ good, n, on: 1, at: spots.slice(0, n).map(([x, z]) => [x, H.y, H.z + z]), scale: 0.46 }] : [] };
+  return { figures: figs, loads: n ? [{ good, n, on: 1, at: spots.slice(0, n).map(([x, z]) => [x, H.y, H.z + z]), scale: 0.36 }] : [] };
 }

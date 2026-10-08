@@ -58,7 +58,7 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
  * `fy` deep of that), `seg` round, closed at the ends by domes when `caps`.
  * `w(i)` its weights, `slot(i)`, `tone(i, phi)`.
  */
-function tube(m, pts, r, { seg = 8, fx = 1, fy = 1, w = () => STILL, slot = () => SLOTS.SKIN, tone = () => 1, caps = true, up = null } = {}) {
+function tube(m, pts, r, { seg = 8, fx = 1, fy = 1, w = () => STILL, slot = () => SLOTS.SKIN, tone = () => 1, caps = true, up = null, dome = 0.9 } = {}) {
   const n = pts.length;
   const R = typeof r === 'function' ? r : (i) => r;
   const W = typeof w === 'function' ? w : () => w;
@@ -84,7 +84,7 @@ function tube(m, pts, r, { seg = 8, fx = 1, fy = 1, w = () => STILL, slot = () =
     const ca = Math.cos(phi) * rr * fx * s;
     const sb = Math.sin(phi) * rr * fy * s;
     const c = pts[i];
-    const o = out * rr * 0.9;
+    const o = out * rr * dome;
     const p = [c[0] + f.a[0] * ca + f.b[0] * sb + f.d[0] * o, c[1] + f.a[1] * ca + f.b[1] * sb + f.d[1] * o, c[2] + f.a[2] * ca + f.b[2] * sb + f.d[2] * o];
     return { p, c, uv: [phi * 0.05, i * 0.1], w: W(i), slot: S(i), tone: tone(i, phi) };
   });
@@ -346,7 +346,7 @@ function spokedWheel(m, x, r, z, spokes, lod, { tyre = SLOTS.IRON, felloe = SLOT
     const tp = pts.map(([px, py, pz]) => [px, r + (py - r) / 0.93, z + (pz - z) / 0.93]);
     tube(m, tp, r * 0.035, { seg: 3, fx: 2.2, w, slot: tyre, caps: false, up: [1, 0, 0] });
   }
-  tube(m, [[x - 0.08, r, z], [x + 0.08, r, z]], r * 0.16, { seg: lod === 2 ? 4 : 8, w, slot: SLOTS.WOOD, tone: () => 0.8 });
+  tube(m, [[x - 0.08, r, z], [x + 0.08, r, z]], r * 0.16, { seg: lod === 2 ? 4 : 8, w, slot: SLOTS.WOOD, tone: () => 0.8, dome: 0.3 });
   if (lod < 2) {
     for (let k = 0; k < spokes; k++) {
       const a = (TAU * k) / spokes;
@@ -354,7 +354,7 @@ function spokedWheel(m, x, r, z, spokes, lod, { tyre = SLOTS.IRON, felloe = SLOT
     }
   } else {
     // Far out: the spokes as a disc of shade.
-    tube(m, [[x - 0.01, r, z], [x + 0.01, r, z]], r * 0.86, { seg: 6, w, slot: SLOTS.WOOD, tone: () => 0.55 });
+    tube(m, [[x - 0.01, r, z], [x + 0.01, r, z]], r * 0.86, { seg: 6, w, slot: SLOTS.WOOD, tone: () => 0.55, dome: 0.02 });
   }
 }
 
@@ -362,7 +362,7 @@ function spokedWheel(m, x, r, z, spokes, lod, { tyre = SLOTS.IRON, felloe = SLOT
 function solidWheel(m, x, r, z, lod) {
   const w = wheelW(r, z);
   const n = [20, 12, 8][lod];
-  tube(m, [[x - 0.05, r, z], [x + 0.05, r, z]], r, { seg: n, w, slot: SLOTS.WOOD, tone: (i, phi) => 0.85 + 0.08 * Math.sin(phi * 3), caps: true, up: [0, 1, 0] });
+  tube(m, [[x - 0.05, r, z], [x + 0.05, r, z]], r, { seg: n, w, slot: SLOTS.WOOD, tone: (i, phi) => 0.85 + 0.08 * Math.sin(phi * 3), caps: true, up: [0, 1, 0], dome: 0.04 });
   if (lod < 2) {
     // The planks' seams and the battens across them, the tyre, the hub.
     for (const dz of [-0.16, 0.16]) box(m, [x + 0.055 * Math.sign(x || 1), r, z + dz], 0.02, r * 1.6, 0.06, SLOTS.WOOD, w, 0.7);
@@ -370,7 +370,7 @@ function solidWheel(m, x, r, z, lod) {
     for (let i = 0; i <= n; i++) pts.push([x, r + Math.sin((TAU * i) / n) * r, z + Math.cos((TAU * i) / n) * r]);
     tube(m, pts, 0.02, { seg: 3, fx: 3, w, slot: SLOTS.IRON, caps: false, up: [1, 0, 0] });
   }
-  tube(m, [[x - 0.12, r, z], [x + 0.12, r, z]], 0.08, { seg: lod === 2 ? 4 : 8, w, slot: SLOTS.WOOD, tone: () => 0.7 });
+  tube(m, [[x - 0.12, r, z], [x + 0.12, r, z]], 0.08, { seg: lod === 2 ? 4 : 8, w, slot: SLOTS.WOOD, tone: () => 0.7, dome: 0.3 });
 }
 
 /** The handcart: in the pusher's frame (he at the origin, facing +z); its bed's top and middle, where loads sit. */

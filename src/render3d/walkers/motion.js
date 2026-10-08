@@ -197,9 +197,17 @@ export class WalkerMotion {
       const k = step > 0 ? 1 - Math.exp(-step / TURN_M) : 1 - Math.exp(-this.dt / TURN_S);
       s.yaw = turnToward(s.yaw, target, k);
     }
-    // His trail: a point every TRAIL_STEP walked, the oldest dropped.
+    // His trail: a point every TRAIL_STEP walked, the oldest dropped. Put somewhere far from where he
+    // was without walking there (a load, the lab's clock moved), his followers line up behind him again.
     const tr = s.trail;
-    const last = tr[tr.length - 1];
+    let last = tr[tr.length - 1];
+    if (Math.hypot(x - last.x, z - last.z) > step + TRAIL_STEP + 1) {
+      if (target !== undefined) s.yaw = target;
+      tr.length = 0;
+      tr.push({ x: x - Math.sin(s.yaw) * TRAIL_M, y, z: z - Math.cos(s.yaw) * TRAIL_M, o: s.odo - TRAIL_M }, { x, y, z, o: s.odo });
+      for (const f of s.figs) f.yaw = s.yaw;
+      last = tr[1];
+    }
     if (s.odo - last.o >= TRAIL_STEP) {
       tr.push({ x, y, z, o: s.odo });
       while (tr.length > 2 && tr[1].o < s.odo - TRAIL_M) tr.shift();

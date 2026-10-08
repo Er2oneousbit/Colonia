@@ -52,6 +52,9 @@
  * (the People scene, labPeople.js: the minus key, every body, garment and
  * clip of the 3D look's people, with people.closeUp(i), people.figures,
  * people.stats(), people.triangles(lod)).
+ * (the Walkers scene, labWalkers.js: the = key, every walker type as the
+ * WebGL renderer draws it in 3D, each on a loop of road, with
+ * walkers.closeUp(i), walkers.loops, walkers.stats(), walkers.setLod(n)).
  * ----------------------------------------------------------------------------
  */
 
@@ -84,6 +87,7 @@ import { buildHealthScene } from './labHealth.js';
 import { buildGovernmentScene } from './labGovernment.js';
 import { buildTemplesScene } from './labTemples.js';
 import { buildPeopleScene } from './labPeople.js';
+import { buildWalkersScene } from './labWalkers.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -332,6 +336,8 @@ async function main() {
   commerce.temples = buildTemplesScene();
   // The People scene (labPeople.js, the minus key): every body, garment and clip of the people.
   commerce.people = buildPeopleScene();
+  // The Walkers scene (labWalkers.js, the = key): every walker type drawn in 3D, each on its loop of road.
+  commerce.walkers = buildWalkersScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -767,6 +773,7 @@ async function main() {
     else if (k === '6') setScene('government');
     else if (k === '5') setScene('temples');
     else if (k === '-') setScene('people');
+    else if (k === '=') setScene('walkers');
     else if (k === 'n') setSnow((state.snow + 1) % SNOW_COVER.length);
     else if (k === 't') setWet(!state.wet);
     else if (k === 'z') setView('game2');
@@ -782,7 +789,8 @@ async function main() {
   let copiesBuilt = false;
   /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
   function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
-    const f = commerce.people.figures[i];
+    // (The People scene's figures, or the Walkers scene's loops when it is the one shown.)
+    const f = (state.scene === 'walkers' ? commerce.walkers : commerce.people).figures[i];
     if (!f) {
       setView('game1');
       return;
@@ -874,6 +882,8 @@ async function main() {
     aqueductLife(t);
     rural.life(t);
     woods.life(t);
+    // (The scenes that move by the clock on the CPU: the Walkers scene's walkers on their loops.)
+    for (const s of Object.values(commerce)) if (s.life && s.group.visible) s.life(t);
     for (const g of grounds) g.material.userData.ground.uGTime.value = t;
     // Flames flicker: two incommensurate waves and a fast jitter.
     const lit = look.lamps[0].on;
@@ -1008,6 +1018,14 @@ async function main() {
       get figures() { return commerce.people.figures.map((f) => ({ ...f })); },
       stats: () => commerce.people.stats(),
       triangles: (l) => commerce.people.triangles(l),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Walkers scene (labWalkers.js): a loop close up, the loops, the pass's stats, the level of detail. */
+    walkers: {
+      closeUp: (i, o) => closeUp(i, o),
+      get loops() { return commerce.walkers.figures.map((f) => ({ ...f })); },
+      where: (i) => commerce.walkers.where(i),
+      stats: () => commerce.walkers.stats(),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
