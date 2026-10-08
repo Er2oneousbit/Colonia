@@ -107,6 +107,7 @@ export class WalkerPass {
     this.loads = []; // this frame's goods on carts: [key, Matrix4]
     this.loadMats = [];
     this.compiled = false;
+    this.gen = 0; // (bumped when a piece is freed: the looks seen complete look again)
     this.stats = { walkers: 0, figures: 0, people: 0, draws: 0, triangles: 0, writes: 0, deferred: 0, pieces: 0, loads: 0, ms: 0 };
   }
 
@@ -125,10 +126,13 @@ export class WalkerPass {
   entryOf(w, ctx) {
     const key = lookKey(w, ctx);
     let e = this.looks.get(w.id);
-    if (e && e.key === key) return e;
+    if (e && e.key === key) {
+      e.w = w;
+      return e;
+    }
     const look = walkerLook(w, ctx);
     const packed = look.figures.map((f, i) => packFigure(f, w.id * 4 + i));
-    e = { key, look, packed, h: hashStr(key) };
+    e = { key, look, packed, h: hashStr(key), w, built: -1, gen: -1 };
     this.looks.set(w.id, e);
     return e;
   }
@@ -151,14 +155,24 @@ export class WalkerPass {
   canDraw(w, ctx) {
     if (!drawnIn3D(w.type)) return false;
     const e = this.entryOf(w, ctx);
+    // (Kept for add(), which follows for the same walker.)
+    this.asked = e;
+    // (All its pieces seen built at this level, and none freed since: no need to look again.)
+    if (e.built === this.lod && e.gen === this.gen) return true;
     let all = true;
+    let here = true;
     for (const f of e.packed) {
       for (const key of f.pieces) {
         if (this.pieces.has(`${key}|${this.lod}`)) continue;
+        here = false;
         // (Asked at this frame's level; another level stands in meanwhile, if there is one.)
         this.wanted.add(`${key}|${this.lod}`);
         if (!this.pieceAt(key, this.lod)) all = false;
       }
+    }
+    if (here) {
+      e.built = this.lod;
+      e.gen = this.gen;
     }
     return all;
   }
@@ -180,7 +194,7 @@ export class WalkerPass {
     }
     it.w = w;
     Object.assign(it.at, at);
-    it.e = this.entryOf(w, ctx);
+    it.e = this.asked && this.asked.w === w ? this.asked : this.entryOf(w, ctx);
     this.used++;
   }
 
@@ -413,6 +427,7 @@ export class WalkerPass {
     p.base.dispose();
     this.pieces.delete(id);
     this.dirty = true;
+    this.gen++;
   }
 
   /**

@@ -1165,7 +1165,7 @@ export class Renderer {
     // (The WebGL back end drawing the buildings as models draws the walkers as 3D people,
     // render3d/walkers/: those are handed to it, not drawn as sprites. Their items are kept
     // here for the night's lanterns and the selected one's ring.)
-    this.walkers3d.length = 0;
+    (this.walkers3d ||= []).length = 0;
     const w3 = !!be.drawsWalkers;
     for (const w of game.walkers.values()) {
       if (overlayOn && ov.walkers && !ov.walkers.includes(w.type)) continue;
@@ -1599,7 +1599,7 @@ export class Renderer {
         for (const side of [1, -1]) L.glow(sx + side * mg.ox * k, sy + (side * mg.oy - GATE_H - 2) * k, 5.5 * k * f, 0.9 * lamps * f, true);
       }
       // Lanterns and torches on the move (the walkers drawn in 3D too).
-      for (const it of this.walkers3d.length ? items.concat(this.walkers3d) : items) {
+      for (const it of this.walkers3d && this.walkers3d.length ? items.concat(this.walkers3d) : items) {
         if (it.kind === K_WALKER && !it.ringOnly) {
           const w = it.w;
           const ship = w.type === 'ship';
