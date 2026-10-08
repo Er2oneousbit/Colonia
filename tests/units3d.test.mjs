@@ -283,7 +283,9 @@ test('units3d: who is threatened, the dead kept falling and lying then gone, the
   const writes = pass.stats.writes;
   frame(201, [u]);
   assert.equal(pass.stats.writes, writes, 'nothing written for the same set');
-  assert.ok(pass.died({ x: u.x, y: u.y, type: u.type }));
+  // A neighbour the sim still has is never taken for the fallen; the fallen one is.
+  assert.ok(!pass.died({ x: u.x, y: u.y, type: u.type }, new Map([[u.id, u]])));
+  assert.ok(pass.died({ x: u.x, y: u.y, type: u.type }, new Map()));
   frame(202, []);
   assert.equal(pass.stats.dead, 1);
   assert.equal(pass.stats.units, 0);

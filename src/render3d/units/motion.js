@@ -319,7 +319,13 @@ export class UnitMotion {
       if (env.dead) ch = { clip: f.clips.fall, mode: 'fall' };
       else if (beast) ch = chooseBeastClip(u, f.clips, env);
       else if (k === 0 || f.mount < 0) ch = chooseClip(u, f.clips, s, env);
-      else ch = chooseClip(u, f.clips, s, { ...env, moving: false });
+      else {
+        // (A crewman or a mahout does his own work, whether his beast moves or not.)
+        const still = this.still || (this.still = {});
+        Object.assign(still, env);
+        still.moving = false;
+        ch = chooseClip(u, f.clips, s, still);
+      }
       // (A rider's beast does what he does: a horse rears as its rider strikes.)
       const name = ch.clip;
       const { dur, stride } = clipLoop(name, beast);

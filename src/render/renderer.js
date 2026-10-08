@@ -836,6 +836,8 @@ export class Renderer {
     this.flagDrag = null;
     this.selectedUnit = 0;
     this.headings.clear();
+    // (The 3D units' pass forgets the last game's figures and its fallen.)
+    if (this.backend && this.backend.unitsReset) this.backend.unitsReset();
     // A new or loaded game opens unturned (a save's camera state turns it back, Camera.restore).
     this.camera.turn = 0;
     this.camera.setMapBounds(game.map.w, game.map.h);
@@ -867,7 +869,8 @@ export class Renderer {
       const w = this.worldAt(e.x, e.y);
       this.effects.dust(w.x, w.y, 0.3);
       // (A unit drawn in 3D falls and lies there a while: the back end keeps it, the sim having let it go.)
-      if (this.backend.unitDied) this.backend.unitDied(e);
+      // (The sim's units handed along: one still alive there is never taken for the fallen.)
+      if (this.backend && this.backend.unitDied) this.backend.unitDied(e, game.units);
     }));
   }
 

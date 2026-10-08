@@ -483,9 +483,14 @@ export class WebGLBackend {
     return this.units.topOf(u);
   }
 
-  /** A unit died (the sim's 'unitDied'): its 3D figure falls and lies there a while. */
-  unitDied(e) {
-    if (this.drawsUnits) this.units.died(e);
+  /** A unit died (the sim's 'unitDied'; `alive` the sim's units): its 3D figure falls and lies there a while. */
+  unitDied(e, alive) {
+    if (this.drawsUnits) this.units.died(e, alive);
+  }
+
+  /** A new or loaded game: the units' pass forgets the last one's figures and its dead. */
+  unitsReset() {
+    this.units.reset();
   }
 
   /** Can walker `w` be drawn as a 3D person this frame (walkers/pass.js canDraw)? `ctx`: its cart's sender, its venue. */

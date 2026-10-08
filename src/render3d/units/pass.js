@@ -199,6 +199,13 @@ export class UnitPass {
       this.list[this.used] = it;
     }
     const a = this.asked && this.asked.u === u ? this.asked : null;
+    // (A unit the sim still has is no corpse: a load just after a death brings its id back.)
+    const st = this.motion.states.get(u.id);
+    if (st && st.dead !== null) {
+      st.dead = null;
+      const i = this.dead.indexOf(u.id);
+      if (i >= 0) this.dead.splice(i, 1);
+    }
     it.u = u;
     it.dead = false;
     Object.assign(it.at, at);
@@ -215,11 +222,12 @@ export class UnitPass {
    * A unit died at (x, y) (map tiles; sim/units.js's 'unitDied'): the one of
    * that type last drawn there is kept, falling and lying dead.
    */
-  died({ x, y, type }) {
+  died({ x, y, type }, alive = null) {
     let best = null;
     let bestD = 0.8;
     for (const [id, s] of this.motion.states) {
-      if (s.dead !== null || s.type !== type || this.frame - s.seen > 3) continue;
+      // (The event names no unit: never a neighbour the sim still has, who would lie there and walk on at once.)
+      if (s.dead !== null || s.type !== type || this.frame - s.seen > 3 || (alive && alive.has(id))) continue;
       const d = Math.hypot(s.fx - x, s.fy - y);
       if (d < bestD) { bestD = d; best = id; }
     }
@@ -236,6 +244,14 @@ export class UnitPass {
   forget(id) {
     this.motion.states.delete(id);
     this.looks.delete(id);
+  }
+
+  /** Forget every figure and the dead (a new or loaded game: its ids and its clock are another's). */
+  reset() {
+    this.motion.states.clear();
+    this.looks.clear();
+    this.dead.length = 0;
+    this.lastSig = -1;
   }
 
   /** The dead in view this frame, as items (the ones sunk away forgotten). */
