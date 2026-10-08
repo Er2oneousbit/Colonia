@@ -65,7 +65,7 @@ import { QUERN } from '../people/clips.js';
 import { buildHut, yardThing, HUT_FORMS, HUT } from './tugurium.js';
 import { buildConcilium, buildFire, buildCauldron, buildArms, buildGoods, buildOak, CONCILIUM } from './concilium.js';
 import { buildPlot, CROPS, cropStage } from './arvum.js';
-import { buildBeast, SHEEP_COATS, GOAT_COATS } from './pecus.js';
+import { buildBeast } from './pecus.js';
 import { buildSmoke } from './sacra.js';
 import { herdPlaces, penCells } from './livestock.js';
 import { lookOf } from '../flora/species.js';
@@ -151,9 +151,12 @@ function put(arr, i, x, z, yaw, s = 1) {
   _m.compose(_p, _q, _s).toArray(arr, i * 16);
 }
 
+/** The coats a village's flock shows (sheep cream and dark brown, goats tawny and pied): two of each kind. */
+const COAT_PAIRS = Object.freeze({ sheep: [0, 2], goat: [0, 3] });
+
 /**
  * The flock: n beasts of a kind's coats wandering their cells, their kits'
- * entries in `more` (matrices refilled each frame by moveFlock). `frame`
+ * entries in `more` (matrices refilled each frame by moveFlock). `rot`
  * turns the cells (the piece's turn about its middle).
  */
 function flock(more, n, cells, seed, kinds, rot) {
@@ -161,8 +164,8 @@ function flock(more, n, cells, seed, kinds, rot) {
   const which = [];
   for (let i = 0; i < n; i++) {
     const kind = kinds[i % kinds.length];
-    const coats = kind === 'goat' ? GOAT_COATS.length : SHEEP_COATS.length;
-    const coat = Math.floor(hash01(seed, i, 21) * coats);
+    // (Two coats of each kind: every coat and pose in view is a draw of its own.)
+    const coat = COAT_PAIRS[kind][hash01(seed, i, 21) < 0.5 ? 0 : 1];
     which.push(['stand', 'graze'].map((pose) => {
       const key = `pecus:${kind}:${coat}:${pose}`;
       let e = slots.get(key);
@@ -276,7 +279,7 @@ export function hutLook(b, game, people) {
   if (m) face = Math.atan2(m.x + m.size / 2 - (b.x + 0.5), m.y + m.size / 2 - (b.y + 0.5));
   const q = ((Math.round(face / Q) % 4) + 4) % 4;
   return {
-    people, form, age: h(3) < 0.4 ? 1 : 0, q, jitter: (h(4) - 0.5) * 0.36,
+    people, form, age: hash01(b.village ?? id, 3, 5) < 0.4 ? 1 : 0, q, jitter: (h(4) - 0.5) * 0.36,
     work: h(5) < 0.55 ? 'grind' : 'spin',
     things: thingsOf(h, form),
     child: h(8) < 0.55,
@@ -344,7 +347,7 @@ function hutGoat(more, L, seed) {
   const [x, z, r] = YARD.goat;
   const rot = L.q * Q;
   const [px, pz] = turn(x, z, rot);
-  const coat = Math.floor(hash01(seed, 0, 21) * GOAT_COATS.length);
+  const coat = COAT_PAIRS.goat[hash01(seed, 0, 21) < 0.5 ? 0 : 1];
   const which = ['stand', 'graze'].map((pose) => {
     const e = { key: `pecus:goat:${coat}:${pose}`, mats: new Float32Array(16), n: 0, state: 'always' };
     more.push(e);

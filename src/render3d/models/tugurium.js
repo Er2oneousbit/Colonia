@@ -118,7 +118,7 @@ function doorway(out, z, w, h, lod, seed, { depth = 0.2, posts = true, hide = tr
     for (const s of [-1, 1]) out.wood.push(blk(lod, 0.11, h + 0.04, 0.12, { bevel: 0.015, seed: seed + s, wobble: 0.01, grime: 0.45 }).translate(s * (w / 2 + 0.05), 0, z));
     out.wood.push(blk(lod, w + 0.36, 0.13, 0.16, { bevel: 0.015, seed: seed + 5, wobble: 0.01, grime: 0.1 }).translate(0, h, z));
   }
-  out.stone.push(blk(lod, w + 0.1, 0.06, 0.36, { bevel: 0.02, seed: seed + 7, wobble: 0.01, grime: 0.2 }).translate(0, -0.02, z + 0.04));
+  out.drystone.push(blk(lod, w + 0.1, 0.06, 0.36, { bevel: 0.02, seed: seed + 7, wobble: 0.01, grime: 0.2 }).translate(0, -0.02, z + 0.04));
   // The dark inside: the opening's back, set in by the wall's depth.
   const d = new PlaneGeometry(w + 0.02, h, 1, 1).translate(0, h / 2, z - depth);
   out.dark.push(tintGeometry(boxUV(d), () => 0.6));
@@ -136,8 +136,9 @@ function doorway(out, z, w, h, lod, seed, { depth = 0.2, posts = true, hide = tr
 
 /** The hearth inside a hut at (x, z): its embers, a little flame, seen through the door at night and by day. */
 function hearthInside(out, x, z, lod, seed) {
-  if (lod === 2) return;
-  const f = fireOn(x, 0.02, z, 0.2, { lod: Math.max(1, lod), seed, big: 0.55, kerb: lod === 0 });
+  // (Past the full level the door is a few pixels: its fire would be three more draws a hut kit for nothing seen.)
+  if (lod > 0) return;
+  const f = fireOn(x, 0.02, z, 0.2, { lod: 1, seed, big: 0.55, kerb: true });
   out.stone.push(...f.stone);
   out.hot.push(...f.hot);
   out.ash.push(...f.dark);
