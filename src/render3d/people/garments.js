@@ -49,7 +49,7 @@ import { BONE, BONES, BONE_COUNT } from './rig.js';
 import { poseAt } from './clips.js';
 
 /** Rows and columns of a garment by level of detail. */
-const GR = [{ rows: 24, cols: 40, sleeve: 8, sleeveC: 12 }, { rows: 9, cols: 14, sleeve: 3, sleeveC: 6 }, { rows: 4, cols: 7, sleeve: 1, sleeveC: 4 }];
+const GR = [{ rows: 16, cols: 26, sleeve: 6, sleeveC: 10 }, { rows: 7, cols: 12, sleeve: 2, sleeveC: 6 }, { rows: 4, cols: 7, sleeve: 1, sleeveC: 4 }];
 
 /** Folds round a ring: a sum of waves (seed shifts them), from -1 to 1 roughly. */
 function folds(phi, seed = 0, n = [9, 14, 5]) {
@@ -648,8 +648,9 @@ export function bulla(kind, lod) {
   });
   // The bulla: a lens of gold.
   const c = trunkPoint(1.31, 0, kind, 0.03);
-  m.grid(n / 2, n, (i, j) => {
-    const th = (Math.PI * i) / (n / 2);
+  const half = Math.max(2, Math.round(n / 2));
+  m.grid(half, n, (i, j) => {
+    const th = (Math.PI * i) / half;
     const phi = (TAU * j) / n;
     const p = [c[0] + Math.sin(th) * Math.sin(phi) * 0.026, c[1] + Math.cos(th) * 0.026, c[2] + Math.sin(th) * Math.cos(phi) * 0.008];
     return { p, c, uv: [0, 0], w: rigid('chest'), slot: SLOTS.GOLD, tone: 1 };

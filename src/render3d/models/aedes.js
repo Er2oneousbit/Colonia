@@ -371,7 +371,9 @@ export function templeActors(M, state) {
     const [sy, sz] = stepAt(M, i);
     return [x, sy, sz, ry];
   })];
-  place.forEach(([x, yy, z, ry], i) => list.push(worshipper(i, [x, yy, z], ry, acts[i % acts.length])));
+  // (Kept a body's breadth inside the footprint: a person never stands over the street.)
+  const inside = (v) => Math.sign(v) * Math.min(Math.abs(v), M.half - 0.35);
+  place.forEach(([x, yy, z, ry], i) => list.push(worshipper(i, [inside(x), yy, inside(z)], ry, acts[i % acts.length])));
   return list;
 }
 

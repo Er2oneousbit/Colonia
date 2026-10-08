@@ -168,10 +168,12 @@ export class PeopleBatch {
     const id = `${key}|${lod}`;
     let p = this.pieces.get(id);
     if (p) return p;
-    if (this.buildUntil && performance.now() > this.buildUntil) {
+    if (this.buildUntil) {
       for (const l of [lod + 1, lod - 1, lod + 2, lod - 2]) {
         const o = this.pieces.get(`${key}|${l}`);
-        if (o) {
+        // Past the budget, or a build it would not fit (guessed from the level built: a finer level costs
+        // about four times a coarser one), the other level stands in.
+        if (o && performance.now() + o.ms * (l > lod ? 4 ** (l - lod) : 0.25) > this.buildUntil) {
           this.stats.deferred++;
           // (Written again next frame, when there may be time to build this level.)
           this.dirty = true;

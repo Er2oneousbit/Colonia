@@ -37,7 +37,7 @@ const sp = (v, n) => Math.sign(v) * Math.abs(v) ** (2 / n);
 
 /** Rows and columns by level of detail. */
 const RES = [
-  { trunkR: 10, trunkC: 14, limbR: 9, limbC: 9, handC: 8, handR: 3, footR: 7, footC: 8, headR: 22, headC: 30, ear: 5, eye: 6, thumb: true, sandal: true },
+  { trunkR: 8, trunkC: 12, limbR: 9, limbC: 8, handC: 8, handR: 3, footR: 7, footC: 8, headR: 20, headC: 28, ear: 5, eye: 6, thumb: true, sandal: true },
   { trunkR: 5, trunkC: 7, limbR: 4, limbC: 5, handC: 4, handR: 1, footR: 3, footC: 4, headR: 9, headC: 10, ear: 0, eye: 0, thumb: false, sandal: true },
   { trunkR: 2, trunkC: 5, limbR: 2, limbC: 3, handC: 3, handR: 1, footR: 2, footC: 3, headR: 4, headC: 6, ear: 0, eye: 0, thumb: false, sandal: false },
 ];
@@ -219,7 +219,7 @@ function legs(m, kind, R) {
     limbTube(m, [BONE[`thigh${k}`], BONE[`shin${k}`], BONE[`foot${k}`]], {
       r: (u) => legRadius(u, kind),
       flat: (u) => (u < 1 ? 1 : 0.92),
-      u0: -0.15, u1: 2.0, rows: R.limbR + 2, cols: R.limbC, side: s,
+      u0: -0.15, u1: 2.0, rows: R.limbR, cols: R.limbC, side: s,
       extra: (u) => (u < 0.15 ? { k: smooth(0.15, -0.1, u) * 0.5, list: [['root', 1]] } : null),
       // The shin's bone ahead, the calf behind.
       along: (p, u, phi) => {

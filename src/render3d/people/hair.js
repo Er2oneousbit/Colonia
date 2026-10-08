@@ -21,7 +21,7 @@
 import { Mesher, SLOTS, rigid, smooth, weights } from './mesher.js';
 import { headPoint, headWeights, HEAD_C, TAU, gauss } from './body.js';
 
-const RES = [{ rows: 16, cols: 32 }, { rows: 6, cols: 12 }, { rows: 3, cols: 6 }];
+const RES = [{ rows: 12, cols: 24 }, { rows: 6, cols: 12 }, { rows: 3, cols: 6 }];
 
 /** The hairline: how far down from the crown (theta) the hair comes at angle phi round the head. */
 function hairline(style, phi, lod) {
