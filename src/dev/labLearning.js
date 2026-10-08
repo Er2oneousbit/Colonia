@@ -16,7 +16,7 @@ import { partShows } from '../render3d/models.js';
 import { EDUCATION_MODELS } from '../render3d/models/education.js';
 import { LUDUS, schoolActors } from '../render3d/models/ludus.js';
 import { libraryActors } from '../render3d/models/bibliotheca.js';
-import { academyActors } from '../render3d/models/academia.js';
+import { academiaActors } from '../render3d/models/academia.js';
 import { labCrowd } from './labPeople.js';
 
 /** Where each building stands (metres), what it shows, its label. */
@@ -88,7 +88,7 @@ export function buildLearningScene() {
   /** Free a group's geometries (the look's materials are shared and kept). */
   const free = (g) => g.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
   // The people, as the game draws them (each model's actors).
-  const ACTORS = { school: schoolActors, library: libraryActors, academy: academyActors };
+  const ACTORS = { school: schoolActors, library: libraryActors, academy: academiaActors };
   const crowd = labCrowd(group);
   function build() {
     for (const it of holders) {

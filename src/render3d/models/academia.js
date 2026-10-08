@@ -31,7 +31,7 @@
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed: the rooms' and the gate's doors open, the lanterns
- *           lit at night; its people (academyActors): the master in the
+ *           lit at night; its people (academiaActors): the master in the
  *           exedra teaching his pupils, a young man declaiming from the
  *           platform to two listeners, a reader on the long bench, two
  *           philosophers walking up and down the covered walk
@@ -323,7 +323,7 @@ function capsaThings() {
  * the covered walk side by side, talking at each end (the peripatos), in
  * step (sync). Nobody when shut.
  */
-export function academyActors(state) {
+export function academiaActors(state) {
   if (state !== 'open') return [];
   const { x, z, r0, r1, step } = A.exedra;
   const rs = (r0 + r1) / 2 - 0.02;
@@ -393,7 +393,7 @@ export function buildAcademia({ lod = 0, seed = 271 } = {}) {
     }
   }
   if (lod === 0) {
-    // (The people are actors: academyActors. Their capsa stays by the bench.)
+    // (The people are actors: academiaActors. Their capsa stays by the bench.)
     const c = capsaThings();
     p.add('held-rolls', m.papyrus, c.paper, { when: 'open', cast: false });
     p.add('capsa', m.leather, [...c.leather, ...c.strap], { when: 'open', cast: false });

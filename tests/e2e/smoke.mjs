@@ -4960,6 +4960,31 @@ try {
         }
         check('WebGL renderer: a staffed temple\'s people are instanced meshes animated on the GPU (their pose changes with the clock)',
           !!peopleProbe && peopleProbe.people >= 3 && peopleProbe.covered.every((n) => n > 20) && peopleProbe.changed > 5, JSON.stringify(peopleProbe));
+        // The buildings converted after the temples draw their people as actors too: the console's
+        // `learning` builds a library; staffed and close up, its readers, scribe, librarian (on his walk
+        // along the cupboards) and slave are drawn, and move with the clock. (Waited for, as above.)
+        let libraryProbe = null;
+        const lib = await gt.evaluate(() => {
+          const app = window.colonia;
+          const said = app.ui.console.run('learning');
+          const b = [...app.game.buildings.values()].filter((v) => v.type === 'library').pop();
+          if (!b) return { said };
+          b.efficiency = 1;
+          app.ui.info.close();
+          app.renderer.camera.zoomIndex = 7;
+          app.renderer.camera.centerOnTile(b.x + b.size / 2, b.y + b.size / 2);
+          return { said, id: b.id };
+        });
+        if (lib.id) {
+          await gt.waitForFunction(() => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {}).library || 0) >= 1 && mp.people >= 5 && !mp.deferred && !r.stats.pending;
+          }, null, { timeout: 30000, polling: 100 }).catch(() => {});
+          libraryProbe = await gt.evaluate(() => window.colonia.renderer.backend.probePeople([0.4, 1.3]));
+        }
+        check('WebGL renderer: a staffed library\'s people (readers, scribe, librarian, slave) are drawn as moving actors',
+          !!libraryProbe && libraryProbe.people >= 5 && libraryProbe.covered.every((n) => n > 20) && libraryProbe.changed > 5, JSON.stringify({ lib, libraryProbe }));
         await gt.evaluate(() => window.colonia.ui.info.close());
         if (shots) await gt.screenshot({ path: path.join(shots, 'smoke-webgl-temples.png') });
         check('WebGL renderer: the five small temples, the five grand temples, the oracle and the mission post are 3D models, and a click picks each',
