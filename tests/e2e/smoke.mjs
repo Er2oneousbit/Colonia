@@ -5060,6 +5060,62 @@ try {
         await gt.close();
       }
 
+      // 8a7. The native villages as models (render3d/models/villages.js): a sandbox with villages;
+      //      the hut and the meeting place draw as models (waited for: kits are
+      //      built a few a frame under the software GL) and a click on each opens its panel;
+      //      the console's `villages angry` rouses them with no error.
+      {
+        const gv = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const verrs = [];
+        gv.on('pageerror', (e) => verrs.push(`pageerror: ${e.message}`));
+        gv.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) verrs.push(m.text()); });
+        await gv.goto(`${url}?skipmenu=1&natives=1&map=small&seed=demo&mute=1&renderer=3d&scale=1`);
+        await gv.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const pieces = await gv.evaluate(() => {
+          const app = window.colonia;
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const out = {};
+          for (const t of ['native_hut', 'native_meeting', 'native_crops']) {
+            const b = [...app.game.buildings.values()].find((v) => v.type === t);
+            out[t] = b ? { id: b.id, x: b.x, y: b.y, size: b.size } : null;
+          }
+          return out;
+        });
+        const village = [];
+        for (const [type, b] of Object.entries(pieces)) {
+          if (!b) { village.push({ type, missing: true }); continue; }
+          await gv.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          // (A plot's soil is the 3D ground's, as a farm's field: on the sprites' ground, Auto's on a
+          // software GL, it keeps its sprite. Nothing to wait for: a few frames, then the click.)
+          if (type === 'native_crops') await gv.waitForTimeout(400);
+          else await gv.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, type, { timeout: 30000, polling: 100 }).catch(() => {});
+          const drawn = await gv.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, type);
+          const p = await gv.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gv.mouse.click(p.x, p.y);
+          await gv.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gv.evaluate(() => window.colonia.ui.info.target);
+          village.push({ type, drawn, picked: target?.kind === 'building' && target.id === b.id });
+        }
+        const roused = await gv.evaluate(() => { const app = window.colonia; app.ui.info.close(); return app.ui.console.run('villages angry'); });
+        await gv.waitForTimeout(500);
+        if (shots) await gv.screenshot({ path: path.join(shots, 'smoke-webgl-villages.png') });
+        check('WebGL renderer: a native village\'s hut and meeting place are 3D models, its plot its sprite on the sprites\' ground, and a click picks each',
+          village.length === 3 && village.every((v) => !v.missing && v.picked && (v.type === 'native_crops' ? v.drawn === 0 : v.drawn >= 1)), JSON.stringify({ village, roused }));
+        check('WebGL renderer, village models: no page errors', verrs.length === 0 && /villages angry/.test(roused), verrs.join(' | ') || roused);
+        await gv.close();
+      }
+
       // 8a2. The walkers as 3D people (render3d/walkers/): while the models draw, a walker in view
       //      is drawn by the walkers' pass (its click spot then reaches over what goes with him),
       //      not as a sprite; a click on him opens his panel. Waited for by state: his pieces are

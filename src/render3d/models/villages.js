@@ -490,12 +490,14 @@ export function plotLook(b, people, month) {
   const id = b.id ?? 0;
   const crops = CROPS[people];
   const crop = crops[Math.floor(hash01(id, 1, 9) * crops.length) % crops.length];
-  return { people, crop, stage: cropStage(crop, month), q: Math.floor(hash01(id, 2, 9) * 4) % 4 };
+  const m = month === null || month === undefined ? 6 : ((Math.round(month) % 12) + 12) % 12;
+  // (Nobody works a plot in the dead of winter, Dec to Feb.)
+  return { people, crop, stage: cropStage(crop, month), q: Math.floor(hash01(id, 2, 9) * 4) % 4, winter: m === 11 || m <= 1 };
 }
 
 /** Whether the plot is worked (by the season's stage), and by whom, in a state. */
 export function plotActors(L, state, seed) {
-  if (state === 'war' || L.stage === 'ripe') return [];
+  if (state === 'war' || L.stage === 'ripe' || L.winter) return [];
   if (state === 'angry' && hash01(seed, 4) < 0.6) return [];
   const winter = L.stage === 'bare' && hash01(seed, 5) < 0.5;
   if (winter) return [];
@@ -508,7 +510,7 @@ export function plotActors(L, state, seed) {
 
 const PLOT_CASTS = new Map();
 function plotCast(L, state, seed) {
-  const sig = `${L.people}|${L.crop}|${L.stage}|${L.q}|${state}|${seed}`;
+  const sig = `${L.people}|${L.crop}|${L.stage}|${L.q}|${L.winter}|${state}|${seed}`;
   let c = PLOT_CASTS.get(sig);
   if (!c) {
     const list = plotActors(L, state, seed);

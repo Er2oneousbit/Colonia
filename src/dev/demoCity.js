@@ -1574,3 +1574,16 @@ export function buildDemoTemples(game, center, { count = 1 } = {}) {
   });
   return { built, missing };
 }
+
+/**
+ * A mission post beside the city, joined by road, staffed at once (the
+ * console's `villages trade`: a post at work is what sends the villages'
+ * traders, and what the 3D villages show as trading). Null when there is no
+ * room or it is locked.
+ */
+export function buildDemoMissionPost(game, center) {
+  if (!game.isUnlocked('mission_post')) return null;
+  const b = placeNear(game, 'mission_post', 2, center, 3, 50);
+  if (b) b.efficiency = 1;
+  return b;
+}
