@@ -305,7 +305,7 @@ test('military3d: the cavalry fort\'s troopers at the stalls follow the horses t
 test('military3d: the men at the posts face them at the drill\'s reach, the sword going home in the post', () => {
   const thrust = poseAt('drill', 0.3);
   const grip = thrust.jointOf('propR');
-  const tip = grip.clone().addScaledVector(new Vector3(0, 1, 0).transformDirection(thrust.world[BONE.propR]), 0.5);
+  const tip = grip.clone().addScaledVector(new Vector3(0, 1, 0).transformDirection(thrust.world[BONE.propR]), 0.52);
   const cases = [
     ['barracks', { efficiency: 1, trainProgress: 40 }, gameWith(), BARRACKS.pali],
     ['military_academy', { efficiency: 1 }, gameWith({ units: [{ fort: 2, drill: 4, trainLeft: 3 }] }), ACADEMY.pali],
@@ -318,13 +318,18 @@ test('military3d: the men at the posts face them at the drill\'s reach, the swor
       const p = tip.clone().applyMatrix4(new Matrix4().fromArray(a.local));
       const post = pali.find(([x, z]) => Math.hypot(x - p.x, z - p.z) < 0.4);
       assert.ok(post, `${type}: a man at ${a.at.map((q) => q.toFixed(2))} strikes no post (his point at ${p.x.toFixed(2)}, ${p.z.toFixed(2)})`);
-      assert.ok(Math.abs(p.x - post[0]) < 0.1 + 0.03 && Math.abs(p.z - post[1]) < 0.1 + 0.03, `${type}: his point ${p.x.toFixed(2)}, ${p.z.toFixed(2)} in the post at ${post}`);
+      // (In his own frame: along his facing the point a few centimetres into the near face, 0.1 before the middle; across it, on the post.)
+      const dx = p.x - post[0];
+      const dz = p.z - post[1];
+      const along = dx * Math.sin(a.ry) + dz * Math.cos(a.ry);
+      const across = dx * Math.cos(a.ry) - dz * Math.sin(a.ry);
+      assert.ok(along > -0.1 && along < -0.04 && Math.abs(across) < 0.04, `${type}: his point ${along.toFixed(3)} along, ${across.toFixed(3)} across the post at ${post}`);
       // Not in step with each other: each his own phase.
       assert.ok(!a.sync);
     }
     assert.equal(new Set(men.map((a) => a.clip[1])).size, men.length, `${type}: the drillers out of step`);
   }
-  assert.ok(DRILL_AT.ahead > 0.9 && DRILL_AT.ahead < 1.0);
+  assert.ok(DRILL_AT.ahead > 1.1 && DRILL_AT.ahead < 1.25);
 });
 
 /**

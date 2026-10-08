@@ -163,7 +163,11 @@ export function pack(spec, index = 0) {
     r[1] = route.speed ?? WALK_SPEED * 0.85;
     r[2] = route.pauseEnd ?? 4;
     r[3] = route.pauseStart ?? 3;
-    pauses = CLIP_INDEX[clipFor(route.clipEnd || 'idle', toga)] + 64 * CLIP_INDEX[clipFor(route.clipStart || 'idle', toga)];
+    // (Two clips in one float, b + 64 a, as the shader reads them: an index past 63 would read as another clip.)
+    const end = CLIP_INDEX[clipFor(route.clipEnd || 'idle', toga)];
+    const start = CLIP_INDEX[clipFor(route.clipStart || 'idle', toga)];
+    if (end > 63 || start > 63) throw new Error('A route\'s pause clip past index 63: widen the packing (aActClip.w)');
+    pauses = end + 64 * start;
   }
   // The facings at the route's ends in the actor's own frame: the end's within a half turn of 0 (the
   // way it arrived), the start's within a half turn of pi (the way it came back).

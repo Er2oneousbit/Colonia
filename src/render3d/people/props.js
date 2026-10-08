@@ -37,7 +37,7 @@
 
 import { Mesher, SLOTS, rigid } from './mesher.js';
 import { BONE, BONES } from './rig.js';
-import { ROW, WINDLASS } from './clips.js';
+import { ROW, WINDLASS, BOW } from './clips.js';
 
 const TAU = Math.PI * 2;
 
@@ -244,9 +244,11 @@ const PROPS = {
       const pts = [];
       for (let k = 0; k <= n; k++) {
         const u = k / n;
-        // (Out from the grip, bending back toward the archer, the last tenth curling forward: a recurve.)
+        // (Out from the grip, bending back toward the archer as a strung bow does, the tips furthest back, the
+        // last fifth curling a little forward: a recurve. The tips end BOW.brace behind the grip, where the
+        // string is tied, so the string runs straight between them clear of the limbs.)
         const y = s * (0.06 + 0.5 * u);
-        const z = -0.07 * Math.sin(Math.PI * Math.min(1, u * 1.1)) + (u > 0.85 ? 0.12 * ((u - 0.85) / 0.15) ** 2 : 0);
+        const z = -(BOW.brace + 0.02) * u ** 1.4 + 0.02 * Math.max(0, (u - 0.82) / 0.18) ** 2;
         pts.push([0, y, z, 0.016 * (1 - 0.55 * u)]);
       }
       return pts;
@@ -263,7 +265,7 @@ const PROPS = {
     const nock = BONES[BONE.propR].at.map((q, k) => q - BONES[BONE.propL].at[k]);
     const NW = rigid('propR');
     for (const s of [1, -1]) {
-      const tip = [0, s * 0.56, 0.05];
+      const tip = [0, s * 0.56, -BOW.brace];
       m.grid(1, 4, (i, j) => {
         const c = i === 0 ? tip : nock;
         const ph = (TAU * j) / 4;

@@ -56,6 +56,8 @@ test('people3d: every clip loops seamlessly, is baked as its poses, and plants i
   // (The texture's rows within 8,192: every desktop and laptop GPU of the targets reads textures 16,384
   // tall or more, and the texture is only as tall as its rows, so the limit costs nothing until it is used.)
   assert.ok(baked.rows <= 8192, `${baked.rows} rows`);
+  // (A route's two pause clips share one float, b + 64 a (actors.js, the shader): every clip's index under 64.)
+  assert.ok(CLIP_NAMES.length <= 64, `${CLIP_NAMES.length} clips`);
   for (const name of CLIP_NAMES) {
     // The pose at the loop's end is the one at its start.
     const a = poseAt(name, 0);

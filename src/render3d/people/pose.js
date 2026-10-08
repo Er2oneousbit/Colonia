@@ -105,7 +105,7 @@ export class Pose {
 
   /**
    * A prop bone placed outright: at (x, y, z) turned (rx, ry, rz), in the actor's frame or the chest's;
-   * `scale` shrinks what it carries about the bone (0: gone, as an arrow once loosed: clips.js shoot).
+   * `scale` shrinks what it carries about the bone (near 0: gone, as an arrow once loosed: clips.js shoot; not 0 itself, a singular matrix).
    */
   prop(s, x, y, z, rx = 0, ry = 0, rz = 0, { chest = false, scale = 1 } = {}) {
     this.props[s > 0 ? 0 : 1] = { at: [x, y, z], rot: [rx, ry, rz], chest, scale };

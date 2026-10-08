@@ -140,6 +140,9 @@ export const DINE = Object.freeze({ top: 0.6, feet: 0.8 });
 export const SHAVE = Object.freeze({ head: Object.freeze([0.04, 1.2, 0.44]) });
 export const MORTAR = Object.freeze({ ahead: 0.36, height: 0.86 });
 
+/** The bow (props.js bow): its string BOW.brace behind the grip at rest, tip to tip (the shoot clip's nock at rest). */
+export const BOW = Object.freeze({ brace: 0.11 });
+
 /** The shelf a librarian reaches to (reach): `ahead` of him, `height` up. */
 export const SHELF = Object.freeze({ ahead: 0.42, height: 1.55 });
 
@@ -1020,7 +1023,9 @@ export const CLIPS = Object.freeze({
       P.rot('handL', 0, 0, 1.2);
       fingers(P, 1, 0.95);
       // The string's nock (propR): at rest on the bow, drawn to the jaw; the arrow on it till it is loosed.
-      const rest = [bow[0], bow[1], bow[2] - 0.13];
+      // (The string at rest in the bow's own frame, BOW.brace behind the grip, turned with the bow's tilt.)
+      const tilt = -0.3 * (1 - bowUp);
+      const rest = [bow[0], bow[1] + BOW.brace * Math.sin(tilt), bow[2] - BOW.brace * Math.cos(tilt)];
       const anchor = [0.0, 1.47, 0.05];
       const nock = rest.map((v, i) => lerp(v, anchor[i], draw));
       const shown = t < 0.545 ? 1 : t > 0.93 ? 1 : 0.001;

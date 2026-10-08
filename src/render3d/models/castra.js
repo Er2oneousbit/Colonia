@@ -968,11 +968,12 @@ export function wallSentry(arm, x0, x1, y, z, seed, k = 0) {
 
 /**
  * Where a man stands to drill at a post (clips.js drill, Vegetius's palus):
- * the clip's sword thrust ends 0.98 m ahead of his feet and 0.06 m to his
- * right (-x), so he stands that far from the post's middle (px, pz), facing
- * ry, and his point goes home in the post's face.
+ * the clip's sword point (the gladius's 0.52 m blade) ends 1.10 m ahead of
+ * his feet and 0.08 m to his right (-x) at full thrust, so he stands with
+ * the post's middle (px, pz) 1.17 m ahead, facing ry: his point sinks a few
+ * centimetres into the post's near face (0.1 m before its middle).
  */
-export const DRILL_AT = Object.freeze({ ahead: 0.98, side: -0.06 });
+export const DRILL_AT = Object.freeze({ ahead: 1.17, side: -0.08 });
 export function atPost(px, pz, ry) {
   const { ahead, side } = DRILL_AT;
   // (His offset to the post turned by ry, as the actor's matrix turns it: x' = x cos + z sin, z' = z cos - x sin.)
