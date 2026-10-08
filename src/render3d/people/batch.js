@@ -131,8 +131,10 @@ export class PeopleBatch {
         _a.fromArray(a.local);
         _m.multiplyMatrices(m, _a);
         // Each building its own phases and a speed a little its own, from its seed: two alike never move in step.
-        const ph = ((seed * 0.6180339 + a.index * 0.3819660) % 1) * 61;
-        const sp = 0.94 + ((seed * 0.7548777 + a.index * 0.5698403) % 1) * 0.12;
+        // (A crew in step, `sync`: the building's phase and speed for all of them.)
+        const k = a.sync ? 0 : a.index;
+        const ph = ((seed * 0.6180339 + k * 0.3819660) % 1) * 61;
+        const sp = 0.94 + ((seed * 0.7548777 + k * 0.5698403) % 1) * 0.12;
         for (let j = 0; j < a.pieces.length; j++) {
           const p = ps[j];
           const i = p.n;

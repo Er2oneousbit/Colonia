@@ -103,9 +103,12 @@ export class Pose {
     return this;
   }
 
-  /** A prop bone placed outright: at (x, y, z) turned (rx, ry, rz), in the actor's frame or the chest's. */
-  prop(s, x, y, z, rx = 0, ry = 0, rz = 0, { chest = false } = {}) {
-    this.props[s > 0 ? 0 : 1] = { at: [x, y, z], rot: [rx, ry, rz], chest };
+  /**
+   * A prop bone placed outright: at (x, y, z) turned (rx, ry, rz), in the actor's frame or the chest's;
+   * `scale` shrinks what it carries about the bone (0: gone, as an arrow once loosed: clips.js shoot).
+   */
+  prop(s, x, y, z, rx = 0, ry = 0, rz = 0, { chest = false, scale = 1 } = {}) {
+    this.props[s > 0 ? 0 : 1] = { at: [x, y, z], rot: [rx, ry, rz], chest, scale };
     return this;
   }
 
@@ -129,6 +132,7 @@ export class Pose {
       if (!p) continue;
       const m = new Matrix4();
       euler(...p.rot, m);
+      if (p.scale !== 1) m.scale(_w.set(p.scale, p.scale, p.scale));
       m.setPosition(p.at[0], p.at[1], p.at[2]);
       if (p.chest) m.premultiply(this.chestFrame());
       propWorld[k] = m;

@@ -25,7 +25,7 @@ import { material } from '../render3d/materials.js';
 import { boxUV, tintGeometry } from '../render3d/shapes.js';
 import { PeopleBatch } from '../render3d/people/batch.js';
 import { cast } from '../render3d/people/actors.js';
-import { SEAT_H } from '../render3d/people/clips.js';
+import { SEAT_H, ROW, BEAT, WINDLASS, DINE, SHAVE, MORTAR, SHELF } from '../render3d/people/clips.js';
 import { DYES } from '../render3d/people/actors.js';
 
 /**
@@ -92,6 +92,19 @@ const ACTS = [
   ['shoulder', 'the fasces', { clip: 'shoulder', props: { L: 'fasces' } }],
   ['cheer', 'a festival', { clip: 'cheer', dress: ['tunic:knee', 'wreath'] }],
   ['guard', 'spear and shield', { clip: 'guard', props: { R: 'spear', L: 'scutum' }, dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], colours: { tunic: DYES.madder, accent: DYES.madder } }],
+  ['row', 'at the frame, the oar on his left', { clip: 'row', props: { R: 'oar' }, dress: ['tunic:short'], furn: 'row', sync: true }],
+  ['rowRight', 'the oar on his right', { clip: 'rowRight', props: { R: 'oar' }, dress: ['tunic:short'], furn: 'rowRight', sync: true }],
+  ['beat', 'the hortator\'s mallet', { clip: 'beat', props: { R: 'hammer' }, furn: 'beat', sync: true, colours: { tunic: DYES.madder } }],
+  ['drill', 'sword and shield at the post', { clip: 'drill', props: { R: 'gladius', L: 'scutum' }, dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], furn: 'palus', colours: { tunic: DYES.madder, accent: DYES.madder } }],
+  ['shave', 'the barber\'s razor', { clip: 'shave', props: { R: 'razor' }, furn: 'shave', ry: Math.PI / 2 }],
+  ['shaved', 'his client', { clip: 'shaved', seat: true }],
+  ['stir', 'pestle and mortar', { clip: 'stir', props: { R: 'pestle' }, furn: 'mortar', beard: 'short', old: true }],
+  ['dine', 'reclining on a couch', { clip: 'dine', props: { L: 'cup' }, dress: ['tunic:knee', 'pallium'], furn: 'couch', colours: { mantle: DYES.madder } }],
+  ['march', 'a sentry\'s round', { clip: 'march', props: { R: 'spear', L: 'scutum' }, dress: ['tunic:knee', 'lorica', 'caligae', 'helmet'], route: { length: 3.2, pauseEnd: 2, pauseStart: 2, clipEnd: 'guard', clipStart: 'guard' }, colours: { tunic: DYES.madder, accent: DYES.madder } }],
+  ['shoot', 'the composite bow', { clip: 'shoot', props: { L: 'bow', R: 'arrow' }, dress: ['tunic:knee', 'helmet'], colours: { tunic: DYES.green } }],
+  ['windlass', 'turning the crank', { clip: 'windlass', props: { R: 'crank' }, dress: ['tunic:short'], furn: 'windlass' }],
+  ['prune', 'clipping the box', { clip: 'prune', props: { R: 'shears' }, dress: ['tunic:short'], furn: 'hedge' }],
+  ['reach', 'a roll from the cupboard', { clip: 'reach', props: { R: 'roll' }, furn: 'cupboard' }],
 ];
 
 const INFO = `<button class="close" type="button" aria-label="Close">Close</button>
@@ -113,7 +126,50 @@ N: snow; T: rain. M, G, Z: the game's zooms; O: orbit; Q / E: turn the view.</li
 /** Spacing (metres) and where the rows stand. */
 const DX = 1.5;
 const ROW_DRESS = 4;
-const ROWS_ACT = [0, -4.5];
+const ROWS_ACT = [0, -4.5, -9];
+
+/**
+ * What a clip works at, as plain boxes in the clips' own measures (clips.js
+ * ROW, BEAT, WINDLASS, DINE, SHAVE, MORTAR, SHELF), so each clip is judged
+ * against the thing it reaches for: [[geometry, tone], ...] at (x, z).
+ */
+function furnish(kind, x, z) {
+  const out = [];
+  const box = (w, h, d, cx, y0, cz, tone = 0.8) => out.push([new BoxGeometry(w, h, d).translate(x + cx, y0 + h / 2, z + cz), tone]);
+  if (kind === 'row' || kind === 'rowRight') {
+    const s = kind === 'row' ? 1 : -1;
+    box(0.8, 0.05, 0.24, 0, ROW.seat - 0.05, -0.02);
+    box(0.06, ROW.seat - 0.05, 0.06, 0.3, 0, -0.02, 0.6);
+    box(0.06, ROW.seat - 0.05, 0.06, -0.3, 0, -0.02, 0.6);
+    box(0.6, 0.12, 0.05, 0, 0, ROW.brace + 0.06, 0.6);
+    box(0.08, ROW.up - 0.05, 0.12, s * ROW.out, 0, ROW.ahead, 0.7);
+    box(0.03, 0.12, 0.03, s * ROW.out, ROW.up - 0.05, ROW.ahead + 0.04, 0.5);
+  } else if (kind === 'beat') {
+    box(0.36, BEAT.height, 0.36, BEAT.side, 0, BEAT.ahead, 0.6);
+  } else if (kind === 'palus') {
+    box(0.16, 1.8, 0.16, -0.05, 0, 0.95, 0.65);
+  } else if (kind === 'shave') {
+    // (The client's stool beside him: the client himself is the next figure's clip in the lab.)
+    const [hx, , hz] = SHAVE.head;
+    box(0.36, 0.42, 0.36, hx, 0, hz + 0.05, 0.6);
+  } else if (kind === 'mortar') {
+    box(0.6, MORTAR.height - 0.12, 0.45, 0, 0, MORTAR.ahead + 0.05, 0.7);
+    box(0.16, 0.12, 0.16, 0, MORTAR.height - 0.12, MORTAR.ahead, 0.95);
+  } else if (kind === 'couch') {
+    box(2.0, DINE.top, 0.85, -0.25, 0, -0.42, 0.7);
+    box(0.25, 0.22, 0.8, 0.62, DINE.top, -0.42, 0.95);
+    box(0.7, 0.62, 0.7, 0.1, 0, 0.62, 0.55);
+  } else if (kind === 'windlass') {
+    const { ahead, height, x: ax } = WINDLASS;
+    for (const dx of [0.08, 1.2]) box(0.1, height + 0.1, 0.4, ax + dx, 0, ahead, 0.6);
+    out.push([new BoxGeometry(1.1, 0.16, 0.16).translate(x + ax + 0.64, height, z + ahead), 0.75]);
+  } else if (kind === 'hedge') {
+    box(1.2, 0.95, 0.45, 0, 0, 0.75, 0.45);
+  } else if (kind === 'cupboard') {
+    box(1.0, 1.9, 0.4, 0, 0, SHELF.ahead + 0.22, 0.6);
+  }
+  return out;
+}
 
 export function buildPeopleScene() {
   const group = new Group();
@@ -133,19 +189,28 @@ export function buildPeopleScene() {
     specs.push({ seed: 100 + i, ...spec, at: [x, 0, ROW_DRESS], ry: spec.ry ?? 0 });
     figures.push({ name, note, x, z: ROW_DRESS, y: 2.1 });
   });
-  const half = Math.ceil(ACTS.length / 2);
+  const half = Math.ceil(ACTS.length / ROWS_ACT.length);
+  const furniture = [];
   ACTS.forEach(([name, note, spec], i) => {
-    const row = i < half ? 0 : 1;
-    const k = row ? i - half : i;
+    const row = Math.floor(i / half);
+    const k = i - row * half;
     const x = (k - (half - 1) / 2) * DX * 1.2;
     const z = ROWS_ACT[row];
     const s = { seed: 200 + i, body: 'm', dress: ['tunic:knee'], hair: 'crop', ...spec, at: [x, 0, z], ry: spec.ry ?? 0 };
+    delete s.furn;
+    delete s.seat;
     // (A route walks toward the camera's side and back, from a little behind the row.)
     if (s.route) s.at = [x, 0, z - 1.6];
     specs.push(s);
     figures.push({ name, note, x, z, y: 2.0 });
     if (spec.seat) benches.push([x, z]);
+    if (spec.furn) furniture.push(...furnish(spec.furn, x, z));
   });
+  for (const [geo, tone] of furniture) {
+    const mesh = new Mesh(tintGeometry(boxUV(geo), () => tone), material('wood', { surface: 'wood', vertexColors: true, snow: 1 }));
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+  }
   // The benches under the sitters: their seats SEAT_H high, set under the hips.
   const wood = material('wood', { surface: 'wood', vertexColors: true, snow: 1 });
   for (const [x, z] of benches) {
@@ -159,10 +224,12 @@ export function buildPeopleScene() {
   }
   const people = cast(specs);
   let lod = 0;
+  // (One figure alone, to judge a clip with nobody in front of it: solo(i), solo(-1) everyone again.)
+  let alone = null;
   const I = new Matrix4();
   const fill = () => {
     batch.begin(lod);
-    batch.add(people, I, 0);
+    batch.add(alone || people, I, 0);
     batch.end();
   };
   fill();
@@ -195,6 +262,10 @@ export function buildPeopleScene() {
       return true;
     },
     get close() { return close; },
+    solo(i) {
+      alone = i >= 0 && specs[i] ? cast([specs[i]]) : null;
+      fill();
+    },
     setTurn() {},
     setWinter() {},
     /** Each piece's triangles at a level (the batch's built pieces). */

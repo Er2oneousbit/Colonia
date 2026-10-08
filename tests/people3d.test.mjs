@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 
 import { Group, Matrix4, Vector3, ShaderLib } from 'three';
 import { BONES, BONE, BONE_COUNT } from '../src/render3d/people/rig.js';
-import { CLIPS, CLIP_NAMES, CLIP_INDEX, poseAt, bakeClips, clipFrames, FRAME_FLOATS } from '../src/render3d/people/clips.js';
+import { CLIPS, CLIP_NAMES, CLIP_INDEX, poseAt, bakeClips, clipFrames, FRAME_FLOATS, ROW, BEAT, WINDLASS } from '../src/render3d/people/clips.js';
 import { buildPiece } from '../src/render3d/people/pieces.js';
 import { pack, cast, actorBounds, hash01, routePose } from '../src/render3d/people/actors.js';
 import { AEDES } from '../src/render3d/models/aedes.js';
@@ -88,7 +88,7 @@ const PIECES = [
   'body:m', 'body:f', 'body:c', 'tunic:m:knee', 'tunic:m:short', 'tunic:m:long', 'tunic:m:knee:broad', 'tunic:f:long:stola', 'tunic:c:knee',
   'toga:m', 'toga:m:velato', 'pallium:m', 'palla:f', 'palla:f:veil', 'paenula:m', 'lorica:m', 'limus:m', 'caligae:m', 'helmet:m', 'bulla:c', 'wreath:m',
   'hair:crop:m', 'hair:curls:m', 'hair:bun:f', 'hair:bald:m', 'beard:full:m', 'beard:short:m',
-  ...['patera', 'tibiae', 'tablet', 'stylus', 'rollOpen', 'roll', 'spear', 'scutum', 'broom', 'purse', 'axe', 'fasces', 'acerra', 'hammer', 'chisel', 'coin', 'beam', 'sack'].flatMap((p) => [`prop:${p}:R`, `prop:${p}:L`]),
+  ...['patera', 'tibiae', 'tablet', 'stylus', 'rollOpen', 'roll', 'spear', 'scutum', 'broom', 'purse', 'axe', 'fasces', 'acerra', 'hammer', 'chisel', 'coin', 'beam', 'sack', 'oar', 'gladius', 'razor', 'pestle', 'cup', 'bow', 'arrow', 'crank', 'shears'].flatMap((p) => [`prop:${p}:R`, `prop:${p}:L`]),
 ];
 const tris = (key, lod) => buildPiece(key, lod).index.count / 3;
 
@@ -308,4 +308,65 @@ test('people3d: the temples\' priests walk clear of their altars and the altar\'
       assert.ok(Math.abs(x - ax) > aw / 2 + r - 1e-6 || Math.abs(z - az) > ad / 2 + r, `${type}: the priest's way at ${x.toFixed(2)}, ${z.toFixed(2)} crosses the altar`);
     }
   }
+});
+
+test('people3d: the working clips reach their tools: the oar through its thole, the mallet on the block, the crank round its axle, the bow drawn and loosed', () => {
+  const near = (a, b, d, what) => assert.ok(a.distanceTo(b) < d, `${what}: ${a.toArray().map((v) => v.toFixed(3))} vs ${b.toArray().map((v) => v.toFixed(3))}`);
+  for (let k = 0; k < 16; k++) {
+    const t = k / 16;
+    // The oar's line from its handle (propR) passes the thole pin, on each side; both hands on the loom.
+    for (const [clip, so] of [['row', 1], ['rowRight', -1]]) {
+      const p = poseAt(clip, t);
+      const grip = p.jointOf('propR');
+      const up = new Vector3(0, 1, 0).transformDirection(p.world[BONE.propR]);
+      const thole = new Vector3(so * ROW.out, ROW.up, ROW.ahead);
+      near(grip.clone().addScaledVector(up, thole.clone().sub(grip).dot(up)), thole, 1e-3, `${clip} at ${t}: the oar through its thole`);
+      for (const h of ['handL', 'handR']) assert.ok(p.jointOf(h).distanceTo(grip) < 0.35, `${clip}: ${h} on the oar`);
+    }
+    // The crank on its axle; the hands on its handle as it goes round.
+    const w = poseAt('windlass', t);
+    const axle = w.jointOf('propR');
+    near(axle, new Vector3(WINDLASS.x, WINDLASS.height, WINDLASS.ahead), 1e-6, 'the crank on its axle');
+    const handle = axle.clone().add(new Vector3(0, 1, 0).transformDirection(w.world[BONE.propR]).multiplyScalar(WINDLASS.arm));
+    for (const h of ['handL', 'handR']) assert.ok(Math.abs(w.jointOf(h).y + 0.01 - handle.y) < 0.03 && Math.abs(w.jointOf(h).z + 0.03 - handle.z) < 0.03, `windlass: ${h} on the handle at ${t}`);
+  }
+  // The mallet's head (props.js hammer: 0.22 along the grip's x, its face 0.05 under) comes down on the block at the catch.
+  const b = poseAt('beat', 0);
+  const head = b.jointOf('propR').add(new Vector3(0.22, -0.05, 0).applyMatrix4(new Matrix4().extractRotation(b.world[BONE.propR])));
+  near(head, new Vector3(BEAT.side, BEAT.height, BEAT.ahead), 0.02, 'the mallet on the block');
+  // The bow: drawn, the nock (propR) far back from the grip and the arrow shown; loosed, the arrow gone.
+  const drawn = poseAt('shoot', 0.45);
+  const loosed = poseAt('shoot', 0.7);
+  const scale = (p) => new Vector3().setFromMatrixColumn(p.world[BONE.propR], 0).length();
+  assert.ok(scale(drawn) > 0.99 && scale(loosed) < 0.01);
+  assert.ok(drawn.jointOf('propR').distanceTo(drawn.jointOf('propL')) > 0.5, 'drawn to the jaw');
+  // The string's nock is skinned to the drawing hand's prop bone.
+  const bow = buildPiece('prop:bow:L', 0);
+  const bones = bow.attributes.aBones.array;
+  const wts = bow.attributes.aWeights.array;
+  let nock = 0;
+  for (let i = 0; i < bones.length; i += 4) if (bones[i] === BONE.propR && wts[i] === 1) nock++;
+  assert.ok(nock > 0, 'the bow string\'s nock on propR');
+});
+
+test('people3d: actors in step (sync) share the building\'s phase and speed: a crew to its hortator\'s beat', () => {
+  const crew = cast([{ clip: 'row', sync: true }, { clip: 'rowRight', sync: true, seed: 99 }, { clip: 'beat', sync: true }, { clip: 'idle' }]);
+  assert.deepEqual(crew.actors.slice(0, 3).map((a) => a.clip[1]), [0, 0, 0]);
+  assert.ok(crew.actors[3].clip[1] !== 0 && !crew.actors[3].sync);
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  const batch = mp.people;
+  batch.begin(0);
+  batch.add(crew, new Matrix4(), 17);
+  batch.end();
+  const got = [];
+  for (const p of batch.pieces.values()) {
+    if (!p.key.startsWith('body:') || !p.mesh.count) continue;
+    const a = p.attrs.aActClip.array;
+    for (let i = 0; i < p.mesh.count; i++) got.push([a[i * 4], a[i * 4 + 1], a[i * 4 + 2]]);
+  }
+  const synced = got.filter(([c]) => c !== CLIP_INDEX.idle);
+  assert.equal(synced.length, 3);
+  for (const g of synced) assert.ok(g[1] === synced[0][1] && g[2] === synced[0][2], 'one phase, one speed');
+  mp.dispose();
 });

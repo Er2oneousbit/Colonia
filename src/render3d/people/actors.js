@@ -29,6 +29,9 @@
  *   colours  { tunic, mantle, skin, hair, trim, leather, accent, metal }
  *            (sRGB hex; any not given from the palette by its seed)
  *   seed     a number: its colours and phase when not given
+ *   sync     true: in step with the building's other sync actors (a crew
+ *            rowing to its hortator's beat): the batch gives them the
+ *            building's phase and speed alike, `phase` their own on top
  *
  * cast(list) packs a list once (frozen): what the batch copies into its
  * instance buffers. A model keeps its casts by state, as it keeps `more`.
@@ -167,7 +170,7 @@ export function pack(spec, index = 0) {
   const wrap = (a, mid) => mid + (((((a - mid + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI);
   const faceEnd = route && route.faceEnd !== undefined ? wrap(route.faceEnd - (spec.ry || 0), 0) : 0;
   const faceStart = route && route.faceStart !== undefined ? wrap(route.faceStart - (spec.ry || 0), Math.PI) : Math.PI;
-  const phase = spec.phase ?? hash01(seed, 9) * def.dur * 3;
+  const phase = spec.phase ?? (spec.sync ? 0 : hash01(seed, 9) * def.dur * 3);
   const speed = spec.speed ?? 1;
   // (Head scale: a child's head is bigger for its body than a man's.)
   const head = body === 'c' ? 1.14 : 1;
@@ -187,6 +190,8 @@ export function pack(spec, index = 0) {
     scale,
     routeLength: route ? route.length : 0,
     clipName,
+    // (In step with the building's other `sync` actors: the batch gives them its phase and speed alike.)
+    sync: !!spec.sync,
   });
 }
 

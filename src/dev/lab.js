@@ -1008,6 +1008,8 @@ async function main() {
       get figures() { return commerce.people.figures.map((f) => ({ ...f })); },
       stats: () => commerce.people.stats(),
       triangles: (l) => commerce.people.triangles(l),
+      /** One figure alone (its index; -1 everyone). */
+      solo: (i) => commerce.people.solo(i),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
