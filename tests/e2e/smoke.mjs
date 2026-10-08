@@ -5228,7 +5228,14 @@ try {
             const u = r.stats.units3d;
             return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending && (!shows || (!!u && u.figures >= 2 && !u.deferred));
           }, [b.type, shows], { timeout: 60000, polling: 100 }).catch(() => {});
-          const got = await gv.evaluate((t) => { const r = window.colonia.renderer; return { drawn: (r.stats.modelPass?.byType || {})[t] || 0, figures: r.stats.units3d?.figures || 0 }; }, b.type);
+          // (Its own show's figures: made-up units with ids from the venue's own, render3d/models/venueShow.js showIds.)
+          const got = await gv.evaluate(([t, id]) => {
+            const r = window.colonia.renderer;
+            const p = r.backend.units;
+            const top = -1000000 - id * 16;
+            const own = p.list.slice(0, p.used).filter((it) => it.u && it.u.id <= top && it.u.id > top - 16).length;
+            return { drawn: (r.stats.modelPass?.byType || {})[t] || 0, figures: own };
+          }, [b.type, b.main]);
           const p = await gv.evaluate(([x, y]) => {
             const app = window.colonia;
             const cam = app.renderer.camera;

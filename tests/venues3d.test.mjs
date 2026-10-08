@@ -245,11 +245,23 @@ test('venues3d: the race runs on the track as the 2D race lays it, at every turn
   assert.equal(eggs(7), 0);
 });
 
+test('venues3d: a venue\'s `more` list is kept, not made again a frame, idle or showing (no list grows with the frames)', () => {
+  for (const shows of [NONE, ALL]) {
+    const { b, game } = scene('hippodrome', { shows });
+    const middle = game.buildings.get(b.parts[0]);
+    const arena = scene('colosseum', { shows }).b;
+    const a = [MODELS.hippodrome_part.variant(middle, {}, { game, tick: 3 }).more, MODELS.colosseum.variant(arena, {}, { game, tick: 3 }).more];
+    const c = [MODELS.hippodrome_part.variant(middle, {}, { game, tick: 3 }).more, MODELS.colosseum.variant(arena, {}, { game, tick: 3 }).more];
+    assert.equal(a[0], c[0], 'the hippodrome\'s middle');
+    assert.equal(a[1], c[1], 'the Arena (its bays)');
+  }
+});
+
 test('venues3d: the lamps light only while a show is on', () => {
   for (const type of ['theater', 'amphitheater', 'colosseum', 'hippodrome']) {
     const { b, game } = scene(type);
     MODELS[type].variant(b, {}, { game });
-    assert.ok(modelLamps(b, 0).length > 0 || type === 'hippodrome', `${type}: lit`);
+    assert.ok(modelLamps(b, 0).length > 0, `${type}: lit`);
     b.shows = { ...NONE };
     MODELS[type].variant(b, {}, { game });
     assert.equal(modelLamps(b, 0).length, 0, `${type}: dark`);

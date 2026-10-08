@@ -417,7 +417,7 @@ const SHOW_LOOKS = {
     driver.at = [0, 0.3, 0.12];
     const car = { rigid: 'cart:chariot', at: [0, 0, 0], colours: { accent: fac }, mount: -1, scale: 1, wheels: true };
     const team = [-0.98, -0.34, 0.34, 0.98].map((x, k) => {
-      const h = horse(seed + k * 7, 'yoke', fac, [x, 0, Math.abs(x) > 1 ? 1.98 : 2.05]);
+      const h = horse(seed + k * 7, 'yoke', fac, [x, 0, Math.abs(x) > 0.9 ? 1.98 : 2.05]);
       h.scale = 0.9;
       return h;
     });

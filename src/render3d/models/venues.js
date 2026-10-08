@@ -192,9 +192,12 @@ export function crowdMore(type, section, fill, m) {
   return list;
 }
 
+/** No crowd: one list for every venue without a show (the lists joined to it are kept by it: a new one a frame grew them without end). */
+const NO_CROWD = Object.freeze([]);
+
 /** A venue's crowd now: none unless a show is on; its mood by the game's clock. */
 function crowdNow(type, section, state, game, ctx) {
-  if (state !== 'open') return [];
+  if (state !== 'open') return NO_CROWD;
   const tick = showTick(ctx);
   const m = type === 'hippodrome' ? Math.round(leaderU(tick) * 2) : Math.floor(tick / BEAT_TICKS) % MOODS;
   return crowdMore(type, section, venueFill(game, type), m);

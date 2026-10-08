@@ -257,11 +257,13 @@ const SHOW_AT = { fx: 0, fy: 0, lift: 0, stride: 0, vt: 0, W: 0, H: 0, dx: 0, dy
  * end's this frame, webglBackend.js) handed to the units' pass `units`
  * after its frame began (renderer.js unitsFrame), by the units' own clock
  * (the game's ticks): what cannot be drawn yet (its pieces not built) is
- * left out that frame, as a unit keeps its sprite.
+ * left out that frame (the 2D race stays out while the units' pass draws: a
+ * race's first frames, before its horses are built, show no chariots). With
+ * reduced motion there are none, as the 2D race is not drawn then either.
  */
 export function venueShows(units, placed, r) {
   const game = r.game;
-  if (!game || !game.map) return;
+  if (!game || !game.map || r.motionOn === false) return;
   const tick = units.motion.tick;
   for (const p of placed) {
     const b = p.b;
