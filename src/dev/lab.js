@@ -92,6 +92,7 @@ import { buildPeopleScene } from './labPeople.js';
 import { buildWalkersScene } from './labWalkers.js';
 import { buildShipsScene } from './labShips.js';
 import { buildArmyScene } from './labUnits.js';
+import { buildVenuesScene } from './labVenues.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -346,6 +347,8 @@ async function main() {
   commerce.ships = buildShipsScene(groundTex, look);
   // The Army scene (labUnits.js, the backslash key): every fighting unit drawn in 3D, in cells of open ground.
   commerce.army = buildArmyScene();
+  // The Venues scene (labVenues.js, Shift+E): the theatre, the amphitheatre, the Great Arena and the hippodrome, with a show on and idle.
+  commerce.venues = buildVenuesScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -750,6 +753,11 @@ async function main() {
       setScene('ships');
       return;
     }
+    // Shift+E: the Venues scene (E alone turns the view).
+    if (e.shiftKey && k === 'e') {
+      setScene('venues');
+      return;
+    }
     const moods = Object.keys(MOODS);
     if (k >= '1' && k <= String(moods.length)) setMood(moods[Number(k) - 1]);
     else if (k === 'q') setTurn(state.turn - 1);
@@ -805,7 +813,7 @@ async function main() {
   /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
   function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
     // (The People scene's figures, or the Walkers scene's loops when it is the one shown.)
-    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : state.scene === 'army' ? commerce.army : commerce.people).figures[i];
+    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : state.scene === 'army' ? commerce.army : state.scene === 'venues' ? commerce.venues : commerce.people).figures[i];
     if (!f) {
       setView('game1');
       return;
@@ -1060,6 +1068,15 @@ async function main() {
       get units() { return commerce.army.figures; },
       where: (i) => commerce.army.where(i),
       stats: () => commerce.army.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Venues scene (labVenues.js): a venue close up, the venues, where each is, triangles, the passes' stats. */
+    venues: {
+      closeUp: (i, o) => closeUp(i, o),
+      get items() { return commerce.venues.items.map((it) => ({ ...it })); },
+      where: (i) => commerce.venues.where(i),
+      triangles: (l) => commerce.venues.triangles(l),
+      stats: () => commerce.venues.stats(),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
