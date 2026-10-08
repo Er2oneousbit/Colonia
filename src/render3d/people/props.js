@@ -34,6 +34,9 @@
  *   shears    a gardener's spring shears
  *   sweep     a ship's long oar (clips.js ROW_SHIP), rocked about its thole
  *             by clips.js rowShip
+ *   rudis     the referee's staff at the bouts (models/venueActors.js)
+ *   persona, personaComic  an actor's mask worn over the head, tragic or
+ *             comic: on the head's bone, not a hand's (wornMask)
  * ----------------------------------------------------------------------------
  */
 

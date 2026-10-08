@@ -5182,6 +5182,73 @@ try {
         await gu.close();
       }
 
+      // 8a7. The venues as models (render3d/models/venues.js): the console's `shows` builds an
+      //      Arena, an amphitheater and a Circus beside the demo city (its theater stands) and
+      //      books every show; paused and staffed, each draws as a model (waited for: kits are built
+      //      a few a frame under the software GL), its show's figures go to the units' pass (the
+      //      gladiators, the race), and a click on its footprint (any section of the Circus) opens
+      //      its panel.
+      {
+        const gv = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const verrs = [];
+        gv.on('pageerror', (e) => verrs.push(`pageerror: ${e.message}`));
+        gv.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) verrs.push(m.text()); });
+        await gv.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gv.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const laidV = await gv.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const free = app.game.cheats.freeBuild;
+          app.game.cheats.freeBuild = true;
+          const said = app.ui.console.run('shows');
+          app.game.cheats.freeBuild = free;
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const all = [...app.game.buildings.values()];
+          // (Staffed for the check: the demo's labour reaches them in its own time.)
+          for (const b of all) if (b.def.kind === 'venue') b.efficiency = 1;
+          const pick = (t) => {
+            const b = all.find((v) => v.type === t);
+            return b ? { id: b.id, main: b.main || b.id, type: b.type, x: b.x, y: b.y, size: b.size } : null;
+          };
+          return { said, list: ['theater', 'amphitheater', 'colosseum', 'hippodrome', 'hippodrome_part'].map(pick) };
+        });
+        const venues = [];
+        for (const b of laidV.list) {
+          if (!b) {
+            venues.push({ missing: true });
+            continue;
+          }
+          await gv.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          // Drawn as a model, and (at the arenas and the Circus) its show's figures drawn by the units' pass.
+          const shows = b.type === 'colosseum' || b.type === 'amphitheater' || b.type === 'hippodrome';
+          await gv.waitForFunction(([t, shows]) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            const u = r.stats.units3d;
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending && (!shows || (!!u && u.figures >= 2 && !u.deferred));
+          }, [b.type, shows], { timeout: 60000, polling: 100 }).catch(() => {});
+          const got = await gv.evaluate((t) => { const r = window.colonia.renderer; return { drawn: (r.stats.modelPass?.byType || {})[t] || 0, figures: r.stats.units3d?.figures || 0 }; }, b.type);
+          const p = await gv.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gv.mouse.click(p.x, p.y);
+          await gv.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.main, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gv.evaluate(() => window.colonia.ui.info.target);
+          venues.push({ type: b.type, ...got, shows, picked: target?.kind === 'building' && target.id === b.main });
+        }
+        await gv.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gv.screenshot({ path: path.join(shots, 'smoke-webgl-venues.png') });
+        check('WebGL renderer: the theater, the amphitheater, the Great Arena and the Circus\'s sections are 3D models with their shows, and a click picks each',
+          venues.length === 5 && venues.every((v) => !v.missing && v.drawn >= 1 && v.picked && (!v.shows || v.figures >= 2)), JSON.stringify({ said: laidV.said, venues }));
+        check('WebGL renderer, venue models: no page errors', verrs.length === 0, verrs.join(' | '));
+        await gv.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks

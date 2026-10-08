@@ -57,8 +57,9 @@ export function venueMaterials() {
   return {
     ...m,
     // The arena's and the track's sand (harena): fine, pale, raked.
-    // (On the plaster's fine grain, tinted: the earth's cracks and pebbles read as a dry field, not sand.)
-    sand: material('arena-sand', { surface: 'plaster', color: 0xe9cf9c, vertexColors: true, snow: 1 }),
+    // (On the stucco's fine grain, tinted: the earth's cracks and pebbles read as a dry field, not sand,
+    // and the plaster's painted dado came through as red bands across the track.)
+    sand: material('arena-sand', { surface: 'stucco', color: 0xe6c992, vertexColors: true, snow: 1 }),
     // The seats: travertine steps, their tones in the vertices.
     seats: m.trav,
     tufa: material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }),
@@ -587,7 +588,7 @@ export function velarium(p, M, at, { ts, dm, dIn, y0, yTop, drop = 0.3, lod = 0,
       const [x, z] = at(dm + (dIn - dm) * s, t);
       pos.push(x, yTop - 0.05 - s * drop - sg * (0.5 + s), z);
       // (Linen with a narrow band of madder every fourth stripe: a ring of solid red read as a lifebuoy from above.)
-      cols.push(...(Math.floor((i / n) * stripes) % 4 === 0 ? lin(0xa83a2a) : lin(0xeee2c8, 0.95 + 0.05 * (j % 2))));
+      cols.push(...(lod === 0 && Math.floor((i / n) * stripes) % 4 === 0 ? lin(0xa83a2a) : lin(0xeee2c8, 0.95 + 0.05 * (j % 2))));
     }
   }
   for (let i = 0; i < n; i++) for (let j = 0; j < rows; j++) quads.push(i * (rows + 1) + j);

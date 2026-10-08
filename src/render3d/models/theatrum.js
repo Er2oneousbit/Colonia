@@ -370,7 +370,8 @@ function house(lod, p, M) {
   const slopeL = Math.hypot(zf - zb, y0 - y1);
   // (Its eave over the back wall, within the footprint.)
   const tiles = box(2 * X + 0.08, 0.08, slopeL + 0.04, 0, -0.04, 0, 1);
-  tiles.rotateX(Math.atan2(y0 - y1, zf - zb));
+  // (High at the frons, down to the back wall: a turn about x that lifts +z.)
+  tiles.rotateX(-Math.atan2(y0 - y1, zf - zb));
   tiles.translate(0, (y0 + y1) / 2, (zf + zb) / 2);
   p.add('tile', M.tile, tiles);
   if (lod === 0) {
@@ -437,7 +438,8 @@ function velarium(lod, p, M) {
       const r = R + (inR - R) * s;
       const y = top - 0.06 - s * 0.22 - sag * (0.5 + s) - 0.03 * Math.sin(Math.PI * s);
       pos.push(r * Math.cos(th), y, T.cz + r * Math.sin(th));
-      const stripe = Math.floor(t * 48) % 4 === 0;
+      // (Its madder bands close up only: far out a quad is wider than a band.)
+      const stripe = lod === 0 && Math.floor(t * 48) % 4 === 0;
       cols.push(...(stripe ? lin(0xa83a2a) : lin(0xeee2c8)));
     }
   }
