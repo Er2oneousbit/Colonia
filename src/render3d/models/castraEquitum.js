@@ -25,7 +25,10 @@
  * The horses in the stalls are drawn as the farms' horses (`more`, one for
  * each trooper of the ala at home: models/militaryModels.js STALLS), so only the
  * building is here. States as the legion fort's: 'open', 'out', 'shut';
- * 'home' and 'staffed' tags.
+ * 'home' and 'staffed' tags. Manned (cavalryActors): sentries pace the walk
+ * over the gate and the front walk; troopers see to their horses, one for
+ * every few in the stalls (the same count the stalls show), one carrying
+ * fodder along the stalls' fronts.
  *
  * Metres, the fort's middle at the origin, y up, the gate toward +z.
  * ----------------------------------------------------------------------------
@@ -37,7 +40,7 @@ import { slab } from './masonry.js';
 import { gableRoof, leanTo, lin, D } from './rural.js';
 import {
   CASTRA, fortBag, pour, assemble, TANK_WATER, onSide, stoneRun, stoneTower, stoneGate, box, staff, tank,
-  vexillum, draco, imago, standardBase, inscribe, sentry, oven, limewash,
+  vexillum, draco, imago, standardBase, inscribe, oven, limewash, soldier, wallSentry,
 } from './castra.js';
 
 /** The cavalry fort's measures (metres): the tests, the lab and the game read them. */
@@ -233,9 +236,54 @@ export function buildCavalryFort({ lod = 0, seed = 151 } = {}) {
   draco(-1.5, sz, 2.05, lod, std, lin(0xa8322b));
   vexillum(-1.05, sz, 1.95, lod, std, GOLD);
   imago(-1.95, sz, 1.8, lod, std);
-  const { p, mats } = assemble('castra-equitum', out, std, lod, Q.lamps, { facing: 'plaster' });
-  if (lod === 0) sentry(p, mats, 'sentry', 0.55, 2.45, O - 0.35, 0.2, 'open', { cloth: 0xc9962e, shield: GOLD });
+  const { p } = assemble('castra-equitum', out, std, lod, Q.lamps, { facing: 'plaster' });
+  // (The watch and the troopers at the stalls are actors: cavalryActors.)
   return p.build();
+}
+
+/** The stalls whose horse has a trooper beside it, in the order they fill: one for every few horses. */
+export const TROOPER_STALLS = Object.freeze([1, 4, 6]);
+
+/**
+ * How many troopers see to the horses for `horses` in the stalls (0 to
+ * CAVALRY_FORT.stalls, the count the stalls show: militaryModels.js): one
+ * carrying fodder while any horse is in, and one by each of TROOPER_STALLS
+ * whose horse is there.
+ */
+export function troopersFor(horses) {
+  const n = Math.max(0, Math.min(Q.stalls, horses | 0));
+  return n === 0 ? 0 : 1 + TROOPER_STALLS.filter((k) => k < n).length;
+}
+
+/**
+ * The cavalry fort's people (people/actors.js specs, its metres) while its
+ * men are home ('open'), for `horses` in the stalls: a sentry pacing the
+ * walk over the gate (2.4 m up) and one on the front walk right of the
+ * gate, standing guard at the ends; a trooper in his tunic carrying a sack
+ * of fodder up and down before the stalls (the horse yard's edge, clear of
+ * the men's places), and one by the quarters of each horse of
+ * TROOPER_STALLS that is in, at the post between the stalls, looking it
+ * over (grooming is not a clip of its own: he stands, listens to a
+ * comrade, talks). Nobody when the men are out (the horses go with them)
+ * or the fort is empty.
+ */
+export function cavalryActors(state, horses = 0) {
+  if (state !== 'open') return [];
+  const list = [
+    wallSentry('cavalry', -0.95, 0.95, 2.4, CASTRA.gateIn + 0.46, 31),
+    wallSentry('cavalry', 2.5, 4.2, 1.0, CASTRA.O - 0.7, 32),
+  ];
+  const n = troopersFor(horses);
+  if (!n) return list;
+  const [, x1, z0, z1] = Q.stable;
+  const w = (z1 - z0) / Q.stalls;
+  const trooper = (extra) => ({ ...soldier('cavalry', extra), dress: ['tunic:knee', 'caligae'], props: extra.props || {} });
+  list.push(trooper({ clip: 'carry', props: { L: 'sack' }, at: [x1 + 0.9, CASTRA.floorY, z0 + 0.35], ry: 0, seed: 33, route: { length: z1 - z0 - 0.9, speed: 0.8, pauseEnd: 3, pauseStart: 4, clipEnd: 'shoulder', clipStart: 'shoulder', faceEnd: -Math.PI / 2, faceStart: -Math.PI / 2 } }));
+  const clips = ['idle', 'listen', 'talk'];
+  TROOPER_STALLS.slice(0, n - 1).forEach((k, i) => {
+    list.push(trooper({ clip: clips[i], at: [x1 + 0.42, CASTRA.floorY, z0 + k * w + 0.05], ry: -Math.PI / 2 + 0.55, seed: 34 + i }));
+  });
+  return list;
 }
 
 export { TANK_WATER };

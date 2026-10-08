@@ -22,18 +22,22 @@
  *        staffed, 'shut' not.
  *
  * Each lights its lanterns at night while 'open' or 'out' (models.js
- * modelLamps). In a hard frost a tank's water is ice (':ice').
+ * modelLamps). In a hard frost a tank's water is ice (':ice'). Each casts
+ * its people by its state (`actors`, people/actors.js: the forts' watch,
+ * the clerk and the recruit, the drill), packed once a state; the cavalry
+ * fort's troopers by its stalls also by the count of horses there.
  * ----------------------------------------------------------------------------
  */
 
 import { iceMaterial } from '../materials.js';
+import { cast } from '../people/actors.js';
 import { postsAway } from '../../sim/away.js';
 import { FORT_CAPACITY } from '../../data/units.js';
-import { buildLegionFort, LEGION_FORT } from './castraLegion.js';
-import { buildArcherFort, ARCHER_FORT } from './castraArcher.js';
-import { buildCavalryFort, CAVALRY_FORT, stallMatrix } from './castraEquitum.js';
-import { buildBarracks, buildArmsSet, buildArrowSheaf, BARRACKS, ARMS_MATS, ARROW_MATS, HORSE_MATS } from './tirocinium.js';
-import { buildAcademy, ACADEMY, RING_HORSE } from './campus.js';
+import { buildLegionFort, LEGION_FORT, legionActors } from './castraLegion.js';
+import { buildArcherFort, ARCHER_FORT, archerActors } from './castraArcher.js';
+import { buildCavalryFort, CAVALRY_FORT, stallMatrix, cavalryActors } from './castraEquitum.js';
+import { buildBarracks, buildArmsSet, buildArrowSheaf, BARRACKS, ARMS_MATS, ARROW_MATS, HORSE_MATS, barracksActors } from './tirocinium.js';
+import { buildAcademy, ACADEMY, RING_HORSE, academyActors } from './campus.js';
 import { TANK_WATER } from './castra.js';
 import { HORSE_COATS } from './livestock.js';
 
@@ -198,6 +202,35 @@ export function militaryMore(kind, it) {
   return NONE;
 }
 
+/**
+ * The people of each kind (people/actors.js specs) for a state, and for the
+ * cavalry fort the horses its stalls show (`horses`: its troopers by them
+ * follow that count): what the game's variants cast, and what a lab's or a
+ * test's made-up building shows ({ state, horses }).
+ */
+const ACTORS = Object.freeze({
+  fort_legion: (s) => legionActors(s),
+  fort_archer: (s) => archerActors(s),
+  fort_cavalry: (s, horses) => cavalryActors(s, horses),
+  barracks: (s) => barracksActors(s),
+  military_academy: (s) => academyActors(s),
+});
+export function militaryActors(kind, it) {
+  return ACTORS[kind] ? ACTORS[kind](it.state, it.horses || 0) : [];
+}
+
+/** Each kind's casts, packed once for each state (and the cavalry's for each count of horses). */
+const CASTS = new Map();
+function castOf(kind, state, horses = 0) {
+  const key = `${kind}:${state}:${horses}`;
+  let c = CASTS.get(key);
+  if (!c) {
+    c = cast(militaryActors(kind, { state, horses }));
+    CASTS.set(key, c);
+  }
+  return c;
+}
+
 /** A lamp's point for models.js modelLamps: [x, y, z, 1] facing the front (+z). */
 const lampsOf = (list) => Object.freeze(list.map(([x, y, z]) => Object.freeze([x, y + 0.11, z, 1])));
 const LAMPS = Object.freeze({
@@ -222,11 +255,14 @@ function fortModel(type, build) {
       const v = { key: frost(place) ? `${type}:ice` : type, state: fortState(b, game), ice: false };
       // The stalls hold a remount for each trooper (an ala's men each kept more than one horse);
       // deployed or away, they ride out with them. (A ghost's stalls are empty: the ala comes with
-      // its recruits.)
+      // its recruits.) The troopers seeing to them follow the same count.
+      let horses = 0;
       if (type === 'fort_cavalry') {
         const home = v.state !== 'out' && b.id !== null && b.id !== undefined;
-        v.more = STALLS[home ? Math.min(CAVALRY_FORT.stalls, fortMen(b, game)) : 0];
+        horses = home ? Math.min(CAVALRY_FORT.stalls, fortMen(b, game)) : 0;
+        v.more = STALLS[horses];
       }
+      v.actors = castOf(type, v.state, horses);
       return v;
     },
     warm: [type],
@@ -244,7 +280,10 @@ export const MILITARY_MODELS = Object.freeze({
   fort_cavalry: fortModel('fort_cavalry', buildCavalryFort),
   barracks: Object.freeze({
     // (A ghost holds nothing yet.)
-    variant: (b) => ({ key: 'barracks', state: barracksState(b), ice: false, more: b.id === null || b.id === undefined ? NONE : barracksMore(b.stock) }),
+    variant(b) {
+      const state = barracksState(b);
+      return { key: 'barracks', state, ice: false, more: b.id === null || b.id === undefined ? NONE : barracksMore(b.stock), actors: castOf('barracks', state) };
+    },
     // (Its own kits' keys too: the strap leather and the paint are theirs.)
     warm: ['barracks', 'barracks:set', 'barracks:arrows'],
     lamps: (b) => (b.efficiency > 0 ? LAMPS.barracks : NONE),
@@ -257,7 +296,7 @@ export const MILITARY_MODELS = Object.freeze({
   military_academy: Object.freeze({
     variant(b, place, ctx) {
       const state = academyState(b, ctx && ctx.game);
-      return { key: 'military_academy', state, ice: false, more: state === 'out' ? RIDER : NONE };
+      return { key: 'military_academy', state, ice: false, more: state === 'out' ? RIDER : NONE, actors: castOf('military_academy', state) };
     },
     warm: ['military_academy'],
     lamps: (b) => (b.efficiency > 0 ? LAMPS.military_academy : NONE),

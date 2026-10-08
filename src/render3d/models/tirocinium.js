@@ -29,7 +29,9 @@
  * States (models.js partShows; militaryModels.js barracksState):
  *   'out'   staffed, a recruit in training: he strikes at the post under
  *           the eye of his instructor, the clerk at his table
- *   'open'  staffed, no recruit: the clerk at his table, the doors open
+ *           (barracksActors: people/actors.js, moving)
+ *   'open'  staffed, no recruit: the clerk writing on his stool by the
+ *           table, the doors open
  *   'shut'  no staff: the armoury's doors and the gate shut, nobody
  * Tags: 'staffed' (open or out), 'out', 'shut'.
  *
@@ -42,8 +44,8 @@ import { boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
 import { TaggedParts, slab, lantern, lanternPane } from './masonry.js';
 import { gableRoof, leanTo, lin, D } from './rural.js';
-import { figureParts } from './figure.js';
-import { castraMaterials, box, cyl, staff, vexillum, people } from './castra.js';
+import { castraMaterials, box, cyl, staff, vexillum, soldier, atPost } from './castra.js';
+import { SEAT_H } from '../people/clips.js';
 
 /** The barracks' measures (metres): the tests, the lab and the game read them. */
 export const BARRACKS = Object.freeze({
@@ -61,6 +63,8 @@ export const BARRACKS = Object.freeze({
   horses: Object.freeze([Object.freeze([3.85, -1.9]), Object.freeze([3.85, -0.55]), Object.freeze([3.85, 0.8]), Object.freeze([3.85, 2.15])]),
   /** The posts (pali) in the drill yard. */
   pali: Object.freeze([[-0.7, 0.3], [1.7, 0.3], [-0.7, 2.9], [1.7, 2.9]]),
+  /** The clerk's place on his stool by the table under the veranda (x, the flags' top, z), facing the yard. */
+  clerk: Object.freeze([1.45, 0.05, -3.72]),
   /** The lanterns on the gate's piers (x, y, z). */
   lamps: Object.freeze([Object.freeze([-1.45, 1.55, 5.82]), Object.freeze([1.45, 1.55, 5.82])]),
 });
@@ -296,6 +300,10 @@ function office(lod, seed, out) {
   const tz = z1 + 0.5;
   out.wood.push(slab(1.0, 0.05, 0.5, { bevel: 0.01, seed: seed + 20, wobble: 0.002, tone: 0.05, grime: 0 }).translate(tx, 0.72, tz));
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.wood.push(box(0.05, 0.72, 0.05, tx + sx * 0.44, 0, tz + sz * 0.19, 0.7));
+  // His stool beside the table (he writes on the tablet on his knee, as the scribes did): its top SEAT_H over the flags.
+  const [cx0, cy0, cz0] = B.clerk;
+  out.wood.push(slab(0.36, 0.04, 0.3, { bevel: 0.008, seed: seed + 21, wobble: 0.002, tone: 0.05, grime: 0 }).translate(cx0, cy0 + SEAT_H - 0.04, cz0 - 0.04));
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.wood.push(box(0.04, SEAT_H - 0.04, 0.04, cx0 + sx * 0.14, cy0, cz0 - 0.04 + sz * 0.1, 0.7));
   if (lod < 2) {
     out.wood.push(box(0.3, 0.12, 0.2, tx + 0.28, 0.77, tz - 0.05, 0.62));
     out.paint.push(tintGeometry(box(0.22, 0.012, 0.16, tx - 0.15, 0.77, tz + 0.05, 1), () => lin(0x3a2a1c)));
@@ -393,22 +401,33 @@ export function buildBarracks({ lod = 0, seed = 171 } = {}) {
       p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), [l.pane.clone()], { when: 'shut', cast: false });
     }
   }
-  // People: the clerk at his table while staffed; a recruit at the first post and his instructor while one trains.
-  if (lod === 0) {
-    const tz = B.office[3] + 0.5;
-    people(p, m, 'clerk', figureParts({ cloth: 0xd8ccb0, cloth2: 0x7a5a3a }, 0.6, 0.03, tz - 0.42, 0), 'staffed');
-    const [px, pz] = B.pali[0];
-    const drill = figureParts({ cloth: 0xcfc3a8, reach: 1 }, px - 0.1, 0.03, pz + 0.62, Math.PI + 0.15);
-    // His wicker shield on his left arm, his wooden sword raised; his instructor with his vine staff.
-    const ws = wickerShield(1);
-    ws.scale(0.85, 0.85, 0.85);
-    ws.rotateY(Math.PI + 0.15);
-    ws.translate(px + 0.18, 0.45, pz + 0.46);
-    drill.push({ g: ws, material: material('wicker', { surface: 'wicker', vertexColors: true, snow: 0.8 }) });
-    drill.push({ g: staff([px - 0.32, 1.25, pz + 0.38], [px - 0.2, 1.55, pz + 0.05], 0.025, 4), material: m.wood });
-    drill.push(...figureParts({ cloth: 0xa8322b, cloth2: 0x7a6248 }, px + 1.1, 0.03, pz + 1.15, -Math.PI * 0.75));
-    drill.push({ g: staff([px + 0.82, 0.03, pz + 1.0], [px + 0.86, 1.0, pz + 0.95], 0.016, 4), material: m.wood });
-    people(p, m, 'recruit', drill, 'out');
-  }
+  // (The clerk, the recruit and his instructor are actors: barracksActors.)
   return p.build();
+}
+
+/**
+ * The barracks' people (people/actors.js specs, its metres): the clerk on
+ * his stool by the table while it is staffed ('open', 'out'), writing up
+ * the probatio on the tablet on his knee; while a recruit trains ('out'),
+ * the recruit in his undyed tunic at the first post, striking at it from
+ * behind his shield as Vegetius has it (the wicker shield and the wooden
+ * sword: the shield's face the colour of withies), and his instructor (the
+ * campidoctor, a legionary in his mail) beside him, telling him how.
+ * Nobody when it is shut.
+ */
+export function barracksActors(state) {
+  if (state === 'shut') return [];
+  const [cx, cy, cz] = B.clerk;
+  const list = [{ body: 'm', dress: ['tunic:knee'], hair: 'crop', beard: 'short', clip: 'write', props: { L: 'tablet', R: 'stylus' }, at: [cx, cy, cz], ry: 0, seed: 41, colours: { tunic: 0xd8ccb0 } }];
+  if (state === 'out') {
+    const [px, pz] = B.pali[0];
+    const ry = Math.PI;
+    const [rx, rz] = atPost(px, pz, ry);
+    list.push({ body: 'm', dress: ['tunic:knee', 'caligae'], hair: 'crop', clip: 'drill', props: { R: 'gladius', L: 'scutum' }, at: [rx, 0.03, rz], ry, seed: 42, colours: { tunic: 0xcfc3a8, accent: 0xb8995a } });
+    // (On the recruit's shield side, back from the post: clear of the practice arms leaning by the next.)
+    const ix = rx - 0.9;
+    const iz = rz + 0.65;
+    list.push(soldier('legion', { clip: 'talk', props: {}, at: [ix, 0.03, iz], ry: Math.atan2(px - ix, pz - iz), seed: 43 }));
+  }
+  return list;
 }

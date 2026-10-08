@@ -231,9 +231,14 @@ test('walls3d: the Turris fits its 2 x 2 footprint at every turn, its archers ou
   assert.equal(manned.state, 'open');
   assert.equal(idle.state, 'shut');
   const kit = kitOf(MODELS.tower.build(manned.key, 0));
-  const crew = kit.parts.filter((p) => p.when === 'open');
-  assert.ok(crew.length >= 3, 'the archers and the open door');
-  assert.ok(crew.every((p) => !partShows(p.when, 'shut', false)));
+  const open = kit.parts.filter((p) => p.when === 'open');
+  assert.ok(open.length >= 1, 'the open door');
+  assert.ok(open.every((p) => !partShows(p.when, 'shut', false)));
+  // The crew are actors (turris.js turrisActors): archers shooting from the gallery, a sentry pacing it, while manned.
+  const crew = manned.actors.actors;
+  assert.ok(crew.filter((a) => a.clipName === 'shoot').length >= 2 && crew.some((a) => a.routeLength > 0), 'the archers and the sentry');
+  for (const a of crew) assert.ok(Math.abs(a.at[1] - (TURRIS.gallery + 0.08)) < 1e-6, 'on the gallery\'s planks');
+  assert.equal(idle.actors.actors.length, 0);
   assert.deepEqual(modelLamps({ type: 'tower', size: 2, efficiency: 0 }, 0), []);
   for (let T = 0; T < 4; T++) assert.equal(modelLamps({ type: 'tower', size: 2, efficiency: 1 }, T).length, 1, `one torch in view at turn ${T}`);
 });

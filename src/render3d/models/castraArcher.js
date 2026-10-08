@@ -21,7 +21,9 @@
  *
  * States as the legion fort's (castraLegion.js): 'open' manned, 'out'
  * deployed (the standards out), 'shut' empty (the gate shut); 'home' and
- * 'staffed' tags.
+ * 'staffed' tags. Manned, the watch keeps the walks (archerActors): an
+ * archer shooting out over the breastwork, a sentry pacing the walk left of
+ * the gate and one down the right side, another archer at the butts.
  *
  * Metres, the fort's middle at the origin, y up, the gate toward +z.
  * ----------------------------------------------------------------------------
@@ -33,7 +35,7 @@ import { artRng } from '../texgen.js';
 import { lin } from './rural.js';
 import {
   CASTRA, fortBag, pour, assemble, TANK_WATER, onSide, prism, box, cyl, staff, gravel, tent, signum, vexillum, imago,
-  standardBase, inscribe, sentry, mirrorX, D,
+  standardBase, inscribe, mirrorX, D, soldier, wallSentry,
 } from './castra.js';
 
 /** The archer fort's measures (metres): the tests, the lab and the game read them. */
@@ -394,10 +396,37 @@ export function buildArcherFort({ lod = 0, seed = 131 } = {}) {
     const c = g.attributes.color;
     for (let i = 0; i < c.array.length; i++) c.array[i] *= 1.4;
   }
-  const { p, mats } = assemble('praesidium', out, std, lod, A.lamps);
-  // A sentry on the gate's deck while the men are home: an archer, his bow in hand.
-  if (lod === 0) sentry(p, mats, 'sentry', 0.45, 2.25, O - 0.45, 0.25, 'open', { cloth: 0x3f7a3a });
+  const { p } = assemble('praesidium', out, std, lod, A.lamps);
+  // (The watch are actors: archerActors.)
   return p.build();
+}
+
+/** The walk's boards: their top (y) and their middle (out from the fort's middle), as turfRun lays them. */
+const WALK_TOP = A.walk + 0.04;
+const WALK_MID = CASTRA.O - 0.36 - 0.38;
+
+/**
+ * The archer fort's watch (people/actors.js specs, its metres) while its
+ * men are home ('open'): on the front walk right of the gate an archer
+ * shooting out over the stakes (his bow above their points, his drawing
+ * hand clear of the rail), a sentry pacing the walk left of the gate (short
+ * of the corner tower's ladder) and one down the right side's walk, each
+ * standing guard at the ends; an archer at the butts, loosing at the
+ * nearer target from beyond the men's places in the yard. Not under the
+ * towers' low roofs: a man stands taller than their decks leave room for.
+ * Nobody while the men are out or the fort is empty.
+ */
+export function archerActors(state) {
+  if (state !== 'open') return [];
+  const archer = (extra) => soldier('archer', { clip: 'shoot', props: { L: 'bow', R: 'arrow' }, ...extra });
+  const [bx, bz] = A.butts[1];
+  const at = [3.6, CASTRA.floorY, -2.0];
+  return [
+    archer({ at: [3.0, WALK_TOP, WALK_MID], ry: 0, seed: 21 }),
+    wallSentry('archer', -3.6, -1.95, WALK_TOP, WALK_MID, 22),
+    wallSentry('archer', -3.3, 3.3, WALK_TOP, WALK_MID, 23, 1),
+    archer({ at, ry: Math.atan2(bx - at[0], bz - at[2]), seed: 24 }),
+  ];
 }
 
 export { TANK_WATER };

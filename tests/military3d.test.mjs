@@ -33,10 +33,15 @@ import { MODELS, hasModel, modelMatrix, modelLamps, partShows, modelFor } from '
 import { kitOf } from '../src/render3d/kit.js';
 import { ModelPass } from '../src/render3d/modelPass.js';
 import {
-  fortState, barracksState, academyState, barracksShows, barracksMore, militaryMore, fortMen,
+  fortState, barracksState, academyState, barracksShows, barracksMore, militaryMore, fortMen, militaryActors,
 } from '../src/render3d/models/militaryModels.js';
-import { TANK_WATER } from '../src/render3d/models/castra.js';
-import { CAVALRY_FORT } from '../src/render3d/models/castraEquitum.js';
+import { TANK_WATER, DRILL_AT } from '../src/render3d/models/castra.js';
+import { CAVALRY_FORT, troopersFor } from '../src/render3d/models/castraEquitum.js';
+import { BARRACKS } from '../src/render3d/models/tirocinium.js';
+import { ACADEMY } from '../src/render3d/models/campus.js';
+import { poseAt } from '../src/render3d/people/clips.js';
+import { BONE } from '../src/render3d/people/rig.js';
+import { turrisActors } from '../src/render3d/models/turris.js';
 import { iceMaterial } from '../src/render3d/materials.js';
 import { FORT_YARD, FORT_GATEWAY } from '../src/data/units.js';
 
@@ -246,16 +251,126 @@ test('military3d: every part shows in some state; the standards stay home while 
     assert.ok(std.length >= 3, `${type}: its standards`);
     for (const v of std) assert.deepEqual(v.states, ['open', 'shut'], `${type} ${v.name}`);
     assert.deepEqual(p.filter((v) => v.name === 'doors').map((v) => v.states.join('+')).sort(), ['open+out', 'shut'], type);
-    assert.ok(p.some((v) => v.name.startsWith('sentry-') && v.states.join() === 'open'), `${type}: a sentry while manned`);
   }
-  // The barracks: a recruit at the post only while one trains, the clerk while staffed.
-  const b = shownIn('barracks');
-  assert.ok(b.some((v) => v.name.startsWith('recruit-') && v.states.join() === 'out'));
-  assert.ok(b.some((v) => v.name.startsWith('clerk-') && v.states.join() === 'open,out'));
-  // The academy: men drilling only while they drill, the master while staffed.
-  const a = shownIn('military_academy');
-  assert.ok(a.some((v) => v.name.startsWith('drill-') && v.states.join() === 'out'));
-  assert.ok(a.some((v) => v.name.startsWith('master-') && v.states.join() === 'open,out'));
+  // No still mannequins left in any kit: the people are actors (the next test).
+  for (const type of TYPES) for (const p of shownIn(type)) assert.ok(!/^(sentry|recruit|clerk|drill|master)-/.test(p.name), `${type}: a merged figure ${p.name}`);
+});
+
+/** The actors a building of `type` casts through the game's own entry, for its fields and game. */
+const castFor = (type, b, game) => MODELS[type].variant({ id: 4, type, size: 3, ...b }, { snow: 0 }, { game }).actors.actors;
+
+test('military3d: the people by state: the forts\' watch while manned, the clerk and the recruit, the drill', () => {
+  const none = gameWith();
+  for (const type of FORTS) {
+    assert.ok(castFor(type, { efficiency: 1 }, none).length >= 2, `${type}: its watch while manned`);
+    assert.ok(castFor(type, { efficiency: 1 }, none).some((a) => a.routeLength > 0 && a.clipName === 'march'), `${type}: a sentry pacing a walk`);
+    assert.equal(castFor(type, { efficiency: 1, rally: { x: 1, y: 1 } }, none).length, 0, `${type}: nobody on watch while deployed`);
+    assert.equal(castFor(type, { efficiency: 0 }, none).length, 0, `${type}: nobody when empty`);
+  }
+  // The barracks: the clerk while staffed; the recruit at the post and his instructor while one trains.
+  const clips = (list) => list.map((a) => a.clipName).sort().join();
+  assert.equal(clips(castFor('barracks', { efficiency: 1 }, none)), 'write');
+  assert.equal(clips(castFor('barracks', { efficiency: 1, trainProgress: 40 }, none)), 'drill,talk,write');
+  assert.equal(castFor('barracks', { efficiency: 0 }, none).length, 0);
+  // The academy: its master seated while it is quiet, on his feet calling the drill while men train.
+  assert.equal(clips(castFor('military_academy', { efficiency: 1 }, none)), 'sit');
+  const drilling = castFor('military_academy', { efficiency: 1 }, gameWith({ units: [{ fort: 2, drill: 4, trainLeft: 3 }] }));
+  assert.equal(drilling.filter((a) => a.clipName === 'drill').length, ACADEMY.pali.length, 'a man at every post');
+  assert.equal(drilling.filter((a) => a.clipName === 'shoot').length, ACADEMY.butts.length, 'an archer at every butt');
+  assert.ok(drilling.some((a) => a.clipName === 'orate'));
+  assert.equal(castFor('military_academy', { efficiency: 0 }, none).length, 0);
+  // A cast is packed once a state: the same for every building that shows it.
+  assert.equal(MODELS.fort_legion.variant({ id: 4, efficiency: 1 }, { snow: 0 }, { game: none }).actors, MODELS.fort_legion.variant({ id: 9, efficiency: 1 }, { snow: 0 }, { game: none }).actors);
+});
+
+test('military3d: the cavalry fort\'s troopers at the stalls follow the horses there, the horses the garrison', () => {
+  const sentries = castFor('fort_cavalry', { efficiency: 1 }, gameWith()).length;
+  for (let n = 0; n <= 10; n++) {
+    const game = gameWith({ units: Array.from({ length: n }, () => ({ fort: 4 })) });
+    const v = MODELS.fort_cavalry.variant({ id: 4, type: 'fort_cavalry', efficiency: 1 }, { snow: 0 }, { game });
+    const horses = v.more.reduce((k, m) => k + m.n, 0);
+    assert.equal(horses, Math.min(n, CAVALRY_FORT.stalls));
+    assert.equal(v.actors.actors.length, sentries + troopersFor(horses), `${n} men`);
+    // Each trooper standing by a stall has its horse in it.
+    const at = v.actors.actors.filter((a) => a.routeLength === 0 && !a.pieces.includes('helmet:m'));
+    const [, , z0, z1] = CAVALRY_FORT.stable;
+    for (const a of at) assert.ok(Math.floor((a.at[2] - z0) / ((z1 - z0) / CAVALRY_FORT.stalls)) < horses, `a trooper by an empty stall at ${a.at[2]}`);
+  }
+  assert.deepEqual([0, 1, 2, 4, 5, 7, 8].map(troopersFor), [0, 1, 2, 2, 3, 4, 4]);
+  // Deployed, the horses go with the men, and the troopers with them.
+  const game = gameWith({ units: Array.from({ length: 8 }, () => ({ fort: 4 })) });
+  assert.equal(castFor('fort_cavalry', { efficiency: 1, rally: { x: 1, y: 1 } }, game).length, 0);
+});
+
+test('military3d: the men at the posts face them at the drill\'s reach, the sword going home in the post', () => {
+  const thrust = poseAt('drill', 0.3);
+  const grip = thrust.jointOf('propR');
+  const tip = grip.clone().addScaledVector(new Vector3(0, 1, 0).transformDirection(thrust.world[BONE.propR]), 0.5);
+  const cases = [
+    ['barracks', { efficiency: 1, trainProgress: 40 }, gameWith(), BARRACKS.pali],
+    ['military_academy', { efficiency: 1 }, gameWith({ units: [{ fort: 2, drill: 4, trainLeft: 3 }] }), ACADEMY.pali],
+  ];
+  for (const [type, b, game, pali] of cases) {
+    const men = castFor(type, b, game).filter((a) => a.clipName === 'drill');
+    assert.ok(men.length > 0, type);
+    for (const a of men) {
+      // His point at full thrust, in the building's frame: within the post's square (0.2 m) and at its sword's height.
+      const p = tip.clone().applyMatrix4(new Matrix4().fromArray(a.local));
+      const post = pali.find(([x, z]) => Math.hypot(x - p.x, z - p.z) < 0.4);
+      assert.ok(post, `${type}: a man at ${a.at.map((q) => q.toFixed(2))} strikes no post (his point at ${p.x.toFixed(2)}, ${p.z.toFixed(2)})`);
+      assert.ok(Math.abs(p.x - post[0]) < 0.1 + 0.03 && Math.abs(p.z - post[1]) < 0.1 + 0.03, `${type}: his point ${p.x.toFixed(2)}, ${p.z.toFixed(2)} in the post at ${post}`);
+      // Not in step with each other: each his own phase.
+      assert.ok(!a.sync);
+    }
+    assert.equal(new Set(men.map((a) => a.clip[1])).size, men.length, `${type}: the drillers out of step`);
+  }
+  assert.ok(DRILL_AT.ahead > 0.9 && DRILL_AT.ahead < 1.0);
+});
+
+/**
+ * Whether an actor's feet stand on the model at (x, z) at height y: a ray
+ * down from over them meets a part shown in `state` within 4 cm of y (not
+ * floating, not sunk), and nothing shown hangs over his head (a roof, a
+ * lintel through him).
+ */
+function standsAt(meshes, x, y, z, head) {
+  // (The highest of five points under his feet: a ray in a joint between two flags meets the bank below them.)
+  let floor = null;
+  for (const [dx, dz] of [[0, 0], [0.09, 0], [-0.09, 0], [0, 0.09], [0, -0.09]]) {
+    const rc = new Raycaster(new Vector3(x + dx, y + 0.35, z + dz), new Vector3(0, -1, 0), 0, 0.6);
+    const hit = rc.intersectObjects(meshes, false)[0];
+    if (hit && (floor === null || hit.point.y > floor)) floor = hit.point.y;
+  }
+  const up = new Raycaster(new Vector3(x, y + 0.2, z), new Vector3(0, 1, 0), 0, head - 0.2);
+  return { floor, over: up.intersectObjects(meshes, false).length > 0 };
+}
+
+test('military3d: every actor stands on the floor or walk under him (a wall walk at its height), with nothing through his head', () => {
+  const states = [
+    ['fort_legion', 'open', {}], ['fort_archer', 'open', {}], ['fort_cavalry', 'open', { horses: 8 }],
+    ['barracks', 'open', {}], ['barracks', 'out', {}], ['military_academy', 'open', {}], ['military_academy', 'out', {}],
+  ];
+  // (And the watchtower's crew on its gallery, 4.68 m up.)
+  for (const [type, state, extra] of [...states, ['tower', 'open', {}]]) {
+    const g = type === 'tower' ? MODELS.tower.build('tower:polygonal', 0) : MODELS[type].build(type, 0);
+    g.updateMatrixWorld(true);
+    const meshes = [];
+    g.traverse((o) => { if (o.isMesh && partShows(o.userData.when, state, false)) meshes.push(o); });
+    for (const spec of type === 'tower' ? turrisActors(state) : militaryActors(type, { state, ...extra })) {
+      const seated = spec.clip === 'sit' || spec.clip === 'write';
+      const [x, y, z] = spec.at;
+      // Along his route too: its start, its middle, its end.
+      const len = spec.route ? spec.route.length : 0;
+      for (const f of len ? [0, 0.5, 1] : [0]) {
+        const px = x + Math.sin(spec.ry) * len * f;
+        const pz = z + Math.cos(spec.ry) * len * f;
+        // (A seated man's feet: the floor before his seat; his head lower.)
+        const s = standsAt(meshes, px + (seated ? Math.sin(spec.ry) * 0.4 : 0), y, pz + (seated ? Math.cos(spec.ry) * 0.4 : 0), seated ? 1.3 : 1.85);
+        assert.ok(s.floor !== null && Math.abs(s.floor - y) < 0.04, `${type} ${state} ${spec.clip} at ${px.toFixed(2)}, ${y}, ${pz.toFixed(2)}: the floor under him at ${s.floor}`);
+        assert.ok(!s.over, `${type} ${state} ${spec.clip} at ${px.toFixed(2)}, ${pz.toFixed(2)}: something through his head`);
+      }
+    }
+  }
 });
 
 test('military3d: the cavalry\'s stalls hold a horse a trooper; the barracks shows its stock', () => {

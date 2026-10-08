@@ -21,8 +21,9 @@
  * torch in an iron bracket out of the front and the back window (the
  * night's light map lights the one the view sees); a log crib for the
  * beacon and a hay rick on the ground at two corners. Manned (staffed:
- * the sim's archers shoot from it, sim/military.js), two auxiliary archers
- * in green with conical helmets and bows keep watch on the gallery.
+ * the sim's archers shoot from it, sim/military.js), auxiliary archers in
+ * green under their mail keep watch on the gallery, shooting out over its
+ * rail, and a sentry paces it (turrisActors).
  *
  * Its walls stand 1 m in from the footprint's edge; a town wall that joins
  * it is carried into its face by a stub (walls/wallLayout.js). The tower
@@ -36,12 +37,12 @@
  * ----------------------------------------------------------------------------
  */
 
-import { BoxGeometry, CylinderGeometry, ConeGeometry, TorusGeometry, Shape, ExtrudeGeometry } from 'three';
+import { BoxGeometry, CylinderGeometry, ConeGeometry, Shape, ExtrudeGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { tiledRoof, TaggedParts } from './masonry.js';
 import { doorLeaf, ladder, woodpile, strawStack, ruralMaterials, blk } from './rural.js';
-import { figureParts } from './figure.js';
+import { soldier } from './castra.js';
 import { wallMaterials } from './townWall.js';
 import { material } from '../materials.js';
 
@@ -259,38 +260,35 @@ export function buildTurris({ look = 'polygonal', lod = 0 } = {}) {
     P.add('finial', material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.5 }), tintGeometry(boxUV(fin)));
   }
   P.add('roof', M.tile, tiles);
-  // Manned: two archers on the gallery, the front one and one on the right-hand side (close up only:
-  // at the middle zooms a man is a few pixels and his figure thousands of triangles).
-  if (lod === 0) {
-    // (Each body's parts by its material's name, as figureParts gives them, and the bows and helmets.)
-    const crew = { bows: [], helms: [] };
-    const mats = {};
-    const archer = (x, z, ry) => {
-      for (const { g, material: m } of figureParts({ cloth: 0x4f7a3e, reach: 0.65, skin: 0xa07052, hair: 0x2a1d14 }, x, g0 + 0.08, z, ry)) {
-        mats[m.name] = m;
-        (crew[m.name] ??= []).push(g);
-      }
-      // His bow: an arc of horn and wood in the raised hand; his conical helmet (the Syrian archers of Trajan's Column).
-      const bow = new TorusGeometry(0.62, 0.016, 5, lod === 0 ? 16 : 8, 1.7);
-      bow.rotateZ(Math.PI / 2 - 0.85);
-      bow.rotateY(Math.PI / 2);
-      bow.translate(0.24, g0 + 0.08 + 1.36, 0.46 - 0.62 * Math.cos(0.85) + 0.05);
-      bow.rotateY(ry).translate(x, 0, z);
-      crew.bows.push(tintGeometry(boxUV(bow), () => 0.6));
-      const helm = new ConeGeometry(0.115, 0.24, lod === 0 ? 10 : 6, 1);
-      helm.translate(0, g0 + 0.08 + 1.76, 0.0);
-      helm.rotateY(ry).translate(x, 0, z);
-      crew.helms.push(tintGeometry(boxUV(helm)));
-    };
-    archer(-0.9, o - 0.38, 0);
-    archer(o - 0.38, 0.7, Math.PI / 2);
-    for (const [name, list] of Object.entries(crew)) {
-      if (!list.length) continue;
-      const m = name === 'bows' ? M.wood : name === 'helms' ? M.iron : mats[name];
-      if (m) P.add(`crew-${name}`, m, list, { when: 'open' });
-    }
-  }
+  // (The crew on the gallery are actors: turrisActors.)
   return P.build();
+}
+
+/** The gallery's floor (its planks' top) and the middle of its walk, out from the tower's middle. */
+const DECK = T.gallery + 0.08;
+const WALK = T.body + 0.27;
+
+/**
+ * The watchtower's crew (people/actors.js specs, its metres) while it is
+ * manned ('open'): auxiliary archers in mail and helmet over the green
+ * tunic, one on the front gallery and one on the back, each shooting out
+ * over the railing (his bow above the top rail, his drawing hand clear of
+ * the wall at his back), and a sentry with his spear pacing the
+ * right-hand gallery, stopping at its ends to look out over the rail.
+ * Nobody otherwise.
+ */
+export function turrisActors(state) {
+  if (state !== 'open') return [];
+  const archer = (x, z, ry, seed) => soldier('archer', { clip: 'shoot', props: { L: 'bow', R: 'arrow' }, at: [x, DECK, z], ry, seed });
+  return [
+    archer(0.9, WALK - 0.1, 0, 71),
+    archer(-0.6, -(WALK - 0.1), Math.PI, 72),
+    // (His spear only: a shield on his arm would scrape the wall and the rail of a gallery 0.62 m wide.)
+    soldier('archer', {
+      clip: 'march', props: { R: 'spear' }, at: [WALK, DECK, -2.4], ry: 0, seed: 73,
+      route: { length: 4.8, speed: 0.7, pauseEnd: 6, pauseStart: 5, clipEnd: 'guard', clipStart: 'guard', faceEnd: Math.PI / 2, faceStart: Math.PI / 2 },
+    }),
+  ];
 }
 
 /** Ridge tiles down a hip, from a to b. */
