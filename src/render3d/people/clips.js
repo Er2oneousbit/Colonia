@@ -688,8 +688,8 @@ export const CLIPS = Object.freeze({
     pose(P, t) {
       stand(P, t, { shift: 0.4, ph: 0.7, look: 0, lean: 0.14 });
       const [hx, hy, hz] = SHAVE.head;
-      P.hand(1, hx + 0.07, hy + 0.06, hz + 0.05, { pole: [0.8, -0.3, -0.4] });
-      P.rot('handL', -0.3, 0, 0.6);
+      P.hand(1, hx + 0.08, hy + 0.04, hz + 0.06, { pole: [0.9, 0.1, -0.4] });
+      P.rot('handL', 0.4, 0, -0.5);
       fingers(P, 1, 0.3);
       // Three strokes, each down the cheek and off it, then a wipe toward the left arm.
       const wipe = track(t, [[0, 0], [0.72, 0], [0.8, 1], [0.9, 1], [0.97, 0]]);

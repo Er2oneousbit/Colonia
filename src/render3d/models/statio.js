@@ -47,7 +47,7 @@ import { BoxGeometry, CylinderGeometry, BufferGeometry, Float32BufferAttribute }
 import { boxUV, tintGeometry, tube, revolve, profileOf } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, tuscanColumn, wallWithOpenings, lantern, lanternPane, inscription, TaggedParts } from './masonry.js';
-import { gableRoof, leanTo, doorLeaf, beam, D } from './rural.js';
+import { gableRoof, leanTo, doorLeaf, D } from './rural.js';
 import { DYES } from '../people/actors.js';
 import {
   HARBOUR, harbourMaterials, board, arcade, ashlar, bollard, mooringRing, waterSteps, pierFoam, oar, ropeCoil, liburnianHull,

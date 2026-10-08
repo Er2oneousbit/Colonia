@@ -259,7 +259,12 @@ test('people3d: the model pass draws the actors of the buildings it draws, writt
   const { b, game } = scene('forum', { efficiency: 1 });
   const r = { game, weather: {}, time: 0, camera: { scale: 4 } };
   const placed = (T = 0) => [{ b, T, vx: b.x, vy: b.y, state: 0, snow: 0 }];
-  const frame = (list) => { for (let i = 0; i < 4; i++) mp.update(r, list, 2); };
+  // (Frames until every piece is built: the pieces are built within a time budget a frame, so on a loaded
+  // machine, a full test run in parallel, four frames were not always enough. Waited for, never assumed.)
+  const frame = (list) => {
+    for (let i = 0; i < 4; i++) mp.update(r, list, 2);
+    for (let i = 0; i < 400 && (mp.stats.deferred > 0 || mp.people.dirty); i++) mp.update(r, list, 2);
+  };
   frame(placed());
   const want = MODELS.forum.variant(b).actors.actors.length;
   assert.equal(mp.stats.people, want, 'the forum\'s people drawn');

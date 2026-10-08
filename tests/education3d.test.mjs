@@ -88,17 +88,18 @@ function shownIn(type, lod = 0) {
 
 test('education3d: every part shows in some state, and each state shows what it should', () => {
   for (const type of TYPES) for (const p of shownIn(type)) assert.ok(p.states.length, `${type} ${p.name}|${p.when} shows in no state`);
-  const peopleIn = (type, s) => shownIn(type).filter((p) => /^(scholars|readers)-/.test(p.name) && p.states.includes(s)).length;
-  // The school's people are actors (people/): the boys, the master, the slave at the gate, while it is open.
-  const school = (efficiency) => MODELS.school.variant({ efficiency }).actors.actors;
-  assert.ok(school(1).length >= 8, 'the school at its lessons');
-  assert.equal(school(0).length, 0, 'nobody when the school is shut');
-  for (const type of TYPES.filter((t) => t !== 'school')) {
-    assert.ok(peopleIn(type, 'open') >= 3, `${type}: people at work`);
-    assert.equal(peopleIn(type, 'shut'), 0, `${type}: nobody when shut`);
-    // People only close up: a dozen figures are thousands of triangles under a pixel each further out.
-    assert.equal(shownIn(type, 1).filter((p) => /^(scholars|readers)-/.test(p.name)).length, 0, `${type} lod 1`);
+  // The people are actors (people/), while each is open: the school's boys, master and slave; the library's
+  // readers, scribe, librarian and slave; the academy's master, pupils, declaimer, listeners and walkers.
+  // No merged mannequin is left in a kit.
+  const cast = (type, efficiency) => MODELS[type].variant({ efficiency }).actors.actors;
+  for (const [type, n] of [['school', 8], ['library', 5], ['academy', 10]]) {
+    assert.ok(cast(type, 1).length >= n, `${type}: people at work`);
+    assert.equal(cast(type, 0).length, 0, `${type}: nobody when shut`);
+    for (const lod of [0, 1, 2]) assert.equal(shownIn(type, lod).filter((p) => /^(scholars|readers)-/.test(p.name)).length, 0, `${type} lod ${lod}: no merged figures`);
   }
+  // The librarian walks the hall along the cupboards, taking rolls down at each end.
+  const librarian = cast('library', 1).find((a) => a.routeLength > 0);
+  assert.ok(librarian && librarian.at[1] > 0.5 && librarian.routeLength > 2, 'the librarian walks the hall, on its floor');
   const states = (type, name) => shownIn(type).filter((p) => p.name === name).map((p) => p.states.join('+')).sort();
   // The school: the awning out while it teaches, rolled up when not; the door shut, or its curtain drawn back.
   assert.deepEqual(states('school', 'awning'), ['open']);

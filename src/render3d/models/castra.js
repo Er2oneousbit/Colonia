@@ -41,7 +41,7 @@ import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { material, DoubleSide, waterMaterial } from '../materials.js';
 import { artRng } from '../texgen.js';
 import { slab, paving, GLYPHS, tiledRoof, TaggedParts, lantern, lanternPane } from './masonry.js';
-import { blk, beam, lin, D, gableRoof } from './rural.js';
+import { beam, lin, D, gableRoof } from './rural.js';
 
 /** The fort's plan (metres from the middle; the gate's side, +z, is the front). */
 export const CASTRA = Object.freeze({
@@ -979,29 +979,6 @@ export function atPost(px, pz, ry) {
   const c = Math.cos(ry);
   const s = Math.sin(ry);
   return [px - (side * c + ahead * s), pz - (ahead * c - side * s)];
-}
-
-/**
- * People (figure.js figureParts, and what they hold) added to TaggedParts
- * `p` in state `when`, one part a material: every figure's tunic in the one
- * dyed cloth, its colour carried by its vertices, so a crowd of men in
- * three colours is one draw call for their clothes, not three.
- */
-export function people(p, mats, name, parts, when) {
-  const by = new Map();
-  for (const f of parts) {
-    let { g, material: m } = f;
-    if (m.name.startsWith('cloth-') && m !== mats.cloth) {
-      // (cloth-<hex>: the colour from its name, times the figure's own shading in its vertices.)
-      const rgb = lin(Number.parseInt(m.name.slice(6), 16));
-      const col = g.attributes.color;
-      for (let i = 0; i < col.count; i++) col.setXYZ(i, col.getX(i) * rgb[0], col.getY(i) * rgb[1], col.getZ(i) * rgb[2]);
-      m = mats.cloth;
-    }
-    if (!by.has(m)) by.set(m, []);
-    by.get(m).push(g);
-  }
-  for (const [m, list] of by) p.add(`${name}-${m.name}`, m, list, { when });
 }
 
 /** The look's double-sided cloth for things seen from both sides (a flag, a tent's flap). */

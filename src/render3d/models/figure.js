@@ -5,6 +5,8 @@
  * (or a long stola), limbs as capsules, a head with a hair cap, sandals.
  * A mannequin, not a character: it is there so the eye can measure the
  * well against a person, and to show how cloth and skin take the light.
+ * (The buildings' people are actors, render3d/people/; figureParts is
+ * left for a statue, the forum's.)
  *
  * Metres, standing on y = 0, facing +z.
  * ----------------------------------------------------------------------------

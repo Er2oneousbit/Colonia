@@ -54,9 +54,7 @@ import { slab, paving, TaggedParts } from './masonry.js';
 import { aquila } from './castra.js';
 import { cypress } from './learning.js';
 import {
-  govMaterials, dressWall, box, D, gable, slope, gableTri, rake, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, coping, slabs, ridgeCap,
-  court, column, statue, roundPool, labrum, jet, boxEdging, bedPlants, flowerBed, letters, lantern, lanternPane,
-  guardActor, togateActor, servantActor, matronActor,
+  govMaterials, dressWall, box, D, gable, slope, gableTri, rake, standard, FRESCO, wallAlong, frescoFace, darkIn, doubleDoor, coping, ridgeCap, court, column, statue, roundPool, labrum, jet, boxEdging, bedPlants, flowerBed, letters, lantern, lanternPane, guardActor, togateActor, servantActor, matronActor,
 } from './domus.js';
 import { DYES } from '../people/actors.js';
 

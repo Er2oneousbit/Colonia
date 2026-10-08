@@ -316,7 +316,9 @@ function hall(lod, seed, out) {
     ring.translate(0, eave + 0.36, zf + 0.02);
     out.trav.push(tintGeometry(boxUV(ring), () => 0.9));
   }
-  // Inside: the operating table, a stone slab on two piers; a side table of instruments and dressings, a shelf of pots.
+  // Inside: the operating table, a stone slab on two piers (its patient is an actor at every level: far out
+  // the slab alone, one block); a side table of instruments and dressings, a shelf of pots.
+  if (lod === 2) out.marble.push(slab(1.9, TABLE_TOP, 0.72, { bevel: 0, seed: seed + 20, wobble: 0, tone: 0, grime: 0 }).translate(0, fy, -4.25));
   if (lod < 2) {
     out.marble.push(slab(1.9, 0.08, 0.72, { bevel: 0.012, seed: seed + 20, wobble: 0, tone: 0.03, grime: 0 }).translate(0, fy + TABLE_TOP - 0.08, -4.25));
     for (const s of [-1, 1]) out.marble.push(slab(0.3, TABLE_TOP - 0.08, 0.5, { bevel: 0.01, seed: seed + 21 + s, wobble: 0.002, tone: 0.03, grime: 0.3 }).translate(s * 0.65, fy, -4.25));
@@ -429,9 +431,9 @@ function sleepers() {
 /** The blankets over the patients lying abed (staffed): the wards' (with their beds), the couch's, the table's. */
 function blankets(lod) {
   const out = [];
-  if (lod < 2) for (const [x, y, z, ry, colour] of sleepers()) out.push(blanket(x, y, z, ry, { colour, scale: ABED.scale, lod }));
+  for (const [x, y, z, ry, colour] of sleepers()) out.push(blanket(x, y, z, ry, { colour, scale: ABED.scale, lod }));
   out.push(blanket(COUCH[0], BED_H + 0.12, COUCH[1] + ABED.toFoot, 0, { colour: 0x7a4a3a, scale: 0.95, lod }));
-  if (lod < 2) out.push(blanket(0, V.floorY + TABLE_TOP, -4.25, Math.PI / 2, { colour: 0xe8e0d0, scale: 0.95, lod }));
+  out.push(blanket(0, V.floorY + TABLE_TOP, -4.25, Math.PI / 2, { colour: 0xe8e0d0, scale: 0.95, lod }));
   return out;
 }
 
@@ -490,8 +492,9 @@ export function buildValetudinarium({ lod = 0, seed = 371 } = {}) {
   hall(lod, seed + 120, out);
   court(lod, seed + 140, out);
   gate(lod, seed + 160, out);
-  // The beds (BEDS): along each side ward's outer wall, across the back wards.
-  if (lod < 2) {
+  // The beds (BEDS): along each side ward's outer wall, across the back wards. (At every level: the sick
+  // lie on them as actors, drawn at every level, and would float in an empty ward.)
+  {
     for (const [x, z, ry] of BEDS) {
       const l = lectus(x, z, ry, { w: 0.74, l: 1.7, h: BED_H, lod, tick: 0xd8ccb0 });
       out.beds.push(...l.wood.map((g) => g.translate(0, V.floorY, 0)));
