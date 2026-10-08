@@ -18,7 +18,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The smoke test runs the 3D renderer on a software GL: with the animated people and
+    # walkers it takes about 13 minutes of the job's 16 (v0.20.25). Room to grow, still a
+    # hard limit for a hang.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
