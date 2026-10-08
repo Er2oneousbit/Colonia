@@ -26,6 +26,7 @@
 
 import { cast } from '../people/actors.js';
 import { buildGrex, GREX, grexActors } from './grex.js';
+import { buildLudusGladiatorius, LUDUS_GLADIATORIUS, ludusActors } from './ludusGladiatorius.js';
 
 /** A hard frost: the sprites' deep snow (levels 2 and 3 of 0..3), as models.js reads it. */
 const frost = (place) => (place.snow || 0) >= 2;
@@ -81,6 +82,7 @@ function entry({ type, build, lamps, actors, keyOf = () => type, castKey = (stat
 /** Each type's people by its state (and its building: a stable's faction), as specs (the lab's crowd packs them itself). */
 const ACTORS = {
   actor_troupe: grexActors,
+  gladiator_school: ludusActors,
 };
 
 /** A training building's actors' specs in `state` (people/actors.js). */
@@ -90,4 +92,9 @@ export function trainingActors(type, state, b) {
 
 export const TRAINING_MODELS = Object.freeze({
   actor_troupe: entry({ type: 'actor_troupe', build: (key, lod) => buildGrex({ lod }), lamps: GREX.lamps, actors: grexActors }),
+  gladiator_school: entry({
+    type: 'gladiator_school', lamps: LUDUS_GLADIATORIUS.lamps, actors: ludusActors, warm: ['gladiator_school'],
+    keyOf: (b, ice) => (ice ? 'gladiator_school:ice' : 'gladiator_school'),
+    build: (key, lod) => buildLudusGladiatorius({ lod, ice: key.endsWith(':ice') }),
+  }),
 });

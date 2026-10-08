@@ -88,7 +88,9 @@ function house(lod, seed, out) {
   const sy = G.stage[4];
   // Footing, back and end walls up to the roof's line.
   out.ashlar.push(box(x1 - x0, 0.3, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, 0.85));
-  out.plaster.push(box(x1 - x0, G.top - 0.3, t, (x0 + x1) / 2, 0.3, z0 + t / 2, 0.9));
+  // (The back wall stands a little over the roof's top, coped with tiles: the slope's upper edge hides behind it.)
+  out.plaster.push(box(x1 - x0, G.top - 0.1, t, (x0 + x1) / 2, 0.3, z0 + t / 2, 0.9));
+  out.tile.push(box(x1 - x0 + 0.08, 0.07, t + 0.1, (x0 + x1) / 2, G.top + 0.2, z0 + t / 2, 0.85));
   for (const x of [x0 + t / 2, x1 - t / 2]) {
     const g = box(t, 1, z1 - z0, x, 0, (z0 + z1) / 2, 0.9);
     const p = g.attributes.position;
