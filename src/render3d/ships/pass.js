@@ -47,8 +47,16 @@ import { mooringOf } from './moorings.js';
 import { CrewBatch, packCrew, shipTexture, SHIPS_ROW, SHIP_FLOATS } from './crew.js';
 import { health as drawHealth } from '../../render/shipArt.js';
 
+/**
+ * How much coarser the crews are drawn than the town's people at the same
+ * zoom (people/ levels): a crew is many men close together, most of them
+ * half hidden in their hull, and the full body of a hundred rowers cost
+ * more than the ships' sprites did (docs/ARCHITECTURE.md "Ships in 3D").
+ */
+export const CREW_LOD_STEP = 1;
+
 /** Rome's red stripe on a liburnian's sail; the Punic purple. */
-const SAIL_STRIPE = Object.freeze({ liburnian: 0xa8322b, punic: 0x5b1e3c });
+const SAIL_STRIPE = Object.freeze({ liburnian: 0x8e1c14, punic: 0x4a1030 });
 /** Most vertices of the wakes' mesh (64 ships' worth). */
 const WAKE_VERTS = 64 * (WAKE_POINTS * 36 + 24);
 
@@ -173,7 +181,12 @@ export class ShipPass {
     this.r = r;
     this.game = r.game;
     this.clock = clock;
-    this.lod = peopleLodFor(r.camera.scale);
+    // The crews a level coarser than the town's people (CREW_LOD_STEP): measured, a ship's crew of
+    // twenty at the people's own level cost a frame more than its sprite did.
+    const people = peopleLodFor(r.camera.scale);
+    this.lod = Math.min(2, people + CREW_LOD_STEP);
+    // (Far out, as far as the town's people are drawn at their far level, the crews' smallest pieces are left off.)
+    this.far = people === 2;
     this.motion.begin(clock, dt);
     this.used = 0;
     this.nKits = 0;
@@ -358,17 +371,21 @@ export class ShipPass {
     this.kit(`vessel:${kind}:hull`, M, night ? 'open' : 'shut');
     const P = placesOf(kind);
     const stripe = kind === 'corbita' || kind === 'coaster' ? hexOf(TRADE_PARTNERS[partner]?.color) : SAIL_STRIPE[kind] ?? null;
+    const main = P.masts[0];
     P.masts.forEach((mast, i) => {
       const Y = this.mat();
       Y.copy(M).multiply(_t.makeTranslation(mast.yard[0], mast.yard[1], mast.yard[2])).multiply(_s.makeRotationY(st.brace * (i ? 0.6 : 1)));
-      this.kit(`vessel:${kind}:yard:${i}`, Y);
+      // A smaller mast (the artemon) is the main's yard and sail at its size: the same kits, no draw more.
+      const k = i ? mast.sail.w / main.sail.w : 1;
+      if (i) Y.multiply(_s.makeScale(k, mast.sail.h / main.sail.h, k));
+      // The yard alone, or with its sail brailed up along it (one kit: the yard is in it).
+      this.kit(`vessel:${kind}:${st.unfurl < 0.45 ? 'furl' : 'yard'}:0`, Y);
       if (st.unfurl > 0.05) {
         const S = this.mat();
         // Brailed up toward the yard (the cloth gathered by its brails), its belly by the wind.
         S.copy(Y).multiply(_s.makeScale(1, Math.max(0.06, st.unfurl), st.fill));
-        this.kit(`vessel:${kind}:sail:${i}${stripe != null ? `:${stripe.toString(16).padStart(6, '0')}` : ''}`, S);
+        this.kit(`vessel:${kind}:sail:0${stripe != null ? `:${stripe.toString(16).padStart(6, '0')}` : ''}`, S);
       }
-      if (st.unfurl < 0.45) this.kit(`vessel:${kind}:furl:${i}`, Y);
     });
     if (m.net) {
       // The net cast on the starboard side, floating flat (the sea's tilt not on it), a little off the hull.
@@ -492,11 +509,12 @@ export class ShipPass {
         const M = shipMatrix(w.x, w.st.y - p.down, w.z, w.yaw, w.st.pitch + p.pitch, w.st.roll + p.list, this.mat());
         this.kit(`vessel:${w.kind}:hull`, M, 'shut');
         // The mast and its furled sail going down with it.
-        placesOf(w.kind).masts.forEach((mast, i) => {
+        const P = placesOf(w.kind);
+        P.masts.forEach((mast, i) => {
           const Y = this.mat();
           Y.copy(M).multiply(_t.makeTranslation(mast.yard[0], mast.yard[1], mast.yard[2]));
-          this.kit(`vessel:${w.kind}:yard:${i}`, Y);
-          this.kit(`vessel:${w.kind}:furl:${i}`, Y);
+          if (i) Y.multiply(_s.makeScale(mast.sail.w / P.masts[0].sail.w, mast.sail.h / P.masts[0].sail.h, mast.sail.w / P.masts[0].sail.w));
+          this.kit(`vessel:${w.kind}:furl:0`, Y);
         });
       }
       if (age > 1.2) {
@@ -513,13 +531,20 @@ export class ShipPass {
       sig = Math.imul(sig ^ (rec.id | 0), 0x01000193) >>> 0;
       sig = Math.imul(sig ^ hashStr(rec.key), 0x01000193) >>> 0;
     }
-    this.crew.set(this.list.slice(0, this.used), this.lod, sig);
+    this.crew.set(this.list.slice(0, this.used), this.lod, sig, this.far);
     const tex = this.tex;
     const rows = Math.ceil(this.used / SHIPS_ROW);
     tex.clearUpdateRanges();
     for (let r = 0; r < rows; r++) tex.addUpdateRange(r * SHIPS_ROW * SHIP_FLOATS, Math.min(SHIPS_ROW, this.used - r * SHIPS_ROW) * SHIP_FLOATS);
     if (rows) tex.needsUpdate = true;
     this.buildWakes();
+    // The crews drawn after everything opaque in the slot (the hulls they stand in): three draws in the
+    // slot's order here, so a rower's legs inside his hull fail the depth test before they are shaded.
+    const kids = this.parent.children;
+    if (kids[kids.length - 1] !== this.crew.group) {
+      this.parent.remove(this.crew.group);
+      this.parent.add(this.crew.group);
+    }
     this.motion.end();
     const cs = this.crew.stats;
     Object.assign(this.stats, { ships: this.used, kits: this.nKits, people: cs.people, crewDraws: cs.draws, crewTriangles: cs.triangles, wrecks: this.wrecks.size, writes: cs.writes, deferred: cs.deferred, ms: performance.now() - t0 });

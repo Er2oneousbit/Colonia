@@ -37,10 +37,10 @@ import { BufferGeometry, Float32BufferAttribute, CylinderGeometry, BoxGeometry, 
 import { boxUV, tintGeometry, tube, revolve, profileOf } from '../shapes.js';
 import { material } from '../materials.js';
 import { artRng } from '../texgen.js';
-import { TaggedParts, lantern, lanternPane } from '../models/masonry.js';
+import { TaggedParts, lantern } from '../models/masonry.js';
 import { lin, jar, basket, heap, paint } from '../models/rural.js';
 import { harbourMaterials, sweep, board } from '../models/harbour.js';
-import { DESIGNS, hullAt, deckY, mastOf, yardAt, benches } from './designs.js';
+import { DESIGNS, hullAt, deckY, mastOf, yardAt, benches, tAt } from './designs.js';
 import { BEAT } from '../people/clips.js';
 
 /** Where the liburnian's hortator stands (t along the hull, on the stern's fighting deck): look.js puts him there. */
@@ -402,8 +402,10 @@ function sternLantern(d, out, lod, at) {
   const l = lantern(at[0], at[1], at[2], lod);
   out.bronze.push(...l.bronze);
   out.pane.push(l.pane);
-  // Its post, down to the stern it is lashed to.
-  out.wood.push(board(0.05, 0.55, 0.05, { tone: 0.6 }).translate(at[0], at[1] - 0.55, at[2]));
+  // Its post, down to the deck (or the planking) it stands on.
+  const t = tAt(d, at[2]);
+  const foot = Math.min(at[1] - 0.1, hullAt(d, Math.max(0.03, t), d.deck)[1] - 0.04);
+  out.wood.push(board(0.05, at[1] - foot, 0.05, { tone: 0.6 }).translate(at[0], foot, at[2]));
   out.lantern = at;
 }
 
@@ -480,9 +482,14 @@ function buildCorbita(d, lod, out, rnd) {
   // The sternpost: up from the stern and curling forward over the deckhouse into a swan's neck, the head gilt.
   post(d, out, 0.015, [[0.1, 0.25], [0.55, -0.05], [1.15, -0.18], [1.65, -0.02], [1.85, 0.3], [1.72, 0.6], [1.55, 0.68]], 0.16, 0.16, 'wood', 0.5);
   const st = hullAt(d, 0.015, 1);
+  // The swan's head at the neck's end, looking forward and down, gilt.
   const neck = new SphereGeometry(0.09, lod ? 6 : 10, lod ? 4 : 8);
-  neck.scale(1, 0.8, 1.5).translate(0, st[1] + 1.52, st[2] + 0.78);
+  neck.scale(0.9, 0.8, 1.6).rotateX(0.5).translate(0, st[1] + 1.5, st[2] + 0.74);
   out.gilt.push(tintGeometry(boxUV(neck)));
+  if (lod < 2) {
+    const beak = new CylinderGeometry(0.0, 0.035, 0.16, 6).rotateX(Math.PI / 2 + 0.6).translate(0, st[1] + 1.43, st[2] + 0.86);
+    out.gilt.push(tintGeometry(boxUV(beak)));
+  }
   // The stem, raked forward over the cutwater.
   post(d, out, 0.985, [[-1.3, -0.15], [-0.7, 0.06], [-0.2, 0.18], [0.2, 0.26], [0.42, 0.24]], 0.14, 0.15);
   // The steering oars on both quarters.
@@ -494,7 +501,7 @@ function buildCorbita(d, lod, out, rnd) {
     const top = [foot[0], foot[1] + dir[1] * d.masts[0].h, foot[2]];
     out.gilt.push(tintGeometry(boxUV(new CylinderGeometry(0.075, 0.075, 0.08, 10).translate(top[0], top[1] - 0.18, top[2]))));
   }
-  sternLantern(d, out, lod, [0, st[1] + 0.95, st[2] + 0.42]);
+  sternLantern(d, out, lod, [0, st[1] + 0.55, st[2] + 0.42]);
 }
 
 function buildCoaster(d, lod, out, rnd) {
@@ -649,11 +656,19 @@ function buildPunic(d, lod, out, rnd) {
   const bow = hullAt(d, 0.985, 1);
   out.wood.push(sweep([[0, 0.3, bow[2] + 0.05], [0, bow[1], bow[2] + 0.14], [0, bow[1] + 0.35, bow[2] + 0.18], [0, bow[1] + 0.55, bow[2] + 0.1]], 0.12, 0.14, { side: [1, 0, 0], taper: 0.8 }));
   if (lod < 2) {
-    const head = new SphereGeometry(0.11, lod ? 6 : 10, lod ? 4 : 7);
-    head.scale(0.8, 0.8, 1.9).rotateX(0.5).translate(0, bow[1] + 0.62, bow[2] + 0.22);
+    // The horse: its neck arched up from the stem, the head bowed forward, the ears pricked, a mane.
+    const seg = lod ? 6 : 10;
+    const neck = tube([[0, bow[1] + 0.45, bow[2] + 0.12], [0, bow[1] + 0.68, bow[2] + 0.16], [0, bow[1] + 0.8, bow[2] + 0.26]], 0.075, { radial: seg, segments: 6, around: 0.2 });
+    out.painted.push(painted(neck, 0xcdb88a));
+    const head = new CylinderGeometry(0.045, 0.075, 0.3, seg);
+    head.rotateX(Math.PI / 2 + 0.75).translate(0, bow[1] + 0.73, bow[2] + 0.4);
     out.painted.push(painted(head, 0xd6c49a));
-    const ears = new BoxGeometry(0.05, 0.12, 0.05).translate(0, bow[1] + 0.74, bow[2] + 0.06);
-    out.painted.push(painted(ears, 0xd6c49a));
+    for (const s of [1, -1]) {
+      const ear = new CylinderGeometry(0.0, 0.025, 0.09, 5).translate(s * 0.03, bow[1] + 0.88, bow[2] + 0.26);
+      out.painted.push(painted(ear, 0xcdb88a));
+    }
+    const mane = sweep([[0, bow[1] + 0.5, bow[2] + 0.06], [0, bow[1] + 0.74, bow[2] + 0.1], [0, bow[1] + 0.86, bow[2] + 0.2]], 0.03, 0.06, { side: [1, 0, 0] });
+    out.painted.push(painted(mane, 0x3a2418));
   }
   // The stern sweeping up and aft in a long curve.
   post(d, out, 0.015, [[0.1, 0.3], [0.6, -0.1], [1.2, -0.32], [1.6, -0.36], [1.85, -0.25]], 0.13, 0.15, 'gilt', 0.4);
@@ -755,14 +770,18 @@ export function buildHull(kind, lod) {
   const m = shipMaterials();
   const p = new TaggedParts(`vessel-${kind}`);
   const sink = (g) => g.translate(0, -d.draft, 0);
+  // The lantern's horn pane, amber in the paint (its glow at night is the light map's: renderer.js
+  // collectLights at the lantern's place, pass.js), so a hull is two draws at the middle and far levels.
+  const panes = out.pane.map((g) => paint(g, lin(0xd8a860)));
   p.add('wood', m.wood, out.wood.map(sink));
-  p.add('paint', m.painted, out.painted.map(sink));
-  // (Bronze and gilt in one metal part, the bronze darker by its vertex colour: a draw fewer.)
-  p.add('gilt', m.gilt, out.gilt.map(sink).concat(out.bronze.map((g) => sink(paint(g, [0.62, 0.5, 0.36])))));
-  // The lantern's pane: lit at night ('open'), dark by day ('shut'); no shadow.
-  if (out.pane.length) {
-    p.add('lamp', lanternPane(), out.pane.map(sink), { when: 'open', cast: false });
-    p.add('lamp', material('lantern-pane-out', { color: 0x8a6a48, roughness: 0.5, snow: 0 }), out.pane.map((g) => sink(g.clone())), { when: 'shut', cast: false });
+  if (lod === 0) {
+    p.add('paint', m.painted, out.painted.concat(panes).map(sink));
+    // (Bronze and gilt in one metal part close up, the bronze darker by its vertex colour.)
+    p.add('gilt', m.gilt, out.gilt.map(sink).concat(out.bronze.map((g) => sink(paint(g, [0.62, 0.5, 0.36])))));
+  } else {
+    // Farther out the metal is painted gold and bronze: its sheen is a few pixels, its draw a whole one.
+    const gold = (g, k) => paint(g, lin(0xc9973c, k));
+    p.add('paint', m.painted, out.painted.concat(panes, out.gilt.map((g) => gold(g, 1)), out.bronze.map((g) => gold(g, 0.62))).map(sink));
   }
   return p.build();
 }
@@ -876,8 +895,16 @@ export function buildYard(kind, i, lod) {
   }
   const m = shipMaterials();
   const p = new TaggedParts(`vessel-${kind}-yard`);
-  p.add('wood', m.wood, out.wood);
+  // (Its shadow is a line a few pixels long: none, but close up.)
+  p.add('wood', m.wood, out.wood, { cast: lod === 0 });
   return p.build();
+}
+
+/** The yard's own pieces (buildYard's), for the furled sail's kit: [geometries] in the wood's colours. */
+function yardPieces(kind, i, lod) {
+  const g = buildYard(kind, i, lod);
+  const list = g.meshes.map((mesh) => mesh.geometry);
+  return list;
 }
 
 /** A mast's sail brailed up along its yard: a roll of cloth under the yard, gaskets round it. */
@@ -906,7 +933,12 @@ export function buildFurl(kind, i, lod) {
       parts.push(paint(boxUV(t), [0.2, 0.16, 0.12]));
     }
   }
-  p.add('sail', kind === 'gaulish' ? m.hide : m.cloth, parts);
+  // The yard it is brailed to, in the same kit (the pass draws this kit in the yard's place, not the yard's
+  // own): close up in the wood, farther out in the cloth's material coloured as wood (one draw for both).
+  const yard = yardPieces(kind, i, lod);
+  if (lod === 0) p.add('yard', m.wood, yard, { cast: false });
+  else parts.push(...yard.map((g) => paint(g, lin(0x6a4c34))));
+  p.add('sail', kind === 'gaulish' ? m.hide : m.cloth, parts, { cast: lod === 0 });
   return p.build();
 }
 
@@ -996,6 +1028,13 @@ export function buildVesselPart(key, lod) {
 
 /** Where things sit on a design (the pass and the tests): its deck's height at t, its masts and yards, all in the ship's frame (the water at 0). */
 export function placesOf(kind) {
+  let P = PLACES.get(kind);
+  if (!P) PLACES.set(kind, (P = placesOfDesign(kind)));
+  return P;
+}
+const PLACES = new Map();
+
+function placesOfDesign(kind) {
   const d = DESIGNS[kind];
   const lower = (p) => [p[0], p[1] - d.draft, p[2]];
   return {

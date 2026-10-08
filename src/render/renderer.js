@@ -1608,16 +1608,19 @@ export class Renderer {
           const sx = (it.wx - cam.x) * k;
           const sy = (it.wy - cam.y) * k;
           L.pool(sx, sy, tile * (ship ? 2.4 : 1.2), (ship ? 0.6 : 0.4) * lamps);
-          L.glow(sx + 3 * k, sy - (ship ? 22 : 11) * k, 3.5 * k, 0.8 * lamps);
+          // (A ship drawn in 3D left its stern lantern's place on its item: render3d/ships/pass.js.)
+          if (it.lamp) L.glow((it.lamp.wx - cam.x) * k, (it.lamp.wy - cam.y) * k, 3.5 * k, 0.8 * lamps);
+          else L.glow(sx + 3 * k, sy - (ship ? 22 : 11) * k, 3.5 * k, 0.8 * lamps);
         } else if (it.kind === K_UNIT) {
           const u = it.u;
-          if (u.side === 'wild' || (u.side === 'enemy' ? u.id % 2 : u.id % 4)) continue; // (wolves carry no torch)
+          if (!it.lamp && (u.side === 'wild' || (u.side === 'enemy' ? u.id % 2 : u.id % 4))) continue; // (wolves carry no torch; every ship in 3D its stern lantern)
           if (it.clipY != null) continue; // a ship under a bridge's deck
           const sx = (it.wx - cam.x) * k;
           const sy = (it.wy - cam.y) * k;
           const f = flick(u.id);
           L.pool(sx, sy, tile * 1.9, 0.5 * lamps * f, true);
-          L.glow(sx + 4 * k, sy - 16 * k, 5 * k * f, 0.9 * lamps * f, true);
+          if (it.lamp) L.glow((it.lamp.wx - cam.x) * k, (it.lamp.wy - cam.y) * k, 4 * k * f, 0.9 * lamps * f, true);
+          else L.glow(sx + 4 * k, sy - 16 * k, 5 * k * f, 0.9 * lamps * f, true);
         }
       }
     }
@@ -1892,8 +1895,14 @@ export class Renderer {
     let best = 0;
     let bestD = Infinity;
     for (const s of this.shipSpots) {
-      const dx = p.x - s.wx;
-      const dy = p.y - s.wy;
+      // (A ship drawn in 3D, render3d/ships/pass.js: its spot runs from its stern to its bow, reachX and
+      // reachY; the box is round the nearest point of that line, as pickWalker's round a cart.)
+      const rx = s.reachX || 0;
+      const ry = s.reachY || 0;
+      const L2 = rx * rx + ry * ry;
+      const k = L2 ? Math.max(0, Math.min(1, ((p.x - s.wx) * rx + (p.y - s.wy) * ry) / L2)) : 0;
+      const dx = p.x - s.wx - k * rx;
+      const dy = p.y - s.wy - k * ry;
       if (Math.abs(dx) > hw || dy < -top || dy > Math.max(6, 4 * css)) continue;
       const d = Math.hypot(dx, dy + 18);
       if (d < bestD) { bestD = d; best = s.id; }

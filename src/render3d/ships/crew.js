@@ -137,7 +137,26 @@ export function crewDepthMaterial(kind = 'depth') {
 
 /** A crew packed once: its actors (actors.js pack) with their stroke and warrior flags. */
 export function packCrew(specs) {
-  return specs.map((s, i) => ({ a: pack(s, i), stroke: !!s.stroke, warrior: s.warrior ?? -1, at: s.at || [0, 0, 0], ry: s.ry || 0, scale: s.scale ?? 1 }));
+  return specs.map((s, i) => {
+    const a = pack(s, i);
+    return { a, pieces: a.pieces, stroke: !!s.stroke, warrior: s.warrior ?? -1, at: s.at || [0, 0, 0], ry: s.ry || 0, scale: s.scale ?? 1 };
+  });
+}
+
+/**
+ * The pieces a crew leaves off far out (the town's people at their far
+ * level: a tile under 150 device px, a man some thirty pixels tall): a
+ * beard, a helmet, boots, a spear, a bow, an arrow, a tablet, a sack or a
+ * mallet is a pixel or two there, and each would be a draw of its own. The
+ * body, the tunic and the mail, the hair, the shields and the sweeps (which
+ * show) stay.
+ */
+export const FAR_SKIPS = Object.freeze(['beard:', 'helmet:', 'caligae:', 'prop:spear', 'prop:bow', 'prop:arrow', 'prop:tablet', 'prop:sack', 'prop:hammer']);
+
+/** The pieces of crewman `c` drawn: all of them, or far out (`far`) less FAR_SKIPS. */
+export function piecesAt(c, far) {
+  if (!far) return c.pieces;
+  return c.farPieces || (c.farPieces = c.pieces.filter((k) => !FAR_SKIPS.some((s) => k.startsWith(s))));
 }
 
 /** First room in a piece's instance buffers (doubled as needed). */
@@ -183,17 +202,23 @@ export class CrewBatch {
 
   /**
    * This frame's crews: `list` [{ crew (packCrew), slot, phase }] at level
-   * `lod`; `sig` the set's signature (written again only when it changes,
+   * `lod` (`far`: leaving FAR_SKIPS off); `sig` the set's signature (written again only when it changes,
    * or a piece wanted was built). Builds what is missing within BUILD_MS.
    */
-  set(list, lod, sig) {
+  set(list, lod, sig, far = lod === 2) {
     this.frame++;
-    if (lod !== this.lod) {
+    if (lod !== this.lod || far !== this.far) {
       this.lod = lod;
+      this.far = far;
       this.lastSig = -1;
     }
-    // Ask for what is missing at this level; build within the budget.
-    for (const e of list) for (const c of e.crew) for (const key of c.a.pieces) if (!this.pieces.has(`${key}|${lod}`)) this.wanted.add(`${key}|${lod}`);
+    // Ask for what is missing at each actor's level (only when the set changed: a still set has all it wants);
+    // build within the budget.
+    if (sig !== this.lastSig || this.dirty) {
+      for (const e of list) {
+        for (const c of e.crew) for (const key of piecesAt(c, this.far)) if (!this.pieces.has(`${key}|${lod}`)) this.wanted.add(`${key}|${lod}`);
+      }
+    }
     this.build(performance.now() + BUILD_MS);
     if (sig !== this.lastSig || this.dirty) this.write(list, sig);
     if (this.frame % 120 === 0) {
@@ -230,7 +255,7 @@ export class CrewBatch {
     let people = 0;
     for (const e of list) {
       for (const c of e.crew) {
-        const ps = c.a.pieces.map((key) => this.pieces.get(`${key}|${this.lod}`) || this.pieceAt(key, this.lod));
+        const ps = piecesAt(c, this.far).map((key) => this.pieces.get(`${key}|${this.lod}`) || this.pieceAt(key, this.lod));
         if (ps.some((p) => !p)) {
           this.dirty = true;
           continue;
@@ -270,7 +295,9 @@ export class CrewBatch {
       p.mesh.visible = n > 0;
       if (!n) continue;
       p.seen = this.frame;
-      p.mesh.castShadow = this.casting && p.lod < 2;
+      // (No shadows from the crews: on a deck they fall on the hull and its people, and drawing them twice
+      // cost what the sprites cost: measured.)
+      p.mesh.castShadow = false;
       draws++;
       tris += n * p.tris;
       const im = p.mesh.instanceMatrix;
@@ -303,7 +330,7 @@ export class CrewBatch {
     mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     mesh.customDepthMaterial = crewDepthMaterial('depth');
     mesh.customDistanceMaterial = crewDepthMaterial('distance');
-    mesh.castShadow = this.casting;
+    mesh.castShadow = false;
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     mesh.count = 0;
@@ -327,9 +354,9 @@ export class CrewBatch {
     p.room = room;
   }
 
+  /** The sun's shadow map on or off: kept, though crews cast none (write). */
   setCasting(on) {
     this.casting = on;
-    for (const p of this.pieces.values()) p.mesh.castShadow = on && p.lod < 2 && p.n > 0;
   }
 
   hide() {
