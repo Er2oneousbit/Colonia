@@ -55,6 +55,7 @@ import { DECOR_MODELS } from './models/decor.js';
 import { HEALTH_MODELS } from './models/health.js';
 import { GOVERNMENT_MODELS } from './models/government.js';
 import { RELIGION_MODELS, RELIGION_PARTS } from './models/religion.js';
+import { TRAINING_MODELS } from './models/training.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -152,6 +153,8 @@ export const MODELS = Object.freeze({
   ...GOVERNMENT_MODELS,
   // The temples, the oracle and the mission post (models/religion.js says how).
   ...RELIGION_MODELS,
+  // The actor troupe, the gladiator school, the menagerie and the chariot stable (models/training.js says how).
+  ...TRAINING_MODELS,
   // The native villages' huts, meeting places and plots (models/villages.js says how).
   ...VILLAGE_MODELS,
 });

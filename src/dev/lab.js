@@ -57,6 +57,9 @@
  * walkers.closeUp(i), walkers.loops, walkers.stats(), walkers.setLod(n)).
  * (the Ships scene, labShips.js: Shift+B, every vessel in 3D on the game's water, with
  * ships.closeUp(i), ships.where(i), ships.ships, ships.stats(), ships.setLod(n)).
+ * (the Training scene, labTraining.js: Shift+T, the actor troupe, the gladiator
+ * school, the menagerie and the chariot stable in their states, with
+ * training.items, training.triangles(lod) and commerceTriangles('training', lod)).
  * (the Villages scene, labVillages.js: Shift+N, the native villages in each state, with
  * villages.where(i), villages.piece(i, which, n), villages.setMonth(m), villages.triangles(lod)).
  * ----------------------------------------------------------------------------
@@ -94,6 +97,7 @@ import { buildPeopleScene } from './labPeople.js';
 import { buildWalkersScene } from './labWalkers.js';
 import { buildShipsScene } from './labShips.js';
 import { buildArmyScene } from './labUnits.js';
+import { buildTrainingScene } from './labTraining.js';
 import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
@@ -349,6 +353,8 @@ async function main() {
   commerce.ships = buildShipsScene(groundTex, look);
   // The Army scene (labUnits.js, the backslash key): every fighting unit drawn in 3D, in cells of open ground.
   commerce.army = buildArmyScene();
+  // The Training scene (labTraining.js, Shift+T): the troupe, the gladiators, the menagerie, the stable.
+  commerce.training = buildTrainingScene();
   // The Villages scene (labVillages.js, Shift+N): the native villages, Ligurian and generic, in each state.
   commerce.villages = buildVillagesScene(groundTex);
   for (const s of Object.values(commerce)) {
@@ -751,14 +757,19 @@ async function main() {
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
-    // Shift+B: the Ships scene (B alone is the hundred wells).
     // Shift+N: the Villages scene (N alone is the snow).
     if (e.shiftKey && k === 'n') {
       setScene('villages');
       return;
     }
+    // Shift+B: the Ships scene (B alone is the hundred wells).
     if (e.shiftKey && k === 'b') {
       setScene('ships');
+      return;
+    }
+    // Shift+T: the Training scene (T alone is rain).
+    if (e.shiftKey && k === 't') {
+      setScene('training');
       return;
     }
     const moods = Object.keys(MOODS);
@@ -1080,6 +1091,12 @@ async function main() {
       get units() { return commerce.army.figures; },
       where: (i) => commerce.army.where(i),
       stats: () => commerce.army.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Training scene (labTraining.js): the buildings and their states, their triangles, the level of detail. */
+    training: {
+      get items() { return commerce.training.items.map((it) => ({ ...it })); },
+      triangles: (l) => commerce.training.triangles(l),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */

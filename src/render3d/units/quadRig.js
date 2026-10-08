@@ -50,6 +50,8 @@ const smooth = (x) => x * x * (3 - 2 * x);
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const lerp = (a, b, k) => a + (b - a) * k;
 const wrap1 = (x) => ((x % 1) + 1) % 1;
+/** The beasts of the shows (the menagerie's), whose ears and heads move as a wolf's do. */
+const PROWLERS = new Set(['lion', 'leopard', 'bear']);
 
 /** Keyframes round a loop (as people/clips.js track): eased pose to pose, the last running into the first. */
 export function qtrack(t, keys) {
@@ -106,7 +108,39 @@ export const LEGS = Object.freeze(LEG_NAMES.map((k) => Object.freeze([QB[`upper$
  *   elephant   the African forest elephant Carthage fielded: 2.4 m at the
  *              shoulder, the back highest at the shoulders and the hips,
  *              the great ears, the trunk to the ground
+ *
+ * The beasts of the shows, kept in a town's menagerie (vivarium) and taken
+ * to the arena (the venationes: Pliny VIII, Martial's book of the shows):
+ *
+ *   lion       a Barbary (Atlas) lion: 1.1 m at the shoulder, deep in the
+ *              chest, the head carried low; a mane (models), the tufted tail
+ *   leopard    the panther of the shows (pardus, the "Africanae"): the
+ *              lion's frame at two thirds, longer in the leg for its size
+ *   bear       a brown bear of the Alps and the Pyrenees, as the shows took
+ *              them: 1.0 m at the shoulder hump, walking on the soles of its
+ *              feet. `slant` sets its cannons (the hind foot's sole, the
+ *              fore paw's) at rest that far from straight down, so a planted
+ *              foot lies flat under the heel; the other species have none.
  */
+const LION = {
+  root: [0, 0.92, -0.62], spine: [0, 0.95, -0.25], chest: [0, 1.0, 0.25], neck: [0, 1.0, 0.5], neck2: [0, 1.06, 0.64], head: [0, 1.1, 0.74], jaw: [0, 1.0, 0.86],
+  ear: [0.1, 1.22, 0.72], tail: [[0, 0.9, -0.84], [0, 0.72, -1.04], [0, 0.48, -1.16]], tailEnd: [0, 0.3, -1.24],
+  fore: [[0.13, 0.78, 0.38], [0.14, 0.53, 0.27], [0.13, 0.17, 0.33], [0.13, 0.06, 0.37]], foreToe: 0.1,
+  hind: [[0.12, 0.86, -0.64], [0.13, 0.6, -0.48], [0.12, 0.27, -0.73], [0.12, 0.06, -0.67]], hindToe: 0.1,
+  trunk: null,
+  seat: null, deck: null,
+};
+
+/** A species' joints scaled by k (a smaller cat on the lion's frame). */
+function scaledSpecies(S, k) {
+  const sc = (p) => p.map((v) => v * k);
+  return {
+    ...Object.fromEntries(['root', 'spine', 'chest', 'neck', 'neck2', 'head', 'jaw', 'ear', 'tailEnd'].map((n) => [n, sc(S[n])])),
+    tail: S.tail.map(sc), fore: S.fore.map(sc), hind: S.hind.map(sc), foreToe: S.foreToe * k, hindToe: S.hindToe * k,
+    trunk: null, seat: null, deck: null,
+  };
+}
+
 export const SPECIES = Object.freeze({
   wolf: {
     root: [0, 0.66, -0.34], spine: [0, 0.7, -0.12], chest: [0, 0.73, 0.16], neck: [0, 0.73, 0.33], neck2: [0, 0.8, 0.45], head: [0, 0.86, 0.55], jaw: [0, 0.8, 0.6],
@@ -131,6 +165,17 @@ export const SPECIES = Object.freeze({
     hind: [[0.4, 1.82, -0.86], [0.42, 1.2, -0.66], [0.42, 0.5, -0.88], [0.42, 0.12, -0.84]], hindToe: 0.14,
     trunk: [[0, 2.0, 1.72], [0, 1.45, 1.84], [0, 0.9, 1.86]], trunkEnd: [0, 0.38, 1.8],
     seat: { bone: 'neck2', at: [0, 2.6, 1.0] }, deck: { bone: 'spine', at: [0, 2.47, -0.3] },
+  },
+  lion: LION,
+  leopard: scaledSpecies(LION, 0.64),
+  bear: {
+    root: [0, 0.84, -0.58], spine: [0, 0.92, -0.2], chest: [0, 0.98, 0.3], neck: [0, 0.92, 0.52], neck2: [0, 0.93, 0.64], head: [0, 0.96, 0.74], jaw: [0, 0.88, 0.92],
+    ear: [0.11, 1.08, 0.75], tail: [[0, 0.86, -0.76], [0, 0.82, -0.8], [0, 0.77, -0.83]], tailEnd: [0, 0.73, -0.85],
+    fore: [[0.18, 0.82, 0.38], [0.2, 0.5, 0.28], [0.19, 0.16, 0.36], [0.19, 0.05, 0.46]], foreToe: 0.1,
+    hind: [[0.17, 0.82, -0.6], [0.18, 0.48, -0.42], [0.17, 0.12, -0.62], [0.17, 0.04, -0.44]], hindToe: 0.1,
+    slant: [0.74, 1.15],
+    trunk: null,
+    seat: null, deck: null,
   },
 });
 
@@ -199,6 +244,8 @@ export class QPose {
   constructor(species) {
     this.species = species;
     this.J = REST[species];
+    // (A plantigrade's cannons at rest off straight down: SPECIES.bear.slant. None for the others.)
+    this.slant = SPECIES[species].slant || [0, 0];
     this.world = QBONES.map(() => new Matrix4());
     this.local = QBONES.map(() => [0, 0, 0]);
     this.reset();
@@ -280,7 +327,8 @@ export class QPose {
       }
       // The cannon's top: up its slant from the foot's joint, or tipped toward the leg's top when the two
       // bones above cannot reach it otherwise (the heel lifting as the stride ends).
-      let C = [D[0] + Math.cos(t.cannon) * l3, D[1] - Math.sin(t.cannon) * l3];
+      const cannon = t.cannon + this.slant[l < 2 ? 0 : 1];
+      let C = [D[0] + Math.cos(cannon) * l3, D[1] - Math.sin(cannon) * l3];
       const L2 = l1 + l2 - 1e-3;
       if (Math.hypot(C[0] - A[1], C[1] - A[2]) > L2) C = circleMeet(A[1], A[2], L2, D[0], D[1], l3, C);
       // The two-bone solve in the leg's plane: the elbow behind the line (fore), the stifle before it (hind).
@@ -365,6 +413,13 @@ export const GAITS = Object.freeze({
   'horse:canter': { stride: 2.9, phase: [0.3, 0.55, 0, 0.3], duty: 0.26, bias: [-0.03, 0], lift: 0.16, fold: [-1.5, 1.1], bob: 0.05, flex: 0.06 },
   'horse:gallop': { stride: 3.4, phase: [0.38, 0.5, 0, 0.12], duty: 0.22, bias: [-0.04, 0], lift: 0.18, fold: [-1.6, 1.2], bob: 0.06, flex: 0.08 },
   'elephant:walk': { stride: 2.0, phase: [0.25, 0.75, 0, 0.5], duty: 0.62, lift: 0.14, fold: [-0.35, 0.3], bob: 0.03, low: 0.08 },
+  // A team exercised round a stable's yard (models/factio.js): the trot's diagonal pairs, a moment of flight between.
+  'horse:trot': { stride: 2.5, phase: [0, 0.5, 0.5, 0], duty: 0.4, lift: 0.15, fold: [-1.35, 1.05], bob: 0.035 },
+  // The big cats pace their cages (models/vivarium.js): a long low walk, the head carried under the line of the back.
+  'lion:walk': { stride: 1.3, phase: [0.25, 0.75, 0, 0.5], duty: 0.62, lift: 0.075, fold: [-1.0, 0.8], bob: 0.014 },
+  'leopard:walk': { stride: 0.95, phase: [0.25, 0.75, 0, 0.5], duty: 0.62, lift: 0.06, fold: [-1.0, 0.8], bob: 0.01 },
+  // A bear's amble: short steps, the feet set down flat, the weight rolling from side to side.
+  'bear:walk': { stride: 1.05, phase: [0.25, 0.75, 0, 0.5], duty: 0.66, lift: 0.075, fold: [-0.55, 0.45], bob: 0.018 },
 });
 
 /**
@@ -430,7 +485,7 @@ function standIdle(P, t, o = {}) {
   P.rot('neck', 0.04 * sn(t, 3, 0.4), yaw * 0.4, 0);
   P.rot('neck2', 0.03 * sn(t, 3, 0.5), yaw * 0.3, 0);
   P.rot('head', 0.05 * sn(t, 3, 0.6) + 0.03, yaw * 0.3, 0.04 * sn(t, 2));
-  if (sp === 'wolf') {
+  if (sp === 'wolf' || PROWLERS.has(sp)) {
     // The ears turning to sounds, flicked back now and then.
     P.rot('earL', 0, 0.2 * Math.tanh(3 * sn(t, 3, 0.1)), 0);
     P.rot('earR', 0, -0.2 * Math.tanh(3 * sn(t, 3, 0.35)), 0);
@@ -471,7 +526,7 @@ function gaitBody(P, G, t, sp, o = {}) {
     P.rot('chest', -flex * 0.8, 0, 0);
   }
   // The head and neck balance the stride: nodding against the pitch (a horse's most at the walk and the gallop).
-  const nod = sp === 'horse' ? (once ? 0.12 * sn(t, 1, 0.35) : 0.06 * sn(t, 2, 0.2)) : sp === 'wolf' ? (once ? 0.08 * sn(t, 1, 0.3) : 0.02 * sn(t, 2)) : 0.03 * sn(t, 2);
+  const nod = sp === 'horse' ? (once ? 0.12 * sn(t, 1, 0.35) : 0.06 * sn(t, 2, 0.2)) : sp === 'wolf' || PROWLERS.has(sp) ? (once ? 0.08 * sn(t, 1, 0.3) : 0.02 * sn(t, 2)) : 0.03 * sn(t, 2);
   P.rot('neck', -pitch * 0.6 + nod + (o.neck || 0), 0, 0);
   P.rot('neck2', nod * 0.6, 0, 0);
   P.rot('head', -nod * 0.5 + (o.head || 0), 0, 0);
@@ -530,6 +585,134 @@ function fallPose(P, t, sp) {
   // (The legs by their rotations throughout: over half a second nobody sees a hoof leave the ground.)
   const k = qtrack(t, [[0, 0], [0.08, 0.05], [0.32, 0.85], [0.42, 1], [0.9, 1], [0.97, 0]]);
   deadPose(P, sp, k);
+}
+
+/**
+ * A big cat's clips (`sp` lion or leopard: one frame, two sizes): standing
+ * with the tail's tip flicking; the pacing walk (the head low, the shoulder
+ * blades rolling over the back); lying as a sphinx, the head up, breathing,
+ * the tail's tip curling; the roar (the head raised, the jaws wide, the
+ * flanks heaving), each from what a caged cat does all day.
+ */
+function catClips(sp) {
+  return {
+    [`${sp}:stand`]: {
+      dur: 8, fps: 10,
+      pose(P, t) {
+        standIdle(P, t, { sp, look: 0.8, tail: 0.6 });
+        // The tail hangs in its curve, the tip flicking (a cat's tail is never still).
+        P.rot('tail1', 0.25, 0, 0);
+        P.rot('tail2', 0.15, 0.25 * sn(t, 3, 0.2), 0);
+        P.rot('tail3', -0.35 + 0.15 * sn(t, 4), 0.45 * sn(t, 3, 0.35), 0);
+        P.rot('neck', 0.08, 0, 0);
+      },
+    },
+    [`${sp}:walk`]: {
+      dur: 1.25, fps: 30, gait: `${sp}:walk`,
+      pose(P, t) {
+        gaitBody(P, GAITS[`${sp}:walk`], t, sp, { neck: 0.22, head: -0.06, tail: 0.25 });
+        // The shoulder blades roll over the back with each fore step; the tail's low curve swings.
+        P.rot('chest', 0, 0.04 * sn(t, 1, 0.25), 0.03 * sn(t, 1, 0.25));
+        P.rot('tail2', 0.1, 0.12 * sn(t, 1, 0.3), 0);
+        P.rot('tail3', -0.3, 0.2 * sn(t, 1, 0.45), 0);
+      },
+    },
+    [`${sp}:lie`]: { dur: 10, fps: 6, pose(P, t) { catLie(P, t); } },
+    [`${sp}:roar`]: {
+      dur: 6, fps: 20,
+      pose(P, t) {
+        const roar = qtrack(t, [[0, 0], [0.22, 0], [0.3, 1], [0.48, 0.9], [0.58, 0]]);
+        standIdle(P, t, { sp, look: 0.2, tail: 0.4 });
+        // Weight back a little, the chest lifted, the head thrown up, the jaws wide; the flanks heave.
+        P.root(0, 0.01 * roar, -0.03 * roar, -0.06 * roar, 0, 0);
+        P.rot('chest', -0.05 * roar + 0.02 * sn(t * 6, 1) * roar, 0, 0);
+        P.rot('neck', -0.25 * roar, 0, 0);
+        P.rot('neck2', -0.15 * roar, 0, 0);
+        P.rot('head', -0.2 * roar, 0, 0);
+        P.rot('jaw', 0.62 * roar, 0, 0);
+        P.rot('earL', -0.35 * roar, 0, 0);
+        P.rot('earR', -0.35 * roar, 0, 0);
+        P.rot('tail1', 0.25, 0, 0);
+        P.rot('tail3', -0.3 + 0.4 * roar, 0.3 * sn(t, 2), 0);
+      },
+    },
+  };
+}
+
+/**
+ * Lying as a sphinx: the body down on the belly, the hinds folded under to
+ * one side, the forelegs out before the chest, the head up and turning,
+ * breathing; the tail along the ground, its tip curling now and then.
+ */
+function catLie(P, t) {
+  const J = P.J;
+  // (The pelvis's joint down to the body's half depth over the ground: 0.3 of the frame's height.)
+  const h = J[QB.chest][1];
+  P.root(0.04 * h, 0.4 * h - J[QB.root][1] + 0.004 * h * sn(t, 3), 0.03 * h, -0.04, 0, 0.12);
+  P.rot('spine', 0, 0, 0.04);
+  P.rot('chest', -0.1 + 0.012 * sn(t, 3), 0, 0);
+  P.rot('neck', -0.3, 0.35 * Math.tanh(2 * sn(t, 1, 0.2)), 0);
+  P.rot('neck2', 0.05, 0, 0);
+  P.rot('head', 0.28 + 0.04 * sn(t, 2), 0.2 * Math.tanh(2 * sn(t, 1, 0.2)), 0);
+  P.rot('jaw', 0.03 + 0.03 * Math.max(0, sn(t, 1, 0.7)), 0, 0);
+  P.rot('earL', -0.1 + 0.15 * Math.tanh(3 * sn(t, 2, 0.1)), 0, 0);
+  P.rot('earR', -0.1 + 0.15 * Math.tanh(3 * sn(t, 2, 0.4)), 0, 0);
+  // The tail laid out to the side along the ground, the tip lifting and curling.
+  P.rot('tail1', 0.9, 0.7, 0);
+  P.rot('tail2', 0.25, 0.4, 0);
+  P.rot('tail3', -0.2 - 0.25 * Math.max(0, sn(t, 2, 0.3)), 0.3 + 0.3 * sn(t, 2, 0.3), 0);
+  // The forepaws flat on the ground before the chest, the forearms along it (their feet by targets).
+  for (const l of [0, 1]) {
+    const r = J[LEGS[l][3]];
+    P.leg(l, r[1], r[2] + 0.55 * h + (l ? 0.04 * h : 0), 1.25, -0.1);
+  }
+  for (const l of [2, 3]) {
+    const [a, b, c, d] = LEGS[l];
+    P.rot(a, -1.25, 0, l === 2 ? 0.4 : 0.15);
+    P.rot(b, 2.05, 0, 0);
+    P.rot(c, -1.5, 0, 0);
+    P.rot(d, 1.4, 0, 0);
+  }
+}
+
+/** A bear standing: the head low and swinging, scenting; the weight rocking from fore foot to fore foot. */
+function bearStand(P, t) {
+  standIdle(P, t, { sp: 'bear', look: 0.7, tail: 0.1 });
+  P.rot('neck', 0.18 + 0.06 * sn(t, 2, 0.1), 0, 0);
+  P.rot('head', -0.05 + 0.08 * Math.max(0, sn(t, 3, 0.4)), 0.15 * sn(t, 1, 0.3), 0);
+  P.rot('chest', 0, 0, 0.03 * sn(t, 2, 0.15));
+}
+
+/**
+ * A bear rising: up onto its hind feet about the hips (planted, flat), the
+ * forepaws hanging before the chest, the head levelled to scent the air
+ * and turning; held; down onto all fours again. On all fours the fore feet
+ * stand by their targets; risen, the forelegs hang by their rotations.
+ */
+function bearRise(P, t) {
+  const k = qtrack(t, [[0, 0], [0.2, 0], [0.38, 1], [0.72, 1], [0.88, 0]]);
+  bearStand(P, t);
+  const J = P.J;
+  P.root(0, 0.14 * k, -0.06 * k, -1.18 * k, 0.12 * k * sn(t, 1, 0.2), 0);
+  P.rot('spine', -0.12 * k, 0, 0);
+  P.rot('chest', -0.06 * k, 0, 0);
+  P.rot('neck', 0.85 * k, 0.25 * k * sn(t, 2, 0.1), 0);
+  P.rot('head', 0.3 * k - 0.12 * k * Math.max(0, sn(t, 4)), 0, 0);
+  if (k > 0.02) {
+    P.targets[0] = null;
+    P.targets[1] = null;
+    for (const l of [0, 1]) {
+      const [a, b, c, d] = LEGS[l];
+      P.rot(a, 0.95 * k, 0, (l === 0 ? 0.12 : -0.12) * k);
+      P.rot(b, -0.9 * k, 0, 0);
+      P.rot(c, 0.5 * k, 0, 0);
+      P.rot(d, 0.6 * k, 0, 0);
+    }
+  }
+  for (const l of [2, 3]) {
+    const r = J[LEGS[l][3]];
+    P.leg(l, r[1], r[2] + 0.04 * k, 0, 0);
+  }
 }
 
 export const BEAST_CLIPS = Object.freeze({
@@ -657,6 +840,23 @@ export const BEAST_CLIPS = Object.freeze({
     },
   },
   'elephant:fall': { dur: 3, fps: 16, pose(P, t) { fallPose(P, t, 'elephant'); } },
+  // --- Appended: the stable's team and the menagerie's beasts (every older clip keeps its index) ---------
+  'horse:trot': { dur: 0.72, fps: 40, gait: 'horse:trot', pose(P, t) { gaitBody(P, GAITS['horse:trot'], t, 'horse', { neck: 0.06, tail: -0.2 }); } },
+  ...catClips('lion'),
+  ...catClips('leopard'),
+  'bear:stand': { dur: 9, fps: 8, pose(P, t) { bearStand(P, t); } },
+  'bear:walk': {
+    dur: 1.25, fps: 30, gait: 'bear:walk',
+    pose(P, t) {
+      gaitBody(P, GAITS['bear:walk'], t, 'bear', { neck: 0.12, head: 0.05, tail: 0 });
+      // The weight rolling over each fore foot as it is planted, the head swinging low from side to side.
+      P.rot('spine', 0, 0, 0.035 * sn(t, 1, 0.2));
+      P.rot('chest', 0, 0.05 * sn(t, 1, 0.15), 0.04 * sn(t, 1, 0.25));
+      P.rot('neck', 0, 0.1 * sn(t, 1, 0.1), 0);
+    },
+  },
+  // Up on the hind feet to look and scent the air, held, and down again.
+  'bear:rise': { dur: 7, fps: 20, pose(P, t) { bearRise(P, t); } },
 });
 
 export const BEAST_CLIP_NAMES = Object.freeze(Object.keys(BEAST_CLIPS));

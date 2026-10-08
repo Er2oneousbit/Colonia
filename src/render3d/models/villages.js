@@ -233,11 +233,11 @@ function villager(who, people, seed, more = {}) {
   } else if (lig) {
     c.mantle = pick(FLEECES, seed, 2);
     const long = r(8) < 0.6 || who === 'elder';
-    spec = { body: 'm', dress: [r(9) < 0.5 ? 'tunic:short' : 'tunic:knee', 'ugear:hide', 'ugear:belt', ...(long ? ['ugear:longhair'] : [])], hair: long ? null : 'curls', beard: who === 'elder' || r(10) < 0.6 ? 'short' : null, old: who === 'elder' };
+    spec = { body: 'm', dress: [r(9) < 0.5 ? 'tunic:short' : 'tunic:knee'], gear: ['hide', 'belt', ...(long ? ['longhair'] : [])], hair: long ? null : 'curls', beard: who === 'elder' || r(10) < 0.6 ? 'short' : null, old: who === 'elder' };
     if (who === 'elder') spec.beard = 'full';
   } else {
     c.mantle = pick(CLOAKS, seed, 2);
-    spec = { body: 'm', dress: ['tunic:knee', ...(r(8) < 0.45 || who === 'elder' ? ['ugear:sagum'] : [])], hair: 'curls', beard: 'full', old: who === 'elder' };
+    spec = { body: 'm', dress: ['tunic:knee'], gear: r(8) < 0.45 || who === 'elder' ? ['sagum'] : [], hair: 'curls', beard: 'full', old: who === 'elder' };
   }
   if (spec.old) c.hair = pick([0x8a8478, 0xa8a296, 0xc8c2b6, 0x6e6860], seed, 11);
   const { colours: own, ...rest } = more;

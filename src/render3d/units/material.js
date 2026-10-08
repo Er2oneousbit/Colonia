@@ -28,10 +28,11 @@
  * ----------------------------------------------------------------------------
  */
 
-import { MeshStandardMaterial, MeshDepthMaterial, MeshDistanceMaterial, DataTexture, RGBAFormat, FloatType, NearestFilter, Vector2, Vector4 } from 'three';
+import { MeshStandardMaterial, MeshDepthMaterial, MeshDistanceMaterial, DataTexture, RGBAFormat, FloatType, NearestFilter, Vector2 } from 'three';
 import { patchLook, surfaceTextures, cachedMaterial, LOOK } from '../materials.js';
 import { patchPeopleShader } from '../people/material.js';
-import { bakeBeasts, QBONE_COUNT } from './quadRig.js';
+import { bakeBeasts } from './quadRig.js';
+import { beastBones } from './beastTexture.js';
 
 /** Figures a row of the units' texture, and texels a figure (as the walkers'). */
 export const UNIT_FIGURES_ROW = 256;
@@ -58,23 +59,11 @@ export function unitFigureTexture(rows) {
   return t;
 }
 
-/** The beasts' baked clips as a texture (QBONE_COUNT x 3 texels a row, a row a frame), and their table. */
+/** The beasts' baked clips as a texture and their table (units/beastTexture.js: shared with the buildings' beasts). */
 let BEASTS = null;
 function beastUniforms() {
   if (BEASTS) return BEASTS;
-  const b = bakeBeasts();
-  const t = new DataTexture(b.data, QBONE_COUNT * 3, b.rows, RGBAFormat, FloatType);
-  t.magFilter = NearestFilter;
-  t.minFilter = NearestFilter;
-  t.generateMipmaps = false;
-  t.flipY = false;
-  t.needsUpdate = true;
-  t.name = 'beast-bones';
-  BEASTS = {
-    uUnits: FIGURES,
-    uBeastBones: { value: t },
-    uBeastClips: { value: b.table.map((c) => new Vector4(c.start, c.frames, c.fps, c.stride)) },
-  };
+  BEASTS = { uUnits: FIGURES, ...beastBones() };
   return BEASTS;
 }
 

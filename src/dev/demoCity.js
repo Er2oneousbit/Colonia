@@ -1089,6 +1089,19 @@ export function buildDemoVenues(game, center) {
 }
 
 /**
+ * The four training buildings of the shows near the city (an actor troupe,
+ * a gladiator school, a menagerie, a chariot stable), each where it can stand
+ * with a road: the console's `training`, the smoke test's 3D models.
+ */
+export function buildDemoTraining(game, center) {
+  const out = {};
+  for (const [type, size] of [['actor_troupe', 2], ['gladiator_school', 3], ['menagerie', 3], ['chariot_maker', 3]]) {
+    out[type] = game.isUnlocked(type) ? placeNear(game, type, size, center, 4, 30) : null;
+  }
+  return out;
+}
+
+/**
  * A hippodrome (15 x 5) and a chariot maker beside the city.
  * @returns {{ok:boolean, hippodrome?:object, maker?:object}}
  */
