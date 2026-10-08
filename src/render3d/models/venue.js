@@ -298,7 +298,7 @@ function trunk(x, y0, z, y1, w0, d0, w1, d1, radial, colour, lean = 0) {
 function spectator(x, d, pose, arms, lod, rise) {
   const cloth = [];
   const skin = [];
-  const R = lod === 0 ? 8 : lod === 1 ? 5 : 4;
+  const R = lod === 0 ? 7 : lod === 1 ? 5 : 4;
   const sit = pose === 'sit';
   // Heights: a seated man's hips on the seat a little back from its edge, his knees over the edge, his feet on the row below.
   const hipY = sit ? 0.1 : 0.86;
@@ -402,11 +402,10 @@ export function buildCrowdGroup(pose, band, variant, lod = 0, rise = 0.33) {
     skin.push(...s.skin);
   }
   const M = venueMaterials();
-  // (Far out a crowd's shadow is a few pixels: none, a draw saved in the sun's pass.)
-  // (Their shadows only close up: from the middle distance a seated man's is a few pixels on the step
-  // behind him, and the crowd's parts were a third of the sun's pass's draws.)
+  // (Their bodies' shadows only close up: from the middle distance a seated man's is a few pixels on the
+  // step behind him, and the crowd's parts were a third of the sun's pass's draws; heads and limbs, never.)
   p.add('cloth', M.crowdCloth, cloth, { cast: lod === 0 });
-  p.add('skin', M.crowdSkin, skin, { cast: lod === 0 });
+  p.add('skin', M.crowdSkin, skin, { cast: false });
   return p.build().group;
 }
 
