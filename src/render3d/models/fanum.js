@@ -408,6 +408,9 @@ function massif(out, t, god, lod, seed) {
       cornice(out, -X, X, t3.z1, t3.y - 0.16, 0.08, 0.16);
     }
     if (up < 1) out.core.push(roughTop(-X + 0.5, X - 0.5, back + 0.5, t3.z1 - 0.6, top));
+    // The flanks over the vaulted substructures (Terracina's, Tibur's): a row of arched openings into
+    // the dark along each side of the summit's block, their arches dressed in travertine.
+    if (up >= 1) sideVaults(out, lod);
   }
   // The stairs up the axis.
   const st = grow(t, 'stairs');
@@ -458,6 +461,37 @@ function massif(out, t, god, lod, seed) {
     }
   }
   void god;
+}
+
+/** The arched mouths of the vaults along both flanks of the summit's block (a face at x = +-side). */
+function sideVaults(out, lod) {
+  const X = F.side;
+  const n = 4;
+  const z0 = F.t3.z0 + 0.6;
+  const z1 = F.t3.z1 - 0.4;
+  const L = (z1 - z0) / n;
+  const w = L * 0.62;
+  const spring = 2.0;
+  const r = w / 2;
+  const seg = lod === 2 ? 5 : lod ? 8 : 12;
+  for (const s of [-1, 1]) {
+    for (let k = 0; k < n; k++) {
+      const z = z0 + (k + 0.5) * L;
+      out.dark.push(darkIn('z', z - r, z + r, 0, spring, s * X, s));
+      // (A whole disc round the springing: its lower half lies over the dark below, so the two read as one arch.)
+      const head = new CylinderGeometry(r, r, 0.05, seg * 2, 1).rotateZ(Math.PI / 2);
+      out.dark.push(tintGeometry(boxUV(head)).translate(s * (X + 0.025), spring, z));
+      if (lod < 2) {
+        const pts = [];
+        for (let j = 0; j <= seg; j++) {
+          const a = (j / seg) * Math.PI;
+          pts.push([s * (X + 0.04), spring + Math.sin(a) * (r + 0.1), z + Math.cos(a) * (r + 0.1)]);
+        }
+        out.trav.push(tube(pts, 0.09, { radial: 4, segments: seg * 2, around: 0.3 }));
+        for (const dz of [-1, 1]) out.trav.push(box(0.12, 0.16, 0.3, s * (X + 0.04), spring - 0.16, z + dz * (r + 0.1)));
+      }
+    }
+  }
 }
 
 /** The sanctuary's name cut in the top face's attic and gilded: FANVM CERERIS... */

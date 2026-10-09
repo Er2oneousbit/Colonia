@@ -140,11 +140,14 @@ export function pantheumMaterials() {
   return {
     ...m,
     // Granite: the grey lava's speckled grain, tinted (Mons Claudianus's grey, Aswan's red).
-    grey: material('granite-grey', { surface: 'lava', color: 0xcfcfd2, rough: 0.8, vertexColors: true, snow: 0.8 }),
-    pink: material('granite-pink', { surface: 'lava', color: 0xe8a894, rough: 0.8, vertexColors: true, snow: 0.8 }),
-    concrete: material('roman-concrete', { surface: 'cocciopesto', color: 0xbdb4a6, vertexColors: true, snow: 1 }),
+    // (The limestone's grain, tinted: the lava's read black at the game's distance.)
+    grey: material('granite-grey', { surface: 'limestone', color: 0xaeb0b6, rough: 0.7, vertexColors: true, snow: 0.8 }),
+    pink: material('granite-pink', { surface: 'limestone', color: 0xd09484, rough: 0.7, vertexColors: true, snow: 0.8 }),
+    // Fresh concrete: grey lime and pozzolana, rough (the signinum's red read as brick).
+    concrete: material('roman-concrete', { surface: 'plaster', color: 0xb4ada2, vertexColors: true, snow: 1 }),
     // The dome's gilt bronze tiles, mellowed (gold leaf over bronze, weathered).
-    tiles: material('dome-bronze', { surface: 'bronze', color: 0xd8b878, rough: 0.75, vertexColors: true, snow: 0.6 }),
+    // (A plain gilt bronze: on the bronze surface's own dark albedo the dome read as copper, not gold.)
+    tiles: material('dome-bronze', { color: 0xd2ab62, roughness: 0.42, metalness: 0.85, vertexColors: true, snow: 0.6 }),
     // The inside's stucco, its coffers in its vertices; no snow falls inside (but under the oculus).
     inside: material('pantheon-inside', { surface: 'stucco', color: 0xe8e0d0, vertexColors: true, snow: 0 }),
   };

@@ -374,7 +374,7 @@ function blaze(p, m, lod, seed) {
     logs.push(tintGeometry(boxUV(geo)));
   }
   p.add('logs', m.charred, logs, { cast: false });
-  const big = hearthFire([fx, y0 + 0.1, fz], 0.45, { lod, seed, big: 3.0 });
+  const big = hearthFire([fx, y0 + 0.1, fz], 0.5, { lod, seed, big: 3.6 });
   p.add('embers', m.ember, big.hot, { when: 'open', cast: false });
   p.add('coals', m.ash, big.dark, { cast: false });
   p.add('flames', m.flame, big.flames, { when: 'open', cast: false });
@@ -406,7 +406,8 @@ function pharusMaterials() {
     marble: material('marble', { surface: 'marble', vertexColors: true, snow: 1 }),
     statue: material('gov-statue-bronze', { surface: 'bronze', color: 0x9aa58c, rough: 1.3, vertexColors: true, snow: 0.7 }),
     reflector: material('pharus-mirror', { surface: 'bronze', color: 0xffd890, rough: 0.35, vertexColors: true, snow: 0.3 }),
-    flame: material('beacon-flame', { color: 0xffb050, roughness: 1, emissive: 0xff9a3a, emissiveIntensity: 3.2, snow: 0, wet: 0 }),
+    // (The altars' deeper flame: the beacons' read as a pale cone this size.)
+    flame: material('altar-flame', { color: 0xff9a40, roughness: 1, emissive: 0xff5e14, emissiveIntensity: 2.4, snow: 0, wet: 0 }),
     ash: material('cold-ash', { color: 0x4a4440, roughness: 0.95, snow: 1 }),
     charred: material('charred-wood', { color: 0x2a211b, roughness: 0.95, snow: 0.6 }),
     mud: material('drained-mud', { surface: 'earth', color: 0x6a5a48, vertexColors: true, snow: 0.6, wet: 1 }),
