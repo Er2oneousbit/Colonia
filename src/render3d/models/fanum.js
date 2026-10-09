@@ -305,11 +305,11 @@ function massif(out, t, god, lod, seed) {
   const fo = grow(t, 'footings');
   if (fo > 0 && grow(t, 'lower') < 0.3) {
     const h = 0.12 + 0.3 * fo;
-    for (const [x0, x1, z0, z1] of [[-X, X, t1.z1 - 0.6, t1.z1], [-X, X, back, back + 0.6], [-X, -X + 0.6, back, t1.z1], [X - 0.6, X, back, t1.z1], [-X, X, t2.z1 - 0.5, t2.z1 + 0.1], [-X, X, t3.z1 - 0.5, t3.z1 + 0.1]]) {
+    for (const [x0, x1, z0, z1] of [[-X, X, t1.z1 - 0.6, t1.z1], [-X, X, back + 0.05, back + 0.6], [-X, -X + 0.6, back, t1.z1], [X - 0.6, X, back, t1.z1], [-X, X, t2.z1 - 0.5, t2.z1 + 0.1], [-X, X, t3.z1 - 0.5, t3.z1 + 0.1]]) {
       out.core.push(box(x1 - x0, h, z1 - z0, (x0 + x1) / 2, -0.25, (z0 + z1) / 2, 0.85));
     }
     // The trenches' spoil heaped by them, the plan marked out on the ground.
-    out.earth.push(box(2 * X + 0.4, 0.04, t1.z1 - back + 0.4, 0, -0.02, (t1.z1 + back) / 2, 0.75));
+    out.earth.push(box(2 * X - 0.2, 0.04, t1.z1 - back - 0.1, 0, -0.02, (t1.z1 + back) / 2, 0.75));
   }
   // The lower block: the whole plan up to the lower terrace's top.
   const lo = grow(t, 'lower');

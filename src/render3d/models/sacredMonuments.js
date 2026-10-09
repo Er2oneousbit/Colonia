@@ -7,29 +7,30 @@
  * sim's own fields, read only.
  *
  *   fanum_<god>   the Great Sanctuary of each god (models/fanum.js,
- *                 fanumGods.js), its summit temple the god's own kits
- *                 (models/aedes.js builders, numina.js identities)
+ *                 fanumGods.js, fanumPeople.js), its summit temple the
+ *                 god's own kits (models/aedes.js builders, numina.js)
  *   pantheum      the Pantheon (models/pantheum.js)
  *   pharus        the Lighthouse (models/pharus.js), on the water
  *
  * What the sim says (sim/monuments.js, monumentEffects.js), read here by
  * `sacredView`:
  *   stage    the stage under way (data/monuments.js stages), and how far
- *            along it the work is (work / the stage's work), in quarters:
+ *            along it the work is (work over the stage's work), in quarters:
  *            the kit's timeline `t` = stage + (quarter + 0.5) / 4, so a
  *            site shows what its finished stages built and the stage under
  *            way rising course by course; finished, t = the stages' count
- *   crew     a work camp's crew on the site today (sim/monuments.js
- *            campsOnSite's test, counted once a game tick): the builders
- *            at work (actors); none while halted or without a crew, the
- *            cranes standing still
- *   struck   a site set back by the raid now on (`setbackRaid` is this
- *            raid's key): rubble about it until the raid is over
+ *   crew     a work camp's crew on the site today (its crew's record,
+ *            counted once a game tick): the builders at work (actors), the
+ *            treadwheels turning and lifting (worksite.js siteMotion); none
+ *            while halted or without a crew, the cranes standing still
+ *   piles    the goods delivered and not yet built in (worksite.js siteView)
+ *   struck   a site set back by the raid now on: rubble about it until the
+ *            raid is over (models/sacredRuin.js)
  *   sacked   a finished monument raiders brought down: closed, rubble,
  *            columns down, its fires out, until it is repaired
- *   open     finished, staffed (and the Pharus fuelled): the fires lit,
- *            the doors open, its people; the Pharus lit at night and
- *            smoking by day; dark without timber or keepers
+ *   open     finished, staffed (and the Pharus fuelled): the fires lit, the
+ *            doors open, its people; the Pharus lit at night and smoking by
+ *            day; dark without timber or keepers
  *   festival a Great Sanctuary open in its god's festival month: the feast
  *            (models/religion.js festivalNow)
  * A build ghost shows the finished monument at work.
@@ -37,8 +38,8 @@
  * Each look is several kits (`more`), instanced apart, so a stage's change
  * builds only the kit that changed: the structure at the timeline's step,
  * the temple's body and the god's kit, the columns (a matrix a column, as
- * many as stand), the site's dressing (the shared construction site:
- * models/worksite.js siteParts), the rubble, the smoke.
+ * many as stand), the site's dressing (the shared construction site,
+ * models/worksite.js), its turning wheels, the rubble, the smoke.
  * ----------------------------------------------------------------------------
  */
 
@@ -49,16 +50,15 @@ import { closedReason } from '../../sim/monumentEffects.js';
 import { raidKey } from '../../sim/monuments.js';
 import { cast, NOBODY } from '../people/actors.js';
 import { NUMEN, GODS } from './numina.js';
-import { buildTempleBody, buildTempleGod, buildTempleColumn, templeHearth, templeLamps, templeActors } from './aedes.js';
-import { buildSmoke } from './sacra.js';
+import { buildTempleBody, buildTempleGod, buildTempleColumn, templeHearth, templeLamps } from './aedes.js';
 import { festivalNow } from './religion.js';
-import { buildFanum, FANUM, FANUM_TEMPLE, TEMPLE_AT, FANUM_COLUMNS, PORTICO_COLUMNS, templeColumnsAt, porticoColumnsAt, grow } from './fanum.js';
+import { buildFanum, FANUM, FANUM_TEMPLE, TEMPLE_AT, FANUM_COLUMNS, PORTICO_COLUMNS, templeColumnsAt, porticoColumnsAt } from './fanum.js';
 import { godGround, middleTerrace, STAIR_LAMPS } from './fanumGods.js';
 import { fanumActors, fanumCrew, fanumSite, buildPorticoColumn } from './fanumPeople.js';
-import { buildPantheum, buildPantheumColumn, PANTHEUM, PANTHEUM_COLUMNS, pantheumColumnsAt, pantheumActors, pantheumCrew, pantheumSite, PANTHEUM_LAMPS } from './pantheum.js';
-import { buildPharus, PHARUS, pharusActors, pharusCrew, pharusSite } from './pharus.js';
+import { buildPantheum, buildPantheumColumn, PANTHEUM, PANTHEUM_COLUMNS, FORE_COLUMNS, pantheumColumnsAt, pgrow, pantheumActors, pantheumCrew, pantheumSite, PANTHEUM_LAMPS } from './pantheum.js';
+import { buildPharus, buildPharusWood, PHARUS, pharusActors, pharusCrew, pharusSite } from './pharus.js';
 import { buildRuin } from './sacredRuin.js';
-import { siteParts } from './siteStub.js';
+import { siteGroup as worksiteGroup, siteMotion, siteActors, siteView } from './worksite.js';
 import { waterSideOf, sideAngle, turnActors, turnPoint, overWater } from './fleet.js';
 
 /** The types drawn here. */
@@ -75,27 +75,10 @@ const frost = (place) => ((place && place.snow) || 0) >= 2;
 // The sim's state, read
 // ---------------------------------------------------------------------------
 
-/** The crews on each site today, counted once a game tick: site id -> camps whose crew is there. */
-const CREWS = { game: null, tick: -1, by: new Map() };
-function crewsOn(game, id) {
-  if (!game || !game.buildings) return 0;
-  const tick = game.time ? game.time.totalTicks : 0;
-  if (CREWS.game !== game || CREWS.tick !== tick) {
-    CREWS.game = game;
-    CREWS.tick = tick;
-    CREWS.by = new Map();
-    for (const b of game.buildings.values()) {
-      const c = b.camp && b.camp.crew;
-      if (b.def && b.def.kind === 'work_camp' && c && c.state === 'site') CREWS.by.set(c.site, (CREWS.by.get(c.site) || 0) + 1);
-    }
-  }
-  return CREWS.by.get(id) || 0;
-}
-
 /** The step of a stage's work a site shows: its work over the stage's, in quarters (0..3). */
 export function stepOf(work, need) {
   if (!(need > 0)) return 0;
-  return Math.max(0, Math.min(STEPS - 1, Math.floor((work / need) * STEPS)));
+  return Math.max(0, Math.min(STEPS - 1, Math.floor((work / need) * STEPS + 1e-9)));
 }
 
 /** The timeline a stage and step show: stage + (step + 0.5) / STEPS; finished, the stages' count. */
@@ -103,32 +86,38 @@ export function timelineOf(stage, step, n) {
   return stage >= n ? n : stage + (step + 0.5) / STEPS;
 }
 
+/** The timeline of a kit's step key ('2.1'; 'done' is the stages' count `n`). */
+export function timeOfKey(tk, n) {
+  if (tk === 'done') return n;
+  const [s, q] = tk.split('.').map(Number);
+  return s + ((q || 0) + 0.5) / STEPS;
+}
+
 /**
  * A monument's look from the sim, read only: { n, stage, step, t, key
  * (the timeline's: 'done' or 'stage.step'), finished, crew, halted,
- * struck, sacked, open, lit, festival }.
+ * struck, sacked, open, lit, festival, stock (loads on site by good) }.
+ * The site's own reading (worksite.js siteView) gives the step, the crew,
+ * the setback and the goods; the finished monument's open and sacked are
+ * the sim's closedReason.
  */
 export function sacredView(b, game = null) {
   const def = BUILDINGS[b.type];
   const n = MONUMENT_TYPES[def.mon].stages.length;
   const ghost = b.id === null || b.id === undefined;
-  if (ghost) return { n, stage: n, step: 0, t: n, key: 'done', finished: true, crew: false, halted: false, struck: false, sacked: false, open: true, lit: true, festival: false };
-  const m = b.mon || { stage: 0, work: 0, got: {} };
-  const stage = Math.max(0, Math.min(n, m.stage | 0));
-  const finished = stage >= n;
-  const st = finished ? null : MONUMENT_TYPES[def.mon].stages[stage];
-  const step = finished ? 0 : stepOf(m.work || 0, st.work);
-  const t = timelineOf(stage, step, n);
-  const halted = !!m.halted;
-  const crew = !finished && !halted && crewsOn(game, b.id) > 0;
-  let struck = false;
-  if (!finished && m.setbackRaid && game && game.time) {
-    try { struck = m.setbackRaid === raidKey(game); } catch { struck = false; }
+  if (ghost || !b.mon) {
+    const done = ghost;
+    return { n, stage: done ? n : 0, step: 0, t: done ? n : timelineOf(0, 0, n), key: done ? 'done' : '0.0', finished: done, crew: false, halted: false, struck: false, sacked: false, open: done, lit: done, festival: false, stock: {} };
   }
-  const sacked = finished && !!m.sacked;
-  const open = finished && !sacked && closedReason({ ...b, def: b.def || def, mon: m }) === null;
+  const s = siteView({ ...b, def: b.def || def }, game);
+  const finished = s.finished;
+  const t = timelineOf(s.stage, s.step, n);
+  const open = finished && !s.sacked && s.open;
   const festival = open && !!def.deity && festivalNow(game, def.deity);
-  return { n, stage, step, t, key: finished ? 'done' : `${stage}.${step}`, finished, crew, halted, struck, sacked, open, lit: open, festival };
+  return {
+    n, stage: s.stage, step: s.step, t, key: finished ? 'done' : `${s.stage}.${s.step}`, finished,
+    crew: !finished && s.crew, halted: s.halted, struck: !finished && s.struck, sacked: finished && s.sacked, open, lit: open, festival, stock: s.stock,
+  };
 }
 
 /** The kit state a monument's parts show: a feast, open, or shut (a site, closed, sacked). */
@@ -136,21 +125,9 @@ export function partState(v) {
   return v.festival ? 'out' : v.open ? 'open' : 'shut';
 }
 
-/** The goods a site has in, as piles: each good of the stage under way 0..3 by its share delivered. */
-export function pileLevels(b) {
-  const def = BUILDINGS[b.type];
-  const m = b.mon;
-  if (!m) return {};
-  const st = MONUMENT_TYPES[def.mon].stages[m.stage];
-  if (!st) return {};
-  const out = {};
-  for (const [g, need] of Object.entries(st.goods)) out[g] = Math.max(0, Math.min(3, Math.ceil(((m.got[g] || 0) / need) * 3)));
-  return out;
-}
-
-/** The piles' signature in a kit key: 'clay2.timber1' (goods in order). */
-function pileSig(levels) {
-  return Object.entries(levels).filter(([, n]) => n > 0).map(([g, n]) => `${g}${n}`).join('.') || '-';
+/** The piles' signature in a kit key: 'clay2.timber1' (goods in order, loads 1..9). */
+export function pileSig(stock) {
+  return Object.keys(stock || {}).sort().filter((g) => stock[g] > 0).map((g) => `${g}${stock[g]}`).join('.') || '-';
 }
 function pileParse(sig) {
   if (!sig || sig === '-') return {};
@@ -163,14 +140,14 @@ function pileParse(sig) {
 }
 
 // ---------------------------------------------------------------------------
-// Matrices
+// Matrices and kept lists
 // ---------------------------------------------------------------------------
 
 const I16 = new Matrix4().toArray(new Float32Array(16));
 function at(x, y, z, ry = 0, s = 1) {
   return new Matrix4().makeRotationY(ry).scale(new Vector3(s, s, s)).setPosition(x, y, z).toArray(new Float32Array(16));
 }
-/** Matrices for places [x, z, ry?] on y, offset by (ox, oz) and turned with `pre` (16 floats) if given. */
+/** Matrices for places [x, z, ry?] on y, offset by (ox, oz), turned by `pre` (16 floats) if given. */
 function mats(places, y, ox = 0, oz = 0, pre = null) {
   const out = new Float32Array(places.length * 16);
   const m = new Matrix4();
@@ -183,24 +160,166 @@ function mats(places, y, ox = 0, oz = 0, pre = null) {
   return out;
 }
 
-/** Kept lists by signature (a few in a city: one monument). */
+/** Lists, casts and site specs kept by signature (a city has one monument: a handful). */
 const KEPT = new Map();
 function kept(sig, make) {
   let v = KEPT.get(sig);
   if (v === undefined) {
-    if (KEPT.size > 256) KEPT.clear();
+    if (KEPT.size > 512) KEPT.clear();
     v = make();
     KEPT.set(sig, v);
   }
   return v;
 }
 
-/** A cast kept by signature. */
 function castOf(sig, make) {
   return kept(`cast|${sig}`, () => {
     const list = make();
     return list.length ? cast(list) : NOBODY;
   });
+}
+
+// ---------------------------------------------------------------------------
+// The building site (the shared construction site, worksite.js)
+// ---------------------------------------------------------------------------
+
+/** The site specs by monument: (t, piles, crew) -> spec in the model's metres, its cranes at work with a crew. */
+const SITES = {
+  fanum: (t, piles) => fanumSite(t, piles),
+  pantheum: (t, piles) => pantheumSite(t, piles),
+  pharus: (t, piles) => pharusSite(t, piles),
+};
+
+/** A site's spec, kept by its key (the same object every frame: the moving cranes' lists are kept by it). */
+function siteSpec(word, tk, n, sig, crew) {
+  return kept(`site|${word}|${tk}|${sig}|${crew ? 1 : 0}`, () => {
+    const s = SITES[word](timeOfKey(tk, n), pileParse(sig));
+    for (const c of s.cranes) c.work = !!crew;
+    return s;
+  });
+}
+
+/**
+ * The shared site's things split by the height they stand on (`y`: a
+ * scaffold against the top face stands on the middle terrace, the
+ * lighthouse's crane on its quay): the shared site stands everything on
+ * the model's ground, so each level is made apart and lifted. Centering
+ * keeps its own `y` (its springing). Kept by spec: [{ y, site }].
+ */
+const LEVELS = new WeakMap();
+function levelsOf(spec) {
+  let out = LEVELS.get(spec);
+  if (out) return out;
+  const by = new Map();
+  const level = (y) => {
+    let L = by.get(y);
+    if (!L) {
+      L = { scaffolds: [], cranes: [], centering: [], piles: [], rubble: [], mortar: [] };
+      by.set(y, L);
+    }
+    return L;
+  };
+  for (const list of ['scaffolds', 'cranes', 'piles', 'rubble', 'mortar']) {
+    for (const it of spec[list] || []) {
+      const { y = 0, ...rest } = it;
+      level(y)[list].push(rest);
+    }
+  }
+  for (const c of spec.centering || []) level(0).centering.push(c);
+  out = [...by.entries()].map(([y, site]) => ({ y, site }));
+  LEVELS.set(spec, out);
+  return out;
+}
+
+/** The site's dressing as one Group: each level's things made by the shared site and lifted to their level. */
+export function siteKit(spec, lod) {
+  const g = new Group();
+  for (const { y, site } of levelsOf(spec)) {
+    const part = worksiteGroup(site, lod);
+    part.position.y = y;
+    g.add(part);
+  }
+  return g;
+}
+
+/** The site's people: the stage's crew and the men its working cranes need (worksite.js siteActors), on their levels. */
+function siteCrew(spec, crew) {
+  const out = [...crew];
+  for (const { y, site } of levelsOf(spec)) {
+    for (const a of siteActors({ cranes: site.cranes })) out.push({ ...a, at: [a.at[0], a.at[1] + y, a.at[2]] });
+  }
+  return out;
+}
+
+const _a = new Matrix4();
+const _b = new Matrix4();
+const _pre = new Matrix4();
+/**
+ * The turning wheels and rising loads of a site's working cranes now
+ * (worksite.js siteMotion), lifted to their levels and turned by `pre` (a
+ * waterside building's side): `more` entries kept per spec, their
+ * matrices refilled in place each call.
+ */
+const MOTION = new WeakMap();
+function motionOf(spec, clock, pre) {
+  let e = MOTION.get(spec);
+  if (!e) {
+    e = { parts: [] };
+    for (const { y, site } of levelsOf(spec)) {
+      if (!site.cranes.some((c) => c.work && c.kind !== 'shear')) continue;
+      e.parts.push({ y, site: { cranes: site.cranes }, own: new Map() });
+    }
+    e.list = [];
+    MOTION.set(spec, e);
+  }
+  if (!e.parts.length) return e.list;
+  e.list.length = 0;
+  _pre.fromArray(pre || I16);
+  for (const part of e.parts) {
+    for (const it of siteMotion(part.site, clock)) {
+      let o = part.own.get(it.key);
+      if (!o || o.mats.length < it.mats.length) {
+        o = { key: it.key, n: 0, mats: new Float32Array(it.mats.length), state: 'always' };
+        part.own.set(it.key, o);
+      }
+      o.n = it.n;
+      for (let j = 0; j < it.n; j++) {
+        _a.fromArray(it.mats, j * 16);
+        _b.makeTranslation(0, part.y, 0).multiply(_a).premultiply(_pre).toArray(o.mats, j * 16);
+      }
+      if (o.n) e.list.push(o);
+    }
+  }
+  return e.list;
+}
+
+/** A look's `more`: its kept base list and the moving cranes' (a list joined once per base, refilled in place). */
+const JOINED = new WeakMap();
+function withMotion(base, spec, clock, pre) {
+  if (!spec) return base;
+  const motion = motionOf(spec, clock, pre);
+  if (!motion.length) return base;
+  let j = JOINED.get(base);
+  if (!j) {
+    j = [];
+    JOINED.set(base, j);
+  }
+  j.length = 0;
+  j.push(...base, ...motion);
+  return j;
+}
+
+/** The look's clock (the model pass's: paused or reduced motion, it stands still). */
+function clockOf(ctx) {
+  return ctx && typeof ctx.clock === 'number' ? ctx.clock : 0;
+}
+
+/** Wine and oil for a dedication come in amphorae: the warehouses' loads, a few by the piles. */
+function amphorae(list, stock, spots, pre = null) {
+  for (const [good, spot] of spots) {
+    const k = Math.min(3, stock[good] || 0);
+    if (k) list.push({ key: `warehouse:load:${good}`, n: k, mats: mats(Array.from({ length: k }, (_, i) => [spot[0] + i * 1.05 * Math.sign(-spot[0] || 1), spot[1], spot[2]]), spot[3] || 0, 0, 0, pre), state: 'always' });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -211,10 +330,9 @@ function castOf(sig, make) {
 const FALLEN_TEMPLE = new Set([1, 4]);
 const FALLEN_PORTICO = new Set([2, 3, 8]);
 
-/** A Great Sanctuary's `more` for its view. */
-function fanumMore(god, v, levels) {
-  const sig = `fanum|${god}|${v.key}|${partState(v)}|${v.struck ? 1 : 0}|${v.sacked ? 1 : 0}|${pileSig(levels)}`;
-  return kept(sig, () => {
+function fanumMore(god, v) {
+  const sig = pileSig(v.stock);
+  return kept(`fanum|${god}|${v.key}|${partState(v)}|${v.struck ? 1 : 0}|${v.sacked ? 1 : 0}|${sig}|${v.crew ? 1 : 0}`, () => {
     const order = NUMEN[god].order;
     const state = partState(v);
     const [ox, oy, oz] = TEMPLE_AT;
@@ -233,14 +351,10 @@ function fanumMore(god, v, levels) {
       list.push({ key: `sacra:smoke:${v.festival ? 'thick' : 'thin'}`, n: 1, mats: at(ox + hx, oy + hy + 0.15, oz + hz), state: 'always' });
     }
     if (!v.finished) {
-      list.push({ key: `fanum:site:${v.key}:${pileSig(levels)}`, n: 1, mats: I16, state: 'always' });
-      // Wine and oil for the dedication come in amphorae: the warehouses' loads.
-      for (const [good, spot] of [['wine', [-7.6, 8.6, 0.3]], ['oil', [7.4, 8.6, -0.4]]]) {
-        const k = levels[good] || 0;
-        if (k) list.push({ key: `warehouse:load:${good}`, n: k, mats: mats(Array.from({ length: k }, (_, i) => [spot[0] + i * 1.05 * Math.sign(-spot[0]), spot[1], spot[2]]), 0), state: 'always' });
-      }
+      list.push({ key: `fanum:site:${v.key}:${sig}:${v.crew ? 1 : 0}`, n: 1, mats: I16, state: 'always' });
+      amphorae(list, v.stock, [['wine', [-7.4, 8.6, 0.3]], ['oil', [7.4, 8.6, -0.4]]]);
     }
-    if (v.struck || v.sacked) list.push({ key: `fanum:ruin:${v.sacked ? 'done' : v.stage}`, n: 1, mats: I16, state: 'always' });
+    if (v.struck || v.sacked) list.push({ key: `fanum:ruin:${v.sacked ? 'done' : v.key}`, n: 1, mats: I16, state: 'always' });
     return Object.freeze(list.map((e) => Object.freeze(e)));
   });
 }
@@ -251,6 +365,11 @@ const FANUM_LAMPS = Object.freeze([
   ...STAIR_LAMPS.map(([x, y, z]) => Object.freeze([x, y, z, 1])),
 ]);
 
+/** A site's crew cast: the stage's builders and the cranes' men, kept by its spec. */
+function crewCast(sig, spec, make) {
+  return castOf(sig, () => siteCrew(spec, make()));
+}
+
 function fanumEntry(god) {
   const type = `fanum_${god}`;
   const order = NUMEN[god].order;
@@ -258,40 +377,38 @@ function fanumEntry(god) {
     variant(b, place, ctx) {
       const game = ctx ? ctx.game : null;
       const v = sacredView(b, game);
-      const levels = v.finished ? {} : pileLevels(b);
-      const more = fanumMore(god, v, levels);
+      const base = fanumMore(god, v);
       const state = partState(v);
-      const actors = v.finished
-        ? (v.open ? castOf(`fanum|${god}|${state}`, () => fanumActors(god, state)) : NOBODY)
-        : (v.crew ? castOf(`fanum-crew|${v.stage}`, () => fanumCrew(v.stage)) : NOBODY);
+      let actors = NOBODY;
+      let more = base;
+      if (v.finished) {
+        if (v.open) actors = castOf(`fanum|${god}|${state}`, () => fanumActors(god, state));
+      } else if (v.crew) {
+        const spec = siteSpec('fanum', v.key, 4, pileSig(v.stock), true);
+        actors = crewCast(`fanum-crew|${v.key}|${pileSig(v.stock)}`, spec, () => fanumCrew(v.stage));
+        more = withMotion(base, spec, clockOf(ctx), null);
+      }
       return { key: `${type}:${v.key}`, state, ice: false, more, actors };
     },
     warm: [`${type}:done`, 'fanum:body', `fanum:god:${god}`, `fanum:col:${order}`, `fanum:pcol:${order}`, 'sacra:smoke:thin'],
     lamps: (b) => (sacredView(b, null).open ? FANUM_LAMPS : []),
     build(key, lod) {
-      const tk = key.split(':')[1];
-      const t = tk === 'done' ? 4 : timeOfKey(tk);
+      const t = timeOfKey(key.split(':')[1], 4);
       const ground = godGround(god);
       return buildFanum(god, t, { lod, extra: (out, tt, l) => { ground(out, tt, l); middleTerrace(out, tt, l); } }).group;
     },
   });
 }
 
-/** The timeline of a kit's step key ('2.1'). */
-function timeOfKey(tk) {
-  const [s, q] = tk.split('.').map(Number);
-  return s + ((q || 0) + 0.5) / STEPS;
-}
-
 /** The sanctuaries' shared kits by key: the temple's body, each god's kit, the columns, the site, the rubble. */
 function buildFanumPart(key, lod) {
-  const [, what, a, b] = key.split(':');
+  const [, what, a, b, c] = key.split(':');
   if (what === 'body') return buildTempleBody(FANUM_TEMPLE, { lod, skipPaving: () => true }).group;
   if (what === 'god') return buildTempleGod(FANUM_TEMPLE, a, { lod }).group;
   if (what === 'col') return buildTempleColumn('fanum', a, FANUM_TEMPLE.colH, { lod }).group;
   if (what === 'pcol') return buildPorticoColumn(a, { lod }).group;
-  if (what === 'site') return siteGroup(fanumSite(timeOfKey(a), pileParse(b)), lod);
-  if (what === 'ruin') return buildRuin('fanum', a === 'done' ? 4 : Number(a), lod).group;
+  if (what === 'site') return siteKit(siteSpec('fanum', a, 4, b, c === '1'), lod);
+  if (what === 'ruin') return buildRuin('fanum', timeOfKey(a, 4), lod).group;
   return new Group();
 }
 
@@ -300,24 +417,26 @@ function buildFanumPart(key, lod) {
 // ---------------------------------------------------------------------------
 
 const FALLEN_PANTHEUM = new Set([2, 5, 11]);
+const FALLEN_FORE = new Set([3, 12]);
 
-function pantheumMore(v, levels) {
-  const sig = `pantheum|${v.key}|${partState(v)}|${v.struck ? 1 : 0}|${v.sacked ? 1 : 0}|${pileSig(levels)}`;
-  return kept(sig, () => {
+function pantheumMore(v) {
+  const sig = pileSig(v.stock);
+  return kept(`pantheum|${v.key}|${partState(v)}|${v.struck ? 1 : 0}|${v.sacked ? 1 : 0}|${sig}|${v.crew ? 1 : 0}`, () => {
     const list = [];
     const n = pantheumColumnsAt(v.t);
     for (const shade of ['grey', 'pink']) {
       const cols = PANTHEUM_COLUMNS.filter((c, i) => c[3] === shade && i < n && !(v.sacked && FALLEN_PANTHEUM.has(i)));
       if (cols.length) list.push({ key: `pantheum:col:${shade}`, n: cols.length, mats: mats(cols.map(([x, z]) => [x, z]), PANTHEUM.floorY), state: 'always' });
     }
-    if (!v.finished) list.push({ key: `pantheum:site:${v.key}:${pileSig(levels)}`, n: 1, mats: I16, state: 'always' });
+    // The forecourt's colonnades, as they go up in the last stage.
+    const nf = Math.round(Math.min(1, pgrow(v.t, 'fore') * 1.6) * FORE_COLUMNS.length);
+    const fore = FORE_COLUMNS.filter((c, i) => i % (FORE_COLUMNS.length / 2) < nf / 2 && !(v.sacked && FALLEN_FORE.has(i)));
+    if (fore.length) list.push({ key: 'pantheum:col:fore', n: fore.length, mats: mats(fore, 0), state: 'always' });
     if (!v.finished) {
-      for (const [good, spot] of [['wine', [-8.2, 8.9, 0.2]], ['oil', [8.2, 8.9, -0.3]]]) {
-        const k = levels[good] || 0;
-        if (k) list.push({ key: `warehouse:load:${good}`, n: k, mats: mats(Array.from({ length: k }, (_, i) => [spot[0] + i * 1.05 * Math.sign(-spot[0]), spot[1], spot[2]]), 0), state: 'always' });
-      }
+      list.push({ key: `pantheum:site:${v.key}:${sig}:${v.crew ? 1 : 0}`, n: 1, mats: I16, state: 'always' });
+      amphorae(list, v.stock, [['wine', [-8.2, 8.9, 0.2]], ['oil', [8.2, 8.9, -0.3]]]);
     }
-    if (v.struck || v.sacked) list.push({ key: `pantheum:ruin:${v.sacked ? 'done' : v.stage}`, n: 1, mats: I16, state: 'always' });
+    if (v.struck || v.sacked) list.push({ key: `pantheum:ruin:${v.sacked ? 'done' : v.key}`, n: 1, mats: I16, state: 'always' });
     return Object.freeze(list.map((e) => Object.freeze(e)));
   });
 }
@@ -326,21 +445,27 @@ const PANTHEUM_ENTRY = Object.freeze({
   variant(b, place, ctx) {
     const game = ctx ? ctx.game : null;
     const v = sacredView(b, game);
-    const levels = v.finished ? {} : pileLevels(b);
+    const base = pantheumMore(v);
     const state = partState(v);
-    const actors = v.finished
-      ? (v.open ? castOf(`pantheum|${state}`, () => pantheumActors(state)) : NOBODY)
-      : (v.crew ? castOf(`pantheum-crew|${v.stage}`, () => pantheumCrew(v.stage)) : NOBODY);
-    return { key: `pantheum:${v.key}`, state, ice: false, more: pantheumMore(v, levels), actors };
+    let actors = NOBODY;
+    let more = base;
+    if (v.finished) {
+      if (v.open) actors = castOf(`pantheum|${state}`, () => pantheumActors(state));
+    } else if (v.crew) {
+      const spec = siteSpec('pantheum', v.key, 5, pileSig(v.stock), true);
+      actors = crewCast(`pantheum-crew|${v.key}|${pileSig(v.stock)}`, spec, () => pantheumCrew(v.stage));
+      more = withMotion(base, spec, clockOf(ctx), null);
+    }
+    return { key: `pantheum:${v.key}`, state, ice: false, more, actors };
   },
-  warm: ['pantheum:done', 'pantheum:col:grey', 'pantheum:col:pink'],
+  warm: ['pantheum:done', 'pantheum:col:grey', 'pantheum:col:pink', 'pantheum:col:fore'],
   lamps: (b) => (sacredView(b, null).open ? PANTHEUM_LAMPS : []),
   build(key, lod) {
-    const [, tk, a, b] = key.split(':');
+    const [, tk, a, b, c] = key.split(':');
     if (tk === 'col') return buildPantheumColumn(a, { lod }).group;
-    if (tk === 'site') return siteGroup(pantheumSite(timeOfKey(a), pileParse(b)), lod);
-    if (tk === 'ruin') return buildRuin('pantheum', a === 'done' ? 5 : Number(a), lod).group;
-    return buildPantheum(tk === 'done' ? 5 : timeOfKey(tk), { lod }).group;
+    if (tk === 'site') return siteKit(siteSpec('pantheum', a, 5, b, c === '1'), lod);
+    if (tk === 'ruin') return buildRuin('pantheum', timeOfKey(a, 5), lod).group;
+    return buildPantheum(timeOfKey(tk, 5), { lod }).group;
   },
 });
 
@@ -357,20 +482,28 @@ const PHARUS_LAMPS = [0, 1, 2, 3].map((s) => {
   return Object.freeze([Object.freeze([x, y + 0.3, z, 1]), Object.freeze([x, y + 0.3, z, -1])]);
 });
 
-function pharusMore(side, v, ice, levels) {
-  const sig = `pharus|${side}|${v.key}|${v.lit ? 1 : 0}|${ice ? 1 : 0}|${v.struck ? 1 : 0}|${v.sacked ? 1 : 0}|${pileSig(levels)}`;
-  return kept(sig, () => {
+/** How full the keeper's store is, in thirds (0 empty: the light goes dark). */
+export function woodLevel(b) {
+  const T = MONUMENT_TYPES.pharus.store;
+  const n = (b && b.mon && b.mon.store) || 0;
+  return n > 0 ? Math.max(1, Math.min(3, Math.ceil((n / T.cap) * 3))) : 0;
+}
+
+function pharusMore(side, v, ice, wood) {
+  const sig = pileSig(v.stock);
+  return kept(`pharus|${side}|${v.key}|${v.lit ? 1 : 0}|${ice ? 1 : 0}|${v.struck ? 1 : 0}|${v.sacked ? 1 : 0}|${sig}|${v.crew ? 1 : 0}|${wood}`, () => {
     const M = SIDE_MATS[side];
     const state = v.lit ? 'open' : 'shut';
     const list = [{ key: `pharus:${v.key}${ice ? ':ice' : ''}`, n: 1, mats: M, state }];
+    if (v.finished && wood) list.push({ key: `pharus:wood:${wood}`, n: 1, mats: M, state: 'always' });
     if (v.lit) {
-      // By day the fire's smoke over the tower's top, a big one (the altars' thick smoke, twice the size).
+      // By day the fire's smoke over the tower's top, a big one (the altars' thick smoke, near twice the size).
       const [x, y, z] = PHARUS.fire;
       const m = new Matrix4().fromArray(M).multiply(new Matrix4().makeScale(1.9, 1.9, 1.9).setPosition(x, y + 0.45, z));
       list.push({ key: 'sacra:smoke:thick', n: 1, mats: m.toArray(new Float32Array(16)), state: 'always' });
     }
-    if (!v.finished) list.push({ key: `pharus:site:${v.key}:${pileSig(levels)}`, n: 1, mats: M, state: 'always' });
-    if (v.struck || v.sacked) list.push({ key: `pharus:ruin:${v.sacked ? 'done' : v.stage}`, n: 1, mats: M, state: 'always' });
+    if (!v.finished) list.push({ key: `pharus:site:${v.key}:${sig}:${v.crew ? 1 : 0}`, n: 1, mats: M, state: 'always' });
+    if (v.struck || v.sacked) list.push({ key: `pharus:ruin:${v.sacked ? 'done' : v.key}`, n: 1, mats: M, state: 'always' });
     return Object.freeze(list.map((e) => Object.freeze(e)));
   });
 }
@@ -383,59 +516,31 @@ const PHARUS_ENTRY = Object.freeze({
     const side = waterSideOf(b, ctx);
     const v = sacredView(b, game);
     const ice = frost(place);
-    const levels = v.finished ? {} : pileLevels(b);
+    const wood = b.id === null || b.id === undefined ? 3 : woodLevel(b);
+    const base = pharusMore(side, v, ice, wood);
     const state = v.lit ? 'open' : 'shut';
-    const actors = v.finished
-      ? (v.open ? castOf(`pharus|${side}`, () => turnActors(pharusActors(), side)) : NOBODY)
-      : (v.crew ? castOf(`pharus-crew|${side}|${v.stage}`, () => turnActors(pharusCrew(v.stage), side)) : NOBODY);
-    return { key: 'pharus:none', state, ice: false, more: pharusMore(side, v, ice, levels), actors };
+    let actors = NOBODY;
+    let more = base;
+    if (v.finished) {
+      if (v.open) actors = castOf(`pharus|${side}`, () => turnActors(pharusActors(), side));
+    } else if (v.crew) {
+      const spec = siteSpec('pharus', v.key, 4, pileSig(v.stock), true);
+      actors = castOf(`pharus-crew|${side}|${v.key}|${pileSig(v.stock)}`, () => turnActors(siteCrew(spec, pharusCrew(v.stage)), side));
+      more = withMotion(base, spec, clockOf(ctx), SIDE_MATS[side]);
+    }
+    return { key: 'pharus:none', state, ice: false, more, actors };
   },
-  warm: ['pharus:done', 'sacra:smoke:thick'],
+  warm: ['pharus:done', 'pharus:wood:3', 'sacra:smoke:thick'],
   lamps: (b) => (sacredView(b, null).lit ? PHARUS_LAMPS[waterSideOf(b, null)] : []),
   build(key, lod) {
-    const [, tk, a, b] = key.split(':');
+    const [, tk, a, b, c] = key.split(':');
     if (tk === 'none') return new Group();
-    if (tk === 'site') return siteGroup(pharusSite(timeOfKey(a), pileParse(b)), lod);
-    if (tk === 'ruin') return buildRuin('pharus', a === 'done' ? 4 : Number(a), lod).group;
-    return buildPharus(tk === 'done' ? 4 : timeOfKey(tk), { lod, ice: a === 'ice' }).group;
+    if (tk === 'wood') return buildPharusWood(Number(a) || 0, { lod }).group;
+    if (tk === 'site') return siteKit(siteSpec('pharus', a, 4, b, c === '1'), lod);
+    if (tk === 'ruin') return buildRuin('pharus', timeOfKey(a, 4), lod).group;
+    return buildPharus(timeOfKey(tk, 4), { lod, ice: a === 'ice' }).group;
   },
 });
-
-// ---------------------------------------------------------------------------
-// The site's dressing (the shared construction site)
-// ---------------------------------------------------------------------------
-
-/**
- * The shared site's parts for a spec, as a Group. The site's things stand
- * on the model's ground; a monument's terraces put some higher (a
- * scaffold against the top face stands on the middle terrace), so each
- * level's things (`y`, the height they stand on: 0 when not given) are
- * made apart and lifted, whatever siteParts makes of the rest. Its crew
- * are the monument's actors, not geometry.
- */
-export function siteGroup(spec, lod) {
-  const levels = new Map();
-  for (const list of ['scaffolds', 'cranes', 'centering', 'piles']) {
-    for (const it of spec[list] || []) {
-      const y = it.y || 0;
-      let L = levels.get(y);
-      if (!L) {
-        L = { scaffolds: [], cranes: [], centering: [], piles: [], crew: [] };
-        levels.set(y, L);
-      }
-      const { y: _y, ...rest } = it;
-      L[list].push(rest);
-    }
-  }
-  const g = new Group();
-  for (const [y, L] of levels) {
-    const r = siteParts(L, lod);
-    const part = r && r.isObject3D ? r : r.group;
-    part.position.y = y;
-    g.add(part);
-  }
-  return g;
-}
 
 export const SACRED_MODELS = Object.freeze({
   ...Object.fromEntries(GODS.map((g) => [`fanum_${g}`, fanumEntry(g)])),
@@ -453,9 +558,10 @@ export const SACRED_PARTS = Object.freeze({
 // ---------------------------------------------------------------------------
 
 /**
- * A stand-in building for the lab and the tests: `type` at `stage` and
- * `work` share (0..1) with goods `got`, finished or not, staffed, its
- * store, sacked, halted. The sim's own fields, as a building carries them.
+ * A stand-in building for the lab and the tests: `type` at `stage` with
+ * `share` of its work done and its goods `got` (by default all its goods
+ * in, the work part done), staffed, its store, sacked, halted, its water
+ * side: the sim's own fields, as a building carries them.
  */
 export function standIn(type, { id = 1, stage = null, share = 0.5, got = null, staffed = true, store = true, sacked = false, halted = false, x = 0, y = 0, waterSide = 2 } = {}) {
   const def = BUILDINGS[type];
@@ -463,10 +569,16 @@ export function standIn(type, { id = 1, stage = null, share = 0.5, got = null, s
   const n = T.stages.length;
   const s = stage === null ? n : Math.min(n, stage);
   const st = T.stages[s];
-  const mon = { stage: s, work: st ? st.work * share : 0, got: got || (st ? Object.fromEntries(Object.entries(st.goods).map(([g, need]) => [g, need * Math.min(1, share + 0.3)])) : {}), way: {}, paid: true, halted, store: store && T.store ? T.store.cap : 0, sacked, wasOpen: false };
+  const mon = { stage: s, work: st ? st.work * share : 0, got: got || (st ? { ...st.goods } : {}), way: {}, paid: true, halted, store: store && T.store ? T.store.cap : 0, sacked, wasOpen: false };
   return { id, type, def, x, y, size: def.size, turn: 0, efficiency: staffed ? 1 : 0, mon, waterRows: def.placement === 'shore' ? 2 : 0, waterSide };
 }
 
-void FANUM_TYPES;
-void grow;
-void templeActors;
+/** A made-up game whose camp's crew is on site `id` (the lab's and the tests' stand-in for a working site). */
+export function crewGame(id, extra = {}) {
+  const camp = { id: 9000 + id, def: BUILDINGS.work_camp, camp: { crew: { state: 'site', site: id } } };
+  return { buildings: new Map([[camp.id, camp]]), time: { totalTicks: 1, totalDays: 1 }, city: { gods: {} }, military: { active: null }, ...extra };
+}
+
+void closedReason;
+void raidKey;
+void buildPantheumColumn;

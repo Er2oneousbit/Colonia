@@ -52,7 +52,6 @@ import { column, gable, gableTri, rake, letters, textWidth, doubleDoor, slope } 
 import { sacraMaterials, box, D, lin } from './sacra.js';
 import { hearthFire } from './sacra.js';
 import { DYES } from '../people/actors.js';
-import { WINDLASS } from '../people/clips.js';
 import { artRng } from '../texgen.js';
 
 /** The Pantheon's measures (metres): the game, the lab and the tests read them. */
@@ -61,7 +60,7 @@ export const PANTHEUM = Object.freeze({
   /** The floor of the portico and the rotunda (the steps' top). */
   floorY: 0.6,
   /** The rotunda: its middle's z, its outer radius, the wall's thickness, the drum's top outside. */
-  rot: Object.freeze({ z: -3.9, r: 6.0, wall: 1.25, top: 5.8, zones: Object.freeze([2.6, 4.4]) }),
+  rot: Object.freeze({ z: -3.65, r: 6.0, wall: 1.25, top: 5.8, zones: Object.freeze([2.6, 4.4]) }),
   /** The stepped rings on the dome's foot: their radii and the height of each. */
   rings: Object.freeze({ r: Object.freeze([5.75, 5.55, 5.35, 5.15, 4.95, 4.75]), step: 0.225 }),
   /** The dome's outside: a sphere's cap (centre y, radius) from the rings' top to the oculus (its radius). */
@@ -470,7 +469,7 @@ export function buildPantheum(t, { lod = 0, seed = 1301 } = {}) {
   const tr = pgrow(t, 'trench');
   const fo = pgrow(t, 'footing');
   const seg = lod === 2 ? 24 : lod ? 48 : 96;
-  if (tr > 0 && fo < 1) out.earth.push(box(2 * R.r + 2.4, 0.03, 2 * R.r + 2.4 + 6, 0, -0.015, R.z + 3, 0.72));
+  if (tr > 0 && fo < 1) out.earth.push(box(2 * R.r + 2.4, 0.03, 18.4, 0, -0.015, -0.6, 0.72));
   if (fo > 0) {
     const h = P.floorY * fo;
     out.concrete.push(ringWall(RIN - 0.2, R.r + 0.15, -0.3, h, seg, 0.85).translate(0, 0, R.z));
@@ -560,12 +559,10 @@ export function pantheumCrew(stage) {
       list.push(builder(700 + k, { clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at, ry: a + Math.PI }));
     }
     list.push(builder(705, { clip: 'carry', props: { L: 'sack' }, at: [-7.6, 0.03, 4.4], ry: Math.PI / 2, route: { length: 6.0, speed: 0.75, pauseEnd: 3, pauseStart: 4, clipEnd: 'shoulder', clipStart: 'shoulder', faceEnd: Math.PI, faceStart: 0 } }));
-    list.push(builder(706, { clip: 'windlass', props: { R: 'crank' }, at: [6.4 - WINDLASS.x, 0.03, 4.2 - WINDLASS.ahead], ry: 0 }));
   } else if (stage === 2) {
     list.push(builder(710, { clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [-2.4, P.floorY + 0.03, 6.4], ry: Math.PI }));
     list.push(builder(711, { clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [2.4, P.floorY + 0.03, 6.4], ry: Math.PI }));
     list.push(builder(712, { clip: 'carry', props: { L: 'sack' }, at: [-7.6, 0.03, 9.0], ry: Math.PI / 2, route: { length: 5.6, speed: 0.75, pauseEnd: 3, pauseStart: 4, clipEnd: 'shoulder', clipStart: 'shoulder', faceEnd: Math.PI, faceStart: 0 } }));
-    list.push(builder(713, { clip: 'windlass', props: { R: 'crank' }, at: [6.4 - WINDLASS.x, 0.03, 8.4 - WINDLASS.ahead], ry: 0 }));
   } else {
     // Up on the rings, laying the dome's courses; others below.
     const yr = R.top + P.rings.step * 3 + 0.03;
@@ -574,7 +571,6 @@ export function pantheumCrew(stage) {
       list.push(builder(720 + k, { clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at, ry: a + Math.PI }));
     }
     list.push(builder(725, { clip: 'carry', props: { L: 'sack' }, at: [-7.6, 0.03, 9.0], ry: Math.PI / 2, route: { length: 5.6, speed: 0.75, pauseEnd: 3, pauseStart: 4, clipEnd: 'shoulder', clipStart: 'shoulder', faceEnd: Math.PI, faceStart: 0 } }));
-    list.push(builder(726, { clip: 'windlass', props: { R: 'crank' }, at: [6.4 - WINDLASS.x, 0.03, 0.2 - WINDLASS.ahead], ry: 0 }));
   }
   return list;
 }
@@ -586,14 +582,14 @@ export function pantheumSite(t, piles = {}) {
   if (stage === 1) {
     // Scaffolds round the drum as it rises, on its four quarters.
     const h = (R.top - P.floorY) * pgrow(t, 'drum') + 1.2;
-    for (const a of [0.35, 1.6, 2.9, -1.4, -2.6]) {
+    for (const a of [0.35, 1.6, -1.4, -0.75]) {
       const rr = R.r + 0.55;
       site.scaffolds.push({ x: Math.sin(a) * rr, z: R.z + Math.cos(a) * rr, w: 3.6, d: 0.9, h, ry: a });
     }
     site.cranes.push({ x: 6.4, z: 4.2, ry: Math.PI, h: 7.0, kind: 'treadwheel' });
   } else if (stage === 2) {
     // The portico's columns raised by a treadwheel; a scaffold along its front for the entablature.
-    site.cranes.push({ x: 6.4, z: 8.4, ry: Math.PI, h: 6.5, kind: 'treadwheel' });
+    site.cranes.push({ x: 7.3, z: 4.6, ry: 0, h: 6.5, kind: 'treadwheel' });
     if (pgrow(t, 'entablature') > 0) site.scaffolds.push({ x: 0, z: P.porch.z1 + 0.6, w: 9.6, d: 0.9, h: 5.6, ry: 0 });
     site.cranes.push({ x: -6.6, z: 6.8, ry: 0.3, h: 5.0, kind: 'shear' });
   } else if (stage === 3) {
@@ -610,10 +606,11 @@ export function pantheumSite(t, piles = {}) {
   } else {
     site.cranes.push({ x: 6.6, z: 4.0, ry: Math.PI, h: 5.0, kind: 'shear' });
   }
-  const spots = { clay: [-8.0, 3.6, 0.2], timber: [-8.0, 6.4, -0.1], marble: [8.0, 6.6, 0.15], iron: [8.0, 2.4, -0.2] };
+  // (Down the sides, the rows of loads going in from the edge.)
+  const spots = { clay: [-9.1, 2.6, Math.PI / 2], timber: [-9.1, 6.6, Math.PI / 2], marble: [9.1, 6.6, -Math.PI / 2], iron: [9.1, 2.6, -Math.PI / 2] };
   for (const [good, n] of Object.entries(piles)) {
     const s = spots[good];
-    if (s && n > 0) site.piles.push({ x: s[0], z: s[1], ry: s[2], good, n });
+    if (s && n > 0) site.piles.push({ x: s[0], z: s[1], ry: s[2], good, n: Math.min(6, n) });
   }
   site.crew = pantheumCrew(stage);
   return site;

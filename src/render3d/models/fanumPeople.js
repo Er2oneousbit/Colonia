@@ -30,7 +30,6 @@
  */
 
 import { DYES } from '../people/actors.js';
-import { WINDLASS } from '../people/clips.js';
 import { column } from './domus.js';
 import { TaggedParts } from './masonry.js';
 import { sacraMaterials } from './sacra.js';
@@ -182,16 +181,13 @@ export function fanumCrew(stage) {
   if (stage === 0) {
     list.push(...masons([-6.5, -3.2, 3.6, 6.8], 0.03, t1.z1 + 1.65, 600));
     list.push(...carriers(-8.4, 0.03, 9.0, 1, 6.5, 610));
-    list.push(builder(615, { clip: 'windlass', props: { R: 'crank' }, at: [5.6 - WINDLASS.x, 0.03, 8.9 - WINDLASS.ahead], ry: 0 }));
   } else if (stage === 1) {
     list.push(...masons([-6.8, -4.0, 4.2, 7.1], Y1, t2.z1 + 0.5, 620));
     list.push(...carriers(-8.6, Y1, 5.2, 1, 5.8, 630));
     list.push(builder(635, { clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [-1.2, Y3 * 0 + Y2, -0.6], ry: Math.PI }));
-    list.push(builder(636, { clip: 'windlass', props: { R: 'crank' }, at: [3.0 - WINDLASS.x, Y1, 5.6 - WINDLASS.ahead], ry: 0 }));
   } else if (stage === 2) {
     list.push(...masons([-3.6, 3.6], Y3, TEMPLE_AT[2] + 3.9, 640));
     list.push(...carriers(-5.8, Y3, -2.4, 1, 4.2, 645));
-    list.push(builder(649, { clip: 'windlass', props: { R: 'crank' }, at: [4.6 - WINDLASS.x, Y3, -2.9 - WINDLASS.ahead], ry: 0 }));
     list.push(...masons([-7.5, 7.5], Y2, 0.9, 650));
   } else {
     // The dedication: a sculptor at the temple's steps, gardeners planting, wine and oil carried up.
@@ -217,7 +213,8 @@ export function fanumSite(t, piles = {}) {
   if (stage === 0) {
     // The lower face rising: a low scaffold along it, a treadwheel at the front.
     if (grow(t, 'lower') > 0.3) for (const x of [-6, 0, 6]) site.scaffolds.push({ x, z: t1.z1 + 0.7, w: 5.2, d: 1.0, h: 2.2, ry: 0 });
-    site.cranes.push({ x: 5.6, z: 8.9, ry: 0, h: 5.0, kind: 'treadwheel' });
+    // (On the lower block as it rises: the forecourt is too shallow for the wheel.)
+    site.cranes.push({ x: 4.6, z: 4.6, ry: Math.PI / 2, h: 6.0, kind: 'treadwheel', y: t1.y * grow(t, 'lower') });
   } else if (stage === 1) {
     // The middle and top faces, scaffolded; the arches turned on centering; a treadwheel on the lower terrace.
     for (const x of [-6.2, -2.4, 2.4, 6.2]) site.scaffolds.push({ x, z: t2.z1 + 0.6, w: 3.4, d: 0.9, h: (t2.y - t1.y) + 1.4, ry: 0, y: t1.y });
@@ -239,7 +236,7 @@ export function fanumSite(t, piles = {}) {
     // The temple and the porticoes: scaffolds round the cella and along the porticoes, a treadwheel lifting drums.
     const [ox, , oz] = TEMPLE_AT;
     const [CX, CZ1, CZ0] = FANUM_TEMPLE.cella;
-    site.scaffolds.push({ x: ox, z: oz + CZ0 - 0.6, w: 2 * CX + 1.4, d: 0.9, h: 6.0, ry: 0, y: t3.y });
+    site.scaffolds.push({ x: ox, z: oz + CZ0 - 0.3, w: 2 * CX + 1.4, d: 0.5, h: 6.0, ry: 0, y: t3.y });
     for (const s of [-1, 1]) site.scaffolds.push({ x: ox + s * (CX + 0.9), z: oz + (CZ1 + CZ0) / 2, w: 0.9, d: CZ1 - CZ0 + 1.0, h: 6.0, ry: 0, y: t3.y });
     for (const s of [-1, 1]) site.scaffolds.push({ x: s * 8.1, z: -5.9, w: 2.4, d: 6.6, h: 3.4, ry: 0, y: t3.y });
     site.cranes.push({ x: 4.6, z: -2.9, ry: Math.PI, h: 7.5, kind: 'treadwheel', y: t3.y });
@@ -250,10 +247,11 @@ export function fanumSite(t, piles = {}) {
     if (t < 3.6) site.scaffolds.push({ x: ox, z: oz + FANUM_TEMPLE.porchZ + 0.75, w: 6.4, d: 0.8, h: 5.6, ry: 0, y: t3.y });
   }
   // The goods delivered, in piles on the forecourt and the lower terrace's front.
-  const spots = { clay: [-5.0, 8.7, 0.1], timber: [-2.3, 9.0, -0.15], marble: [2.6, 8.8, 0.2], iron: [5.0, 8.9, -0.1] };
+  // (One row of loads each: the forecourt before the ramps is three metres deep.)
+  const spots = { clay: [-6.0, 8.9, 0.04], timber: [-2.2, 8.9, -0.05], marble: [2.2, 8.9, 0.05], iron: [6.0, 8.9, -0.04] };
   for (const [good, n] of Object.entries(piles)) {
     const s = spots[good];
-    if (s && n > 0) site.piles.push({ x: s[0], z: s[1], ry: s[2], good, n });
+    if (s && n > 0) site.piles.push({ x: s[0], z: s[1], ry: s[2], good, n: Math.min(3, n) });
   }
   site.crew = fanumCrew(stage);
   return site;

@@ -52,7 +52,6 @@ import { HARBOUR, harbourMaterials, arcade, ashlar, bollard, mooringRing, waterS
 import { hearthFire } from './sacra.js';
 import { trident } from './numina.js';
 import { DYES } from '../people/actors.js';
-import { WINDLASS } from '../people/clips.js';
 
 /** The lighthouse's measures (metres): the game, the lab and the tests read them. */
 export const PHARUS = Object.freeze({
@@ -162,7 +161,7 @@ function platform(out, t, lod, seed, ice) {
   if (pl > 0 && pr < 1) {
     const n = Math.round(30 * pl);
     const ring = [];
-    for (let x = -P.hw - 0.3; x <= P.hw + 0.31; x += 0.6) ring.push([x, P.z1 + 0.3]);
+    for (let x = -P.hw - 0.3; x <= P.hw + 0.31; x += 0.6) ring.push([x, P.z1 - 0.05]);
     for (let z = HARBOUR.shore; z <= P.z1; z += 0.6) {
       ring.push([-P.hw - 0.3, z]);
       ring.push([P.hw + 0.3, z]);
@@ -487,7 +486,6 @@ export function pharusCrew(stage) {
   const y = H.top + 0.02;
   const list = [
     builder(901, { clip: 'carry', props: { L: 'sack' }, at: [-4.6, y, -4.6], ry: Math.PI / 2, route: { length: 6.4, speed: 0.7, pauseEnd: 3, pauseStart: 4, clipEnd: 'shoulder', clipStart: 'shoulder', faceEnd: Math.PI, faceStart: 0 } }),
-    builder(902, { clip: 'windlass', props: { R: 'crank' }, at: [4.6 - WINDLASS.x, y, -2.8 - WINDLASS.ahead], ry: 0 }),
   ];
   if (stage === 0) {
     list.push(builder(903, { clip: 'hammer', props: { R: 'hammer', L: 'chisel' }, at: [-2.4, y, -1.5], ry: Math.PI }));
@@ -507,23 +505,24 @@ export function pharusSite(t, piles = {}) {
   const stage = Math.floor(t);
   const S = H.square;
   if (stage === 0) {
-    site.cranes.push({ x: 4.6, z: -2.8, ry: Math.PI, h: 4.5, kind: 'shear', y: H.top });
+    site.cranes.push({ x: 3.5, z: -2.6, ry: Math.PI, h: 4.5, kind: 'shear', y: H.top });
   } else if (stage === 1) {
     const h = (S.top - H.top) * hgrow(t, 'square') + 1.4;
-    for (const [dx, dz, ry] of [[0, -1, 0], [1, 0, Math.PI / 2], [0, 1, 0], [-1, 0, Math.PI / 2]]) site.scaffolds.push({ x: TX + dx * (S.foot + 0.6), z: TZ + dz * (S.foot + 0.6), w: 2 * S.foot + 1.6, d: 0.9, h, ry, y: H.top });
-    site.cranes.push({ x: 4.6, z: -2.8, ry: Math.PI, h: 9.5, kind: 'treadwheel', y: H.top });
+    for (const [dx, dz, ry] of [[0, -1, 0], [1, 0, Math.PI / 2], [0, 1, 0], [-1, 0, Math.PI / 2]]) site.scaffolds.push({ x: TX + dx * (S.foot + 0.5), z: TZ + dz * (S.foot + 0.5), w: 2 * S.foot + 1.4, d: 0.75, h, ry, y: H.top });
+    site.cranes.push({ x: 3.5, z: -1.7, ry: Math.PI, h: 9.5, kind: 'treadwheel', y: H.top });
   } else if (stage === 2) {
     const h = (H.oct.top - S.top) * hgrow(t, 'oct') + 1.4;
     for (const [dx, dz, ry] of [[0, -1, 0], [1, 0, Math.PI / 2], [0, 1, 0], [-1, 0, Math.PI / 2]]) site.scaffolds.push({ x: TX + dx * (H.oct.r + 0.45), z: TZ + dz * (H.oct.r + 0.45), w: 2 * H.oct.r + 0.6, d: 0.6, h, ry, y: S.top + 0.2 });
-    site.cranes.push({ x: 4.6, z: -2.8, ry: Math.PI, h: 12.5, kind: 'treadwheel', y: H.top });
+    // (Shear legs up on the square storey's top for the lighter courses above.)
+    site.cranes.push({ x: 0.0, z: TZ - 1.9, ry: Math.PI, h: 4.5, kind: 'shear', y: S.top + 0.2 });
   } else {
     site.scaffolds.push({ x: TX, z: TZ - H.lantern.r - 0.4, w: 2 * H.lantern.r + 0.6, d: 0.55, h: 3.6, ry: 0, y: H.oct.top + 0.2 });
-    site.cranes.push({ x: 4.6, z: -2.8, ry: Math.PI, h: 15.0, kind: 'treadwheel', y: H.top });
+    site.cranes.push({ x: 0.0, z: TZ - 1.5, ry: Math.PI, h: 4.0, kind: 'shear', y: H.oct.top + 0.2 });
   }
-  const spots = { clay: [-1.6, -4.6, 0.1], timber: [1.0, -4.7, -0.1], marble: [-1.4, -3.0, 0.2], iron: [1.4, -3.0, 0] };
+  const spots = { clay: [-1.5, -5.2, 0.04], timber: [1.9, -5.2, -0.04], marble: [-1.5, -3.2, 0.03], iron: [1.9, -3.2, 0] };
   for (const [good, n] of Object.entries(piles)) {
     const s = spots[good];
-    if (s && n > 0) site.piles.push({ x: s[0], z: s[1], ry: s[2], good, n, y: H.top });
+    if (s && n > 0) site.piles.push({ x: s[0], z: s[1], ry: s[2], good, n: Math.min(3, n), y: H.top });
   }
   site.crew = pharusCrew(stage);
   return site;
