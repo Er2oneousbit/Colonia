@@ -21,6 +21,8 @@
  *   sprop:<name>:<L|R>                       (showProps.js: masks, a rudis...)
  *   quad:<species>[:opt]                     (units/quadMesh.js: a beast)
  *   cart:<kind>                              (walkers/beasts.js: a chariot)
+ *   beast:<kind>[:opt]                       (walkers/beasts.js: a draught ox at a
+ *                                            wagon's pole, standing)
  * ----------------------------------------------------------------------------
  */
 
@@ -66,6 +68,7 @@ export function pieceMesher(key, lod) {
     case 'sprop': return showProp(a, b || 'R', lod);
     case 'quad': return quadMesher(key, lod);
     case 'cart': return rigidMesher(key, lod);
+    case 'beast': return rigidMesher(key, lod);
     default: throw new Error(`No people piece ${key}`);
   }
 }

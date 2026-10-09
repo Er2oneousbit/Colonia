@@ -21,7 +21,11 @@
  *                         phalerae; the bridle), 'bare' (a Numidian's: a
  *                         neck rope, no bit), 'yoke' (a chariot pony's yoke
  *                         saddle and breast strap); its coat the skin, its
- *                         mane, tail and points the hair, socks the trim
+ *                         mane, tail and points the hair, socks the trim;
+ *                         'mule' the mule (mulus) on the horse's frame: the
+ *                         long ears, no hanging mane or forelock (a mule's
+ *                         was roached), with 'pack' a pack saddle and two
+ *                         panniers (the accent colour: the goods)
  *   quad:elephant[:tower] the war elephant: grey wrinkled hide, the great
  *                         ears, the trunk, the tusks; 'tower' the fighting
  *                         tower on its back over a saddle cloth (the accent)
@@ -1105,7 +1109,7 @@ function elephantTrunk(m, A, J, R) {
 
 /** A beast by its key's parts: species ('wolf', 'horse', 'elephant') and options (tack, tower), at `lod`. */
 export function buildQuad(species, opts, lod) {
-  const A = ANATOMY[species];
+  const A = species === 'horse' && opts.has('mule') ? MULE : ANATOMY[species];
   if (!A) throw new Error(`No beast ${species}`);
   const J = restJoints(species);
   const R = RES[Math.max(0, Math.min(2, lod | 0))];
@@ -1116,7 +1120,8 @@ export function buildQuad(species, opts, lod) {
   for (let l = 0; l < 4; l++) leg(m, species, A, J, R, l, lod);
   tail(m, species, A, J, R, lod);
   if (species === 'horse') {
-    mane(m, A, J, lod);
+    if (!opts.has('mule')) mane(m, A, J, lod);
+    if (opts.has('pack')) packSaddle(m, A, J, lod);
     if (opts.has('saddle')) {
       saddle(m, A, J, lod);
       bridle(m, A, lod);
@@ -1174,6 +1179,33 @@ function goatHorns(m, A, lod) {
       },
       w: hw, slot: () => SLOTS.HAIR, tone: () => 0.8,
     });
+  }
+}
+
+/** The mule's anatomy: the horse's (it runs on the horse's rig and clips), its ears long and broad. */
+const MULE = { ...ANATOMY.horse, head: { ...ANATOMY.horse.head, ear: { base: 0.065, deep: 0.045, h: 0.27, tilt: 0.28 } } };
+
+/**
+ * A mule's pack saddle: a pad and a wooden frame over the back, the girth,
+ * and two wicker panniers hung either side heaped with the goods (the
+ * accent colour), as the pack trains of the roads carried them.
+ */
+function packSaddle(m, A, J, lod) {
+  const z = -0.1;
+  const top = keyed(A.trunk, z)[0];
+  const tw = weights([[QB.spine, 0.8], [QB.chest, 0.2]]);
+  const cols = lod === 0 ? 12 : 6;
+  ellipsoid(m, [0, top + 0.03, z], 0.22, 0.05, 0.36, lod === 0 ? 3 : 2, cols, tw, SLOTS.TRIM, () => 0.8);
+  if (lod < 2) {
+    for (const dz of [-0.2, 0.2]) {
+      for (const sd of [1, -1]) limbLoft(m, [[0, top + 0.2, z + dz], [sd * 0.24, top - 0.02, z + dz]], { u0: 0, u1: 1, rows: 1, cols: 5, rad: () => [0.022, 0.022, 0.022], w: () => tw, slot: () => SLOTS.WOOD, tone: () => 0.8, fwd: [0, 0, 1] });
+    }
+  }
+  band(m, A, J, z, 0.06, SLOTS.LEATHER, lod === 0 ? 16 : 8, { out: 0.024 });
+  for (const sd of [1, -1]) {
+    const [, bot, w] = keyed(A.trunk, z);
+    const c = [sd * (w + 0.17), (top + bot) / 2 + 0.06, z];
+    ellipsoid(m, c, 0.15, 0.24, 0.3, lod === 0 ? 5 : 3, cols, tw, (p) => (p[1] > c[1] + 0.17 ? SLOTS.ACCENT : SLOTS.ROPE), (p) => 0.8 + 0.15 * Math.sin(p[1] * 60));
   }
 }
 

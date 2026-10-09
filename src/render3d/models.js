@@ -62,6 +62,7 @@ import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
 import { buildVesselPart } from './ships/hulls.js';
 import { VILLAGE_MODELS, VILLAGE_PARTS } from './models/villages.js';
+import { CIVIC_MODELS } from './models/civicMonuments.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -160,6 +161,8 @@ export const MODELS = Object.freeze({
   ...VENUE_MODELS,
   // The native villages' huts, meeting places and plots (models/villages.js says how).
   ...VILLAGE_MODELS,
+  // The Great Baths and the Caravanserai, their sites and finished (models/civicMonuments.js says how).
+  ...CIVIC_MODELS,
 });
 
 /**

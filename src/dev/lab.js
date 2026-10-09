@@ -60,6 +60,8 @@
  * (the Training scene, labTraining.js: Shift+T, the actor troupe, the gladiator
  * school, the menagerie and the chariot stable in their states, with
  * training.items, training.triangles(lod) and commerceTriangles('training', lod)).
+ * (the Civic monuments scene, labCivic.js: Shift+H, the Great Baths and the Caravanserai at
+ * every stage and finished in each state)
  * (the Villages scene, labVillages.js: Shift+N, the native villages in each state, with
  * villages.where(i), villages.piece(i, which, n), villages.setMonth(m), villages.triangles(lod)).
  * ----------------------------------------------------------------------------
@@ -104,6 +106,7 @@ import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
 import { buildGardensScene } from './labGardens.js';
 import { buildVillagesScene } from './labVillages.js';
+import { buildCivicScene } from './labCivic.js';
 import { mapStats } from './texReport.js';
 
 /** Classic's closest zoom (config.js ZOOM_LEVELS' last); WebGL's go on to 6x (ZOOM_LEVELS_3D). */
@@ -360,6 +363,8 @@ async function main() {
   commerce.venues = buildVenuesScene();
   // The Villages scene (labVillages.js, Shift+N): the native villages, Ligurian and generic, in each state.
   commerce.villages = buildVillagesScene(groundTex);
+  // The Civic monuments scene (labCivic.js, Shift+H): the Great Baths and the Caravanserai, every stage and state.
+  commerce.civic = buildCivicScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -760,6 +765,11 @@ async function main() {
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
+    // Shift+H: the Civic monuments scene (H alone is the farms).
+    if (e.shiftKey && k === 'h') {
+      setScene('civic');
+      return;
+    }
     // Shift+N: the Villages scene (N alone is the snow).
     if (e.shiftKey && k === 'n') {
       setScene('villages');
@@ -835,7 +845,7 @@ async function main() {
   /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
   function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
     // (The People scene's figures, or the Walkers scene's loops when it is the one shown.)
-    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : state.scene === 'army' ? commerce.army : state.scene === 'venues' ? commerce.venues : commerce.people).figures[i];
+    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : state.scene === 'army' ? commerce.army : state.scene === 'venues' ? commerce.venues : state.scene === 'civic' ? commerce.civic : commerce.people).figures[i];
     if (!f) {
       setView('game1');
       return;
@@ -1114,6 +1124,15 @@ async function main() {
       where: (i) => commerce.venues.where(i),
       triangles: (l) => commerce.venues.triangles(l),
       stats: () => commerce.venues.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Civic monuments scene (labCivic.js): a monument close up, the monuments, where each is, triangles. */
+    civic: {
+      closeUp: (i, o) => closeUp(i, o),
+      get items() { return commerce.civic.items.map((it) => ({ ...it })); },
+      where: (i) => commerce.civic.where(i),
+      triangles: (l) => commerce.civic.triangles(l),
+      stats: () => commerce.civic.stats(),
       setLod: (n) => setFountainLod(n),
     },
     /** Aim the game camera at a point of the ground (metres; the well at 0, 0). */
