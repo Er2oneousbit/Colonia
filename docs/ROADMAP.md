@@ -13,6 +13,13 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.21.1)
+
+* **The venues in 3D** (under WebGL): the theater after Pompeii's, its curved seats, marble orchestra, a two-storey stage wall of coloured columns and an awning, masked actors and a piper during a play; the amphitheater after Pompeii's, sand inside a painted podium, outside stairs and the editor's box, gladiators fighting under a referee; the Great Arena as the Colosseum in miniature, three storeys of arches in the three orders, the governor's box, two bouts and a lion hunt; the hippodrome after the Circus Maximus, its spina with the obelisk, eggs and dolphins that count the laps, starting gates, and four quadrigas in the factions' colours racing round it. Crowds fill the seats as the city fills them, citizens in white at the front. Lab: the Venues scene (Shift+E)
+* **Native villages in 3D**: Ligurian huts as their hillforts are dug (round and oval wattle and daub under thatch, small dry-stone huts), Latial and Celtic forms for the sandbox's people, yards with querns, looms and beehives, the meeting place's ring of stones round a great fire beside a carved stone figure, terraced plots of spelt, barley, millet and beans through the year, goats and sheep in the folds. Villagers grind, spin, hoe, carry water and talk by the fire; angry, the men gather with spears and the war horn sounds; trading, their goods lie out. Lab: the Villages scene (Shift+N)
+* Headless sim: identical to v0.21.0 on every difficulty
+* 1362 unit tests, 282 browser checks
+
 ## Done (v0.21.0)
 
 * **A living 3D city** (the WebGL renderer): the v0.20 series' models now have life in them. People in every building move, walkers walk the streets dressed and loaded for their work, soldiers, raiders and wolves fight as 3D figures, ships sail and row with their crews, and the entertainers train with their beasts and teams. Highlights of v0.20.21 to v0.20.28:

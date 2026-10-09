@@ -1165,6 +1165,90 @@ export const CLIPS = Object.freeze({
   rowShipRight: { dur: 2.4, fps: 15, pose(P, t) { rowShipPose(P, t, -1); } },
   // Hauling a line hand over hand (HAUL): a fisherman's net over the side, a sailor's sheet.
   haulLine: { dur: 2.4, fps: 15, pose(P, t) { haulPose(P, t); } },
+
+  // --- The native villages' work at home (models/villages.js), after the record of Iron Age Italy's
+  // hill villages: the saddle quern, the drop spindle and its clay whorl, the hoe of the hill plots.
+
+  // Grinding grain on a saddle quern (QUERN): kneeling behind it, sitting back on her heels between strokes,
+  // both hands on the upper stone, pushed away along the lower stone with her weight behind it and drawn back.
+  grind: {
+    dur: 2.6, fps: 24,
+    pose(P, t) { grindPose(P, t); },
+  },
+  // Spinning with a drop spindle: the distaff of combed wool in the crook of the left arm, the right hand
+  // drawing out the fibre and giving the spindle a twirl now and then; the spindle turns on its thread.
+  spin: {
+    dur: 6, fps: 15,
+    pose(P, t) { spinPose(P, t); },
+  },
+  // Hoeing a plot: the blade raised, brought down into the soil ahead, drawn back toward the feet, a step
+  // of the weight between strokes.
+  hoe: {
+    dur: 1.8, fps: 24,
+    pose(P, t) { hoePose(P, t); },
+  },
+  // Sounding a war horn: raised to the lips in both hands, the bell lifted high through a long blast,
+  // lowered, a breath taken, raised again.
+  horn: {
+    dur: 5, fps: 20,
+    pose(P, t) { hornPose(P, t); },
+  },
+  // Walking with a water jar on the head, the left hand steadying it (on a route: from the spring and back).
+  jarCarry: {
+    dur: WALK_DUR, fps: 40, walk: true,
+    pose(P, t) {
+      walkLegs(P, t);
+      walkArms(P, t, [-1]);
+      jarOnHead(P, t);
+    },
+  },
+  // Standing with the jar on the head (a route's pauses), looking about.
+  jarStand: {
+    dur: 10, fps: 12,
+    pose(P, t) {
+      stand(P, t, { shift: 0.7, ph: 0.3, look: 0.5 });
+      armsDown(P, t, [-1]);
+      jarOnHead(P, t);
+    },
+  },
+  // Squatting on the heels (a child at play with pebbles in the dust, a woman feeding a fire): the right
+  // hand picking up and setting down, the left on the knee.
+  play: {
+    dur: 6, fps: 12,
+    pose(P, t) { playPose(P, t); },
+  },
+  // Seated and talking (the elders round the fire): the hands making their points over the knees.
+  sitTalk: {
+    dur: 8, fps: 12,
+    pose(P, t) {
+      sit(P, t, { ph: 0.35, lean: 0.14, look: 0.5 });
+      const r = track(t, [[0, [-0.16, 0.86, 0.3]], [0.15, [-0.2, 0.98, 0.36]], [0.3, [-0.14, 0.9, 0.32]], [0.46, [-0.22, 1.02, 0.34]], [0.6, [-0.15, 0.8, 0.28]], [0.8, [-0.18, 0.84, 0.3]]]);
+      P.hand(-1, ...r, { chest: true, pole: [-0.7, -0.5, -0.4] });
+      P.rot('handR', 0.3, 0.2 * sn(t, 3), -0.5 + 0.2 * sn(t, 2));
+      fingers(P, -1, 0.25);
+      P.hand(1, 0.15, 0.72, 0.3, { chest: true, pole: [0.6, -0.4, -0.5] });
+      P.rot('handL', 0.6, 0, 0.6);
+      fingers(P, 1, 0.5);
+      P.rot('head', 0.05 * sn(t, 5), 0.12 * sn(t, 2, 0.15), 0.03 * sn(t, 3));
+    },
+  },
+  // Leaning on a staff planted before him (a herdsman watching his flock): both hands on its top, the weight
+  // shifting, looking about.
+  lean: {
+    dur: 12, fps: 12,
+    pose(P, t) {
+      stand(P, t, { shift: 0.9, ph: 0.6, look: 1.2, lean: 0.06 });
+      const top = [-0.04, 1.16, 0.34];
+      const foot = [-0.1, 0.0, 0.5];
+      propAlong(P, -1, top, [2 * top[0] - foot[0], 2 * top[1] - foot[1], 2 * top[2] - foot[2]]);
+      P.hand(-1, top[0] - 0.01, top[1] + 0.02, top[2] - 0.03, { pole: [-0.7, -0.6, -0.2] });
+      P.hand(1, top[0] + 0.07, top[1] + 0.07, top[2] - 0.04, { pole: [0.7, -0.6, -0.2] });
+      P.rot('handR', 0.3, 0, -1.2);
+      P.rot('handL', 0.3, 0, 1.2);
+      fingers(P, -1, 0.95);
+      fingers(P, 1, 0.8);
+    },
+  },
 });
 
 /**
@@ -1224,6 +1308,149 @@ function haulPose(P, t) {
   }
   P.rot('neck', 0.18, 0, 0);
   P.rot('head', 0.12, 0, 0);
+}
+
+/**
+ * Kneeling at a saddle quern (QUERN): the knees on the ground under the hips,
+ * the shins lying back, the feet's tops flat behind; the hips rise and the
+ * body leans out over the quern as the upper stone is pushed away (with her
+ * weight: the push is the slow, hard part), then sink back on the heels as it
+ * is drawn back. Two strokes a loop.
+ */
+function grindPose(P, t) {
+  const k = track(t, [[0, 0], [0.32, 1], [0.44, 1], [0.5, 0], [0.82, 1], [0.94, 1]]);
+  const { ahead, height, travel } = QUERN;
+  P.root(0, -0.43 + 0.09 * k, -0.06 + 0.12 * k, 0.5 + 0.22 * k, 0, 0);
+  P.rot('spine', 0.26 + 0.1 * k, 0, 0);
+  P.rot('chest', 0.1 + 0.04 * k + 0.01 * sn(t, 2), 0, 0);
+  for (const s of [1, -1]) P.foot(s, s * 0.12, 0.11, -0.4, 2.15, s * 0.08, { pole: [s * 0.1, -0.2, 1] });
+  // The upper stone along the lower one, under the hands (the stone lies across, along x).
+  const z = ahead - travel / 2 + travel * k;
+  const y = height + 0.004;
+  P.prop(-1, 0, y, z, 0, 0, 0);
+  for (const s of [1, -1]) {
+    P.hand(s, s * 0.11, y + 0.07, z - 0.03, { pole: [s * 0.7, 0.1, -0.7] });
+    P.rot(s > 0 ? 'handL' : 'handR', 0.5, 0, s * 1.35);
+    fingers(P, s, 0.35);
+  }
+  P.rot('neck', 0.22, 0, 0);
+  P.rot('head', 0.2 - 0.06 * k, 0.06 * sn(t, 1, 0.3), 0);
+}
+
+/**
+ * Spinning with a drop spindle: the distaff held up in the left hand against
+ * the shoulder, the right hand drawing fibre down from its wool and up again,
+ * the spindle hanging from her fingers on its thread and turning (twelve turns
+ * a loop: a whole number, so the loop has no seam).
+ */
+function spinPose(P, t) {
+  stand(P, t, { shift: 0.6, ph: 0.2, look: 0.25 });
+  // The distaff: its foot in the left hand at the waist, its head of wool over the left shoulder.
+  const dFoot = [0.15, 1.0, 0.2];
+  const dHead = [0.34, 1.6, 0.16];
+  propAlong(P, 1, dFoot, dHead, 0, { chest: true });
+  P.hand(1, dFoot[0] + 0.01, dFoot[1] + 0.02, dFoot[2], { chest: true, pole: [0.8, -0.5, -0.2] });
+  P.rot('handL', 0.4, 0, 1.0);
+  fingers(P, 1, 0.9);
+  // The right hand: up to the wool, drawing the fibre down (slowly), a flick of the spindle at the bottom.
+  const d = track(t, [[0, 0], [0.12, 0], [0.55, 1], [0.66, 1], [0.8, 0.4]]);
+  const hand = [lerp(0.04, -0.12, d), lerp(1.42, 1.08, d), lerp(0.24, 0.3, d)];
+  P.hand(-1, ...hand, { chest: true, pole: [-0.8, -0.5, -0.3] });
+  P.rot('handR', 0.2, 0, -0.9);
+  fingers(P, -1, 0.7);
+  // The spindle hangs from the fingers (the prop's grip is its thread's top), turning about its thread.
+  const turn = TAU * 12 * t;
+  P.prop(-1, hand[0] - 0.01, hand[1] - 0.08, hand[2] + 0.02, 0, turn, 0, { chest: true });
+  P.rot('neck', 0.18, 0, 0);
+  P.rot('head', 0.12 - 0.08 * d, -0.08, 0);
+}
+
+/**
+ * Hoeing: the left foot ahead, bent over the plot; the hoe's blade raised
+ * before him, brought down to bite the soil ahead, drawn back toward the feet
+ * and lifted, the hips rocking with each stroke.
+ */
+function hoePose(P, t) {
+  const k = track(t, [[0, 0], [0.3, 1], [0.42, 1.35], [0.48, 1.35], [0.8, 0.4]]);
+  // k: 0 the blade at the end of its draw, near the feet; 1 raised; 1.35 bitten in, far out.
+  const raise = Math.max(0, Math.min(1, k)) * (k > 1 ? 1 - (k - 1) / 0.35 : 1);
+  const out = k <= 1 ? lerp(0.42, 0.6, k) : lerp(0.6, 0.86, (k - 1) / 0.35);
+  P.root(0.01 * sn(t, 1), -0.07 + 0.03 * raise, -0.04, 0.26 - 0.12 * raise, 0.05, 0);
+  P.rot('spine', 0.22 - 0.1 * raise, 0, 0);
+  P.rot('chest', 0.08 - 0.06 * raise, -0.05, 0);
+  P.foot(1, 0.13, 0.085, 0.2, 0, 0.12, { pole: [0.1, 0, 1] });
+  P.foot(-1, -0.14, 0.085, -0.18, 0, -0.25, { pole: [-0.1, 0, 1] });
+  const blade = [0.02, 0.02 + 0.85 * raise, out];
+  const top = [0.02, 0.92 + 0.32 * raise, 0.12 + 0.05 * raise];
+  propAlong(P, -1, top, blade, 0);
+  P.hand(1, ...along(top, blade, 0.02), { pole: [0.7, -0.6, -0.3] });
+  P.hand(-1, ...along(top, blade, 0.42), { pole: [-0.7, -0.6, -0.3] });
+  P.rot('handL', 0.3, 0, 1.3);
+  P.rot('handR', 0.3, 0, -1.3);
+  fingers(P, 1, 0.95);
+  fingers(P, -1, 0.95);
+  P.rot('neck', 0.25 - 0.1 * raise, 0, 0);
+  P.rot('head', 0.22, 0, 0);
+}
+
+/**
+ * The war horn: lifted in both hands to the lips, its bell raised high through
+ * the blast (the chest swelling, the body leaning back a little), lowered to
+ * the chest for a breath, then raised again.
+ */
+function hornPose(P, t) {
+  stand(P, t, { shift: 0.4, ph: 0.15, look: 0, feet: 0.13 });
+  const up = track(t, [[0, 0], [0.12, 1], [0.62, 1], [0.74, 0], [0.95, 0]]);
+  const blast = up * (0.6 + 0.4 * sn(t, 6) ** 2);
+  P.rot('spine', -0.08 * up, 0, 0);
+  P.rot('chest', -0.06 * blast, 0, 0);
+  P.rot('neck', -0.12 * up, 0, 0);
+  P.rot('head', -0.25 * up, 0, 0);
+  // The mouthpiece at the lips (chest frame), or at the chest between blasts; the bell up and ahead.
+  const mouth = [0, lerp(1.2, 1.565, up), lerp(0.24, 0.13, up)];
+  const bell = [0, mouth[1] + lerp(0.3, 0.5, up), mouth[2] + lerp(0.5, 0.36, up)];
+  propAlong(P, -1, mouth, bell, Math.PI, { chest: true });
+  P.hand(-1, ...along(mouth, bell, 0.12), { chest: true, pole: [-0.8, -0.5, -0.2] });
+  P.hand(1, ...along(mouth, bell, 0.34), { chest: true, pole: [0.8, -0.5, -0.2] });
+  P.rot('handR', 0.3, 0, -1.2);
+  P.rot('handL', 0.3, 0, 1.2);
+  fingers(P, -1, 0.9);
+  fingers(P, 1, 0.9);
+}
+
+/** A jar on the head (the left hand at its belly, the head held level under it). */
+function jarOnHead(P, t) {
+  P.rot('neck', -0.03, 0, 0);
+  P.rot('head', -0.03 + 0.01 * sn(t, 2), 0, 0);
+  P.prop(1, 0, HEAD_LOAD_Y + 0.01, 0, 0, 0, 0, { chest: true });
+  P.hand(1, 0.15, HEAD_LOAD_Y + 0.13, 0.02, { chest: true, pole: [0.9, 0.2, -0.2] });
+  P.rot('handL', 0, 0, 1.4);
+  fingers(P, 1, 0.45);
+}
+
+/**
+ * Squatting on the heels, knees wide, leaning over the ground before the feet:
+ * the right hand reaching out, picking up a pebble, setting it down elsewhere;
+ * the left forearm on the knee; looking at what the hand does, now and then up.
+ */
+function playPose(P, t) {
+  const sway = 0.02 * sn(t, 1);
+  P.root(sway, -0.58, -0.08, 0.62, 0.1 * sn(t, 1, 0.2), 0);
+  P.rot('spine', 0.32, 0, 0);
+  P.rot('chest', 0.14, 0, 0);
+  for (const s of [1, -1]) P.foot(s, s * 0.17, 0.085, 0.02, 0, s * 0.35, { pole: [s * 0.6, 0.2, 1] });
+  // The right hand from one place on the ground to another and back.
+  const a = track(t, [[0, 0], [0.2, 0], [0.4, 1], [0.6, 1], [0.8, 0]]);
+  const lift = Math.sin(Math.PI * a) * 0.12;
+  P.hand(-1, lerp(-0.18, 0.06, a), 0.1 + lift, lerp(0.5, 0.56, a), { pole: [-0.8, 0.2, -0.3] });
+  P.rot('handR', 0.8, 0, -0.6);
+  fingers(P, -1, 0.6 + 0.3 * Math.abs(sn(t, 2)));
+  P.hand(1, 0.2, 0.45, 0.3, { pole: [0.8, -0.3, -0.3] });
+  P.rot('handL', 0.5, 0, 0.5);
+  fingers(P, 1, 0.6);
+  const up = Math.max(0, hold(t, 1, 0.65, 3));
+  P.rot('neck', 0.3 - 0.25 * up, 0, 0);
+  P.rot('head', 0.25 - 0.3 * up, 0.15 * sn(t, 1, 0.1), 0);
 }
 
 /**
@@ -1384,6 +1611,13 @@ export function footAt(p, S) {
     pitch: lerp(OFF, STRIKE, smooth(Math.min(1, u * 1.6))),
   };
 }
+
+/**
+ * The saddle quern the grind clip works (models/villages.js puts its stones
+ * here): the top of its lower stone `height` over the kneeler's knees' ground,
+ * its middle `ahead` of her, the upper stone moving `travel` along it.
+ */
+export const QUERN = Object.freeze({ ahead: 0.5, height: 0.26, travel: 0.2 });
 
 // ---------------------------------------------------------------------------
 // Baking

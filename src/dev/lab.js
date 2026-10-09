@@ -60,6 +60,8 @@
  * (the Training scene, labTraining.js: Shift+T, the actor troupe, the gladiator
  * school, the menagerie and the chariot stable in their states, with
  * training.items, training.triangles(lod) and commerceTriangles('training', lod)).
+ * (the Villages scene, labVillages.js: Shift+N, the native villages in each state, with
+ * villages.where(i), villages.piece(i, which, n), villages.setMonth(m), villages.triangles(lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -101,6 +103,7 @@ import { fountainLife } from '../render3d/models/fountain.js';
 import { aqueductLife } from '../render3d/models/aqueduct.js';
 import { buildWaterScene } from './labWater.js';
 import { buildGardensScene } from './labGardens.js';
+import { buildVillagesScene } from './labVillages.js';
 import { mapStats } from './texReport.js';
 
 /** Classic's closest zoom (config.js ZOOM_LEVELS' last); WebGL's go on to 6x (ZOOM_LEVELS_3D). */
@@ -355,6 +358,8 @@ async function main() {
   commerce.training = buildTrainingScene();
   // The Venues scene (labVenues.js, Shift+E): the theatre, the amphitheatre, the Great Arena and the hippodrome, with a show on and idle.
   commerce.venues = buildVenuesScene();
+  // The Villages scene (labVillages.js, Shift+N): the native villages, Ligurian and generic, in each state.
+  commerce.villages = buildVillagesScene(groundTex);
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -477,6 +482,7 @@ async function main() {
   harbour = harbourScenes({ scene, look, groundTex, group, el, app });
   grounds.push(...harbour.grounds);
   grounds.push(commerce.ships.ground);
+  grounds.push(commerce.villages.ground);
   // The commerce scenes' labels, one over each building.
   const cLabels = el('div', { class: 'cardlabels' });
   app.appendChild(cLabels);
@@ -754,6 +760,11 @@ async function main() {
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
+    // Shift+N: the Villages scene (N alone is the snow).
+    if (e.shiftKey && k === 'n') {
+      setScene('villages');
+      return;
+    }
     // Shift+B: the Ships scene (B alone is the hundred wells).
     if (e.shiftKey && k === 'b') {
       setScene('ships');
@@ -1071,6 +1082,15 @@ async function main() {
       where: (i) => commerce.ships.where(i),
       stats: () => commerce.ships.stats(),
       setLod: (n) => setFountainLod(n),
+    },
+    /** The Villages scene (labVillages.js): a village's place, its pieces, the month, the level of detail. */
+    villages: {
+      where: (i) => commerce.villages.where(i),
+      piece: (i, w, n) => commerce.villages.piece(i, w, n),
+      get items() { return commerce.villages.items; },
+      setMonth: (m) => commerce.villages.setMonth(m),
+      setLod: (n) => setFountainLod(n),
+      triangles: (l) => commerce.villages.triangles(l),
     },
     /** The Army scene (labUnits.js): a cell close up, the cells, the pass's stats, the level of detail. */
     army: {

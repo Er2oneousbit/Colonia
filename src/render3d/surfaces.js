@@ -25,6 +25,7 @@ import { WALL_SURFACES } from './surfacesWalls.js';
 import { FLORA_SURFACES } from './surfacesFlora.js';
 import { GARDEN_SURFACES } from './surfacesGarden.js';
 import { GOV_SURFACES } from './surfacesGov.js';
+import { NATIVE_SURFACES } from './surfacesNative.js';
 
 /**
  * Limestone of the puteal (the well's curb): a fine pale stone with grain,
@@ -571,6 +572,8 @@ export const SURFACES = Object.freeze({
   ...GARDEN_SURFACES,
   // The senate house's and the residences' stucco (surfacesGov.js).
   ...GOV_SURFACES,
+  // The native villages' daub and dry stone (surfacesNative.js).
+  ...NATIVE_SURFACES,
 });
 
 /** The surfaces as one set of recipes (one program paints them all: paint/painter.js). */

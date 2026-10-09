@@ -17,6 +17,9 @@ import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, bu
 import { buildDemoGovernment } from '../dev/demoCity.js';
 import { buildDemoTemples, bookDemoShows } from '../dev/demoCity.js';
 import { buildDemoTraining } from '../dev/demoCity.js';
+import { buildDemoMissionPost } from '../dev/demoCity.js';
+import { forgetVillageWatch } from '../render3d/models/villages.js';
+import { NATIVES } from '../data/natives.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
 import { monumentSummary, monumentStatus } from './monumentInfo.js';
@@ -80,6 +83,7 @@ export const CONSOLE_HELP = [
   ['gardens [n] [wild]', 'Lay out n gardens (default 24) in blocks beside the city, statues of each size, a gardeners\' yard and a triumphal arch across a road; "wild" leaves every garden and statue untended'],
   ['temples [n]', 'Build a small temple of each god (n of each, default 1), a grand temple of each, the oracle and (where there are native villages) the mission post near the city'],
   ['training', 'Build an actor troupe, a gladiator school, a menagerie and a chariot stable near the city'],
+  ['villages [calm|angry|war|trade]', 'Set every native village calm, angry, attacking (its look while paused: with nothing of yours on its land the sim ends it as the game runs on) or trading (a staffed mission post, built if none), and centre on one'],
   ['healing', 'Build baths (piping water to the town if none reaches) and a hospital near the city, and a barber and a physician if it has none'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
   ['searaid [n]', 'Launch a raid of n warriors by sea right now (river/coast maps; default: normal size)'],
@@ -494,6 +498,32 @@ export class DebugConsole {
         const shown = Object.values(built).find(Boolean);
         if (shown) app.renderer.camera.centerOnTile(shown.x + shown.size / 2, shown.y + shown.size / 2);
         return `Training: ${Object.entries(built).map(([k, b]) => (b ? `${k} at ${b.x},${b.y}` : `no ${k}`)).join(', ')}.`;
+      }
+      case 'villages': {
+        need();
+        const ms = [...g.buildings.values()].filter((b) => b.type === 'native_meeting');
+        if (!ms.length) return 'No native villages here (a mission with them, or the sandbox with natives=1).';
+        const want = args[0] || 'calm';
+        if (!['calm', 'angry', 'war', 'trade'].includes(want)) return 'villages calm | angry | war | trade';
+        const calm = want === 'calm' || want === 'trade';
+        for (const b of g.buildings.values()) {
+          if (b.def.kind !== 'village' || b.def.village === 'crops') continue;
+          b.anger = calm ? 0 : NATIVES.ANGER_MAX;
+          if (b.type === 'native_meeting') b.attackDays = want === 'war' ? 2 : 0;
+        }
+        let post = '';
+        if (want === 'trade') {
+          const have = [...g.buildings.values()].find((b) => b.type === 'mission_post');
+          const center = cityCenter(g) || { x: ms[0].x + 12, y: ms[0].y + 12 };
+          const b = have || buildDemoMissionPost(g, center);
+          if (b) {
+            b.efficiency = 1;
+            post = ` A mission post at ${b.x}, ${b.y}${b.accessRoad >= 0 ? '' : ' (it needs a road to the city to send for traders)'}.`;
+          } else post = ' No room for a mission post.';
+        }
+        app.renderer.camera.centerOnTile(ms[0].x + 1, ms[0].y + 1);
+        forgetVillageWatch(g);
+        return `${ms.length} villages ${want}.${post}`;
       }
       case 'healing': {
         need();
