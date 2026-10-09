@@ -56,6 +56,7 @@ import { HEALTH_MODELS } from './models/health.js';
 import { GOVERNMENT_MODELS } from './models/government.js';
 import { RELIGION_MODELS, RELIGION_PARTS } from './models/religion.js';
 import { TRAINING_MODELS } from './models/training.js';
+import { VENUE_MODELS, VENUE_PARTS } from './models/venues.js';
 import { farmModel, FARM_KIND, FARM_PARTS } from './models/farm.js';
 import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
@@ -154,6 +155,8 @@ export const MODELS = Object.freeze({
   ...RELIGION_MODELS,
   // The actor troupe, the gladiator school, the menagerie and the chariot stable (models/training.js says how).
   ...TRAINING_MODELS,
+  // The theatre, the amphitheatre, the Great Arena and the hippodrome's sections (models/venues.js says how).
+  ...VENUE_MODELS,
 });
 
 /**
@@ -168,6 +171,8 @@ export const MODEL_PARTS = Object.freeze({
   ...RELIGION_PARTS,
   // The ships' hulls, yards and sails, a cast net, a basket of the catch, a wreck's debris (ships/hulls.js).
   vessel: Object.freeze({ build: buildVesselPart }),
+  // The venues' crowd groups (models/venues.js).
+  ...VENUE_PARTS,
 });
 
 /** The builder of a kit's key: a building type's (MODELS) or a part's (MODEL_PARTS). */

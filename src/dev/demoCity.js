@@ -26,7 +26,8 @@ import { TRADE_PARTNERS, FIRST_NINE } from '../data/scenarios.js';
 import { Terrain, WaterBits } from '../world/map.js';
 import { CONFIG } from '../config.js';
 import { UNIT_TYPES } from '../data/units.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, VENUE_SUPPLIERS } from '../data/buildings.js';
+import { SHOW_DAYS } from '../sim/entertainment.js';
 import { deployFort, recallFort } from '../sim/military.js';
 import { holdFestival, festivalBlocked, festivalTempleBlocked, festivalMeans, festivalNeeds, SMALL_TOWN } from '../sim/religion.js';
 import { GOD_KEYS } from '../data/gods.js';
@@ -1559,6 +1560,23 @@ export function buildDemoMonument(game, center, type) {
     guard(game, camp.x, camp.y);
   }
   return { ok: !!(site && camp && warehouse), site, camp, warehouse, well };
+}
+
+/**
+ * Every venue's shows booked for a month, as its performers would book them
+ * (sim/entertainment.js performerArrive: SHOW_DAYS of each kind its
+ * suppliers send): the console's `shows`, to see the venues' shows drawn
+ * in 3D (render3d/models/venues.js) and to measure them. They play while
+ * the venue is staffed. Draws no random numbers. Returns the venues booked.
+ */
+export function bookDemoShows(game) {
+  let n = 0;
+  for (const b of game.buildings.values()) {
+    if (b.def.kind !== 'venue' || !b.shows) continue;
+    for (const k of VENUE_SUPPLIERS[b.def.venue] || []) b.shows[k] = Math.max(b.shows[k] || 0, SHOW_DAYS);
+    n++;
+  }
+  return n;
 }
 
 /**

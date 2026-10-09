@@ -150,7 +150,8 @@ const PEOPLE_LOOK = {
  * its arms (march or battle). `ctx`: { people (the raid's people id), arms }.
  */
 export function unitLookKey(u, ctx = {}) {
-  return `${u.type}|${ctx.people || ''}|${roleOf(u)}|${ctx.arms || 'march'}`;
+  // (A show's made-up figure names its look and its kit: models/venueShow.js.)
+  return `${u.type}|${ctx.people || ''}|${roleOf(u)}|${ctx.arms || 'march'}${u.look ? `|${u.look}` : ''}${u.kit !== undefined ? `|${u.kit}` : ''}${u.faction !== undefined ? `|${u.faction}` : ''}`;
 }
 
 /** A unit's role in its band: the signifer (his fort's first man), the imperial standards, or a plain man. */
@@ -167,7 +168,7 @@ export function roleOf(u) {
 export function unitLook(u, ctx = {}) {
   const seed = u.id * 1.618 + 7;
   const arms = ctx.arms || 'march';
-  const make = LOOKS[u.type] || LOOKS.raider;
+  const make = (u.look && SHOW_LOOKS[u.look]) || LOOKS[u.type] || LOOKS.raider;
   const figures = make(u, seed, PEOPLE_LOOK[ctx.people] || 'german', arms, ctx);
   return { key: unitLookKey(u, ctx), figures, reach: reachOf(figures), arms };
 }
@@ -364,7 +365,8 @@ const LOOKS = {
     return [el, mahout, crew];
   },
   gladiator: (u, seed) => {
-    const kind = Math.floor(hash01(seed, 50) * 3) % 3;
+    // (A show's gladiator is given his kit: models/venueShow.js pairs them as the arenas did.)
+    const kind = u.kit ?? Math.floor(hash01(seed, 50) * 3) % 3;
     const colours = { tunic: DYES.white, trim: pick([DYES.madder, DYES.woad, 0xd9b65a], seed, 51), accent: pick([DYES.madder, 0x3f5a85, 0x5a6d3e], seed, 52), metal: 0xb4b8be, leather: 0x6a4428, skin: pick(SKIN.italian.concat(SKIN.fair, SKIN.numidian), seed, 3), hair: pick(HAIR.dark, seed, 4) };
     if (kind === 0) {
       return [man(seed, { dress: ['caligae'], colours }, ['loin', 'murmillo', 'manica', 'greaves:left'], { L: 'prop:scutum', R: 'prop:gladius' }, { ...LEGION, move: 'march', stand: 'guard' })];
@@ -392,3 +394,37 @@ const LOOKS = {
 export function hitOf(clip) {
   return HIT[clip] ?? 0.35;
 }
+
+/** The factions' colours (the red, the white, the green, the blue: sRGB). */
+const FACTION = [0xa3352b, 0xece6d8, 0x3f8a4a, 0x3a62a8];
+
+/**
+ * The shows' figures (models/venueShow.js: made-up units the venues hand the
+ * pass), by their `look`:
+ *   racer    a charioteer of the circus (auriga) in his faction's colour,
+ *            the leather cap, the reins bound round his waist, in his light
+ *            car behind a team of four (a quadriga): the two yoked in the
+ *            middle and the two trace horses outside
+ *   venator  the beast hunter: a short tunic, bound legs, the arm guard,
+ *            the hunting spear
+ *   lion     a lion of the hunts: the menagerie's maned lion (quadMesh.js),
+ *            stalking at a walk, roaring as it rushes in
+ */
+const SHOW_LOOKS = {
+  racer: (u, seed) => {
+    const fac = FACTION[(u.faction ?? 0) & 3];
+    const driver = man(seed, { dress: ['tunic:short'], hair: 'crop', colours: { tunic: fac, trim: fac, leather: 0x4a3020, skin: pick(SKIN.italian, seed, 3), hair: pick(HAIR.dark, seed, 4) } }, ['cap', 'belt'], {}, { move: 'drive', run: 'drive', stand: 'drive', ready: 'drive', attack: 'drive' });
+    driver.at = [0, 0.3, 0.12];
+    const car = { rigid: 'cart:chariot', at: [0, 0, 0], colours: { accent: fac }, mount: -1, scale: 1, wheels: true };
+    const team = [-0.98, -0.34, 0.34, 0.98].map((x, k) => {
+      const h = horse(seed + k * 7, 'yoke', fac, [x, 0, Math.abs(x) > 0.9 ? 1.98 : 2.05]);
+      h.scale = 0.9;
+      return h;
+    });
+    return [driver, car, ...team];
+  },
+  venator: (u, seed) => [man(seed, { dress: ['tunic:short', 'caligae'], hair: 'crop', beard: 'short', colours: { tunic: pick([DYES.ochre, DYES.saffron, DYES.madder], seed, 1), metal: 0xb4b8be, leather: 0x5a3a24, skin: pick(SKIN.italian, seed, 3), hair: pick(HAIR.dark, seed, 4) } }, ['manica', 'wraps', 'belt'], { R: 'prop:spear' }, { ...SPEARMAN, ready: 'guard' })],
+  // (The lion of the menagerie's, quadRig.js: its stalk round the hunter a walk, its rush a roar on its hind legs' spring.)
+  lion: () => [beast('quad:lion', { mantle: 0xc0904e, skin: 0xc0904e, hair: 0x7a5228, trim: 0xe6d0a8, leather: 0x8a5a4a, accent: 0xc8962e },
+    { stand: 'lion:stand', slow: 'lion:walk', fast: 'lion:walk', walk: 'lion:walk', attack: 'lion:roar', fall: 'lion:lie', rest: 'lion:lie', stalk: 'lion:walk' })],
+};

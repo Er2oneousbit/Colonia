@@ -477,7 +477,8 @@ export class ModelPass {
     const map = this.game.map;
     const i = map.idx(g.x, g.y);
     // As built there: a fountain runs where the reservoirs' pipes reach, and takes the look of its band.
-    const b = { id: null, type: g.type, x: g.x, y: g.y, size: g.size, hasWater: (map.water[i] & WaterBits.PIPED) !== 0, efficiency: 1 };
+    // (A hippodrome's section: which stretch of the track the plan lays there, models/venues.js sectionOf.)
+    const b = { id: null, type: g.type, x: g.x, y: g.y, size: g.size, hasWater: (map.water[i] & WaterBits.PIPED) !== 0, efficiency: 1, section: g.section };
     // (A dragged wall's pieces come with their look worked out from the plan: walls/wallGame.js wallGhosts.)
     const v = g.variant || MODELS[g.type].variant(b, { snow: g.snow }, this);
     const tint = g.ok ? 'ok' : 'warn';

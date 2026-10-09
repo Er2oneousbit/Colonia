@@ -15,7 +15,7 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
 import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoLearning, buildDemoHealth, buildDemoGardens, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
 import { buildDemoGovernment } from '../dev/demoCity.js';
-import { buildDemoTemples } from '../dev/demoCity.js';
+import { buildDemoTemples, bookDemoShows } from '../dev/demoCity.js';
 import { buildDemoTraining } from '../dev/demoCity.js';
 import { MONUMENT_TYPES, monumentTotals } from '../data/monuments.js';
 import { cityMonument } from '../sim/monumentEffects.js';
@@ -70,6 +70,7 @@ export const CONSOLE_HELP = [
   ['grounds', 'List the fishing grounds, and every wharf and its boat'],
   ['hippodrome', 'Build a Circus (hippodrome) and a Factio (chariot stable) beside the city'],
   ['arena', 'Build an Arena (Great Arena), an amphitheater, a gladiator school and a menagerie beside the city'],
+  ['shows', 'Book every show at every venue for a month (plays, bouts, a hunt, races), building an Arena, an amphitheater and a Circus beside the city first if it has none'],
   ['cloth', 'Build the cloth industry beside the city: a Linarium, a Textrinum, a Taberna Vestiaria and a Horreum'],
   ['farms', 'Build one farm of every kind (at different steps of their year), a horse ranch and a stocked granary beside the city'],
   ['navy', 'Build a naval station and a navalia on the shore, stocked for a squadron of liburnians (river/coast maps)'],
@@ -361,6 +362,16 @@ export class DebugConsole {
         if (res.colosseum) app.renderer.camera.centerOnTile(res.colosseum.x + 2, res.colosseum.y + 2);
         const built = Object.entries(res).filter(([, b]) => b).map(([k]) => BUILDINGS[k].name);
         return res.colosseum ? `Built: ${built.join(', ')}.` : 'No room for an Arena (5 x 5 clear tiles) near the city, or it is locked in this mission.';
+      }
+      case 'shows': {
+        need();
+        const center = cityCenter(g);
+        if (!center) return 'Build some homes first (try: demo 2).';
+        const has = (t) => [...g.buildings.values()].some((b) => b.type === t);
+        if (!has('colosseum') || !has('amphitheater')) buildDemoVenues(g, center);
+        if (!has('hippodrome')) buildDemoHippodrome(g, center);
+        const n = bookDemoShows(g);
+        return n ? `Shows booked at ${n} venue${n === 1 ? '' : 's'} (they play while staffed).` : 'No venues to book.';
       }
       case 'fishing':
       case 'cloth':
