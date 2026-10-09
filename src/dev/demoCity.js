@@ -21,6 +21,7 @@
 
 import { planAction, applyPlan, undoLast } from '../sim/construction.js';
 import { removeBuilding, overWaterFit, accessTiles } from '../sim/entities.js';
+import { growHouse } from '../sim/housing.js';
 import { openRoute, setTradeMode, dockBerth } from '../sim/trade.js';
 import { TRADE_PARTNERS, FIRST_NINE } from '../data/scenarios.js';
 import { Terrain, WaterBits } from '../world/map.js';
@@ -891,6 +892,33 @@ function archAcross(game, center) {
   }
   game.city.archesEarned = was;
   return null;
+}
+
+/**
+ * The demo city's homes at the levels the 3D models draw (render3d/models/houses.js): its single
+ * homes take the Hut, the Cottage, the Townhouse and the Apartment House in turn, and every fifth
+ * Apartment House grows into a Tenement where there is room (a joined block of four takes its
+ * level whole). The console's `homes`: to see the five in a city, lived in.
+ * @returns {{ homes: number, tenements: number, levels: Object<number, number> }}
+ */
+export function buildDemoHomes(game) {
+  const LEVELS = [4, 5, 7, 10];
+  const levels = {};
+  let n = 0;
+  let tenements = 0;
+  for (const b of [...game.buildings.values()]) {
+    if (!b.house || !game.buildings.has(b.id) || b.house.tier > 11) continue;
+    const tier = b.size === 2 && b.house.tier === 11 ? 11 : LEVELS[(b.id + (b.size === 2 ? 2 : 0)) % LEVELS.length];
+    b.house.tier = tier;
+    b.house.pop = Math.max(b.house.pop, 6);
+    if (tier === 10 && b.size === 1 && b.id % 5 === 0 && growHouse(game, b, 2)) {
+      b.house.tier = 11;
+      tenements++;
+    }
+    n++;
+    levels[b.house.tier] = (levels[b.house.tier] || 0) + 1;
+  }
+  return { homes: n, tenements, levels };
 }
 
 /**

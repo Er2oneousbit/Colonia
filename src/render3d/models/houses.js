@@ -165,14 +165,17 @@ export function peopleOf(kind, v) {
   }
 }
 
-/** The cast of a home or a block, by kind, looks and cell, packed once. */
+/**
+ * The cast of a home or a block, by kind, looks and which of its people are about (a bit each: the id's
+ * hash picks a different few for each home, at least one), packed once.
+ */
 const CASTS = new Map();
-function castOf(kind, vs) {
-  const id = `${kind}:${vs.join('')}`;
+function castOf(kind, vs, mask) {
+  const id = `${kind}:${vs.join('')}:${mask}`;
   let c = CASTS.get(id);
   if (!c) {
-    const list = vs.length === 1 ? peopleOf(kind, vs[0]) : vs.flatMap((v, i) => moved(peopleOf(kind, v), CELLS[i][0], CELLS[i][1]));
-    c = cast(list);
+    const all = vs.length === 1 ? peopleOf(kind, vs[0]) : vs.flatMap((v, i) => moved(peopleOf(kind, v), CELLS[i][0], CELLS[i][1]));
+    c = cast(all.filter((_, i) => (mask >> i) & 1));
     CASTS.set(id, c);
   }
   return c;
@@ -249,11 +252,16 @@ function lookOf(b, near) {
       }
       look = { key: 'house:plot', state: 'always', ice: false, more };
     } else look = { key: `house:${kind}:${vs[0]}`, state, ice: false };
-    look.cast = state === 'open' ? { kind, vs } : null;
+    look.cast = state === 'open' ? { kind, vs, n: vs.reduce((s, v) => s + peopleOf(kind, v).length, 0) } : null;
     LOOKS.set(id, look);
   }
   // Its people, only where the camera is close (the people's levels 0 and 1: modelPass.js peopleLodFor).
-  if (near && look.cast) return { ...look, actors: castOf(look.cast.kind, look.cast.vs) };
+  if (near && look.cast) {
+    // (Not everybody is out at once: about half of each home's people, a different few by its id.)
+    const n = look.cast.n;
+    const mask = 1 + Math.floor(hash01(b.id, 3, 91) * ((1 << n) - 1));
+    return { ...look, actors: castOf(look.cast.kind, look.cast.vs, mask) };
+  }
   return look;
 }
 

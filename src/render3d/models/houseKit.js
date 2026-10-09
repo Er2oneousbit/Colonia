@@ -72,9 +72,10 @@ const PART = {
   rubble: ['rubble', 'rubble'],
   tile: ['roof', 'tile'],
   thatch: ['thatch', 'thatch'],
-  wood: ['wood', 'wood'],
-  woodOpen: ['wood', 'wood', { when: 'open' }],
-  woodShut: ['wood', 'wood', { when: 'shut' }],
+  // (Woodwork casts no shadow: a shutter's is a hair, and each caster is a second draw.)
+  wood: ['wood', 'wood', { cast: false }],
+  woodOpen: ['wood', 'wood', { when: 'open', cast: false }],
+  woodShut: ['wood', 'wood', { when: 'shut', cast: false }],
   dark: ['inside', 'dark', { cast: false }],
   paint: ['paint', 'paint', { cast: false }],
   clay: ['pots', 'clay', { cast: false }],
@@ -84,8 +85,16 @@ const PART = {
   flags: ['flags', 'flags', { cast: false }],
 };
 
-/** Keys that share another's material (see Bag.add). */
-const MERGED = { stone: 'plaster', clay: 'tile', dark: 'paint' };
+/** Keys that share another's material at every level of detail (see Bag.add). */
+const MERGED = { stone: 'plaster', clay: 'tile', dark: 'plaster', paint: 'plaster', flags: 'plaster', earth: 'plaster' };
+/**
+ * From the middle level of detail out (a tile under 160 device px wide) the woodwork, the paint, the yard and
+ * the rubble are plaster too, their colour in the vertices, and far out (under 72 px) the brick: a draw is
+ * paid for by every look in view whatever it shows, so a kit is two to four draws there, not eight. The
+ * shutters swung back and the doors open are all that is kept of the state; what shuts them (the shop's
+ * boards, closed leaves) shows close up only.
+ */
+const FLAT = { wood: 'plaster', woodOpen: 'plaster', rubble: 'plaster' };
 const DARK = [0.011, 0.009, 0.008];
 
 /** A house's geometry gathered by part, built to a level of detail. */
@@ -106,16 +115,27 @@ export class Bag {
   add(key, ...g) {
     if (!PART[key]) throw new Error(`houses: no part ${key}`);
     const list = g.flat(Infinity).filter(Boolean);
-    const to = MERGED[key];
-    if (to) {
-      if (key === 'dark') for (const x of list) tintGeometry(x, () => DARK);
-      (this.o[to] ??= []).push(...list);
-    } else (this.o[key] ??= []).push(...list);
+    if (key === 'dark') for (const x of list) tintGeometry(x, () => DARK);
+    let to = MERGED[key] || key;
+    if (this.lod >= 1) {
+      if (key === 'woodShut') return this;
+      to = FLAT[to] || to;
+      if (this.lod === 2 && to === 'brick') to = 'plaster';
+    }
+    (this.o[to] ??= []).push(...list);
     return this;
   }
 
   /** The model: { group, meshes, triangles }. */
   build() {
+    // Close up the woodwork that shows in both states goes into each state's own part, so a kit draws one wood
+    // mesh for the homes in its commoner state, not two (the swung leaves and the rest).
+    if (this.o.wood) {
+      const base = this.o.wood;
+      delete this.o.wood;
+      this.o.woodOpen = [...(this.o.woodOpen || []), ...base];
+      this.o.woodShut = [...(this.o.woodShut || []), ...base.map((g) => g.clone())];
+    }
     const m = houseMaterials();
     const p = new TaggedParts(this.name);
     for (const [key, list] of Object.entries(this.o)) {
@@ -173,7 +193,12 @@ export function flat(x0, y0, x1, y1, z, rgb) {
  */
 export function wall(bag, side, plane, centre, { w, y0 = 0, h, t = 0.3, open = [], c, k = 1, key = 'plaster', dark = [0.01, 0.009, 0.008] }) {
   const put = frame(side, plane, centre);
-  if (bag.lod < 2) {
+  // The brick texture is dark: its colour is lifted so a wall reads as Ostia's warm brick under the sun, not as a shadow
+  // (far out the brick is plaster, which needs no lift).
+  if (key === 'brick' && bag.lod < 2) k *= 1.3;
+  // (Openings are cut through only close up, where a tile is 160 device px or more wide: from the middle level out their depth is
+  // under a pixel, and a wall with sixty holes costs thirty milliseconds to build.)
+  if (bag.lod < 1) {
     bag.add(key, put(paint(wallWithOpenings(w, h, t, open, { lod: bag.lod, y0 }), c, () => k)));
     // The dark room behind the openings, a thin box just inside the wall.
     if (open.length) bag.add('dark', put(box(w, h, 0.02, 0, y0, -t + 0.012)));
@@ -198,11 +223,13 @@ export function wall(bag, side, plane, centre, { w, y0 = 0, h, t = 0.3, open = [
 export function windowTrim(bag, put, o, { shutters = 'open', col = lin(WOODS.oak), sill = true, lod = bag.lod } = {}) {
   if (lod === 2) return;
   const { x, y, w, h } = o;
-  if (sill) bag.add('stone', put(box(w + 0.16, 0.06, 0.15, x, y - 0.06, 0.07, 0.95)));
-  bag.add('wood', put(box(w + 0.12, 0.09, 0.1, x, y + h, 0.04, lin(WOODS.oak, 0.8))));
+  // (The sill and the lintel only close up: at the middle level a window is its shutters.)
+  if (sill && lod === 0) bag.add('stone', put(box(w + 0.16, 0.06, 0.15, x, y - 0.06, 0.07, 0.95)));
+  if (lod === 0) bag.add('wood', put(box(w + 0.12, 0.09, 0.1, x, y + h, 0.04, lin(WOODS.oak, 0.8))));
   const leaf = (px) => box(w / 2 - 0.01, h, 0.035, px, y, 0.03, col);
   if (shutters === 'closed') {
-    bag.add('wood', put(leaf(x - w / 4)), put(leaf(x + w / 4)));
+    if (lod === 0) bag.add('wood', put(leaf(x - w / 4)), put(leaf(x + w / 4)));
+    else bag.add('wood', put(box(w - 0.02, h, 0.035, x, y, 0.03, col)));
   } else if (shutters === 'open') {
     // Lived in: swung back flat against the wall either side. Empty: shut across the window.
     for (const s of [-1, 1]) {

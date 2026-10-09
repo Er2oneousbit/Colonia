@@ -4837,6 +4837,65 @@ try {
         await gh.close();
       }
 
+      // 8a3a. The homes as models (render3d/models/houses.js): the console's `homes` sets the demo city's homes
+      //       to the Hut, Cottage, Townhouse and Apartment House (and a Tenement where there is room); each
+      //       level draws as a kit of its own looks (waited for: under a software GL kits are built a few a
+      //       frame), a few people stand at the closest zoom only, and a click on a home's footprint picks it.
+      {
+        const gx = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const xerrs = [];
+        gx.on('pageerror', (e) => xerrs.push(`pageerror: ${e.message}`));
+        gx.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) xerrs.push(m.text()); });
+        await gx.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gx.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const homes = await gx.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 3');
+          const said = app.ui.console.run('homes');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const hs = [...app.game.buildings.values()].filter((b) => b.house && b.house.tier >= 4 && b.house.tier <= 11);
+          const levels = [...new Set(hs.map((b) => b.house.tier))].sort((a, b) => a - b);
+          const pick = hs.find((b) => b.house.tier === 7 && b.size === 1) || hs[0];
+          return { said, n: hs.length, levels, pick: { id: pick.id, x: pick.x, y: pick.y, size: pick.size } };
+        });
+        await gx.evaluate((v) => { const c = window.colonia.renderer.camera; c.zoomIndex = 2; c.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, homes.pick);
+        await gx.waitForFunction(() => {
+          const r = window.colonia.renderer;
+          const mp = r.stats.modelPass || {};
+          return (mp.byType || {}).house >= 8 && !mp.deferred && !r.stats.pending;
+        }, null, { timeout: 60000, polling: 100 }).catch(() => {});
+        const far = await gx.evaluate(() => {
+          const mp = window.colonia.renderer.stats.modelPass || {};
+          return { houses: (mp.byType || {}).house || 0, peopleLod: window.colonia.renderer.backend.models.people.lod, kits: [...window.colonia.renderer.backend.models.kits.keys()].filter((k) => k.startsWith('house:')).length };
+        });
+        // The closest zoom: the people's finer levels, and the homes' own people with them (the far zoom's level gives the homes none: models/houses.js).
+        await gx.evaluate((v) => { const c = window.colonia.renderer.camera; c.zoomIndex = 6; c.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, homes.pick);
+        await gx.waitForFunction(() => {
+          const r = window.colonia.renderer;
+          const mp = r.stats.modelPass || {};
+          return (mp.people || 0) > 0 && !mp.deferred && !r.stats.pending;
+        }, null, { timeout: 60000, polling: 100 }).catch(() => {});
+        const near = await gx.evaluate(() => ({ people: (window.colonia.renderer.stats.modelPass || {}).people || 0, peopleLod: window.colonia.renderer.backend.models.people.lod }));
+        const click = await gx.evaluate(([x, y]) => {
+          const app = window.colonia;
+          const cam = app.renderer.camera;
+          const w = cam.mapToWorld(x, y);
+          const r = app.canvas.getBoundingClientRect();
+          return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+        }, [homes.pick.x + homes.pick.size / 2, homes.pick.y + homes.pick.size / 2]);
+        await gx.mouse.click(click.x, click.y);
+        await gx.waitForFunction((id) => window.colonia.ui.info.target?.id === id, homes.pick.id, { timeout: 5000, polling: 50 }).catch(() => {});
+        const picked = await gx.evaluate(() => window.colonia.ui.info.target);
+        await gx.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gx.screenshot({ path: path.join(shots, 'smoke-webgl-houses.png') });
+        check('houses: the homes of levels 4, 5, 7 and 10 draw as models of several looks, people only at the closest zoom, and a click picks one',
+          homes.levels.length >= 4 && far.houses >= 8 && far.kits >= 5 && far.peopleLod === 2 && near.peopleLod <= 1 && near.people > 0 && picked?.kind === 'building' && picked.id === homes.pick.id,
+          JSON.stringify({ homes, far, near, picked: picked && picked.id }));
+        check('houses: no page errors', xerrs.length === 0, xerrs.join(' | '));
+        await gx.close();
+      }
+
       // 8a3b. The training buildings of the shows as models (render3d/models/training.js): the console's
       //       `training` puts an actor troupe, a gladiator school, a menagerie and a chariot stable by
       //       the demo city; each draws as a model (waited for), its people and beasts with it, and a

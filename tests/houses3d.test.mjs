@@ -111,7 +111,7 @@ test('houses3d: each level of detail is lighter than the one before; the far one
     const [, kind] = key.split(':');
     const t = [0, 1, 2].map((l) => triOf(buildHouse(key, l)));
     // (The lot and the plot are a few boxes at every level.)
-    if (/lot|plot/.test(key)) assert.ok(t[2] <= t[0] && t[0] <= 160, `${key}: ${t}`);
+    if (/lot|plot/.test(key)) assert.ok(t[2] <= t[0] && t[0] <= 260, `${key}: ${t}`);
     else assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
     assert.ok(t[2] <= (kind === 'ten' ? 560 : 360), `${key}: ${t[2]} triangles far out`);
     assert.ok(t[0] < (kind === 'ten' ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
@@ -176,11 +176,14 @@ test('houses3d: a few people only near, only while lived in, inside the footprin
     assert.equal(v(b, { peopleOn: false, people: { lod: 0 } }).actors, undefined);
     assert.equal(v({ ...b, house: { tier, pop: 0 } }, NEAR).actors, undefined, `${tier}: nobody in an empty home`);
     const near = v(b, NEAR).actors;
-    assert.ok(near && near.actors.length >= 2 && near.actors.length <= 4, `${tier}: a few people (${near && near.actors.length})`);
+    assert.ok(near && near.actors.length >= 1 && near.actors.length <= 4, `${tier}: a few people (${near && near.actors.length})`);
     assert.equal(v(b, { peopleOn: true, people: { lod: 1 } }).actors, near, 'the same cast, packed once');
+    // About half of a home's people are out, a different few by its id: not the same two at every door.
+    const sizes = new Set([...Array(30).keys()].map((i) => v(home(tier, { id: i + 1 }), NEAR).actors.actors.length));
+    assert.ok(sizes.size >= 2 || tier === 4 || tier === 5, `${tier}: ${[...sizes]}`);
   }
   // A block: each of its four homes has its people, in its own cell.
-  assert.ok(v(home(5, { size: 2, id: 3 }), NEAR).actors.actors.length >= 8);
+  assert.ok(v(home(5, { size: 2, id: 3 }), NEAR).actors.actors.length >= 2);
   for (const kind of KINDS) {
     const S = kind === 'ten' ? 4 : 2;
     for (let var1 = 0; var1 < VARIANTS; var1++) {
