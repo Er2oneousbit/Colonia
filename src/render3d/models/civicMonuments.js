@@ -15,9 +15,11 @@
  *             stage: a kit a step (`<type>:s<stage>:<step>`), its rising
  *             courses and the site's dressing (models/worksite.js) built
  *             into it, so a site costs one kit, rebuilt a few times a stage;
- *             its crew (actors) at work while a camp's crew is on the site
- *             and it is not halted; a halted site or one with no crew on it
- *             stands still, nobody on it
+ *             its crew (actors, worksite.js siteActors: the men its working
+ *             cranes need too) at work while a camp's crew is on the site
+ *             and it is not halted, its treadwheels turning (`<key>:w`, the
+ *             wheels and the loads as worksite.js siteMotion's `more`); a
+ *             halted site or one with no crew on it stands still, nobody on it
  *   finished  its own kit (`<type>`, `<type>:ice` in a hard frost), or
  *             `<type>:sacked` while raiders have it sacked; its state:
  *     thermae       'flowing' working (staffed, its store holds timber, on
@@ -36,6 +38,7 @@
 import { Matrix4 } from 'three';
 import { MONUMENT_TYPES, OPEN_STAFF } from '../../data/monuments.js';
 import { cast, NOBODY } from '../people/actors.js';
+import { siteActors, siteMotion } from './worksite.js';
 import { buildThermae, buildThermaeWood, thermaeActors, thermaeSite, THERMAE_LAMPS, THERMAE_STAGES } from './thermae.js';
 import { buildMansio, buildMansioFood, mansioActors, mansioSite, MANSIO_LAMPS, MANSIO_STAGES } from './mansio.js';
 
@@ -120,6 +123,17 @@ function castOf(sig, make) {
   return c;
 }
 
+/** A working site's dressing by its kit's key, made once (siteMotion keeps its moving parts per site object). */
+const SITES = new Map();
+function siteOf(kind, key, stage, f) {
+  let s = SITES.get(key);
+  if (!s) {
+    s = kind.site(stage, f, true);
+    SITES.set(key, s);
+  }
+  return s;
+}
+
 /** Lanterns for models.js modelLamps: the panes' middles, facing the street (+z). */
 const lampsAt = (list) => Object.freeze(list.map(([x, y, z, s = 1]) => Object.freeze([x, y + 0.11, z, s])));
 
@@ -135,9 +149,14 @@ function entry(type, kind) {
       const game = ctx ? ctx.game : null;
       const look = civicLook(b, game);
       if (look.phase === 'site') {
-        const key = `${type}:s${look.stage}:${look.step}`;
-        const actors = look.crew ? castOf(`${key}|crew`, () => kind.site(look.stage, look.f).crew) : NOBODY;
-        return { key, state: 'always', ice: false, actors };
+        // (A crew on the site works its cranes: the kit leaves the turning wheels and the loads out,
+        // worksite.js siteMotion draws them; a halted or empty site's cranes stand whole and still.)
+        const key = `${type}:s${look.stage}:${look.step}${look.crew ? ':w' : ''}`;
+        if (!look.crew) return { key, state: 'always', ice: false, actors: NOBODY };
+        const site = siteOf(kind, key, look.stage, look.f);
+        const actors = castOf(`${key}|crew`, () => siteActors(site));
+        const more = siteMotion(site, ctx && ctx.clock ? ctx.clock : 0);
+        return { key, state: 'always', ice: false, actors, ...(more.length ? { more } : {}) };
       }
       const ice = frost(place);
       const st = kind.state(b);
@@ -156,7 +175,7 @@ function entry(type, kind) {
       if (parts[1] && parts[1][0] === 's' && parts[1] !== 'sacked') {
         const stage = Number(parts[1].slice(1));
         const step = Number(parts[2]) || 0;
-        return kind.build({ lod, stage, f: (step + 0.5) / STEPS }).group;
+        return kind.build({ lod, stage, f: (step + 0.5) / STEPS, work: parts[3] === 'w' }).group;
       }
       return kind.build({ lod, stage: kind.stages, ice: parts.includes('ice'), sacked: parts[1] === 'sacked' }).group;
     },

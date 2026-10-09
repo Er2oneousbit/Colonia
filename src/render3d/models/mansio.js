@@ -66,8 +66,8 @@ import { lin, ruralMaterials, jar, sack, basket, heap } from './rural.js';
 import { staff, inscribe } from './castra.js';
 import { roofSlope } from './learning.js';
 import { healthMaterials, steamMaterial, plume, coals, table } from './healing.js';
-import { box, bag, placed, risingWall, rubbleHeap, scorch, addSite } from './civicParts.js';
-import { siteParts } from './worksiteStub.js';
+import { box, bag, placed, risingWall, rubbleHeap, scorch } from './civicParts.js';
+import { addSite } from './worksite.js';
 import { DYES } from '../people/actors.js';
 import { SEAT_H } from '../people/clips.js';
 
@@ -558,7 +558,7 @@ function sackedParts(lod, seed, out) {
 // ---------------------------------------------------------------------------
 
 /** The site's dressing at stage `stage` with `f` of it done (models/worksite.js draws it), and its crew. */
-export function mansioSite(stage, f) {
+export function mansioSite(stage, f, work = false) {
   const site = { scaffolds: [], cranes: [], centering: [], piles: [], crew: [] };
   if (stage >= MANSIO_STAGES) return site;
   const S = site;
@@ -576,6 +576,7 @@ export function mansioSite(stage, f) {
     S.cranes.push({ x: 2.2, z: -1.6, ry: 0.4, h: 8.5, kind: 'treadwheel' });
     S.piles.push({ x: 2.6, z: 2.8, ry: 0.1, good: 'timber', n: 3 }, { x: -2.8, z: 2.4, ry: -0.2, good: 'clay', n: 2 });
   }
+  for (const c of S.cranes) c.work = work;
   S.crew = siteCrew(stage, f);
   return site;
 }
@@ -673,7 +674,7 @@ const KEYS = ['earth', 'trench', 'flags', 'floor', 'core', 'plaster', 'red', 'br
  * userData.when. `stage` 0-2 a site (`f` of the stage done) or 3 finished;
  * `ice` a hard frost (the trough frozen); `sacked`.
  */
-export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false, sacked = false, seed = 741 } = {}) {
+export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false, sacked = false, work = false, seed = 741 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   stage = Math.max(0, Math.min(MANSIO_STAGES, stage | 0));
   f = Math.max(0, Math.min(1, f));
@@ -750,7 +751,7 @@ export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false
     const smoke = [lin(0x8a8580), lin(0x77716a)];
     p.add('smoke', steamMaterial(), SMOKE_AT.map(([x, y, z], i) => plume(x, y, z, { h: 1.8, r: 0.14, n: 3, seed: 70 + i, rows, rgb: smoke[i % 2], alpha: 0.85, lean: [-0.5, 0.4] })), { when: 'open', cast: false });
   }
-  if (!done) addSite(p, siteParts(mansioSite(stage, f), lod));
+  if (!done) addSite(p, mansioSite(stage, f, work), lod);
   return p.build();
 }
 

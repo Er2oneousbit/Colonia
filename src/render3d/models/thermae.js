@@ -72,8 +72,8 @@ import { staff, inscribe } from './castra.js';
 import { roofSlope } from './learning.js';
 import { healthMaterials, steamMaterial, plume, coals } from './healing.js';
 import { statue } from './domus.js';
-import { box, bag, placed, risingWall, groinSkin, barrelSkin, lunetteWall, drumFacets, rubbleHeap, fallenColumn, scorch, addSite } from './civicParts.js';
-import { siteParts } from './worksiteStub.js';
+import { box, bag, placed, risingWall, groinSkin, barrelSkin, lunetteWall, drumFacets, rubbleHeap, fallenColumn, scorch } from './civicParts.js';
+import { addSite } from './worksite.js';
 import { DYES } from '../people/actors.js';
 import { SEAT_H } from '../people/clips.js';
 
@@ -681,7 +681,7 @@ function sackedParts(lod, seed, out) {
  * scaffold heights are from this model's own measures; `y` (where the
  * interface has none) is the springing a centering stands at.
  */
-export function thermaeSite(stage, f) {
+export function thermaeSite(stage, f, work = false) {
   const site = { scaffolds: [], cranes: [], centering: [], piles: [], crew: [] };
   if (stage >= THERMAE_STAGES) return site;
   const S = site;
@@ -720,6 +720,7 @@ export function thermaeSite(stage, f) {
     S.cranes.push({ x: 3.2, z: 7.6, ry: 0.6, h: 5.0, kind: 'shear' });
     S.piles.push({ x: -3.6, z: 2.3, ry: 0.05, good: 'marble', n: 2 }, { x: 3.8, z: -0.2, ry: 0.2, good: 'marble', n: 1 }, { x: -3.6, z: -2.4, ry: -0.2, good: 'stone', n: 1 });
   }
+  for (const c of S.cranes) c.work = work;
   S.crew = siteCrew(stage, f);
   return site;
 }
@@ -829,7 +830,7 @@ const KEYS = ['earth', 'trench', 'flags', 'sand', 'floor', 'core', 'brick', 'pla
  * userData.when. `stage` 0-3 a site (`f` of the stage done) or 4 finished;
  * `ice` a hard frost (the natatio frozen); `sacked`.
  */
-export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = false, sacked = false, seed = 601 } = {}) {
+export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = false, sacked = false, work = false, seed = 601 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   stage = Math.max(0, Math.min(THERMAE_STAGES, stage | 0));
   f = Math.max(0, Math.min(1, f));
@@ -944,7 +945,7 @@ export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = fal
     p.add('steam', steamMaterial(), steam, { when: 'ice', cast: false });
   }
   // The site's dressing (models/worksite.js) in the site's own kit.
-  if (!done) addSite(p, siteParts(thermaeSite(stage, f), lod));
+  if (!done) addSite(p, thermaeSite(stage, f, work), lod);
   return p.build();
 }
 

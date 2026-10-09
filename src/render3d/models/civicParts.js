@@ -6,8 +6,7 @@
  * course while a site is built, the extrados of a groin vault and of a
  * barrel vault (and either only part turned yet), a lunette wall with a
  * thermal window, a polygonal drum, rubble and scorch for a sacked
- * monument, and the bridge to the construction site's dressing
- * (models/worksite.js siteParts).
+ * monument. (The construction site's dressing is models/worksite.js's.)
  *
  * Why rising walls here and not a sunk model: a site sinks nothing, it
  * builds upward; a wall cut at the course reached keeps its openings where
@@ -323,30 +322,4 @@ export function scorch(x, y, z, ry, w, h) {
   if (ry) g.rotateY(ry);
   g.translate(x, y, z);
   return tintGeometry(boxUV(g), (px, py) => 0.6 + 0.4 * Math.min(1, (py - y) / h));
-}
-
-// ---------------------------------------------------------------------------
-// The construction site's dressing (models/worksite.js)
-// ---------------------------------------------------------------------------
-
-/**
- * Add a site's dressing (worksite.js siteParts(site, lod): scaffolds,
- * cranes, centering, piles) to a model's TaggedParts. It may come back as
- * a built model ({ meshes }: each mesh's geometry and material, its
- * userData.when) or as a list of parts ({ name, mat or material, geos or
- * list, when, cast }); either way the parts join the model's own kit, so a
- * site is one look a stage and step, drawn in one kit.
- */
-export function addSite(p, parts) {
-  if (!parts) return p;
-  const list = Array.isArray(parts) ? parts : parts.meshes ? parts.meshes : parts.parts || [];
-  for (const e of list) {
-    if (e.isMesh) {
-      p.add(`site-${e.name || 'part'}`, e.material, [e.geometry.clone().applyMatrix4(e.matrixWorld || e.matrix)], { when: e.userData.when || 'always', cast: e.castShadow !== false });
-      continue;
-    }
-    const geos = e.geos || e.list || e.geometries || [];
-    p.add(`site-${e.name || 'part'}`, e.mat || e.material, geos, { when: e.when || 'always', cast: e.cast !== false });
-  }
-  return p;
 }

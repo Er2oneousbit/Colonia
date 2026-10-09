@@ -62,6 +62,7 @@ import { granaryModel, buildGranaryPart } from './models/granary.js';
 import { CONFIG } from '../config.js';
 import { buildVesselPart } from './ships/hulls.js';
 import { VILLAGE_MODELS, VILLAGE_PARTS } from './models/villages.js';
+import { buildSitePart } from './models/worksite.js';
 import { CIVIC_MODELS } from './models/civicMonuments.js';
 
 /** Metres in a game tile. */
@@ -181,6 +182,8 @@ export const MODEL_PARTS = Object.freeze({
   ...VENUE_PARTS,
   // The villages' huts, yards, fires, oak, plots and flocks (models/villages.js).
   ...VILLAGE_PARTS,
+  // The monuments' building sites: a treadwheel, a load on its hook, the falls of rope (models/worksite.js siteMotion).
+  site: Object.freeze({ build: buildSitePart }),
 });
 
 /** The builder of a kit's key: a building type's (MODELS) or a part's (MODEL_PARTS). */

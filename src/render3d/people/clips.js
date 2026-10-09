@@ -1249,6 +1249,17 @@ export const CLIPS = Object.freeze({
       fingers(P, 1, 0.8);
     },
   },
+
+  // --- The building sites (models/worksite.js): the Haterii relief's treadwheel crane, men walking in its wheel.
+
+  // Walking in place in a treadwheel: the floor moves back under his feet as the wheel turns (the actor's
+  // speed sets the pace, worksite.js TREAD_SPEED), leaning into the climb, his hands on the spokes at his
+  // sides, each sliding back with them through a step and taking a fresh hold ahead.
+  // (Two steps of each foot a loop: a loop a second long or more, as every clip but the walks.)
+  tread: {
+    dur: WALK_DUR * 2, fps: 30,
+    pose(P, t) { treadPose(P, (t * 2) % 1); },
+  },
   // The Great Baths' palaestra (models/thermae.js), after Seneca's noise of the baths (Letters 56) and
   // Martial on the game of trigon: three players at the corners of a triangle throwing a small hard ball
   // to one another, catching with one hand and throwing on with the other's quickness. The ball in the
@@ -1629,6 +1640,28 @@ function walkLegs(P, t, stride = 1, drop = 0, lean = 0) {
     const p = (t + (s > 0 ? 0 : 0.5)) % 1;
     const f = footAt(p, S);
     P.foot(s, s * 0.1, f.y, f.z, f.pitch, s * 0.06);
+  }
+}
+
+/**
+ * A man treading a wheel (tread): the walk's legs in place, the body leaning
+ * forward as up a slope, the hands out to the spokes at his sides (x 0.42),
+ * each carried back with them over half the loop, let go and set ahead again,
+ * the left half a loop after the right, so one hand always holds.
+ */
+function treadPose(P, t) {
+  walkLegs(P, t, 1, 0.01, 0.1);
+  P.rot('spine', 0.12, 0.04 * sn(t, 1, 0.25), 0.02 * sn(t, 1, 0.25));
+  P.rot('neck', 0.08, 0, 0);
+  P.rot('head', -0.1, 0, 0);
+  for (const s of [1, -1]) {
+    const u = (t + (s > 0 ? 0.5 : 0)) % 1;
+    // Back with the spoke (0 to 0.62), then up and forward to a new hold.
+    const z = track(u, [[0, 0.34], [0.62, 0.02], [0.8, 0.22]]);
+    const lift = track(u, [[0, 0], [0.62, 0], [0.72, 0.08], [0.82, 0]]);
+    P.hand(s, s * 0.42, 1.18 + lift, z, { pole: [s * 0.8, -0.6, -0.2] });
+    P.rot(s > 0 ? 'handL' : 'handR', 0.1, 0, s * 1.4);
+    fingers(P, s, track(u, [[0, 0.95], [0.62, 0.95], [0.7, 0.4], [0.82, 0.95]]));
   }
 }
 
