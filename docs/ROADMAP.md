@@ -13,6 +13,19 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.21.0)
+
+* **A living 3D city** (the WebGL renderer): the v0.20 series' models now have life in them. People in every building move, walkers walk the streets dressed and loaded for their work, soldiers, raiders and wolves fight as 3D figures, ships sail and row with their crews, and the entertainers train with their beasts and teams. Highlights of v0.20.21 to v0.20.28:
+  * one procedural Roman figure on a 25-bone rig (faces, hands, hair, the tunic, toga, stola, palla, cloaks, mail), more than 90 motions animated on the graphics card, instanced across the city
+  * every walker type in 3D with its gear, handcarts, ox wagons, mules and chariots; feet never slide and stop when the game pauses
+  * Rome's soldiers and each raiding people from the historical record, horses, the war elephant and wolves on a beast rig
+  * merchantmen, coasters, liburnians, raider ships and fishing boats with rowers, sails to the wind, wakes and wrecks
+  * the temples, oracle and mission post; the troupe, gladiator school, menagerie and chariot stable
+  * smaller woods, walkers that survive a cleared road, one senate per city
+  * frames as fast as the sprites or faster (625 walkers at 1x: 57 ms with sprites, 26 ms in 3D)
+* Headless sim: identical to v0.20.28 on every difficulty
+* 1343 unit tests, 278 browser checks
+
 ## Done (v0.20.28)
 
 * **The entertainers' training buildings in 3D** (under WebGL): the actor troupe's house with a practice stage, masks on pegs, costumes airing and the touring cart, players rehearsing in masks to a piper; the gladiator school's sanded court with cells, armour racks and training posts, a murmillo against a thraex and a retiarius against a secutor while recruits strike the posts; the menagerie's cages with a pacing, roaring lion, a lioness, a leopard and a bear that rises on its hind feet, keepers carrying meat and hay, a cage cart for the arena; the chariot stable's stalls of horses under its faction's board, a team trotting round a turning post and another harnessed with its grooms. When a performer is out at a venue, its gear goes with it (the cart, a gladiator pair, the leopard and its cart, the team). Lab: the Training scene (Shift+T)
