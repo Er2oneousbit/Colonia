@@ -113,7 +113,7 @@ test('houses3d: each level of detail is lighter than the one before; the far one
     // (The lot and the plot are a few boxes at every level.)
     if (/lot|plot/.test(key)) assert.ok(t[2] <= t[0] && t[0] <= 260, `${key}: ${t}`);
     else assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
-    assert.ok(t[2] <= (kind === 'ten' ? 560 : 360), `${key}: ${t[2]} triangles far out`);
+    assert.ok(t[2] <= (kind === 'ten' ? 460 : 320), `${key}: ${t[2]} triangles far out`);
     assert.ok(t[0] < (kind === 'ten' ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
   }
   // Each level is clearly richer than the one below at the middle level of detail (more to see in the facade).

@@ -432,7 +432,8 @@ export function ridgeRoof(bag, { x0, x1, z0, z1, eaveY, rise, along = 'x', over 
     }
   });
   const [ra, rb] = quads.ridge;
-  if (rb - ra > 0.05) {
+  // (Far out the ridge's roll is a few pixels: it costs a quarter of a roof's triangles.)
+  if (rb - ra > 0.05 && lod < 2) {
     bag.add(kind === 'thatch' ? 'thatch' : 'clay', ridgeRoll(along, ra, rb, yr + 0.01, bm, kind === 'thatch' ? 0.17 : 0.1, lod));
   }
   return { ridgeY: yr };
