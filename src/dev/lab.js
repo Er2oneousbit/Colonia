@@ -64,6 +64,8 @@
  * every stage and finished in each state)
  * (the Villages scene, labVillages.js: Shift+N, the native villages in each state, with
  * villages.where(i), villages.piece(i, which, n), villages.setMonth(m), villages.triangles(lod)).
+ * (the Sacred monuments scene, labSacred.js: Shift+G, the Great Sanctuaries, the Pantheon and the
+ * Lighthouse at every stage, with sacred.closeUp(i), sacred.where(i), sacred.items, sacred.triangles(lod)).
  * ----------------------------------------------------------------------------
  */
 
@@ -108,6 +110,7 @@ import { buildGardensScene } from './labGardens.js';
 import { buildVillagesScene } from './labVillages.js';
 import { buildCivicScene } from './labCivic.js';
 import { buildMonumentsScene } from './labMonuments.js';
+import { buildSacredScene } from './labSacred.js';
 import { mapStats } from './texReport.js';
 
 /** Classic's closest zoom (config.js ZOOM_LEVELS' last); WebGL's go on to 6x (ZOOM_LEVELS_3D). */
@@ -368,6 +371,8 @@ async function main() {
   commerce.civic = buildCivicScene();
   // The Monuments scene (labMonuments.js, Shift+W): the work camp, the Hall of Justice by stage, the building site's pieces.
   commerce.monuments = buildMonumentsScene();
+  // The Sacred monuments scene (labSacred.js, Shift+G): the Great Sanctuaries, the Pantheon and the Lighthouse at every stage.
+  commerce.sacred = buildSacredScene();
   for (const s of Object.values(commerce)) {
     s.group.visible = false;
     scene.add(s.group);
@@ -793,6 +798,11 @@ async function main() {
       setScene('training');
       return;
     }
+    // Shift+G: the Sacred monuments scene (G alone is the game's zoom).
+    if (e.shiftKey && k === 'g') {
+      setScene('sacred');
+      return;
+    }
     // Shift+E: the Venues scene (E alone turns the view).
     if (e.shiftKey && k === 'e') {
       setScene('venues');
@@ -853,7 +863,7 @@ async function main() {
   /** The People scene's close-up: the orbit camera on figure i (-1: back to the game's view). */
   function closeUp(i, { az = 25, el = 10, dist = 2.4, ty = 1.15 } = {}) {
     // (The People scene's figures, or the Walkers scene's loops when it is the one shown.)
-    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : state.scene === 'army' ? commerce.army : state.scene === 'venues' ? commerce.venues : state.scene === 'civic' ? commerce.civic : state.scene === 'monuments' ? commerce.monuments : commerce.people).figures[i];
+    const f = (state.scene === 'walkers' ? commerce.walkers : state.scene === 'ships' ? commerce.ships : state.scene === 'army' ? commerce.army : state.scene === 'venues' ? commerce.venues : state.scene === 'civic' ? commerce.civic : state.scene === 'monuments' ? commerce.monuments : state.scene === 'sacred' ? commerce.sacred : commerce.people).figures[i];
     if (!f) {
       setView('game1');
       return;
@@ -1099,6 +1109,15 @@ async function main() {
       get ships() { return commerce.ships.ships.map((s) => ({ ...s })); },
       where: (i) => commerce.ships.where(i),
       stats: () => commerce.ships.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Sacred monuments scene (labSacred.js): a monument close up, where each is, the monuments, triangles, the level of detail. */
+    sacred: {
+      closeUp: (i, o) => closeUp(i, o),
+      where: (i) => commerce.sacred.where(i),
+      get items() { return commerce.sacred.items; },
+      triangles: (l) => commerce.sacred.triangles(l),
+      stats: () => commerce.sacred.stats(),
       setLod: (n) => setFountainLod(n),
     },
     /** The Villages scene (labVillages.js): a village's place, its pieces, the month, the level of detail. */

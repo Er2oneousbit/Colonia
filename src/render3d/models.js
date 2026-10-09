@@ -65,6 +65,7 @@ import { VILLAGE_MODELS, VILLAGE_PARTS } from './models/villages.js';
 import { buildSitePart } from './models/worksite.js';
 import { CIVIC_MODELS } from './models/civicMonuments.js';
 import { MONUMENT_MODELS } from './models/monumentModels.js';
+import { SACRED_MODELS, SACRED_PARTS } from './models/sacredMonuments.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -167,6 +168,8 @@ export const MODELS = Object.freeze({
   ...CIVIC_MODELS,
   // The work camp and the Hall of Justice, built in stages (models/monumentModels.js says how).
   ...MONUMENT_MODELS,
+  // The Great Sanctuaries, the Pantheon and the Lighthouse at every stage (models/sacredMonuments.js says how).
+  ...SACRED_MODELS,
 });
 
 /**
@@ -185,6 +188,8 @@ export const MODEL_PARTS = Object.freeze({
   ...VENUE_PARTS,
   // The villages' huts, yards, fires, oak, plots and flocks (models/villages.js).
   ...VILLAGE_PARTS,
+  // The sanctuaries' temple body, gods' kits, columns, sites and rubble (models/sacredMonuments.js).
+  ...SACRED_PARTS,
   // The monuments' building sites: a treadwheel, a load on its hook, the falls of rope (models/worksite.js siteMotion).
   site: Object.freeze({ build: buildSitePart }),
 });

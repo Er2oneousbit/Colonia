@@ -15,9 +15,18 @@ Alongside: the sim fuzzer and the save corpus, so all of this lands without brea
 
 ## Done (v0.21.2)
 
+* **The monuments in 3D** (under WebGL), every one at every construction stage, finished, halted and sacked:
+  * **Building sites** shared by all: putlog scaffolding, the Haterii relief's treadwheel crane with men walking in the wheel, shear legs, timber centering under arches and domes, stacks of the goods delivered, mortar pits, masons and carriers at work; a halted site stands still.
+  * **The work camp**: masons' and carpenters' sheds, goatskin tents, the clerk's plans and groma, the kitchen, ox wagons.
+  * **The Hall of Justice**: a basilica after the Aemilia, the Julia and Pompeii's, nave and aisles on columns, a clerestory and the magistrate's tribunal.
+  * **The Great Sanctuaries**: terraces after Praeneste climbing to each god's temple, with the god's own grove, spring, stalls, trophies or roses, priests and processions.
+  * **The Pantheon**: Hadrian's, sixteen granite columns, Agrippa's inscription, the brick drum and the gilt dome with its oculus.
+  * **The Lighthouse**: tiers on arches over the water, its blaze before a bronze mirror at night and smoking by day, dark without timber.
+  * Labs: Shift+W (sites, camp, basilica), Shift+G (sanctuaries, Pantheon, lighthouse).
+* Fixed the cause of a browser check that failed now and then: the prefect douse check let the game run at top speed after the fire started, so a prefect next door could put it out before the check looked.
 * **The Great Baths and the Caravanserai in 3D** (under WebGL), at every construction stage and finished: the baths after Caracalla's, Diocletian's and Pompeii's Stabian Baths, an open-air pool before a columned front, the cold hall under three cross vaults, a sixteen-sided domed hot room, colonnaded exercise courts, furnaces, a woodstore and a cistern behind, swimmers, ball players and an oil seller, steam and furnace smoke while heated, dark and cold without timber, empty without water; the caravanserai a two-storey inn round a court with a wagon gate cut MANSIO, stables of mules and horses, a tavern under a vine, a well and a small bath, an ox wagon unloading and a mule train coming in. Their sites rise on the shared building-site pieces: scaffolding, treadwheel cranes turned by their crews, timber centering under the vaults, stacked materials. Lab: the Civic monuments scene (Shift+H)
 * Headless sim: identical to v0.21.1 (nothing under src/sim changed)
-* 1377 unit tests, 284 browser checks
+* 1389 unit tests, 288 browser checks
 
 ## Done (v0.21.1)
 

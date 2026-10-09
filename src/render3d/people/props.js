@@ -34,6 +34,8 @@
  *   shears    a gardener's spring shears
  *   sweep     a ship's long oar (clips.js ROW_SHIP), rocked about its thole
  *             by clips.js rowShip
+ *   logs      split firewood bound in a bundle, carried on the shoulder as a
+ *             sack is (clips.js carry): the lighthouse keepers' load
  * ----------------------------------------------------------------------------
  */
 
@@ -392,6 +394,13 @@ const PROPS = {
     lathe(m, [-0.12, 0, 0], [1, 0, 0], [[0.04, 0], [0.05, 0.03], [0.05, 0.07], [0.02, 0.09], [0.016, 0.12], [0.016, 0.12]], seg, SLOTS.IRON, b, { tone: () => 0.7 });
     lathe(m, [0.12, 0, 0], [-1, 0, 0], [[0.04, 0], [0.05, 0.03], [0.05, 0.07], [0.02, 0.09], [0.016, 0.12], [0.016, 0.12]], seg, SLOTS.IRON, b, { tone: () => 0.7 });
   },
+};
+
+// (Appended for the monuments: models/pharus.js's keepers carrying wood to the fire.)
+PROPS.logs = (m, lod, b) => {
+  // Three split logs along the shoulder's line (z), where carry holds a sack; one far out.
+  const logs = lod === 2 ? [[0, 0.03]] : [[0, 0.08], [0.065, 0.0], [-0.065, 0.0]];
+  for (const [x, y] of logs) lathe(m, [x, y, -0.42], [0, 0, 1], [[0.048, 0], [0.052, 0.84]], Math.max(5, SEG[lod] - 2), SLOTS.WOOD, b, { tone: () => 0.78 });
 };
 
 export const PROP_NAMES = Object.freeze(Object.keys(PROPS));
