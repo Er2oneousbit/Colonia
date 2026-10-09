@@ -5372,6 +5372,66 @@ try {
         await gv.close();
       }
 
+      // 8a8. monuments-civic: the Great Baths in 3D (render3d/models/civicMonuments.js): the console's
+      //      `monument thermae` lays a site beside the demo city; paused, it draws as a model (its
+      //      stage's kit, waited for: kits are built a few a frame under the software GL); finished
+      //      and staffed it draws as the finished baths, and a click on its footprint opens its panel.
+      {
+        const gc = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const cerrs = [];
+        gc.on('pageerror', (e) => cerrs.push(`pageerror: ${e.message}`));
+        gc.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) cerrs.push(m.text()); });
+        await gc.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gc.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const laid = await gc.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const free = app.game.cheats.freeBuild;
+          app.game.cheats.freeBuild = true;
+          const said = app.ui.console.run('monument thermae');
+          app.game.cheats.freeBuild = free;
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const b = [...app.game.buildings.values()].find((v) => v.type === 'thermae');
+          if (!b) return { said };
+          app.renderer.camera.zoomIndex = 4;
+          app.renderer.camera.centerOnTile(b.x + b.size / 2, b.y + b.size / 2);
+          return { said, id: b.id, x: b.x, y: b.y, size: b.size };
+        });
+        const drawnNow = () => gc.waitForFunction(() => {
+          const r = window.colonia.renderer;
+          const mp = r.stats.modelPass || {};
+          return ((mp.byType || {}).thermae || 0) >= 1 && !mp.deferred && !r.stats.pending;
+        }, null, { timeout: 60000, polling: 100 }).then(() => true, () => false);
+        const site = laid.id ? await drawnNow() : false;
+        let done = false;
+        let picked = false;
+        if (site) {
+          await gc.evaluate(() => {
+            const app = window.colonia;
+            app.ui.console.run('monument thermae done');
+            const b = [...app.game.buildings.values()].find((v) => v.type === 'thermae');
+            b.efficiency = 1;
+            b.hasWater = true;
+          });
+          done = await drawnNow();
+          const p = await gc.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [laid.x + laid.size / 2, laid.y + laid.size / 2]);
+          await gc.mouse.click(p.x, p.y);
+          picked = await gc.waitForFunction((id) => window.colonia.ui.info.target?.id === id, laid.id, { timeout: 5000, polling: 50 }).then(() => true, () => false);
+        }
+        if (shots) await gc.screenshot({ path: path.join(shots, 'smoke-webgl-monuments-civic.png') });
+        check('monuments-civic: the Great Baths draw as a 3D model as a site and finished, and a click on the footprint picks them',
+          site && done && picked, JSON.stringify({ laid, site, done, picked }));
+        check('monuments-civic: no page errors', cerrs.length === 0, cerrs.join(' | '));
+        await gc.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks

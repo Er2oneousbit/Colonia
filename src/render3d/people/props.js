@@ -381,6 +381,17 @@ const PROPS = {
       });
     }
   },
+  ball(m, lod, b) {
+    // The trigon's ball (clips.js trigon): small and hard, leather sewn over a stuffing, in the hand's grip.
+    const seg = SEG[lod];
+    lathe(m, [0, -0.04, 0], [0, 1, 0], [[0.02, 0], [0.036, 0.012], [0.042, 0.04], [0.036, 0.068], [0.02, 0.08]], seg, SLOTS.LEATHER, b, { tone: () => 1.15 });
+  },
+  halter(m, lod, b) {
+    // A lead weight (halter, Greek halteres) held across the grip: a short bar with a heavy end either side (clips.js halteres).
+    const seg = Math.max(4, SEG[lod] - 2);
+    lathe(m, [-0.12, 0, 0], [1, 0, 0], [[0.04, 0], [0.05, 0.03], [0.05, 0.07], [0.02, 0.09], [0.016, 0.12], [0.016, 0.12]], seg, SLOTS.IRON, b, { tone: () => 0.7 });
+    lathe(m, [0.12, 0, 0], [-1, 0, 0], [[0.04, 0], [0.05, 0.03], [0.05, 0.07], [0.02, 0.09], [0.016, 0.12], [0.016, 0.12]], seg, SLOTS.IRON, b, { tone: () => 0.7 });
+  },
 };
 
 export const PROP_NAMES = Object.freeze(Object.keys(PROPS));

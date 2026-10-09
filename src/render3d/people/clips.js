@@ -1249,6 +1249,89 @@ export const CLIPS = Object.freeze({
       fingers(P, 1, 0.8);
     },
   },
+
+  // --- The building sites (models/worksite.js): the Haterii relief's treadwheel crane, men walking in its wheel.
+
+  // Walking in place in a treadwheel: the floor moves back under his feet as the wheel turns (the actor's
+  // speed sets the pace, worksite.js TREAD_SPEED), leaning into the climb, his hands on the spokes at his
+  // sides, each sliding back with them through a step and taking a fresh hold ahead.
+  // (Two steps of each foot a loop: a loop a second long or more, as every clip but the walks.)
+  tread: {
+    dur: WALK_DUR * 2, fps: 30,
+    pose(P, t) { treadPose(P, (t * 2) % 1); },
+  },
+  // The Great Baths' palaestra (models/thermae.js), after Seneca's noise of the baths (Letters 56) and
+  // Martial on the game of trigon: three players at the corners of a triangle throwing a small hard ball
+  // to one another, catching with one hand and throwing on with the other's quickness. The ball in the
+  // right hand (prop 'ball'): drawn back, thrown up and across, the arm following through, both hands up
+  // to take the next one.
+  trigon: {
+    dur: 2.4, fps: 20,
+    pose(P, t) {
+      stand(P, t, { shift: 0.5, ph: 0.2, look: 0.15, lean: 0.03, feet: 0.13 });
+      const ready = [-0.2, 1.22, 0.3];
+      const r = track(t, [[0, ready], [0.18, [-0.3, 1.0, -0.14]], [0.32, [-0.14, 1.66, 0.44]], [0.44, [-0.04, 1.12, 0.46]], [0.66, [-0.16, 1.5, 0.4]], [0.86, ready]]);
+      const twist = track(t, [[0, 0], [0.18, -0.35], [0.32, 0.25], [0.44, 0.3], [0.66, 0], [0.86, 0]]);
+      P.rot('spine', 0, twist * 0.4, 0);
+      P.rot('chest', 0, twist * 0.5, 0);
+      P.prop(-1, r[0], r[1] + 0.03, r[2] + 0.04);
+      P.hand(-1, ...r, { pole: [-0.8, -0.4, -0.4] });
+      P.rot('handR', 0.4, 0, -0.6);
+      fingers(P, -1, 0.7);
+      const l = track(t, [[0, [0.24, 1.2, 0.26]], [0.18, [0.3, 1.36, 0.34]], [0.32, [0.26, 1.1, 0.12]], [0.66, [0.16, 1.48, 0.4]], [0.86, [0.24, 1.2, 0.26]]]);
+      P.hand(1, ...l, { pole: [0.8, -0.4, -0.4] });
+      P.rot('handL', 0.2, 0, 0.6);
+      fingers(P, 1, 0.25);
+      P.rot('neck', -0.12, -twist * 0.3, 0);
+    },
+  },
+  // Exercising with lead weights (halteres) in both hands, as Seneca's grunting weightlifter: from the
+  // shoulders pressed up overhead, held, lowered, a breath; the knees giving a little with each press.
+  halteres: {
+    dur: 3.2, fps: 20,
+    pose(P, t) {
+      const up = track(t, [[0, 0], [0.3, 1], [0.45, 1], [0.75, 0]]);
+      P.root(0, -0.03 - 0.03 * (1 - up), 0, 0.02, 0, 0);
+      P.rot('spine', 0.02 - 0.06 * up, 0, 0);
+      for (const s of [1, -1]) {
+        P.foot(s, s * 0.16, 0.085, 0.02, 0, s * 0.15);
+        const at = [s * (0.22 - 0.04 * up), 1.42 + 0.56 * up, 0.12 - 0.04 * up];
+        P.prop(s, at[0], at[1] + 0.02, at[2] + 0.02, 0, 0, Math.PI / 2);
+        P.hand(s, ...at, { pole: [s * 0.9, -0.5, -0.2] });
+        P.rot(s > 0 ? 'handL' : 'handR', -0.6, 0, s * 0.3);
+        fingers(P, s, 0.9);
+      }
+      P.rot('neck', -0.08 * up, 0, 0);
+    },
+  },
+  // Swimming the breaststroke in a bath's pool (on a route: the length of the natatio and back), face
+  // down at the water's surface, the head held up: the hands shot forward together, swept out and back to
+  // the chest, the legs drawn up and kicked out. The actor's place is the pool's floor (its feet's level
+  // standing): the body lies some 0.75 m over it, the water at its shoulders.
+  swim: {
+    dur: 1.8, fps: 24,
+    pose(P, t) {
+      const glide = track(t, [[0, 1], [0.3, 0.4], [0.55, 0], [0.8, 1]]);
+      P.root(0, 0.74 - 0.95 + 0.02 * sn(t, 1), 0.1, Math.PI / 2 - 0.28 - 0.06 * glide, 0, 0);
+      P.rot('neck', -0.55, 0, 0);
+      P.rot('head', -0.35, 0, 0);
+      const fwd = [0.12, 0.86, 1.3];
+      const out = [0.5, 0.82, 0.92];
+      const pull = [0.16, 0.74, 0.62];
+      for (const s of [1, -1]) {
+        const k = s > 0 ? 'L' : 'R';
+        const h = track(t, [[0, fwd], [0.25, out], [0.45, pull], [0.62, [0.08, 0.8, 0.82]], [0.8, fwd]]);
+        P.hand(s, s * h[0], h[1], h[2], { pole: [s * 0.9, -0.2, 0.1] });
+        P.rot(`hand${k}`, -0.4, 0, s * 0.8);
+        fingers(P, s, 0.15);
+        // The frog kick: drawn up and out, then whipped straight and together.
+        const draw = track(t, [[0, 0], [0.4, 0], [0.6, 1], [0.72, 0], [0.9, 0]]);
+        P.rot(`thigh${k}`, -0.15 - 0.55 * draw, 0, s * (0.06 + 0.35 * draw));
+        P.rot(`shin${k}`, 0.15 + 1.5 * draw, 0, 0);
+        P.rot(`foot${k}`, 0.9 - 0.6 * draw, s * 0.4 * draw, 0);
+      }
+    },
+  },
 });
 
 /**
@@ -1557,6 +1640,28 @@ function walkLegs(P, t, stride = 1, drop = 0, lean = 0) {
     const p = (t + (s > 0 ? 0 : 0.5)) % 1;
     const f = footAt(p, S);
     P.foot(s, s * 0.1, f.y, f.z, f.pitch, s * 0.06);
+  }
+}
+
+/**
+ * A man treading a wheel (tread): the walk's legs in place, the body leaning
+ * forward as up a slope, the hands out to the spokes at his sides (x 0.42),
+ * each carried back with them over half the loop, let go and set ahead again,
+ * the left half a loop after the right, so one hand always holds.
+ */
+function treadPose(P, t) {
+  walkLegs(P, t, 1, 0.01, 0.1);
+  P.rot('spine', 0.12, 0.04 * sn(t, 1, 0.25), 0.02 * sn(t, 1, 0.25));
+  P.rot('neck', 0.08, 0, 0);
+  P.rot('head', -0.1, 0, 0);
+  for (const s of [1, -1]) {
+    const u = (t + (s > 0 ? 0.5 : 0)) % 1;
+    // Back with the spoke (0 to 0.62), then up and forward to a new hold.
+    const z = track(u, [[0, 0.34], [0.62, 0.02], [0.8, 0.22]]);
+    const lift = track(u, [[0, 0], [0.62, 0], [0.72, 0.08], [0.82, 0]]);
+    P.hand(s, s * 0.42, 1.18 + lift, z, { pole: [s * 0.8, -0.6, -0.2] });
+    P.rot(s > 0 ? 'handL' : 'handR', 0.1, 0, s * 1.4);
+    fingers(P, s, track(u, [[0, 0.95], [0.62, 0.95], [0.7, 0.4], [0.82, 0.95]]));
   }
 }
 

@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.21.2)
+
+* **The Great Baths and the Caravanserai in 3D** (under WebGL), at every construction stage and finished: the baths after Caracalla's, Diocletian's and Pompeii's Stabian Baths, an open-air pool before a columned front, the cold hall under three cross vaults, a sixteen-sided domed hot room, colonnaded exercise courts, furnaces, a woodstore and a cistern behind, swimmers, ball players and an oil seller, steam and furnace smoke while heated, dark and cold without timber, empty without water; the caravanserai a two-storey inn round a court with a wagon gate cut MANSIO, stables of mules and horses, a tavern under a vine, a well and a small bath, an ox wagon unloading and a mule train coming in. Their sites rise on the shared building-site pieces: scaffolding, treadwheel cranes turned by their crews, timber centering under the vaults, stacked materials. Lab: the Civic monuments scene (Shift+H)
+* Headless sim: identical to v0.21.1 (nothing under src/sim changed)
+* 1377 unit tests, 284 browser checks
+
 ## Done (v0.21.1)
 
 * **The venues in 3D** (under WebGL): the theater after Pompeii's, its curved seats, marble orchestra, a two-storey stage wall of coloured columns and an awning, masked actors and a piper during a play; the amphitheater after Pompeii's, sand inside a painted podium, outside stairs and the editor's box, gladiators fighting under a referee; the Great Arena as the Colosseum in miniature, three storeys of arches in the three orders, the governor's box, two bouts and a lion hunt; the hippodrome after the Circus Maximus, its spina with the obelisk, eggs and dolphins that count the laps, starting gates, and four quadrigas in the factions' colours racing round it. Crowds fill the seats as the city fills them, citizens in white at the front. Lab: the Venues scene (Shift+E)
