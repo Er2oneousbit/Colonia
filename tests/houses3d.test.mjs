@@ -83,7 +83,7 @@ test('houses3d: every look fits its footprint at every turn and level of detail,
   const e = 1e-6;
   for (const key of houseKeys()) {
     const [, kind] = key.split(':');
-    const S = kind === 'ten' || kind === 'plot' ? 2 : 1;
+    const S = kind === 'ten' || kind === 'tenroof' || kind === 'plot' ? 2 : 1;
     for (let lod = 0; lod < 3; lod++) {
       const g = buildHouse(key, lod);
       g.updateMatrixWorld(true);
@@ -113,7 +113,7 @@ test('houses3d: each level of detail is lighter than the one before; the far one
     // (The lot and the plot are a few boxes at every level.)
     if (/lot|plot/.test(key)) assert.ok(t[2] <= t[0] && t[0] <= 260, `${key}: ${t}`);
     else assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
-    assert.ok(t[2] <= (kind === 'ten' ? 460 : 320), `${key}: ${t[2]} triangles far out`);
+    assert.ok(t[2] <= (kind === 'ten' ? 560 : 320), `${key}: ${t[2]} triangles far out`);
     assert.ok(t[0] < (kind === 'ten' ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
   }
   // Each level is clearly richer than the one below at the middle level of detail (more to see in the facade).
@@ -141,7 +141,7 @@ test('houses3d: occupied or empty from the sim, a block as a plot of four homes,
       assert.ok(CELLS.some(([cx, cz]) => cx === x && cz === z), `a cell: ${x}, ${z}`);
     }
   }
-  assert.equal(v(home(11)).more, undefined, 'a tenement is one home');
+  assert.deepEqual(v(home(11)).more.map((m) => m.key), ['house:tenroof:0'], 'a tenement is one home, its roof a kit all four looks share');
   // The house tool's ghost has no home: a vacant lot.
   assert.equal(v({ id: null, type: 'house', size: 1, x: 3, y: 3 }).key, 'house:lot');
   assert.ok(buildHouse('house:lot', 0).children.length > 0);

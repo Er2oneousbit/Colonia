@@ -21,23 +21,23 @@
  * ----------------------------------------------------------------------------
  */
 
-import { box, cyl } from './castra.js';
+import { cyl } from './castra.js';
 import { lin } from './rural.js';
 import { pot } from './healing.js';
 import {
-  Bag, WASH, WOODS, CLOTH, shell, windowTrim, doorLeaf, ridgeRoof, pentRoof, fig, slabBox, tri,
+  Bag, box, WASH, WOODS, CLOTH, shell, windowTrim, doorLeaf, ridgeRoof, pentRoof, fig, slabBox, tri,
 } from './houseKit.js';
 
 /** The hut's measures (metres): the tests, the lab and the people read them. */
 export const HUT = Object.freeze({
-  x0: -1.3, x1: 1.3, z0: -1.3, z1: 0.7, h: 1.75, door: Object.freeze({ w: 0.8, h: 1.55 }),
+  x0: -1.5, x1: 1.5, z0: -1.3, z1: 0.7, h: 2.2, door: Object.freeze({ w: 0.8, h: 1.55 }),
   /** A door's middle (x) by variant. */
   doorX: Object.freeze([-0.55, 0.5, 0, -0.45]),
 });
 
 /** The cottage's measures. */
 export const COTTAGE = Object.freeze({
-  x0: -1.45, x1: 1.45, z0: -1.65, z1: 0.65, h: 2.35, door: Object.freeze({ w: 0.85, h: 1.8 }),
+  x0: -1.6, x1: 1.6, z0: -1.65, z1: 0.65, h: 3.0, door: Object.freeze({ w: 0.85, h: 1.8 }),
   doorX: Object.freeze([0.5, -0.45, 0.35, -0.5]),
   /** The yard's front wall (z), and the gate in it (x). */
   yardZ: 1.9, gateX: Object.freeze([0, 0.9, -0.9, 0.5]),
@@ -91,16 +91,16 @@ export function buildHut(v = 0, lod = 0) {
   const f = L.roof;
   const ridge = (kind, o) => ridgeRoof(bag, { x0, x1, z0, z1, eaveY: h, kind, fill: wash.map((c) => c * 0.95), ...o });
   let ridgeY;
-  if (f === 'thatch-gable') ridgeY = ridge('thatch', { along: 'x', rise: 0.95, over: 0.3 }).ridgeY;
-  else if (f === 'thatch-hip') ridgeY = ridge('thatch', { along: 'x', rise: 0.9, over: 0.3, hip: true }).ridgeY;
-  else if (f === 'tile-gable-z') ridgeY = ridge('tile', { along: 'z', rise: 0.78, over: 0.28 }).ridgeY;
+  if (f === 'thatch-gable') ridgeY = ridge('thatch', { along: 'x', rise: 0.8, over: 0.3 }).ridgeY;
+  else if (f === 'thatch-hip') ridgeY = ridge('thatch', { along: 'x', rise: 0.75, over: 0.3, hip: true }).ridgeY;
+  else if (f === 'tile-gable-z') ridgeY = ridge('tile', { along: 'z', rise: 0.62, over: 0.28 }).ridgeY;
   else {
     // A lean-to of crude tiles, high at the back, falling to the street.
-    pentRoof(bag, { x0, x1, zHigh: z0 - 0.1, zLow: z1 + 0.05, yHigh: h + 0.75, yLow: h + 0.05, over: 0.3 });
+    pentRoof(bag, { x0, x1, zHigh: z0 - 0.1, zLow: z1 + 0.05, yHigh: h + 0.6, yLow: h + 0.05, over: 0.3 });
     // (The back wall and the side walls rise to meet its slope: a strip and two wedges of wall.)
-    bag.add('plaster', box(x1 - x0, 0.72, 0.3, 0, h, z0 + 0.15, wash.map((c) => c * 0.97)));
-    for (const s of [-1, 1]) bag.add('plaster', tri([s * x1, h, z1], [s * x1, h, z0], [s * x1, h + 0.72, z0], [s, 0, 0], wash));
-    ridgeY = h + 0.75;
+    bag.add('plaster', box(x1 - x0, 0.57, 0.3, 0, h, z0 + 0.15, wash.map((c) => c * 0.97)));
+    for (const s of [-1, 1]) bag.add('plaster', tri([s * x1, h, z1], [s * x1, h, z0], [s * x1, h + 0.57, z0], [s, 0, 0], wash));
+    ridgeY = h + 0.6;
   }
   // The clay pot on the ridge, its neck cut: the smoke of the hearth leaves there.
   const sx = f === 'tile-gable-z' ? 0 : 0.5;
@@ -178,9 +178,9 @@ export function buildCottage(v = 0, lod = 0) {
   // The roof.
   const over = L.roof === 'hip' ? 0.3 : 0.28;
   const roof = { x0, x1, z0, z1, eaveY: h, over, fill: wash.map((c) => c * 0.96) };
-  if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.82 });
-  else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.8, over: 0.2 });
-  else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.8, hip: true });
+  if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.7 });
+  else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.68, over: 0.2 });
+  else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.65, hip: true });
   // The yard's low walls: plastered, capped with tile, with a gate.
   const wallC = lin(WASH.lime, 0.95);
   const yz = COTTAGE.yardZ;

@@ -30,13 +30,14 @@
  * ----------------------------------------------------------------------------
  */
 
-import { box, cyl } from './castra.js';
+import { cyl } from './castra.js';
 import { lin } from './rural.js';
 import { pot } from './healing.js';
 import { artRng } from '../texgen.js';
 import { roofSlope } from './learning.js';
+import { merge } from '../shapes.js';
 import {
-  Bag, WASH, BRICK, WOODS, CLOTH, shell, wall, windowTrim, doorLeaf, doorFrame, balcony, awning, ridgeRoof, slabBox,
+  Bag, box, WASH, BRICK, WOODS, CLOTH, shell, wall, windowTrim, doorLeaf, doorFrame, balcony, awning, ridgeRoof, slabBox,
 } from './houseKit.js';
 
 /** Mirror a look left to right on odd variants: the stair door and the shop swap sides. */
@@ -44,9 +45,9 @@ const RIGHT = [1, -1, 1, -1];
 
 /** The townhouse's measures (metres): the tests, the lab and the people read them. */
 export const TOWNHOUSE = Object.freeze({
-  x0: -1.6, x1: 1.6, z0: -1.62, z1: 1.35, lower: 2.9, upper: 2.6, floorY: 0.06,
+  x0: -1.72, x1: 1.72, z0: -1.62, z1: 1.35, lower: 2.6, upper: 1.9, floorY: 0.06,
   /** The shop's mouth: x of its middle (mirrored by RIGHT), width, height. */
-  mouth: Object.freeze({ x: -0.35, w: 2.0, h: 2.35 }),
+  mouth: Object.freeze({ x: -0.35, w: 2.0, h: 2.1 }),
   /** The counter's middle (z) and the shopkeeper's place behind it. */
   counterZ: 0.73,
   stair: 1.1,
@@ -54,21 +55,21 @@ export const TOWNHOUSE = Object.freeze({
 
 /** The apartment house's measures. */
 export const APARTMENT = Object.freeze({
-  x0: -1.65, x1: 1.65, z0: -1.68, z1: 1.5, floors: Object.freeze([3.0, 2.7, 2.6]), floorY: 0.06,
-  mouth: Object.freeze({ x: -0.5, w: 1.9, h: 2.4 }),
+  x0: -1.72, x1: 1.72, z0: -1.68, z1: 1.5, floors: Object.freeze([2.4, 1.9, 1.7]), floorY: 0.06,
+  mouth: Object.freeze({ x: -0.5, w: 1.9, h: 2.1 }),
   counterZ: 0.92,
   stair: 1.2,
 });
 
 /** The tenement's measures (an 8 m footprint). */
 export const TENEMENT = Object.freeze({
-  half: 3.62, court: 1.5, floors: Object.freeze([3.0, 2.8, 2.7, 2.6]), floorY: 0.06,
+  half: 3.62, court: 1.5, floors: Object.freeze([2.0, 1.6, 1.6, 1.6]), upperH: 1.6, floorY: 0.06,
   /** The street front's shops: x of each middle, width; and the stair door's x. */
   shops: Object.freeze([[-2.25, 1.5], [-0.55, 1.5], [1.15, 1.5]]),
   stair: 2.75,
   counterZ: 3.1,
   /** The court's rim and how much higher the roof's inner edge stands than the eaves. */
-  rise: 0.9,
+  rise: 0.3,
 });
 
 const OAK = lin(WOODS.oak);
@@ -149,9 +150,9 @@ function sign(bag, put, x, y, c) {
 }
 
 /** A string course of stucco: a band across a wall at y, `w` wide (x from the frame's origin), a little proud. */
-function band(bag, put, x, w, y, h = 0.16) {
+function band(bag, put, x, w, y, h = 0.08) {
   if (bag.lod === 2) return;
-  bag.add('plaster', put(box(w, h, 0.1, x, y, 0.0, lin(WASH.white, 0.97))));
+  bag.add('plaster', put(box(w, h, 0.06, x, y, 0.0, lin(WASH.white, 0.97))));
 }
 
 // ---------------------------------------------------------------------------
@@ -159,10 +160,10 @@ function band(bag, put, x, w, y, h = 0.16) {
 // ---------------------------------------------------------------------------
 
 const TOWN_LOOKS = [
-  { lower: 'brick', lowerC: BRICK.red, upper: WASH.ochre, roof: 'gable-x', shut: WOODS.olive, balcony: true, ware: 'amph', extra: 'sign', shutters: 'open' },
+  { lower: 'plaster', lowerC: WASH.lime, upper: WASH.ochre, roof: 'gable-x', shut: WOODS.olive, balcony: true, ware: 'amph', extra: 'sign', shutters: 'open' },
   { lower: 'plaster', lowerC: WASH.red, upper: WASH.white, roof: 'hip', shut: WOODS.oak, balcony: false, ware: 'fruit', extra: 'awning', shutters: 'closed' },
-  { lower: 'plaster', lowerC: WASH.cream, upper: WASH.red, roof: 'gable-z', shut: WOODS.brown, balcony: true, ware: 'cloth', extra: 'laundry', shutters: 'open' },
-  { lower: 'brick', lowerC: BRICK.yellow, upper: BRICK.grey, roof: 'gable-x', shut: WOODS.olive, balcony: false, ware: 'bread', extra: 'chimney', shutters: 'open', upperKey: 'brick' },
+  { lower: 'plaster', lowerC: WASH.cream, upper: WASH.pink, roof: 'gable-z', shut: WOODS.brown, balcony: true, ware: 'cloth', extra: 'laundry', shutters: 'open' },
+  { lower: 'brick', lowerC: BRICK.yellow, upper: WASH.lime, roof: 'gable-x', shut: WOODS.olive, balcony: false, ware: 'bread', extra: 'chimney', shutters: 'open' },
 ];
 
 /** A townhouse, its look `v` (0 to 3), at a level of detail. */
@@ -181,24 +182,24 @@ export function buildTownhouse(v = 0, lod = 0) {
   const low = shell(bag, {
     x0, x1, z0, z1, h: lower, t: 0.3, c: lin(L.lowerC), k: 0.97, key: L.lower,
     openings: {
-      '+z': [{ x: mx, y: 0, w: mouth.w, h: mouth.h }, { x: sx, y: 0, w: 0.85, h: 2.05 }],
+      '+z': [{ x: mx, y: 0, w: mouth.w, h: mouth.h }, { x: sx, y: 0, w: 0.85, h: 1.9 }],
       '+x': [{ x: 0.3, y: 1.3, w: 0.5, h: 0.6 }],
       '-x': [{ x: -0.3, y: 1.3, w: 0.5, h: 0.6 }],
     },
   });
   const front = low['+z'];
   doorFrame(bag, front, { x: mx, w: mouth.w, h: mouth.h });
-  doorFrame(bag, front, { x: sx, w: 0.85, h: 2.05 });
-  doorLeaf(bag, front, { x: sx, w: 0.85, h: 2.05, col: lin(WOODS.oak, 0.9), open: true });
+  doorFrame(bag, front, { x: sx, w: 0.85, h: 1.9 });
+  doorLeaf(bag, front, { x: sx, w: 0.85, h: 1.9, col: lin(WOODS.oak, 0.9), open: true });
   boards(bag, front, mx, mouth.w, mouth.h);
   counter(bag, front, mx, mouth.w, TOWNHOUSE.counterZ - z1, L.ware, floorY);
   // The living rooms: windows (or a balcony's door and a window) with their shutters.
   const wins = L.balcony
-    ? [{ x: mx, y: 0.05, w: 0.85, h: 1.95, door: true }, { x: sx, y: 0.5, w: 0.7, h: 1.05 }]
-    : [-0.95, 0.15, 1.15].map((x) => ({ x: x * sg, y: 0.5, w: 0.62, h: 1.05 }));
+    ? [{ x: mx, y: 0.05, w: 0.85, h: 1.6, door: true }, { x: sx, y: 0.4, w: 0.58, h: 0.9 }]
+    : [-0.95, 0.15, 1.15].map((x) => ({ x: x * sg, y: 0.4, w: 0.54, h: 0.9 }));
   const up = shell(bag, {
     x0, x1, z0, z1, y0: lower, h: upper, t: 0.3, c: lin(L.upper), k: 0.97, key: L.upperKey || 'plaster',
-    openings: { '+z': wins, '+x': [{ x: 0.1, y: 0.5, w: 0.55, h: 1.0 }], '-x': [{ x: -0.1, y: 0.5, w: 0.55, h: 1.0 }], '-z': [{ x: 0.5, y: 0.5, w: 0.55, h: 1.0 }] },
+    openings: { '+z': wins, '+x': [{ x: 0.1, y: 0.4, w: 0.55, h: 0.85 }], '-x': [{ x: -0.1, y: 0.4, w: 0.55, h: 0.85 }], '-z': [{ x: 0.5, y: 0.4, w: 0.55, h: 0.85 }] },
   });
   const upFront = up['+z'];
   let k = 0;
@@ -211,19 +212,19 @@ export function buildTownhouse(v = 0, lod = 0) {
     if (!L.balcony) sillPots(bag, upFront, w.x, lower + w.y - 0.2, w.w + 0.1, k);
     k++;
   }
-  for (const s of ['+x', '-x', '-z']) windowTrim(bag, up[s], { x: s === '+x' ? 0.1 : s === '-x' ? -0.1 : 0.5, y: lower + 0.5, w: s === '-z' ? 0.55 : 0.55, h: 1.0 }, { shutters: 'closed', col, sill: false });
-  band(bag, up['+z'], 0, x1 - x0, lower - 0.08);
+  for (const s of ['+x', '-x', '-z']) windowTrim(bag, up[s], { x: s === '+x' ? 0.1 : s === '-x' ? -0.1 : 0.5, y: lower + 0.4, w: 0.55, h: 0.85 }, { shutters: 'closed', col, sill: false });
+  band(bag, up['+z'], 0, x1 - x0, lower - 0.04);
   // The balcony, or what the look hangs on its front.
   if (L.balcony) balcony(bag, upFront, { x: mx, w: 1.9, d: 0.5, y: lower, col: OAK });
-  if (L.extra === 'sign') sign(bag, front, mx + mouth.w / 2 + 0.15, 2.55, CLOTH.madder);
-  if (L.extra === 'awning') awning(bag, front, { x: mx, w: mouth.w + 0.3, y: 2.6, d: 0.6, drop: 0.35, cols: [lin(CLOTH.madder), lin(CLOTH.linen)] });
-  if (L.extra === 'laundry') laundry(bag, upFront, mx - 0.85, mx + 0.85, lower + 1.6, 0.42, 5);
+  if (L.extra === 'sign') sign(bag, front, mx + mouth.w / 2 + 0.15, 2.3, CLOTH.madder);
+  if (L.extra === 'awning') awning(bag, front, { x: mx, w: mouth.w + 0.3, y: 2.3, d: 0.6, drop: 0.3, cols: [lin(CLOTH.madder), lin(CLOTH.linen)] });
+  if (L.extra === 'laundry') laundry(bag, upFront, mx - 0.85, mx + 0.85, lower + 1.3, 0.42, 5);
   // The roof.
   const fill = lin(L.upper, 0.96);
-  const roof = { x0, x1, z0, z1, eaveY: top, fill };
-  if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.95 });
-  else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.95, over: 0.2 });
-  else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.9, hip: true });
+  const roof = { x0, x1, z0, z1, eaveY: top, fill, over: 0.22 };
+  if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.72 });
+  else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.72, over: 0.18 });
+  else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.68, hip: true });
   if (L.extra === 'chimney') chimney(bag, -1.0 * sg, -0.7, top - 0.1);
   return Object.assign(bag.build(), { mouthX: mx, stairX: sx });
 }
@@ -234,9 +235,9 @@ export function buildTownhouse(v = 0, lod = 0) {
 
 const APT_LOOKS = [
   { brick: BRICK.red, ground: 'brick', roof: 'gable-x', shut: WOODS.olive, balcony: 2, ware: 'amph', extra: 'sign', shutters: 'open' },
-  { brick: BRICK.yellow, ground: 'plaster', groundC: WASH.cream, roof: 'hip', shut: WOODS.oak, balcony: 3, ware: 'cloth', extra: 'laundry', shutters: 'closed' },
-  { brick: BRICK.grey, ground: 'brick', roof: 'gable-z', shut: WOODS.brown, balcony: 2, ware: 'fruit', extra: 'awning', shutters: 'open' },
-  { brick: WASH.ochre, upperKey: 'plaster', ground: 'brick', groundC: BRICK.red, roof: 'gable-x', shut: WOODS.olive, balcony: 0, ware: 'bread', extra: 'chimney', shutters: 'open' },
+  { brick: WASH.cream, upperKey: 'plaster', ground: 'plaster', groundC: WASH.lime, roof: 'hip', shut: WOODS.oak, balcony: 3, ware: 'cloth', extra: 'laundry', shutters: 'closed' },
+  { brick: WASH.ochre, upperKey: 'plaster', ground: 'plaster', groundC: WASH.sand, roof: 'gable-z', shut: WOODS.brown, balcony: 2, ware: 'fruit', extra: 'awning', shutters: 'open' },
+  { brick: WASH.pink, upperKey: 'plaster', ground: 'brick', groundC: BRICK.red, roof: 'gable-x', shut: WOODS.olive, balcony: 0, ware: 'bread', extra: 'chimney', shutters: 'open' },
 ];
 
 /** An apartment house, its look `v` (0 to 3), at a level of detail. */
@@ -255,28 +256,28 @@ export function buildApartment(v = 0, lod = 0) {
   const low = shell(bag, {
     x0, x1, z0, z1, h: f1, t: 0.32, c: L.groundC ? lin(L.groundC) : brickC, k: 0.97, key: L.ground,
     openings: {
-      '+z': [{ x: mx, y: 0, w: mouth.w, h: mouth.h }, { x: sx, y: 0, w: 0.9, h: 2.1 }],
+      '+z': [{ x: mx, y: 0, w: mouth.w, h: mouth.h }, { x: sx, y: 0, w: 0.9, h: 1.95 }],
       '+x': [{ x: 0.5, y: 1.3, w: 0.5, h: 0.6 }],
       '-x': [{ x: -0.5, y: 1.3, w: 0.5, h: 0.6 }],
     },
   });
   const front = low['+z'];
   doorFrame(bag, front, { x: mx, w: mouth.w, h: mouth.h });
-  doorFrame(bag, front, { x: sx, w: 0.9, h: 2.1 });
-  doorLeaf(bag, front, { x: sx, w: 0.9, h: 2.1, col: lin(WOODS.oak, 0.9), open: true });
+  doorFrame(bag, front, { x: sx, w: 0.9, h: 1.95 });
+  doorLeaf(bag, front, { x: sx, w: 0.9, h: 1.95, col: lin(WOODS.oak, 0.9), open: true });
   boards(bag, front, mx, mouth.w, mouth.h);
   counter(bag, front, mx, mouth.w, APARTMENT.counterZ - z1, L.ware, floorY);
   // The upper storeys: three windows a floor on the front, two on the sides; a balcony floor has doors.
-  const rows = [f1 + 0.55, f1 + floors[1] + 0.5];
+  const rows = [f1 + 0.4, f1 + floors[1] + 0.35];
   const xs = [-1.1, 0, 1.1].map((x) => x * sg);
   const front3 = [];
   for (let fl = 0; fl < 2; fl++) {
     for (const x of xs) {
       const door = L.balcony === fl + 2 && x === 0;
-      front3.push({ x, y: door ? rows[fl] - 0.5 : rows[fl], w: door ? 0.9 : 0.72, h: door ? 2.0 : fl ? 1.0 : 1.2, door, fl });
+      front3.push({ x, y: door ? rows[fl] - 0.3 : rows[fl], w: door ? 0.9 : 0.56, h: door ? 1.5 : fl ? 0.85 : 0.95, door, fl });
     }
   }
-  const sideWin = (fl) => [-0.9, 0.9].map((x) => ({ x, y: rows[fl], w: 0.6, h: fl ? 0.95 : 1.1 }));
+  const sideWin = (fl) => [-0.9, 0.9].map((x) => ({ x, y: rows[fl], w: 0.5, h: fl ? 0.85 : 0.95 }));
   const up = shell(bag, {
     x0, x1, z0, z1, y0: f1, h: top - f1, t: 0.32, c: brickC, k: 0.97, key: L.upperKey || 'brick',
     openings: {
@@ -297,7 +298,8 @@ export function buildApartment(v = 0, lod = 0) {
   for (const s of ['+x', '-x']) for (const w of [...sideWin(0), ...sideWin(1)]) windowTrim(bag, up[s], { x: w.x, y: w.y, w: w.w, h: w.h }, { shutters: 'closed', col, sill: false });
   for (const w of front3) windowTrim(bag, up['-z'], { x: w.x, y: w.y, w: w.w, h: w.h }, { shutters: 'closed', col, sill: false });
   // The stucco string courses between the storeys and under the eaves, round the house.
-  for (const y of [f1 - 0.08, f1 + floors[1] - 0.08, top - 0.16]) {
+  // One thin band at the first floor (a string course), not a stripe a storey.
+  for (const y of [f1 - 0.04]) {
     band(bag, up['+z'], 0, x1 - x0 + 0.1, y);
     band(bag, up['-z'], 0, x1 - x0 + 0.1, y);
     band(bag, up['+x'], 0, z1 - z0 - 0.5, y);
@@ -305,13 +307,14 @@ export function buildApartment(v = 0, lod = 0) {
   }
   // The balcony on brick corbels (a floor's doors open onto it), laundry, sign, awning.
   if (L.balcony) balcony(bag, upFront, { x: 0, w: L.balcony === 2 ? 3.1 : 2.2, d: 0.45, y: L.balcony === 2 ? f1 : f1 + floors[1], corbels: true, col: OAK });
-  if (L.extra === 'sign') sign(bag, front, mx + mouth.w / 2 + 0.15, 2.6, CLOTH.woad);
-  if (L.extra === 'awning') awning(bag, front, { x: mx, w: mouth.w + 0.3, y: 2.65, d: 0.42, drop: 0.3, cols: [lin(CLOTH.woad), lin(CLOTH.linen)] });
-  if (L.extra === 'laundry') laundry(bag, upFront, -1.2, 1.2, f1 + floors[1] + 1.7, 0.38, 11);
+  if (L.extra === 'sign') sign(bag, front, mx + mouth.w / 2 + 0.15, 2.3, CLOTH.woad);
+  if (L.extra === 'awning') awning(bag, front, { x: mx, w: mouth.w + 0.3, y: 2.35, d: 0.42, drop: 0.3, cols: [lin(CLOTH.woad), lin(CLOTH.linen)] });
+  if (L.extra === 'laundry') laundry(bag, upFront, -1.2, 1.2, f1 + floors[1] + 1.3, 0.38, 11);
   const roof = { x0, x1, z0, z1, eaveY: top, over: 0.25, fill: brickC.map((c) => c * 0.96) };
-  if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.85 });
-  else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.9, over: 0.18 });
-  else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.85, hip: true });
+  roof.over = 0.22;
+  if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.62 });
+  else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.65, over: 0.18 });
+  else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.6, hip: true });
   if (L.extra === 'chimney') chimney(bag, 1.0 * sg, -0.8, top - 0.1);
   return Object.assign(bag.build(), { mouthX: mx, stairX: sx });
 }
@@ -321,15 +324,47 @@ export function buildApartment(v = 0, lod = 0) {
 // ---------------------------------------------------------------------------
 
 const TEN_LOOKS = [
-  { brick: BRICK.red, court: WASH.cream, shut: WOODS.olive, ware: ['amph', 'cloth', 'fruit'], shutters: 'open' },
-  { brick: BRICK.yellow, court: WASH.ochre, shut: WOODS.oak, ware: ['bread', 'amph', 'cloth'], shutters: 'closed' },
-  { brick: BRICK.grey, court: WASH.white, shut: WOODS.brown, ware: ['fruit', 'bread', 'amph'], shutters: 'open' },
-  { brick: BRICK.dark, court: WASH.red, shut: WOODS.olive, ware: ['cloth', 'fruit', 'bread'], shutters: 'open' },
+  { brick: BRICK.red, key: 'brick', court: WASH.cream, shut: WOODS.olive, ware: ['amph', 'cloth', 'fruit'], shutters: 'open' },
+  { brick: BRICK.yellow, key: 'brick', court: WASH.ochre, shut: WOODS.oak, ware: ['bread', 'amph', 'cloth'], shutters: 'closed' },
+  { brick: WASH.ochre, key: 'plaster', court: WASH.white, shut: WOODS.brown, ware: ['fruit', 'bread', 'amph'], shutters: 'open' },
+  { brick: WASH.pink, key: 'plaster', court: WASH.cream, shut: WOODS.olive, ware: ['cloth', 'fruit', 'bread'], shutters: 'open' },
 ];
 
-/** The windows of a floor row on a wall: `xs` centres, each w x h, at absolute y. */
+/** The windows of a row on a wall: `xs` centres, each w x h at y (up from the row's floor). */
 function windowRow(xs, y, w, h) {
   return xs.map((x) => ({ x, y, w, h }));
+}
+
+/** The street front's and the back's window centres, and the sides'. */
+const FRONT_X = [-2.8, -1.4, 0, 1.4, 2.8];
+const SIDE_X = [-2.4, -0.8, 0.8, 2.4];
+
+/**
+ * One upper storey of the tenement, built once at the floor (y 0 up the storey's height) as its own bag: the four
+ * walls with their windows and shutters. The three upper storeys are the same, so the tenement copies this up its
+ * height instead of building every window three times (a tenement was 30 to 50 ms to build, five times the frame's
+ * building budget).
+ */
+function upperFloor(bag, L, col, v) {
+  const { half: H, upperH } = TENEMENT;
+  const fb = new Bag('floor', bag.lod, bag.seed + 5);
+  // (Far out every other window, a little wider: the same rhythm in half the quads.)
+  const far = bag.lod === 2;
+  const FX = far ? [-2.1, 0, 2.1] : FRONT_X;
+  const SX = far ? [-1.6, 1.6] : SIDE_X;
+  const win = (xs, w) => windowRow(xs, 0.4, far ? w + 0.05 : w, 0.8);
+  const puts = shell(fb, {
+    x0: -H, x1: H, z0: -H, z1: H, h: upperH, t: 0.32, c: lin(L.brick), k: 0.97, key: L.key,
+    openings: { '+z': win(FX, 0.52), '-z': win(FX, 0.52), '+x': win(SX, 0.5), '-x': win(SX, 0.5) },
+  });
+  const trim = (put, xs, w, tag) => xs.forEach((x, i) => {
+    windowTrim(fb, put, { x, y: 0.4, w, h: 0.8 }, { shutters: tag === 'closed' || (i + v) % 3 === 0 ? 'closed' : 'open', col, sill: true });
+  });
+  trim(puts['+z'], FRONT_X, 0.52, L.shutters);
+  trim(puts['-z'], FRONT_X, 0.52, 'closed');
+  trim(puts['+x'], SIDE_X, 0.5, 'closed');
+  trim(puts['-x'], SIDE_X, 0.5, 'closed');
+  return fb;
 }
 
 /** A tenement (an insula), its look `v` (0 to 3), at a level of detail. */
@@ -343,78 +378,74 @@ export function buildTenement(v = 0, lod = 0) {
   const col = lin(L.shut);
   const brickC = lin(L.brick);
   const sg = RIGHT[v & 3];
-  // The street front: three shops and the stair door below, five windows a floor above.
-  const wx = [-2.8, -1.4, 0, 1.4, 2.8];
-  const shopOpen = TENEMENT.shops.map(([x, w]) => ({ x: x * sg, y: 0, w, h: 2.4 }));
-  const front = [...shopOpen, { x: TENEMENT.stair * sg, y: 0, w: 0.9, h: 2.1 }];
-  const wsz = [[0.72, 1.2], [0.7, 1.1], [0.64, 1.0]];
-  const rowY = [ys[1] + 0.6, ys[2] + 0.55, ys[3] + 0.5];
-  for (let f = 0; f < 3; f++) front.push(...windowRow(wx, rowY[f], ...wsz[f]));
-  // The sides: a door or two windows below, four windows a floor above. The back: five windows a floor, two high ones below.
-  const sx = [-2.4, -0.8, 0.8, 2.4];
-  const side = [...windowRow([-1.6, 1.6], 1.3, 0.55, 0.6), ...windowRow([0.0], 0, 0.95, 2.1)];
-  for (let f = 0; f < 3; f++) side.push(...windowRow(sx, rowY[f], ...wsz[f]));
-  const back = [...windowRow([-2.4, -0.8, 0.8, 2.4], 1.3, 0.55, 0.6)];
-  for (let f = 0; f < 3; f++) back.push(...windowRow(wx, rowY[f], ...wsz[f]));
-  // The ground: the court's flags, the street front's pavement step.
+  // The ground floor: three shops and the stair door on the street, a door and two windows on a side, windows at the back.
+  const SH = 1.8;
+  const shopOpen = TENEMENT.shops.map(([x, w]) => ({ x: x * sg, y: 0, w, h: SH }));
+  const front = [...shopOpen, { x: TENEMENT.stair * sg, y: 0, w: 0.9, h: 1.75 }];
+  const side = [...windowRow([-1.6, 1.6], 1.1, 0.5, 0.5), { x: 0, y: 0, w: 0.95, h: 1.75 }];
+  const back = windowRow([-2.4, -0.8, 0.8, 2.4], 1.1, 0.5, 0.5);
   slabBox(bag, 'flags', -H, H, -H + 0.3, H + 0.04, floorY, lin(0xa89c86, 0.9));
   const out = shell(bag, {
-    x0: -H, x1: H, z0: -H, z1: H, h: top, t: 0.32, c: brickC, k: 0.97, key: 'brick',
+    x0: -H, x1: H, z0: -H, z1: H, h: floors[0], t: 0.32, c: brickC, k: 0.97, key: L.key,
     openings: { '+z': front, '+x': side, '-x': side, '-z': back },
   });
   const fr = out['+z'];
-  // The shops: their jambs, boards and counters; the stair door.
   TENEMENT.shops.forEach(([x, w], i) => {
-    doorFrame(bag, fr, { x: x * sg, w, h: 2.4 });
-    boards(bag, fr, x * sg, w, 2.4);
+    doorFrame(bag, fr, { x: x * sg, w, h: SH });
+    boards(bag, fr, x * sg, w, SH);
     counter(bag, fr, x * sg, w, TENEMENT.counterZ - H, L.ware[i], floorY);
   });
-  doorFrame(bag, fr, { x: TENEMENT.stair * sg, w: 0.9, h: 2.1 });
-  doorLeaf(bag, fr, { x: TENEMENT.stair * sg, w: 0.9, h: 2.1, col: lin(WOODS.oak, 0.9), open: true });
-  // Windows with shutters, rows rising: some open, some shut by their place.
-  const trim = (put, list, mode) => list.forEach((w, i) => {
-    if (w.y < 1 && w.h > 2) return;
-    if (w.h > 2 && w.y < 0.5) return; // doors
-    windowTrim(bag, put, { x: w.x, y: w.y, w: w.w, h: w.h }, { shutters: mode === 'closed' || (i + v) % 3 === 0 ? 'closed' : 'open', col, sill: w.y > 1.2 });
-  });
-  trim(fr, front.slice(shopOpen.length + 1), L.shutters);
-  trim(out['-z'], back, 'closed');
-  trim(out['+x'], side, 'closed');
-  trim(out['-x'], side, 'closed');
-  // Stucco bands round the building between the storeys.
-  for (const y of [ys[1] - 0.08, ys[2] - 0.08, top - 0.16]) {
-    for (const s of ['+z', '-z']) band(bag, out[s], 0, 2 * H + 0.1, y);
-    for (const s of ['+x', '-x']) band(bag, out[s], 0, 2 * H - 0.6, y);
+  doorFrame(bag, fr, { x: TENEMENT.stair * sg, w: 0.9, h: 1.75 });
+  doorLeaf(bag, fr, { x: TENEMENT.stair * sg, w: 0.9, h: 1.75, col: lin(WOODS.oak, 0.9), open: true });
+  // The three upper storeys: one built, copied up the height.
+  // (Each part's pieces merged once first: three storeys of two hundred small boxes cloned are most of the build.)
+  const fb = upperFloor(bag, L, col, v);
+  const floor = Object.fromEntries(Object.entries(fb.o).filter(([, list]) => list.length).map(([key, list]) => [key, merge(list)]));
+  for (let f = 1; f < floors.length; f++) {
+    for (const [key, one] of Object.entries(floor)) (bag.o[key] ??= []).push(one.clone().translate(0, ys[f], 0));
   }
+  // One stucco band round the building at the first floor.
+  for (const s of ['+z', '-z']) band(bag, out[s], 0, 2 * H + 0.1, ys[1] - 0.04);
+  for (const s of ['+x', '-x']) band(bag, out[s], 0, 2 * H - 0.6, ys[1] - 0.04);
   // Balconies on brick corbels over the street front: a long one on the second floor, a short one above.
   balcony(bag, fr, { x: -1.4 * sg, w: 2.9, d: 0.25, y: ys[1], corbels: true, col: OAK });
   balcony(bag, fr, { x: 1.4 * sg, w: 1.6, d: 0.25, y: ys[2], corbels: true, col: OAK });
-  laundry(bag, fr, 0.7 * sg - 0.8, 0.7 * sg + 0.8, ys[3] + 0.5, 0.0, 17 + v);
+  laundry(bag, fr, 0.7 * sg - 0.8, 0.7 * sg + 0.8, ys[3] + 0.4, 0.0, 17 + v);
   // The court: its four walls inside, rising to the roof's inner edge, with their own windows.
   const courtC = lin(L.court, 0.96);
-  const cw = (side2, plane, centre, w) => wall(bag, side2, plane, centre, { w, y0: 0, h: yr, t: 0.3, c: courtC, k: 0.95, open: [] });
-  const inner = [];
   const cwin = (xs2) => {
     const o = [];
-    for (let f = 0; f < 4; f++) for (const x of xs2) o.push({ x, y: ys[f] + (f ? 0.55 : 1.2), w: f ? 0.55 : 0.5, h: f ? 0.95 : 0.7 });
+    for (let f = 0; f < 4; f++) for (const x of xs2) o.push({ x, y: ys[f] + (f ? 0.35 : 0.9), w: 0.5, h: f ? 0.8 : 0.6 });
     return o;
   };
-  void cw;
-  void inner;
   const courtWall = (s, plane, w, xs2) => wall(bag, s, plane, 0, { w, y0: 0, h: yr, t: 0.3, c: courtC, k: 0.95, open: cwin(xs2) });
   const cf = courtWall('-z', -C, 2 * C + 0.6, [-0.7, 0.7]);
   courtWall('+z', -C, 2 * C + 0.6, [-0.7, 0.7]);
   const cr = courtWall('-x', -C, 2 * C, [-0.5, 0.5]);
   courtWall('+x', -C, 2 * C, [-0.5, 0.5]);
-  if (lod < 2) {
-    // The court's shutters and a line of washing across it.
+  if (lod < 1) {
+    // The court's shutters, a well-head and a line of washing across it (close up only).
     for (const put of [cf, cr]) for (const w of cwin(put === cf ? [-0.7, 0.7] : [-0.5, 0.5])) windowTrim(bag, put, { x: w.x, y: w.y, w: w.w, h: w.h }, { shutters: 'closed', col, sill: false });
-    bag.add('stone', cyl(0.3, 0.32, 0.5, lod ? 8 : 12, 0, floorY, 0, 0.97));
-    bag.add('dark', cyl(0.2, 0.2, 0.01, lod ? 8 : 12, 0, floorY + 0.5, 0, 1));
-    bag.add('wood', box(2 * C - 0.2, 0.02, 0.02, 0, 3.4, 0.0, lin(0x8a7a5a, 0.8)));
-    for (let k = 0; k < 4; k++) bag.add('paint', box(0.28, 0.55, 0.015, -1.1 + k * 0.55, 2.85, 0.0, lin([CLOTH.linen, CLOTH.madder, CLOTH.linen, CLOTH.woad][k], 0.95)));
+    bag.add('stone', cyl(0.3, 0.32, 0.5, 12, 0, floorY, 0, 0.97));
+    bag.add('dark', cyl(0.2, 0.2, 0.01, 12, 0, floorY + 0.5, 0, 1));
+    bag.add('wood', box(2 * C - 0.2, 0.02, 0.02, 0, 3.0, 0.0, lin(0x8a7a5a, 0.8)));
+    for (let k = 0; k < 4; k++) bag.add('paint', box(0.28, 0.55, 0.015, -1.1 + k * 0.55, 2.45, 0.0, lin([CLOTH.linen, CLOTH.madder, CLOTH.linen, CLOTH.woad][k], 0.95)));
   }
-  // The roof: four slopes rising from the eaves to the court's rim, as a hipped roof with a light well.
+  // (The roof is its own kit, the same for every look: buildTenementRoof.)
+  return Object.assign(bag.build(), { shopsX: TENEMENT.shops.map(([x]) => x * sg), stairX: TENEMENT.stair * sg });
+}
+
+/**
+ * The tenement's roof, one kit for all four looks (models/houses.js adds it in `more`): four slopes rising from the
+ * eaves to the court's rim, a hipped roof with a light well. It is a third of the tenement's build, and the looks
+ * share it, so it is built once and the walls' kit is built apart from it, each within the frame's building budget.
+ * Its rim stands under a small temple's apex (7.3 m): a temple's roof stays above every home.
+ */
+export function buildTenementRoof(lod = 0) {
+  const bag = new Bag('tenroof', lod, 1051);
+  const { half: H, court: C, floors, rise } = TENEMENT;
+  const top = sum(floors);
+  const yr = top + rise;
   const E = H + 0.25;
   const slope = rise / (H - C);
   const ye = top - 0.25 * slope;
@@ -429,7 +460,7 @@ export function buildTenement(v = 0, lod = 0) {
     bag.add('tile', r.tile);
     bag.add('wood', r.wood);
   });
-  return Object.assign(bag.build(), { shopsX: TENEMENT.shops.map(([x]) => x * sg), stairX: TENEMENT.stair * sg });
+  return bag.build();
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +472,7 @@ export function townLamps(v) {
   const L = TOWN_LOOKS[v & 3];
   const sg = RIGHT[v & 3];
   const mx = TOWNHOUSE.mouth.x * sg;
-  const y = TOWNHOUSE.lower + 1.0;
+  const y = TOWNHOUSE.lower + 0.8;
   const xs = L.balcony ? [mx, TOWNHOUSE.stair * sg] : [-0.95, 0.15, 1.15].map((x) => x * sg);
   return Object.freeze([...xs.map((x) => Object.freeze([x, y, TOWNHOUSE.z1 + 0.05, 1])), Object.freeze([mx, 1.5, TOWNHOUSE.z1 - 0.35, 1])]);
 }
@@ -451,7 +482,7 @@ export function apartmentLamps(v) {
   const sg = RIGHT[v & 3];
   const [f1, f2] = APARTMENT.floors;
   const out = [];
-  for (const y of [f1 + 1.15, f1 + f2 + 1.0]) for (const x of [-1.1, 0, 1.1]) out.push(Object.freeze([x * sg, y, APARTMENT.z1 + 0.05, 1]));
+  for (const y of [f1 + 0.9, f1 + f2 + 0.75]) for (const x of [-1.1, 0, 1.1]) out.push(Object.freeze([x * sg, y, APARTMENT.z1 + 0.05, 1]));
   out.push(Object.freeze([APARTMENT.mouth.x * sg, 1.5, APARTMENT.z1 - 0.35, 1]));
   return Object.freeze(out);
 }
@@ -460,7 +491,7 @@ export function apartmentLamps(v) {
 export function tenementLamps(v) {
   const sg = RIGHT[v & 3];
   const [, f2, f3, f4] = TENEMENT.floors;
-  const ys = [TENEMENT.floors[0] + 1.2, TENEMENT.floors[0] + f2 + 1.1, TENEMENT.floors[0] + f2 + f3 + 1.0];
+  const ys = [TENEMENT.floors[0] + 0.8, TENEMENT.floors[0] + f2 + 0.8, TENEMENT.floors[0] + f2 + f3 + 0.8];
   void f4;
   const out = [];
   for (const y of ys) for (const x of [-2.8, -1.4, 0, 1.4, 2.8]) out.push(Object.freeze([x * sg, y, TENEMENT.half + 0.05, 1]));

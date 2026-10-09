@@ -21,24 +21,68 @@
  * ----------------------------------------------------------------------------
  */
 
-import { BufferGeometry, Float32BufferAttribute, CylinderGeometry } from 'three';
+import { BufferGeometry, Float32BufferAttribute, Uint16BufferAttribute, CylinderGeometry } from 'three';
 import { boxUV, tintGeometry } from '../shapes.js';
 import { material } from '../materials.js';
-import { box } from './castra.js';
 import { wallWithOpenings, TaggedParts } from './masonry.js';
 import { roofSlope, bush } from './learning.js';
 import { lin, ruralMaterials, paint } from './rural.js';
 import { artRng } from '../texgen.js';
+
+/** The faces of a box: [normal, four corners (signs) counter-clockwise seen from outside]. */
+const FACES = [
+  [[1, 0, 0], [[1, -1, 1], [1, -1, -1], [1, 1, -1], [1, 1, 1]]],
+  [[-1, 0, 0], [[-1, -1, -1], [-1, -1, 1], [-1, 1, 1], [-1, 1, -1]]],
+  [[0, 1, 0], [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1]]],
+  [[0, -1, 0], [[-1, -1, -1], [1, -1, -1], [1, -1, 1], [-1, -1, 1]]],
+  [[0, 0, 1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]],
+  [[0, 0, -1], [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]]],
+];
+const BOX_INDEX = new Uint16Array([...Array(6).keys()].flatMap((f) => [0, 1, 2, 0, 2, 3].map((i) => f * 4 + i)));
+
+/**
+ * A box w x h x d, its foot at (x, y, z), UVs in metres (shapes.js boxUV's rule), a vertex colour `k` (a number, [r, g, b]
+ * or a function of the vertex): castra.js box, written straight into the arrays. A house is a few hundred boxes and
+ * three's BoxGeometry (six planes merged) was most of a tenement's build.
+ */
+export function box(w, h, d, x, y, z, k = 1) {
+  const pos = new Float32Array(72);
+  const nor = new Float32Array(72);
+  const uv = new Float32Array(48);
+  const col = new Float32Array(72);
+  const cy = y + h / 2;
+  let n = 0;
+  for (const [nm, corners] of FACES) {
+    for (const c of corners) {
+      const px = x + c[0] * w / 2;
+      const py = cy + c[1] * h / 2;
+      const pz = z + c[2] * d / 2;
+      pos[n * 3] = px; pos[n * 3 + 1] = py; pos[n * 3 + 2] = pz;
+      nor[n * 3] = nm[0]; nor[n * 3 + 1] = nm[1]; nor[n * 3 + 2] = nm[2];
+      if (nm[1] !== 0) { uv[n * 2] = px; uv[n * 2 + 1] = pz; } else if (nm[0] !== 0) { uv[n * 2] = pz; uv[n * 2 + 1] = py; } else { uv[n * 2] = px; uv[n * 2 + 1] = py; }
+      const t = typeof k === 'function' ? k(px, py, pz) : k;
+      if (typeof t === 'number') { col[n * 3] = t; col[n * 3 + 1] = t; col[n * 3 + 2] = t; } else { col[n * 3] = t[0]; col[n * 3 + 1] = t[1]; col[n * 3 + 2] = t[2]; }
+      n++;
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new Float32BufferAttribute(col, 3));
+  g.setIndex(new Uint16BufferAttribute(BOX_INDEX, 1));
+  return g;
+}
 
 /** How many looks a level has: picked by the building's id (houses.js variantOf). */
 export const VARIANTS = 4;
 
 /** Washes of plaster (sRGB): the whites, creams, ochres and reds the walls of Pompeii and Ostia were painted. */
 export const WASH = Object.freeze({
-  cream: 0xe6d9b8, white: 0xf0eadb, ochre: 0xd6ad62, yellow: 0xe0c078, red: 0xb4573f, pink: 0xd6a28a, grey: 0xcdc4b0, sand: 0xd8c39a, mud: 0xb39a74, lime: 0xe6dfc9,
+  cream: 0xe9ddbd, white: 0xf3eee1, ochre: 0xdcb878, yellow: 0xe6cd88, red: 0xc2705a, pink: 0xe2ae98, grey: 0xd2cab6, sand: 0xd8c39a, mud: 0xb39a74, lime: 0xe9e3cf,
 });
 /** Brick of Ostia's insulae: red, yellow-brown and a warm grey-red. */
-export const BRICK = Object.freeze({ red: 0xc8745a, yellow: 0xe0bc78, grey: 0xbdae98, dark: 0xa5604a });
+export const BRICK = Object.freeze({ red: 0xd49078, yellow: 0xe6cc92, grey: 0xcdc0ac, dark: 0xc07e68 });
 /** Woodwork: dark oak, weathered grey, ochre-brown, an olive green of the painted ones. */
 export const WOODS = Object.freeze({ oak: 0x6a4a2c, grey: 0x8a7d68, brown: 0x8a5e34, olive: 0x59683f, red: 0x8a4630 });
 /** Awnings and cloths: madder, woad, weld, undyed. */
@@ -95,7 +139,7 @@ const MERGED = { stone: 'plaster', clay: 'tile', dark: 'plaster', paint: 'plaste
  * boards, closed leaves) shows close up only.
  */
 const FLAT = { wood: 'plaster', woodOpen: 'plaster', rubble: 'plaster' };
-const DARK = [0.011, 0.009, 0.008];
+const DARK = [0.03, 0.026, 0.023];
 
 /** A house's geometry gathered by part, built to a level of detail. */
 export class Bag {
@@ -191,7 +235,7 @@ export function flat(x0, y0, x1, y1, z, rgb) {
  * Far out the wall is a solid box and its openings painted on it. Returns
  * the frame's put function for the trimmings.
  */
-export function wall(bag, side, plane, centre, { w, y0 = 0, h, t = 0.3, open = [], c, k = 1, key = 'plaster', dark = [0.01, 0.009, 0.008] }) {
+export function wall(bag, side, plane, centre, { w, y0 = 0, h, t = 0.3, open = [], c, k = 1, key = 'plaster', dark = [0.03, 0.026, 0.023] }) {
   const put = frame(side, plane, centre);
   // The brick texture is dark: its colour is lifted so a wall reads as Ostia's warm brick under the sun, not as a shadow
   // (far out the brick is plaster, which needs no lift).
@@ -204,7 +248,7 @@ export function wall(bag, side, plane, centre, { w, y0 = 0, h, t = 0.3, open = [
     if (open.length) bag.add('dark', put(box(w, h, 0.02, 0, y0, -t + 0.012)));
   } else {
     bag.add(key, put(paint(box(w, h, t, 0, y0, -t / 2, 1), c, () => k)));
-    for (const o of open) bag.add('dark', put(flat(o.x - o.w / 2, y0 + o.y, o.x + o.w / 2, y0 + o.y + o.h, 0.006, dark)));
+    for (const o of open) bag.add('dark', put(flat(o.x - o.w * 0.4, y0 + o.y + o.h * 0.05, o.x + o.w * 0.4, y0 + o.y + o.h * 0.95, 0.006, dark)));
   }
   return put;
 }

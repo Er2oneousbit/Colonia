@@ -30,11 +30,11 @@
 
 import { Matrix4 } from 'three';
 import { cast, hash01, DYES } from '../people/actors.js';
-import { Bag, VARIANTS, WOODS } from './houseKit.js';
-import { box, cyl } from './castra.js';
+import { Bag, box, VARIANTS, WOODS } from './houseKit.js';
+import { cyl } from './castra.js';
 import { lin } from './rural.js';
 import { buildHut, buildCottage, HUT, COTTAGE, HUT_LAMPS, COTTAGE_LAMPS } from './housesSmall.js';
-import { buildTownhouse, buildApartment, buildTenement, TOWNHOUSE, APARTMENT, TENEMENT, townLamps, apartmentLamps, tenementLamps } from './housesTall.js';
+import { buildTownhouse, buildApartment, buildTenement, buildTenementRoof, TOWNHOUSE, APARTMENT, TENEMENT, townLamps, apartmentLamps, tenementLamps } from './housesTall.js';
 
 /** The housing level (data/housing.js) each model draws, by its kind. */
 export const HOUSE_LEVELS = Object.freeze({ hut: 4, cottage: 5, town: 7, apt: 10, ten: 11 });
@@ -81,7 +81,10 @@ function buildPlot(lod) {
   return bag.build();
 }
 
-const BUILDERS = { hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement };
+const BUILDERS = { hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement, tenroof: (v, lod) => buildTenementRoof(lod) };
+
+/** The tenement's roof, shared by its four looks: one more kit in the look's `more`. */
+const TEN_ROOF = Object.freeze([Object.freeze({ key: 'house:tenroof:0', n: 1, mats: new Float32Array(new Matrix4().toArray()), state: 'always' })]);
 
 /** Build the model of a kit key ('house:hut:2', 'house:lot', 'house:plot'). */
 export function buildHouse(key, lod = 0) {
@@ -94,7 +97,7 @@ export function buildHouse(key, lod = 0) {
 /** Every kit key a house can show. */
 export function houseKeys() {
   const keys = ['house:lot', 'house:plot'];
-  for (const kind of Object.keys(BUILDERS)) for (let v = 0; v < VARIANTS; v++) keys.push(`house:${kind}:${v}`);
+  for (const kind of Object.keys(BUILDERS)) for (let v = 0; v < (kind === 'tenroof' ? 1 : VARIANTS); v++) keys.push(`house:${kind}:${v}`);
   return keys;
 }
 
@@ -251,7 +254,7 @@ function lookOf(b, near) {
         more.push({ key: e.key, n: e.cells.length, mats, state });
       }
       look = { key: 'house:plot', state: 'always', ice: false, more };
-    } else look = { key: `house:${kind}:${vs[0]}`, state, ice: false };
+    } else look = { key: `house:${kind}:${vs[0]}`, state, ice: false, ...(kind === 'ten' ? { more: TEN_ROOF } : {}) };
     look.cast = state === 'open' ? { kind, vs, n: vs.reduce((s, v) => s + peopleOf(kind, v).length, 0) } : null;
     LOOKS.set(id, look);
   }
@@ -268,7 +271,7 @@ function lookOf(b, near) {
 export const HOUSE_MODELS = Object.freeze({
   house: Object.freeze({
     // (One of each level: they share their programs; the lot for the ghost.)
-    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:town:0', 'house:apt:0', 'house:ten:0'],
+    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:town:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0'],
     fits: (b) => !!houseKind(b),
     variant: (b, place, ctx) => lookOf(b, !!(ctx && ctx.peopleOn && ctx.people && ctx.people.lod <= 1)),
     build: (key, lod) => buildHouse(key, lod),

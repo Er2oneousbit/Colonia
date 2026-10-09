@@ -102,6 +102,7 @@ export function buildHousesScene() {
       for (const c of it.h.children) free(c);
       it.h.clear();
       put(it.h, `house:${it.kind}:${it.v}`, it.state);
+      if (it.kind === 'ten') put(it.h, 'house:tenroof:0', 'always');
     }
     for (const c of blockHolder.children) free(c);
     blockHolder.clear();
