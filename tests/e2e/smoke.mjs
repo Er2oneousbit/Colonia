@@ -5372,6 +5372,68 @@ try {
         await gv.close();
       }
 
+      // 8a8. monuments-site: the work camp and the Hall of Justice as models (render3d/models/
+      //      monumentModels.js): the console's `monument basilica` lays a basilica's site, a work camp,
+      //      a well and a warehouse beside the demo city; paused, staffed, each draws as a model
+      //      (waited for: kits are built a few a frame under the software GL) and a click on its
+      //      footprint opens its panel.
+      {
+        const gm = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const merrs = [];
+        gm.on('pageerror', (e) => merrs.push(`pageerror: ${e.message}`));
+        gm.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) merrs.push(m.text()); });
+        await gm.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gm.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const laidM = await gm.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const free = app.game.cheats.freeBuild;
+          app.game.cheats.freeBuild = true;
+          const said = app.ui.console.run('monument basilica');
+          app.game.cheats.freeBuild = free;
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const all = [...app.game.buildings.values()];
+          const pick = (t) => {
+            const b = all.find((v) => v.type === t);
+            if (b) b.efficiency = 1;
+            return b ? { id: b.id, type: b.type, x: b.x, y: b.y, size: b.size } : null;
+          };
+          return { said, list: ['basilica', 'work_camp'].map(pick) };
+        });
+        const mons = [];
+        for (const b of laidM.list) {
+          if (!b) {
+            mons.push({ missing: true });
+            continue;
+          }
+          await gm.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gm.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, b.type, { timeout: 60000, polling: 100 }).catch(() => {});
+          const drawn = await gm.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, b.type);
+          const p = await gm.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gm.mouse.click(p.x, p.y);
+          await gm.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gm.evaluate(() => window.colonia.ui.info.target);
+          mons.push({ type: b.type, drawn, picked: target?.kind === 'building' && target.id === b.id });
+        }
+        await gm.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gm.screenshot({ path: path.join(shots, 'smoke-webgl-monuments-site.png') });
+        check('WebGL renderer: the Hall of Justice\'s site and the work camp are 3D models, and a click picks each',
+          mons.length === 2 && mons.every((v) => !v.missing && v.drawn >= 1 && v.picked), JSON.stringify({ said: laidM.said, mons }));
+        check('WebGL renderer, monuments-site models: no page errors', merrs.length === 0, merrs.join(' | '));
+        await gm.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks

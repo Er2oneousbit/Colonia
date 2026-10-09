@@ -32,24 +32,33 @@
  *
  * The site (all lists optional; metres, y up, facing +z, the footprint
  * centred on 0,0):
- *   scaffolds  [{ x, z, w, d, h, ry, fallen }]  a ring of standards w x d
+ *   scaffolds  [{ x, z, w, d, h, ry, fallen, y }]  a ring of standards w x d
  *              round a wall or pier, lifts every 1.5 m to h; `fallen`:
- *              toppled by raiders, its poles strewn
- *   cranes     [{ x, z, ry, h, kind, work, load }]  kind 'treadwheel' (the
- *              jib's head h up, the wheel at its foot, the load hanging
+ *              toppled by raiders, its poles strewn; `y` the floor it
+ *              stands on (a podium's top; 0 by default; cranes and mortar
+ *              pits take it too; shear legs a `stay`, the stake's distance)
+ *   cranes     [{ x, z, ry, h, kind, work, load, apart }]  kind 'treadwheel'
+ *              (the jib's head h up, the wheel at its foot, the load hanging
  *              ahead along +z) or 'shear' (shear legs); `work` true: the
  *              wheel turns and the load rises (siteMotion draws the wheel,
  *              the load and its falls; siteParts leaves them out), else the
- *              crane is still and its load rests on the ground; `load`
- *              'marble' (a block, the default) | 'drum' (a column drum) |
- *              'timber' (a beam)
+ *              crane is still and its load rests on the ground; `apart`
+ *              true: siteMotion draws the wheel and the load still or
+ *              working alike, so the stage's kit is the same whether the
+ *              crew is there or not; `load` 'marble' (a block, the
+ *              default) | 'drum' (a column drum) | 'timber' (a beam)
  *   centering  [{ x, z, ry, span, rise, depth, y }]  an arch's frame, its
  *              span across x, its depth along z, springing `y` up (props
- *              down to the ground under it); or { x, z, dome: r, y, lag }
- *              a dome's (ribs, rings, a tower to the oculus; `lag` the
- *              share of the dome's height lagged, 1 by default)
+ *              down to the ground under it); or { x, z, ry, dome: r, y, lag,
+ *              half } a dome's (ribs, rings, a tower to the oculus; `lag`
+ *              the share of the dome's height lagged, 1 by default; `half`
+ *              a half dome's, an apse's, the half toward -z of its frame)
  *   piles      [{ x, z, ry, good, n }]  'marble' | 'timber' | 'clay' |
- *              'iron' | 'stone', n loads (each a stack, up to 9)
+ *              'iron' | 'stone', and the finished goods: 'wine' and 'oil'
+ *              (amphorae), 'furniture', 'pottery', 'linen' (crates and
+ *              bales), 'food' (sacks); n loads (each a stack, up to 9).
+ *              pileMore() gives them as instanced kits instead, for a pile
+ *              that changes as the carts come
  *   mortar     [{ x, z, ry }]  a lime pit with its heap of pozzolana
  *   rubble     [{ x, z, ry, w, d }]  broken stone heaped by raiders
  *   crew       [actor, ...]  the people system's actors (people/actors.js);
@@ -174,7 +183,7 @@ function place(g, x, z, ry, y = 0) {
 
 /** A bag of geometry lists by material, filled by the pieces below. */
 function bins() {
-  return { poles: [], wood: [], rope: [], iron: [], marble: [], brick: [], stone: [], tufa: [], lime: [], sand: [], rubble: [], earth: [] };
+  return { poles: [], wood: [], rope: [], iron: [], marble: [], brick: [], stone: [], tufa: [], lime: [], sand: [], rubble: [], earth: [], cloth: [] };
 }
 
 /** Move every geometry an item made (from `from`, a bins()) into `to`, placed by (x, z, ry). */
@@ -304,7 +313,7 @@ function scaffold(s, lod, seed, out) {
   const own = bins();
   if (s.fallen) scaffoldFallen(s, lod, seed, own);
   else scaffoldStanding(s, lod, seed, own);
-  moveInto(out, own, s.x || 0, s.z || 0, s.ry || 0);
+  moveInto(out, own, s.x || 0, s.z || 0, s.ry || 0, s.y || 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +375,7 @@ export function loadGeometry(kind, lod) {
     // A sling round the beam (rope), not a lewis.
     for (const z of [-0.5, 0.5]) out.rope.push(rope([0, top + 0.02, z], [0, top + 0.62, 0], 0.016, lod));
   } else {
-    out.marble.push(slab(1.1, 0.62, 0.72, { bevel: 0.02, seed: 5, wobble: 0.004, tone: 0.04, grime: 0.1 }));
+    (kind === 'stone' ? out.tufa : out.marble).push(slab(1.1, 0.62, 0.72, { bevel: 0.02, seed: 5, wobble: 0.004, tone: 0.04, grime: 0.1 }));
     top = 0.62;
   }
   if (kind !== 'timber') {
@@ -440,8 +449,9 @@ function treadwheelCrane(c, lod, seed, out) {
   // The lead rope from the drum beside the wheel up to the upper block.
   const dx = width / 2 + 0.4;
   out.rope.push(rope([dx, axleY + TREAD.drum, 0.02], [0.08, h - 0.6, reach - 0.12], 0.02, lod));
-  // Still: the wheel at rest, the load on the ground under the jib, its falls slack down to it.
-  if (!c.work) {
+  // Still: the wheel at rest, the load on the ground under the jib, its falls down to it (unless
+  // siteMotion draws them: a working crane's, or one kept apart).
+  if (!c.work && !c.apart) {
     const w = wheelGeometry(lod);
     for (const k of Object.keys(w)) for (const g of w[k]) out[k].push(g.translate(0, axleY, 0));
     const kind = c.load || 'marble';
@@ -487,7 +497,8 @@ function shearLegs(c, lod, seed, out) {
     out.rope.push(tintGeometry(boxUV(t), () => 0.85));
   }
   // The back stay to a stake, the block under the apex.
-  const stake = [0, 0, -h * 0.75];
+  // (`stay`: how far behind its feet the stake is, when the ground behind is short; three quarters of its height else.)
+  const stake = [0, 0, -(c.stay || h * 0.75)];
   out.rope.push(rope(A, [stake[0], 0.3, stake[2]], 0.014, lod, 0.06));
   out.wood.push(box(0.06, 0.35, 0.06, stake[0], 0, stake[2], 0.8));
   const py = A[1] - 0.4;
@@ -511,7 +522,7 @@ function crane(c, lod, seed, out) {
   const own = bins();
   if (c.kind === 'shear') shearLegs(c, lod, seed, own);
   else treadwheelCrane(c, lod, seed, own);
-  moveInto(out, own, c.x || 0, c.z || 0, c.ry || 0);
+  moveInto(out, own, c.x || 0, c.z || 0, c.ry || 0, c.y || 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -581,28 +592,35 @@ function domeCentering(c, lod, seed, out) {
   const y0 = c.y || 0;
   const oculus = r * 0.2;
   const top = Math.acos(oculus / r);
-  const ribs = lod === 0 ? 16 : lod === 1 ? 12 : 8;
+  const half = !!c.half;
+  const ribs = (lod === 0 ? 16 : lod === 1 ? 12 : 8) / (half ? 2 : 1);
   const n = lod === 0 ? 8 : lod === 1 ? 5 : 3;
   const lag = Math.max(0, Math.min(1, c.lag ?? 1));
+  // (A half dome's ribs from -x round through -z to +x: its arc's share of the circle, a rib at each end.)
+  const arc = half ? Math.PI : TAU;
+  const az0 = half ? Math.PI : 0;
   const sph = (az, el, k = 1) => [Math.cos(az) * Math.cos(el) * r * k, y0 + Math.sin(el) * r * k, Math.sin(az) * Math.cos(el) * r * k];
-  for (let i = 0; i < ribs; i++) {
-    const az = (i / ribs) * TAU;
+  const ribAt = (i) => az0 + (i / ribs) * arc;
+  for (let i = 0; i < ribs + (half ? 1 : 0); i++) {
+    const az = ribAt(i);
     for (let j = 0; j < n; j++) out.wood.push(timber(sph(az, (top * j) / n, 0.96), sph(az, (top * (j + 1)) / n, 0.96), 0.12, 0.82, 0.2));
     // A raking prop from the tower's foot out to the rib's middle.
     if (lod < 2 && i % 2 === 0) out.wood.push(timber([Math.cos(az) * oculus * 0.8, y0, Math.sin(az) * oculus * 0.8], sph(az, top * 0.4, 0.94), 0.11, 0.75));
   }
   // Rings at a third and two thirds of the height, and the oculus's ring.
   for (const el of [top / 3, (2 * top) / 3, top]) {
-    for (let i = 0; i < ribs; i++) out.wood.push(timber(sph((i / ribs) * TAU, el, 0.95), sph(((i + 1) / ribs) * TAU, el, 0.95), 0.1, 0.8));
+    for (let i = 0; i < ribs; i++) out.wood.push(timber(sph(ribAt(i), el, 0.95), sph(ribAt(i + 1), el, 0.95), 0.1, 0.8));
   }
-  // The tower under the oculus: four posts and their braces.
+  // The tower under the oculus: four posts and their braces (a half dome's against its wall: two).
   const t = oculus * 0.75;
   const hy = y0 + Math.sin(top) * r * 0.95;
-  for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) out.wood.push(timber([sx * t, 0, sz * t], [sx * t, hy, sz * t], 0.16, 0.75));
-  if (lod < 2) for (let y = 1.5; y < hy - 0.5; y += 2.5) for (const [a, b] of [[[-t, -t], [t, -t]], [[t, -t], [t, t]], [[t, t], [-t, t]], [[-t, t], [-t, -t]]]) out.wood.push(timber([a[0], y, a[1]], [b[0], y, b[1]], 0.1, 0.78));
+  const posts = half ? [[-1, -1], [1, -1]] : [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  for (const [sx, sz] of posts) out.wood.push(timber([sx * t, 0, sz * t], [sx * t, hy, sz * t], 0.16, 0.75));
+  const sides = half ? [[[-t, -t], [t, -t]]] : [[[-t, -t], [t, -t]], [[t, -t], [t, t]], [[t, t], [-t, t]], [[-t, t], [-t, -t]]];
+  if (lod < 2) for (let y = 1.5; y < hy - 0.5; y += 2.5) for (const [a, b] of sides) out.wood.push(timber([a[0], y, a[1]], [b[0], y, b[1]], 0.1, 0.78));
   // Props down to the ground under the springing ring when the dome stands high on its drum.
-  if (y0 > 0.3) for (let i = 0; i < ribs; i += 2) {
-    const az = (i / ribs) * TAU;
+  if (y0 > 0.3) for (let i = 0; i <= ribs - (half ? 0 : 1); i += 2) {
+    const az = ribAt(i);
     out.wood.push(timber([Math.cos(az) * r * 0.9, 0, Math.sin(az) * r * 0.9], [Math.cos(az) * r * 0.9, y0, Math.sin(az) * r * 0.9], 0.16, 0.72));
   }
   // The lagging: the dome's boarded skin, from the springing up `lag` of its height.
@@ -614,9 +632,9 @@ function domeCentering(c, lod, seed, out) {
     for (let j = 0; j < rows; j++) {
       const e1 = (elTop * j) / rows;
       const e2 = (elTop * (j + 1)) / rows;
-      for (let i = 0; i < cols; i++) {
-        const a1 = (i / cols) * TAU;
-        const a2 = ((i + 1) / cols) * TAU;
+      for (let i = 0; i < (half ? cols / 2 : cols); i++) {
+        const a1 = az0 + (i / cols) * TAU;
+        const a2 = az0 + ((i + 1) / cols) * TAU;
         const p = [sph(a1, e1), sph(a2, e1), sph(a2, e2), sph(a1, e2)];
         pos.push(...p[0], ...p[2], ...p[1], ...p[0], ...p[3], ...p[2]);
       }
@@ -698,6 +716,41 @@ function loadOf(good, i, lod, seed, out) {
       }
       break;
     }
+    case 'wine':
+    case 'oil': {
+      // Amphorae stood in a frame of poles, mouths up: four to a load (the wine's slender jars, the oil's round).
+      out.wood.push(box(0.9, 0.06, 0.06, 0, 0.25, -0.22, 0.75), box(0.9, 0.06, 0.06, 0, 0.25, 0.22, 0.75));
+      const oil = good === 'oil';
+      for (let k = 0; k < (lod === 2 ? 2 : 4); k++) {
+        const g = revolve(profileOf(oil
+          ? [[0, 0], [0.04, 0.02], [0.2, 0.18], [0.22, 0.35], [0.14, 0.52], [0.06, 0.58], [0.065, 0.64], [0, 0.63]]
+          : [[0, 0], [0.025, 0], [0.04, 0.12], [0.14, 0.38], [0.15, 0.6], [0.1, 0.78], [0.05, 0.84], [0.05, 0.98], [0, 0.97]]), { segments: lod ? 8 : 14, metres: 0.6 });
+        out.brick.push(tintGeometry(g.translate(((k % 2) - 0.5) * 0.36, 0.02, (Math.floor(k / 2) - 0.5) * 0.4), () => (oil ? 0.8 : 0.95)));
+      }
+      break;
+    }
+    case 'food': {
+      for (let k = 0; k < (lod === 2 ? 1 : 3); k++) {
+        const g = new IcosahedronGeometry(0.28, lod ? 0 : 1);
+        g.scale(1, 0.75, 0.8).translate(((k % 2) - 0.5) * 0.45, 0.2 + Math.floor(k / 2) * 0.35, 0);
+        out.cloth.push(tintGeometry(boxUV(g), () => 0.85 + 0.1 * k));
+      }
+      break;
+    }
+    case 'furniture':
+    case 'pottery':
+    case 'linen':
+    case 'goods': {
+      // Crates of boards, nailed; linen in corded bales.
+      if (good === 'linen') {
+        for (let k = 0; k < 2; k++) out.cloth.push(slab(0.8, 0.38, 0.5, { bevel: 0.08, seed: seed + i + k, wobble: 0.02, tone: 0.06, grime: 0.05 }).translate(0, k * 0.38, 0));
+      } else {
+        out.wood.push(slab(0.85, 0.6, 0.65, { bevel: 0.01, seed: seed + i, wobble: 0.004, tone: 0.08, grime: 0.15 }));
+        if (lod === 0) for (const y of [0.1, 0.48]) out.wood.push(box(0.87, 0.06, 0.67, 0, y, 0, 0.72));
+        if (i % 2 === 0) out.wood.push(slab(0.6, 0.45, 0.5, { bevel: 0.01, seed: seed + i + 3, wobble: 0.004, tone: 0.08, grime: 0.1 }).translate(0.05, 0.6, 0));
+      }
+      break;
+    }
     default: {
       // Rough-dressed tufa blocks, as quarried.
       out.tufa.push(slab(0.75, 0.45, 0.55, { bevel: 0.03, seed: seed + i, wobble: 0.02, tone: 0.08, grime: 0.3 }));
@@ -736,7 +789,7 @@ function mortarPit(m, lod, seed, out) {
     deform: (p, th) => { const k = 1 + 0.08 * Math.sin(th * 3 + seed) + 0.05 * Math.sin(th * 5); p.x *= k; p.z *= k; },
   });
   own.sand.push(heap.translate(1.65, 0, 0.1));
-  moveInto(out, own, m.x || 0, m.z || 0, m.ry || 0);
+  moveInto(out, own, m.x || 0, m.z || 0, m.ry || 0, m.y || 0);
 }
 
 /** Rubble raiders left: broken blocks and chips heaped over w x d. */
@@ -757,7 +810,7 @@ function rubbleHeap(r, lod, seed, out) {
     g.translate(x, s * 0.3 + hump * 0.35, z);
     (i % 3 === 0 ? own.marble : own.rubble).push(tintGeometry(boxUV(g), () => 0.75 + rnd() * 0.25));
   }
-  moveInto(out, own, r.x || 0, r.z || 0, r.ry || 0);
+  moveInto(out, own, r.x || 0, r.z || 0, r.ry || 0, r.y || 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -779,6 +832,7 @@ export function siteMaterials() {
     sand: material('pozzolana', { surface: 'earth', color: 0xb0745a, vertexColors: true, snow: 1 }),
     rubble: material('rubble-wall', { surface: 'rubble', vertexColors: true, snow: 1 }),
     earth: material('beaten-earth', { surface: 'earth', vertexColors: true, snow: 1 }),
+    cloth: material('sacking', { surface: 'wool', vertexColors: true, color: 0xc2a477, snow: 0.8 }),
   };
 }
 
@@ -863,15 +917,42 @@ export function siteGroup(site, lod = 0) {
 // What moves: the treadwheel's turn and its load (siteMotion), as `more` kits
 // ---------------------------------------------------------------------------
 
-/** The kits that move: built by their key (models.js MODEL_PARTS `site`). */
+/**
+ * A site's piles as `more` kits (models.js), instanced: one kit a good and
+ * count ('site:pile:<good>:<n>'), each at its place in the model's metres.
+ * A pile that changes as the carts come then changes a matrix and a key,
+ * not the stage's kit. Kept per list of piles (by content).
+ */
+const PILES = new Map();
+export function pileMore(piles) {
+  const list = (piles || []).filter((p) => p && p.n > 0);
+  const key = JSON.stringify(list);
+  let more = PILES.get(key);
+  if (more) return more;
+  more = Object.freeze(list.map((p) => {
+    const mats = new Float32Array(16);
+    _c.makeRotationY(p.ry || 0).setPosition(p.x || 0, 0, p.z || 0).toArray(mats, 0);
+    return Object.freeze({ key: `site:pile:${p.good}:${Math.min(PILE_MAX, Math.round(p.n))}`, n: 1, mats, state: 'always' });
+  }));
+  if (PILES.size > 256) PILES.clear();
+  PILES.set(key, more);
+  return more;
+}
+
+/** The kits that move or change apart from a stage's: built by their key (models.js MODEL_PARTS `site`). */
 export function buildSitePart(key, lod) {
-  const [, what, kind] = key.split(':');
+  const [, what, kind, count] = key.split(':');
   const p = new TaggedParts(`site-${what}`);
   const mats = siteMaterials();
   const add = (b) => { for (const k of Object.keys(mats)) if (b[k] && b[k].length) p.add(`site-${k}`, mats[k], b[k]); };
   if (what === 'wheel') add(wheelGeometry(lod));
   else if (what === 'load') add(loadGeometry(kind || 'marble', lod));
   else if (what === 'falls') add(fallsGeometry(lod));
+  else if (what === 'pile') {
+    const b = bins();
+    pile({ x: 0, z: 0, ry: 0, good: kind, n: Number(count) }, lod, 7, b);
+    add(b);
+  }
   else throw new Error(`Unknown site part: ${key}`);
   return p.build().group;
 }
@@ -896,7 +977,7 @@ const MOTION = new WeakMap();
  * ground. Cranes not at `work` are drawn whole by siteParts instead.
  */
 export function siteMotion(site, t = 0) {
-  const cranes = ((site && site.cranes) || []).filter((c) => c.work && c.kind !== 'shear');
+  const cranes = ((site && site.cranes) || []).filter((c) => (c.work || c.apart) && c.kind !== 'shear');
   if (!cranes.length) return [];
   let e = MOTION.get(site);
   if (!e) {
@@ -923,19 +1004,21 @@ export function siteMotion(site, t = 0) {
     const shrink = 1.2 / cyc.period;
     let y = 0.02;
     let s = 1;
-    if (u < riseU) y = 0.02 + cyc.climb * (u / riseU);
+    // (A crane kept apart and still: its load on the ground, the wheel at rest.)
+    if (!c.work) y = 0.02;
+    else if (u < riseU) y = 0.02 + cyc.climb * (u / riseU);
     else if (u < riseU + shrink) { y = 0.02 + cyc.climb; s = 1 - (u - riseU) / shrink; }
     else { s = Math.min(1, Math.max(0, (u - riseU - shrink) / (1 - riseU - shrink) * 3 - 2)); }
     s = Math.max(1e-3, s);
     // The crane's own frame in the model's.
-    _c.makeRotationY(c.ry || 0).setPosition(c.x || 0, 0, c.z || 0);
+    _c.makeRotationY(c.ry || 0).setPosition(c.x || 0, c.y || 0, c.z || 0);
     // The wheel turns steadily with the men in it (their feet move back as the floor does).
-    const a = -(t * TREAD.pace) / TREAD.floor;
+    const a = c.work ? -(t * TREAD.pace) / TREAD.floor : 0;
     _q.setFromEuler(_e.set(a, 0, 0));
     _m.compose(_p.set(0, TREAD.axleY, 0), _q, _s.set(1, 1, 1));
     _m.premultiply(_c).toArray(e.wheel.mats, i * 16);
     // The load and its lower block, and the falls from the upper block down to it.
-    const sway = 0.03 * Math.sin(t * 0.9 + i);
+    const sway = c.work ? 0.03 * Math.sin(t * 0.9 + i) : 0;
     _q.setFromEuler(_e.set(sway * 0.3, 0, sway));
     _m.compose(_p.set(0, y, reach), _q, _s.set(s, s, s));
     const l = e.loads[kind];
@@ -993,7 +1076,7 @@ export function craneCrew(c, seed = 1) {
   const cs = Math.cos(ry);
   const sn = Math.sin(ry);
   // A point of the crane's frame in the site's.
-  const at = (lx, ly, lz) => [x + lx * cs + lz * sn, ly, z - lx * sn + lz * cs];
+  const at = (lx, ly, lz) => [x + lx * cs + lz * sn, ly + (c.y || 0), z - lx * sn + lz * cs];
   if (c.kind === 'shear') {
     const w = shearWindlass(Math.max(3, c.h || 5));
     // Facing -z of the legs' frame, the crank's axle WINDLASS.ahead before him (engineer.js's winder).

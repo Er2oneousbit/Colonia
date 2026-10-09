@@ -63,6 +63,7 @@ import { CONFIG } from '../config.js';
 import { buildVesselPart } from './ships/hulls.js';
 import { VILLAGE_MODELS, VILLAGE_PARTS } from './models/villages.js';
 import { buildSitePart } from './models/worksite.js';
+import { MONUMENT_MODELS } from './models/monumentModels.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -161,6 +162,8 @@ export const MODELS = Object.freeze({
   ...VENUE_MODELS,
   // The native villages' huts, meeting places and plots (models/villages.js says how).
   ...VILLAGE_MODELS,
+  // The work camp and the Hall of Justice, built in stages (models/monumentModels.js says how).
+  ...MONUMENT_MODELS,
 });
 
 /**
