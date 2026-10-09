@@ -14,7 +14,7 @@ import { CONFIG } from '../config.js';
 import { GOODS } from '../data/goods.js';
 import { BUILDINGS, MONUMENT_KEYS } from '../data/buildings.js';
 import { buildDemoCity, buildDemoGarrison, buildDemoHarbor, buildDemoFishery, buildDemoHippodrome, buildDemoVenues, buildDemoCloth, buildDemoFarms, buildDemoNavy, buildDemoAcademy, buildDemoLearning, buildDemoHealth, buildDemoGardens, buildDemoPortus, buildDemoMonument, DEMO_YARD_TIMBER } from '../dev/demoCity.js';
-import { buildDemoGovernment } from '../dev/demoCity.js';
+import { buildDemoGovernment, buildDemoHomes } from '../dev/demoCity.js';
 import { buildDemoTemples, bookDemoShows } from '../dev/demoCity.js';
 import { buildDemoTraining } from '../dev/demoCity.js';
 import { buildDemoMissionPost } from '../dev/demoCity.js';
@@ -84,6 +84,7 @@ export const CONSOLE_HELP = [
   ['temples [n]', 'Build a small temple of each god (n of each, default 1), a grand temple of each, the oracle and (where there are native villages) the mission post near the city'],
   ['training', 'Build an actor troupe, a gladiator school, a menagerie and a chariot stable near the city'],
   ['villages [calm|angry|war|trade]', 'Set every native village calm, angry, attacking (its look while paused: with nothing of yours on its land the sim ends it as the game runs on) or trading (a staffed mission post, built if none), and centre on one'],
+  ['homes', 'Set the city\'s homes to the levels drawn in 3D (Hut, Cottage, Townhouse, Apartment House, and some Tenements)'],
   ['healing', 'Build baths (piping water to the town if none reaches) and a hospital near the city, and a barber and a physician if it has none'],
   ['invade [n] [people]', 'Launch a raid of n warriors right now (default: normal size), of the province\'s people or of one named: gauls, boii, ligurians, carthaginians, lusitanians, cimbri, barbarians...'],
   ['searaid [n]', 'Launch a raid of n warriors by sea right now (river/coast maps; default: normal size)'],
@@ -524,6 +525,11 @@ export class DebugConsole {
         app.renderer.camera.centerOnTile(ms[0].x + 1, ms[0].y + 1);
         forgetVillageWatch(g);
         return `${ms.length} villages ${want}.${post}`;
+      }
+      case 'homes': {
+        need();
+        const made = buildDemoHomes(g);
+        return `Homes: ${made.homes} set (${Object.entries(made.levels).map(([t, c]) => `level ${t}: ${c}`).join(', ')}), ${made.tenements} grown into tenements.`;
       }
       case 'healing': {
         need();

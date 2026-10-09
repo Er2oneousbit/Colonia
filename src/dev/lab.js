@@ -64,6 +64,8 @@
  * every stage and finished in each state)
  * (the Villages scene, labVillages.js: Shift+N, the native villages in each state, with
  * villages.where(i), villages.piece(i, which, n), villages.setMonth(m), villages.triangles(lod)).
+ * (the Houses scene, labHouses.js: Shift+K, the five homes in four looks each and empty, with
+ * houses.items, houses.triangles(lod), houses.setLod(n)).
  * (the Sacred monuments scene, labSacred.js: Shift+G, the Great Sanctuaries, the Pantheon and the
  * Lighthouse at every stage, with sacred.closeUp(i), sacred.where(i), sacred.items, sacred.triangles(lod)).
  * ----------------------------------------------------------------------------
@@ -95,6 +97,7 @@ import { harbourScenes } from './labHarbour.js';
 import { buildMilitaryScene } from './labMilitary.js';
 import { buildLearningScene } from './labLearning.js';
 import { buildHealthScene } from './labHealth.js';
+import { buildHousesScene } from './labHouses.js';
 import { buildGovernmentScene } from './labGovernment.js';
 import { buildTemplesScene } from './labTemples.js';
 import { buildPeopleScene } from './labPeople.js';
@@ -369,6 +372,8 @@ async function main() {
   commerce.villages = buildVillagesScene(groundTex);
   // The Civic monuments scene (labCivic.js, Shift+H): the Great Baths and the Caravanserai, every stage and state.
   commerce.civic = buildCivicScene();
+  // The Houses scene (labHouses.js, Shift+K): the hut, the cottage, the townhouse, the apartment house and the tenement, four looks each.
+  commerce.houses = buildHousesScene();
   // The Monuments scene (labMonuments.js, Shift+W): the work camp, the Hall of Justice by stage, the building site's pieces.
   commerce.monuments = buildMonumentsScene();
   // The Sacred monuments scene (labSacred.js, Shift+G): the Great Sanctuaries, the Pantheon and the Lighthouse at every stage.
@@ -803,6 +808,11 @@ async function main() {
       setScene('sacred');
       return;
     }
+    // Shift+K: the Houses scene (K alone is the market).
+    if (e.shiftKey && k === 'k') {
+      setScene('houses');
+      return;
+    }
     // Shift+E: the Venues scene (E alone turns the view).
     if (e.shiftKey && k === 'e') {
       setScene('venues');
@@ -1118,6 +1128,12 @@ async function main() {
       get items() { return commerce.sacred.items; },
       triangles: (l) => commerce.sacred.triangles(l),
       stats: () => commerce.sacred.stats(),
+      setLod: (n) => setFountainLod(n),
+    },
+    /** The Houses scene (labHouses.js): the homes shown, every kit's triangles at a level, the level of detail. */
+    houses: {
+      get items() { return commerce.houses.items; },
+      triangles: (l) => commerce.houses.triangles(l),
       setLod: (n) => setFountainLod(n),
     },
     /** The Villages scene (labVillages.js): a village's place, its pieces, the month, the level of detail. */

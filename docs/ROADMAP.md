@@ -13,6 +13,12 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.30.1)
+
+* **Homes in 3D** (under WebGL), the five levels where homes most often settle, four looks each by a stable hash, turned to their road: the Hut (rubble or mud brick under thatch or crude tile), the Cottage (plaster over a red dado, a shuttered window, a walled yard with a fig or a vine), the Townhouse (a shop open to the street below, a balcony above), the Apartment House (three low storeys over a shop, balconies on brick corbels) and the Tenement (2x2, an Ostian block round a light court with shops along the front). Mostly plastered in lime white, cream, ochre and salmon, a few brick-faced; every home stays below the temples' roofs. Shut up when empty, lit windows and a few people at doors close up when lived in. The other house levels keep their sprites for now. Lab: the Houses scene (Shift+K)
+* Headless sim: identical to v0.30.0 (nothing under src/sim changed)
+* 1398 unit tests, 290 browser checks
+
 ## Done (v0.30.0)
 
 * **The 3D city, nearly whole** (the WebGL renderer): v0.30 marks how far the 3D look has come since v0.20 began it. The v0.21 series added the last great groups:
