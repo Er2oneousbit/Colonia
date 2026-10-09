@@ -13,6 +13,17 @@ Colonia is a remake and modernization of Caesar III. The original's rules, build
 
 Alongside: the sim fuzzer and the save corpus, so all of this lands without breaking anyone's city.
 
+## Done (v0.30.0)
+
+* **The 3D city, nearly whole** (the WebGL renderer): v0.30 marks how far the 3D look has come since v0.20 began it. The v0.21 series added the last great groups:
+  * the four venues (theater, amphitheater, Great Arena, hippodrome) with their crowds, plays, bouts, beast hunts and chariot races
+  * the native villages and their villagers, goats and sheep
+  * every monument, raised stage by stage on shared building sites with treadwheel cranes and crews: the work camp, the Hall of Justice, the Great Baths, the Caravanserai, the five Great Sanctuaries, the Pantheon and the Lighthouse
+  * the prefect douse check's root cause fixed
+* Still drawn as sprites under WebGL: housing, industry and the flying javelins and arrows.
+* Headless sim: identical to v0.21.2 on every difficulty
+* 1389 unit tests, 288 browser checks
+
 ## Done (v0.21.2)
 
 * **The monuments in 3D** (under WebGL), every one at every construction stage, finished, halted and sacked:
