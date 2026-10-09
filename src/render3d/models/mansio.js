@@ -81,14 +81,14 @@ export const MANSIO = Object.freeze({
   /** The ground storey's top (the gallery's deck), the upper storey's eaves, the ridge's height and its line (|x| or |z|). */
   floor1: 3.0,
   eave: 5.6,
-  ridge: 7.0,
+  ridge: 6.7,
   ridgeAt: 8.1,
   /** The roof's eaves over the court (their height and line) and outside (the line). */
-  innerEave: 4.85,
-  innerEaveAt: 4.55,
+  innerEave: 4.95,
+  innerEaveAt: 4.75,
   outerEaveAt: 9.96,
   /** The gatehouse: its half width, its walls' top, the gate's half width and its arch's springing. */
-  gate: Object.freeze({ half: 2.3, top: 8.0, w: 1.55, spring: 2.7, z0: 6.2 }),
+  gate: Object.freeze({ half: 2.3, top: 7.5, w: 1.55, spring: 2.7, z0: 6.6 }),
   /** The bath's dome at the back right corner: its middle, the drum's radius and top. */
   bath: Object.freeze({ x: 7.6, z: -7.7, r: 1.35, top: 7.3 }),
   /** The well's middle in the court. */
@@ -150,8 +150,8 @@ function court(lod, seed, out, stage, f) {
   if (stage === 0) {
     // The trenches for the ranges' walls (outer and court side).
     for (const s of SIDES) {
-      for (const b of [M.out - 0.2, I + 0.15]) {
-        const g = box(2 * b + 0.4, 0.025, 0.9, 0, 0, b, 0.8);
+      for (const b of [M.out - 0.4, I + 0.15]) {
+        const g = box(2 * b + 0.4, 0.025, 0.7, 0, 0, b, 0.8);
         out.trench.push(toSide(g, s.ry));
       }
     }
@@ -196,10 +196,12 @@ function range(lod, seed, out, stage, f, s, sacked) {
   const ry = s.ry;
   const I = M.inner;
   const O = M.out;
-  const half = s.name === 'front' || s.name === 'back' ? O : I;
+  // (Every outer wall runs the whole side, corner to corner: the front and back ranges' ends are the sides' walls.)
+  const half = O;
   const len = 2 * half;
   const g1 = M.floor1 * share(stage, f, 1);
-  const g2 = stage < 2 ? 0 : (M.eave - M.floor1) * share(stage, f, 2);
+  // (The upper storey's walls take the first three fifths of stage 2; then the roof goes on.)
+  const g2 = stage < 2 ? 0 : (M.eave - M.floor1) * Math.min(1, share(stage, f, 2) / 0.6);
   const gate = s.name === 'front';
   // The ground storey: the outer wall (small high windows; the front's gate) and the court wall.
   const outerOps = [];
@@ -316,8 +318,8 @@ function fittings(lod, seed, out, stage, f, sacked) {
   for (const z of [vz0 + 0.1, vz1]) out.wood.push(box(7.8, 0.1, 0.1, 0, 2.65, z, 0.7));
   if (lod < 2) for (let x = -3.6; x <= 3.7; x += 0.6) out.wood.push(box(0.05, 0.05, vz1 - vz0, x, 2.75, (vz0 + vz1) / 2, 0.7));
   if (!sacked) {
-    const leaves = heapLeaves(-3.9, 3.9, vz0, vz1, 2.85, seed, lod);
-    out.vine.push(...leaves);
+    // (Over each table, the middle left open: the counter seen from the court.)
+    for (const [a, b] of [[-3.9, -1.3], [1.3, 3.9]]) out.vine.push(...heapLeaves(a, b, vz0, vz1, 2.85, seed, lod));
   }
 }
 
@@ -329,12 +331,12 @@ function heapLeaves(x0, x1, z0, z1, y, seed, lod) {
   const step = lod ? 0.9 : 0.55;
   for (let x = x0 + 0.3; x < x1; x += step) {
     for (let z = z0 + 0.25; z < z1; z += step) {
-      const r = 0.28 + 0.12 * ((k * 37) % 7) / 7;
+      const r = 0.22 + 0.1 * ((k * 37) % 7) / 7;
       const s = new SphereGeometry(r, lod ? 5 : 7, lod ? 3 : 5);
       s.scale(1.2, 0.5, 1.2);
       s.translate(x + 0.1 * Math.sin(k * 3.1), y + 0.04 * Math.cos(k * 1.7), z + 0.1 * Math.cos(k * 2.3));
       const t = 0.75 + 0.25 * ((k * 53) % 11) / 11;
-      out.push(tintGeometry(boxUV(s), () => [0.32 * t, 0.46 * t, 0.16 * t]));
+      out.push(tintGeometry(boxUV(s), () => [0.1 * t, 0.2 * t, 0.045 * t]));
       k++;
     }
   }
@@ -354,8 +356,8 @@ function heapLeaves(x0, x1, z0, z1, y, seed, lod) {
  */
 function roof(lod, seed, out, stage, f, sacked) {
   const k = share(stage, f, 2);
-  if (stage < 2 || k < 0.45) return;
-  const tiles = stage > 2 || k >= 0.7;
+  if (stage < 2 || k < 0.6) return;
+  const tiles = stage > 2 || k >= 0.8;
   const R = M.ridgeAt;
   const Oe = M.outerEaveAt;
   const Ie = M.innerEaveAt;
@@ -409,7 +411,7 @@ function gatehouse(lod, seed, out, stage, f, state) {
   for (const [z, ry] of [[z1, 0], [z0, Math.PI]]) {
     for (const g of risingWall(2 * G.half, G.top, 0.4, [{ x: 0, w: G.w * 2, h: G.spring, arch: true }, { x: 0, w: 0.7, h: 1.0, y: 5.4, arch: true }], c, lod)) out.plaster.push(placed(g, 0, 0, z, ry));
   }
-  out.dark.push(box(2 * G.half - 0.8, G.top - G.spring - G.w - 0.2, d - 0.8, 0, G.spring + G.w + 0.1, zc, 1));
+  if (k >= 0.8 || stage > 2) out.dark.push(box(2 * G.half - 0.8, G.top - G.spring - G.w - 0.2, d - 0.8, 0, G.spring + G.w + 0.1, zc, 1));
   // The passage's paving, worn by the wheels.
   out.flags.push(...paving(-G.w, G.w, z0, z1, 0.06, seed + 5, { rowW: 0.5, minL: 0.5, maxL: 0.9, lod }));
   // The arch's travertine voussoirs and keystone on the street face, the inscription over it.
@@ -421,7 +423,7 @@ function gatehouse(lod, seed, out, stage, f, state) {
       const v = slab(0.36, 0.36, 0.2, { bevel: 0.01, seed: seed + j, wobble: 0, tone: 0.04, grime: 0.2 });
       v.translate(0, -0.18, 0);
       v.rotateZ(a - Math.PI / 2);
-      v.translate(Math.cos(a) * r, G.spring + Math.sin(a) * r, z1 + 0.06);
+      v.translate(Math.cos(a) * r, G.spring + Math.sin(a) * r, z1 - 0.12);
       out.trav.push(v);
     }
     out.marble.push(slab(3.0, 0.62, 0.08, { bevel: 0.01, seed: seed + 30, wobble: 0, tone: 0.02, grime: 0 }).translate(0, G.spring + G.w + 0.55, z1 + 0.04));
@@ -439,8 +441,9 @@ function gatehouse(lod, seed, out, stage, f, state) {
     open.translate(s * G.w, 0, z0 + 0.6);
     shut.translate(s * G.w, 0, z1 - 0.5);
     if (state === 'sacked') {
-      if (s < 0) out.wood.push(open.rotateZ(0.05));
-      else out.wood.push(shut.rotateX(-1.45).translate(0, 0.1, 2.6));
+      if (s < 0) out.wood.push(open);
+      // (The other torn off its pivots, lying flat in the passage, a little askew.)
+      else out.wood.push(box(lw, 0.1, lh, 0, 0.02, 0, 0.6).rotateY(0.25).translate(s * (G.w - lw / 2), 0, G.z0 + lh / 2 + 0.05));
     } else {
       out.doorOpen.push(open);
       out.doorShut.push(shut);
@@ -449,12 +452,12 @@ function gatehouse(lod, seed, out, stage, f, state) {
   if (k < 0.8 && stage === 2) return;
   // Its hipped roof.
   const y = G.top;
-  const top = y + 1.2;
-  const o = 0.3;
+  const top = y + 0.95;
+  const o = 0.25;
   const xa = -G.half - o;
   const xb = G.half + o;
   const za = z0 - o;
-  const zb = Math.min(z1 + o, M.half - 0.02);
+  const zb = Math.min(z1 + o, M.half - 0.12);
   const quads = [
     [[xa, y, zb], [xb, y, zb], [0.5, top, zc], [-0.5, top, zc]],
     [[xb, y, za], [xa, y, za], [-0.5, top, zc], [0.5, top, zc]],
@@ -466,7 +469,7 @@ function gatehouse(lod, seed, out, stage, f, state) {
     out.tile.push(...r.tile);
     out.wood.push(...r.wood);
   });
-  out.trav.push(slab(2 * G.half + 0.3, 0.16, d + 0.3, { bevel: 0.01, seed: seed + 50, wobble: 0, tone: 0.02, grime: 0.1 }).translate(0, y - 0.16, zc));
+  out.trav.push(slab(2 * G.half + 0.3, 0.16, d + 0.1, { bevel: 0.01, seed: seed + 50, wobble: 0, tone: 0.02, grime: 0.1 }).translate(0, y - 0.16, zc));
 }
 
 /** The bath at the back right corner: its drum and dome rising through the roof, the furnace flue beside it. */
@@ -549,8 +552,9 @@ export function buildMansioFood({ lod = 0, seed = 781 } = {}) {
 
 /** What raiders leave of the inn: rubble in the gate and the court, soot over the doors. */
 function sackedParts(lod, seed, out) {
-  for (const [x, z, r, n] of [[0.4, 8.6, 1.0, 16], [3.2, 2.4, 0.9, 12], [-3.6, -3.0, 0.8, 10], [4.4, -4.0, 0.7, 9]]) out.rubble.push(...rubbleHeap(x, z, r, n, seed + x * 7 + z, lod));
-  for (const [x, z, ry, w, h] of [[0, M.out + 0.42, 0, 3.6, 4.2], [M.inner - 0.01, 0.8, -Math.PI / 2, 3.0, 3.0], [-0.6, -M.inner + 0.01, 0, 2.6, 2.6]]) out.soot.push(scorch(x, 0.05, z, ry, w, h));
+  const heaps = [[0.4, 8.4, 1.0, 26], [3.2, 2.4, 1.2, 26], [-3.6, -3.0, 1.1, 22], [4.4, -4.0, 1.0, 18], [-1.0, 3.6, 0.8, 14]];
+  heaps.forEach(([x, z, r, n], i) => (i % 2 ? out.brick : out.rubble).push(...rubbleHeap(x, z, r, n, seed + x * 7 + z, lod)));
+  for (const [x, z, ry, w, h] of [[0, M.out + 0.01, 0, 3.6, 4.2], [M.inner - 0.01, 0.8, -Math.PI / 2, 3.0, 3.0], [-0.6, -M.inner + 0.01, 0, 2.6, 2.6]]) out.soot.push(scorch(x, 0.05, z, ry, w, h), scorch(x, 0.05, z + 0.002 * Math.cos(ry), ry, w * 0.6, h * 1.15));
 }
 
 // ---------------------------------------------------------------------------
@@ -567,12 +571,13 @@ export function mansioSite(stage, f, work = false) {
     S.cranes.push({ x: 2.4, z: -2.6, ry: 0.6, h: 4.2, kind: 'shear' });
   } else if (stage === 1) {
     const h = Math.max(1.4, M.floor1 * f + 1.0);
-    S.scaffolds.push({ x: 0, z: M.out + 0.55, w: 9.0, d: 0.9, h, ry: 0 }, { x: M.out + 0.55, z: -1.0, w: 7.0, d: 0.9, h, ry: Math.PI / 2 }, { x: -M.inner + 0.9, z: 0, w: 6.0, d: 0.8, h, ry: -Math.PI / 2 });
+    // (Inside the court: the outer walls stand on the footprint's edge and were built from within.)
+    S.scaffolds.push({ x: -2.6, z: M.inner - 0.6, w: 4.0, d: 0.8, h, ry: 0 }, { x: M.inner - 0.6, z: -1.0, w: 6.0, d: 0.8, h, ry: Math.PI / 2 }, { x: -M.inner + 0.6, z: 0, w: 6.0, d: 0.8, h, ry: -Math.PI / 2 });
     S.cranes.push({ x: 2.2, z: -2.4, ry: 0.4, h: 6.0, kind: 'treadwheel' });
     S.piles.push({ x: 2.6, z: 3.0, ry: 0.1, good: 'timber', n: 4 }, { x: -2.6, z: 3.0, ry: -0.1, good: 'clay', n: 3 }, { x: 3.0, z: -1.0, ry: 0.3, good: 'iron', n: 1 });
   } else {
     const h = Math.max(M.floor1 + 1.4, M.floor1 + (M.eave - M.floor1) * f + 1.2);
-    S.scaffolds.push({ x: 0, z: M.out + 0.55, w: 12.0, d: 0.9, h, ry: 0 }, { x: -M.out - 0.55 + 0.3, z: 0, w: 8.0, d: 0.8, h, ry: -Math.PI / 2 }, { x: 0, z: -M.out - 0.25, w: 8.0, d: 0.8, h, ry: Math.PI });
+    S.scaffolds.push({ x: 2.6, z: M.inner - 0.6, w: 4.0, d: 0.8, h, ry: 0 }, { x: -M.inner + 0.6, z: 0, w: 6.0, d: 0.8, h, ry: -Math.PI / 2 }, { x: 0, z: -M.inner + 0.6, w: 6.0, d: 0.8, h, ry: Math.PI });
     S.cranes.push({ x: 2.2, z: -1.6, ry: 0.4, h: 8.5, kind: 'treadwheel' });
     S.piles.push({ x: 2.6, z: 2.8, ry: 0.1, good: 'timber', n: 3 }, { x: -2.8, z: 2.4, ry: -0.2, good: 'clay', n: 2 });
   }
@@ -641,11 +646,10 @@ export function mansioActors(state) {
   list.push({ body: 'm', dress: ['tunic:knee'], hair: 'curls', beard: 'short', clip: state === 'open' ? 'give' : 'idle', props: state === 'open' ? { R: 'cup' } : {}, at: [0.2, 0.05, -I + 0.55], ry: 0, seed: 802, colours: { tunic: DYES.oxblood } });
   if (state === 'out') return list;
   // A mule train coming in at the gate: two pack mules, their muleteer leading the first.
-  const zIn = M.out - 0.6;
-  const run = { length: 6.6, speed: 0.9, pauseEnd: 6, pauseStart: 2, clipEnd: 'horse:stand', clipStart: 'horse:stand' };
-  list.push(beast(5, 'mule:pack', [0.55, 0.05, zIn], Math.PI, 'horse:walk', { route: run }));
-  list.push(beast(6, 'mule:pack', [0.55, 0.05, zIn + 2.4], Math.PI, 'horse:walk', { route: { ...run, length: 4.6 } }));
-  list.push({ body: 'm', dress: ['tunic:short', 'paenula'], hair: 'crop', beard: 'full', clip: 'walk', at: [-0.35, 0.05, zIn - 1.1], ry: Math.PI, seed: 803, colours: { tunic: DYES.brownWool, mantle: DYES.walnut }, route: { length: 6.6, speed: 0.9, pauseEnd: 6, pauseStart: 2, clipEnd: 'talk', clipStart: 'idle' } });
+  const run = { length: 4.0, speed: 0.9, pauseEnd: 6, pauseStart: 2, clipEnd: 'horse:stand', clipStart: 'horse:stand' };
+  list.push(beast(5, 'mule:pack', [0.55, 0.05, 6.0], Math.PI, 'horse:walk', { route: run }));
+  list.push(beast(6, 'mule:pack', [0.55, 0.05, 8.4], Math.PI, 'horse:walk', { route: run }));
+  list.push({ body: 'm', dress: ['tunic:short', 'paenula'], hair: 'crop', beard: 'full', clip: 'walk', at: [-0.35, 0.05, 5.0], ry: Math.PI, seed: 803, colours: { tunic: DYES.brownWool, mantle: DYES.walnut }, route: { length: 4.0, speed: 0.9, pauseEnd: 6, pauseStart: 2, clipEnd: 'talk', clipStart: 'idle' } });
   // The ox wagon unloading by the stores, a porter carrying its sacks in.
   list.push({ rigid: 'cart:wagon', at: [3.0, 0, -0.4], ry: 0, seed: 804, colours: { accent: 0xb8a070 } });
   list.push({ rigid: 'beast:ox', at: [3.0, 0, 2.9], ry: 0, seed: 805, colours: { skin: 0xb8b0a0, hair: 0x8a8070, trim: 0xd8d0c0 } });
@@ -684,8 +688,8 @@ export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false
   // The footings under every wall (a socle once built).
   const footH = stage === 0 ? 0.08 + 0.3 * Math.min(1, f * 1.6) : 0.3;
   for (const s of SIDES) {
-    const half = s.name === 'front' || s.name === 'back' ? M.out : M.inner;
-    for (const [b, t] of [[M.out - 0.2, 0.5], [M.inner + 0.15, 0.4]]) out.core.push(toSide(box(2 * (b === M.out - 0.2 ? half : M.inner) + 0.2, footH, t, 0, 0, b, 0.85), s.ry));
+    out.core.push(toSide(box(2 * M.out - 0.2, footH, 0.5, 0, 0, M.out - 0.2, 0.85), s.ry));
+    out.core.push(toSide(box(2 * M.inner + 0.2, footH, 0.4, 0, 0, M.inner + 0.15, 0.85), s.ry));
   }
   for (const s of SIDES) range(lod, seed + 10 + s.ry * 7, out, stage, f, s, sacked);
   fittings(lod, seed + 60, out, stage, f, sacked);
@@ -721,7 +725,7 @@ export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false
   p.add('rope', R.rope, out.rope, small);
   p.add('hay', material('hay', { surface: 'thatch', color: 0xc4ad7c, vertexColors: true, snow: 1 }), out.hay, small);
   p.add('jugs', R.clay, out.clay, small);
-  p.add('vine', R.leaf, out.vine, small);
+  p.add('vine', material('vine-leaf', { roughness: 0.75, vertexColors: true, snow: 0.85, wet: 0.6 }), out.vine, small);
   p.add('vault', material('vault-render', { surface: 'limestone', color: 0xe6c8b6, vertexColors: true, snow: 1 }), out.vault);
   p.add('trough-water', ice ? iceMaterial() : shallowWaterMaterial(), out.troughWater, { cast: false });
   p.add('rubble', m.core, out.rubble);
@@ -757,5 +761,5 @@ export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false
 
 /** The inn's lanterns (x, y, z): either side of the gate on the street, facing it; lit while it is staffed. */
 export const MANSIO_LAMPS = Object.freeze([
-  Object.freeze([-G.w - 0.75, 2.5, M.out + 0.22]), Object.freeze([G.w + 0.75, 2.5, M.out + 0.22]),
+  Object.freeze([-G.w - 0.75, 2.5, M.out + 0.06]), Object.freeze([G.w + 0.75, 2.5, M.out + 0.06]),
 ]);

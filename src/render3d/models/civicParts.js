@@ -153,10 +153,8 @@ export function groinSkin(cx, cz, a, y0, seg, upTo = 1) {
         col.push(t, t, t);
       }
       if (prev !== null) {
-        // (Wound so the face looks out and up whichever quarter it is.)
-        const flip = (axis === 'x') === (side > 0);
-        if (flip) idx.push(base - 2, base, base - 1, base - 1, base, base + 1);
-        else idx.push(base - 2, base - 1, base, base - 1, base + 1, base);
+        // (geometry() winds each to face its normals.)
+        idx.push(base - 2, base - 1, base, base - 1, base + 1, base);
       }
       prev = j;
     }
@@ -164,8 +162,24 @@ export function groinSkin(cx, cz, a, y0, seg, upTo = 1) {
   return geometry(pos, nor, uv, col, idx);
 }
 
-/** A geometry from plain arrays (indexed). */
+/**
+ * A geometry from plain arrays (indexed), each triangle wound to face the
+ * way its vertices' normals point (the look's materials draw one side only:
+ * a skin wound the wrong way vanishes from above).
+ */
 function geometry(pos, nor, uv, col, idx) {
+  for (let i = 0; i < idx.length; i += 3) {
+    const [a, b, c] = [idx[i] * 3, idx[i + 1] * 3, idx[i + 2] * 3];
+    const ux = pos[b] - pos[a];
+    const uy = pos[b + 1] - pos[a + 1];
+    const uz = pos[b + 2] - pos[a + 2];
+    const vx = pos[c] - pos[a];
+    const vy = pos[c + 1] - pos[a + 1];
+    const vz = pos[c + 2] - pos[a + 2];
+    const n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
+    const d = n[0] * (nor[a] + nor[b] + nor[c]) + n[1] * (nor[a + 1] + nor[b + 1] + nor[c + 1]) + n[2] * (nor[a + 2] + nor[b + 2] + nor[c + 2]);
+    if (d < 0) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+  }
   const g = new BufferGeometry();
   g.setIndex(idx);
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));
@@ -270,6 +284,9 @@ export function rubbleHeap(x, z, r, n, seed, lod = 0) {
     g.rotateY(rnd() * 3);
     // (Piled higher toward the middle.)
     g.translate(x + Math.cos(a) * d, h * 0.3 + (1 - d / r) * r * 0.35, z + Math.sin(a) * d);
+    // (Tipped, a block's corner may dip under the ground, which the look clips: lift it to stand on it.)
+    g.computeBoundingBox();
+    if (g.boundingBox.min.y < 0) g.translate(0, -g.boundingBox.min.y, 0);
     const t = 0.7 + rnd() * 0.3;
     out.push(tintGeometry(boxUV(g), () => t));
   }

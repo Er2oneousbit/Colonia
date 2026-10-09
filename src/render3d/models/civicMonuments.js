@@ -135,7 +135,7 @@ function siteOf(kind, key, stage, f) {
 }
 
 /** Lanterns for models.js modelLamps: the panes' middles, facing the street (+z). */
-const lampsAt = (list) => Object.freeze(list.map(([x, y, z, s = 1]) => Object.freeze([x, y + 0.11, z, s])));
+const lampsAt = (list) => Object.freeze(list.map(([x, y, z, s = 1, sx = 0]) => Object.freeze([x, y + 0.11, z, s, sx])));
 
 /**
  * One monument's entry. `kind` its own: the stages, the builders (a site's
@@ -164,7 +164,8 @@ function entry(type, kind) {
       const people = look.sacked ? 'shut' : st.people;
       const actors = castOf(`${type}|${people}|${ice ? 1 : 0}`, () => kind.actors(people, ice));
       const stocked = kind.stocked(st) && !look.sacked;
-      return { key, state: st.kit, ice: false, actors, ...(stocked ? { more: kind.more } : {}) };
+      // (`ice`: a hard frost, for the baths' steam over their working hot rooms: models.js partShows 'ice'.)
+      return { key, state: st.kit, ice, actors, ...(stocked ? { more: kind.more } : {}) };
     },
     // Its finished look and its store's kit (the programs and textures its sites ask for are among them).
     warm: [type, `${type}:s1:2`, kind.more[0].key],

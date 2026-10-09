@@ -138,12 +138,12 @@ export function buildCivicScene() {
     }
     return k;
   };
-  const place = (key, mat, state) => {
+  const place = (key, mat, state, ice = false) => {
     const h = new Group();
     h.matrixAutoUpdate = false;
     h.matrix.copy(mat);
     kitOf(key).traverse((mesh) => {
-      if (!mesh.isMesh || !partShows(mesh.userData.when, state, false)) return;
+      if (!mesh.isMesh || !partShows(mesh.userData.when, state, ice)) return;
       const c = new Mesh(mesh.geometry, mesh.material);
       c.castShadow = mesh.castShadow;
       c.receiveShadow = true;
@@ -163,7 +163,7 @@ export function buildCivicScene() {
     for (const { b } of placedList) {
       const v = CIVIC_MODELS[b.type].variant(b, { snow: frost ? 3 : 0 }, { game });
       const m = matOf(b);
-      place(v.key, m, v.state);
+      place(v.key, m, v.state, v.ice);
       for (const e of v.more || []) for (let j = 0; j < e.n; j++) place(e.key, m.clone().multiply(_l.fromArray(e.mats, j * 16)), e.state || 'always');
       if (v.actors) people.add(v.actors, m, b.id);
     }

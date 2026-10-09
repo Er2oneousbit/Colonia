@@ -214,7 +214,7 @@ function wallAt(list, len, h, t, x, z, ry, openings, c, lod) {
 }
 
 /** The frigidarium: its walls and openings, the lunettes and their thermal windows, the three groin vaults. */
-function frigidarium(lod, seed, out, stage, f, finished) {
+function frigidarium(lod, seed, out, stage, f, finished, sacked = false) {
   const wallK = share(stage, f, 1);
   const c = F.spring * wallK;
   const seg = lod === 2 ? 6 : lod ? 10 : 18;
@@ -230,7 +230,8 @@ function frigidarium(lod, seed, out, stage, f, finished) {
   wallAt(out.brick, F.z1 - F.z0 - 2 * F.t, F.spring, F.t, F.x1, (F.z0 + F.z1) / 2, Math.PI / 2, end, c, lod);
   wallAt(out.brick, F.z1 - F.z0 - 2 * F.t, F.spring, F.t, F.x0, (F.z0 + F.z1) / 2, -Math.PI / 2, end, c, lod);
   // The dark of the hall through its openings (a box inside, faces in).
-  if (wallK > 0.3) out.dark.push(box(len - 2 * F.t - 0.02, Math.min(c, F.spring) - 0.12, F.z1 - F.z0 - 2 * F.t - 0.02, 0, 0.12, (F.z0 + F.z1) / 2, 1));
+  // (Only under its vaults: open to the sky, the hall shows its floor.)
+  if (stage >= 3) out.dark.push(box(len - 2 * F.t - 0.02, Math.min(c, F.spring) - 0.12, F.z1 - F.z0 - 2 * F.t - 0.02, 0, 0.12, (F.z0 + F.z1) / 2, 1));
   // A cornice of travertine at the springing, all round.
   if (stage >= 2) {
     for (const z of [F.z0 - 0.06, F.z1 + 0.06]) out.trav.push(slab(len + 0.3, 0.14, 0.24, { bevel: 0.015, seed: seed + z, wobble: 0, tone: 0.03, grime: 0.2 }).translate(0, F.spring, z));
@@ -242,15 +243,16 @@ function frigidarium(lod, seed, out, stage, f, finished) {
   const r = a + 0.2;
   const sy = F.spring + 0.14;
   for (let b = 0; b < 3; b++) {
-    const up = stage >= 3 ? 1 : stage === 2 ? Math.min(1, Math.max(0, vk * 3.3 - b * 1.1)) : 0;
+    // (Sacked: the raiders' fire brought the crown of the third bay's vault down: its haunches stand.)
+    const up = sacked && b === 2 ? 0.6 : stage >= 3 ? 1 : stage === 2 ? Math.min(1, Math.max(0, vk * 3.3 - b * 1.1)) : 0;
     if (up <= 0) continue;
     skin.push(groinSkin(cx[b], (F.z0 + F.z1) / 2, r, sy, seg, up));
     // The lunettes over the bay's two long sides (front and back), with their thermal windows.
-    if (up >= 1) {
+    if (up >= 1 || (sacked && b === 2)) {
       for (const [z, ry] of [[F.z1, 0], [F.z0, Math.PI]]) {
         const l = lunetteWall(r, F.t, seg, a - 0.35, 0.15);
         out.brick.push(placed(l.wall, cx[b], sy, z, ry));
-        if (l.glass && stage >= 3) out.glass.push(placed(l.glass, cx[b], sy, z, ry));
+        if (l.glass && stage >= 3) out.glass.push(placed(l.glass.clone(), cx[b], sy, z, ry));
         if (l.glass && stage >= 3) out.glassDark.push(placed(l.glass.clone(), cx[b], sy, z, ry));
       }
     }
@@ -261,15 +263,15 @@ function frigidarium(lod, seed, out, stage, f, finished) {
       const l = lunetteWall(r, F.t, seg, a - 0.35, 0.15);
       out.brick.push(placed(l.wall, x, sy, (F.z0 + F.z1) / 2, ry));
       if (l.glass && stage >= 3) {
-        out.glass.push(placed(l.glass, x, sy, (F.z0 + F.z1) / 2, ry));
+        out.glass.push(placed(l.glass.clone(), x, sy, (F.z0 + F.z1) / 2, ry));
         out.glassDark.push(placed(l.glass.clone(), x, sy, (F.z0 + F.z1) / 2, ry));
       }
     }
   }
-  // The façade on the pool: four columns of green cipollino on pedestals carrying their own bits of
-  // entablature, and between the openings and at the ends niches with statues (finished).
+  // The façade on the pool: two columns of green cipollino on pedestals before the piers between the
+  // openings, carrying their own bits of entablature; on the end piers niches with statues (finished).
   if (stage >= 3 || (stage === 2 && vk > 0.5)) {
-    const colX = [-4.0, -1.6, 1.6, 4.0];
+    const colX = [-1.6, 1.6];
     const colH = F.spring - 0.95;
     for (const x of colX) {
       out.trav.push(slab(0.62, 0.75, 0.62, { bevel: 0.02, seed: seed + x * 3, wobble: 0.002, tone: 0.04, grime: 0.4 }).translate(x, 0.05, F.z1 + 0.42));
@@ -284,9 +286,11 @@ function frigidarium(lod, seed, out, stage, f, finished) {
 
 /** The niches' statues along the façade (Hygieia, the goddess of health, and an athlete), finished. */
 function statues(lod, out) {
-  for (const [x, kind] of [[-2.8, 'draped'], [2.8, 'nude']]) {
-    out.dark.push(box(0.7, 2.3, 0.02, x, 0.5, F.z1 + 0.005, 1));
-    const s = statue(x, F.z1 + 0.32, 0, { y0: 0.05, h: 1.0, kind, lod, scale: 0.92, base: 0.45 });
+  for (const [x, kind] of [[-4.36, 'draped'], [4.36, 'nude']]) {
+    // (The niche: a dark arched recess in the end pier, the statue on its base before it.)
+    out.dark.push(box(0.62, 2.3, 0.02, x, 0.55, F.z1 + 0.005, 1));
+    out.trav.push(slab(0.8, 0.12, 0.2, { bevel: 0.01, seed: x, wobble: 0, tone: 0.02, grime: 0.1 }).translate(x, 2.85, F.z1 + 0.1));
+    const s = statue(x, F.z1 + 0.3, 0, { y0: 0.05, h: 1.0, kind, lod, scale: 0.88, base: 0.4 });
     out.trav.push(...s.base);
     out.statue_marble.push(...s.statue);
   }
@@ -302,7 +306,7 @@ function tepidarium(lod, seed, out, stage, f) {
   for (const [x, ry] of [[P0.x1, Math.PI / 2], [P0.x0, -Math.PI / 2]]) {
     wallAt(out.brick, P0.z1 - P0.z0, P0.spring, 0.4, x, zc, ry, [{ x: 0, w: 0.9, h: 1.2, y: 1.2, arch: true }], c, lod);
   }
-  if (stage >= 1 && c >= P0.spring - 1e-6) out.dark.push(box(P0.x1 - P0.x0 - 0.8, P0.spring - 0.1, P0.z1 - P0.z0 - 0.2, 0, 0.1, zc, 1));
+  if (stage >= 3) out.dark.push(box(P0.x1 - P0.x0 - 0.8, P0.spring - 0.1, P0.z1 - P0.z0 - 0.2, 0, 0.1, zc, 1));
   const up = stage >= 3 ? 1 : stage === 2 ? Math.min(1, share(stage, f, 2) * 2.5) : 0;
   if (up > 0) {
     (stage >= 3 ? out.warmVault : out.vaultBare).push(barrelSkin(P0.x0 - 0.05, P0.x1 + 0.05, P0.spring, zc, r + 0.15, seg, up));
@@ -311,7 +315,7 @@ function tepidarium(lod, seed, out, stage, f) {
         const l = lunetteWall(r + 0.15, 0.4, seg, r - 0.45, 0.12);
         out.brick.push(placed(l.wall, x, P0.spring, zc, ry));
         if (l.glass && stage >= 3) {
-          out.glass.push(placed(l.glass, x, P0.spring, zc, ry));
+          out.glass.push(placed(l.glass.clone(), x, P0.spring, zc, ry));
           out.glassDark.push(placed(l.glass.clone(), x, P0.spring, zc, ry));
         }
       }
@@ -522,7 +526,7 @@ function vestibule(lod, seed, out, stage, f, s, sacked) {
   wallAt(out.plaster, d - 0.7, V.eave, 0.35, s > 0 ? xb : xa, zc, s > 0 ? Math.PI / 2 : -Math.PI / 2, [{ x: 0, w: 0.6, h: 0.8, y: 2.0 }], c, lod);
   wallAt(out.plaster, d - 0.7, V.eave, 0.35, s > 0 ? xa : xb, zc, s > 0 ? -Math.PI / 2 : Math.PI / 2, [], c, lod);
   out.red.push(box(w, 0.75, 0.012, xc, 0, V.z1 + 0.006, 1));
-  if (c >= V.eave - 1e-6) out.dark.push(box(w - 0.72, V.eave - 0.1, d - 0.72, xc, 0.08, zc, 1));
+  if (c >= V.eave - 1e-6 && (k >= 0.75 || stage >= 4)) out.dark.push(box(w - 0.72, V.eave - 0.1, d - 0.72, xc, 0.08, zc, 1));
   // The door's travertine frame and lintel.
   out.trav.push(slab(door.w + 0.4, 0.2, 0.42, { bevel: 0.012, seed: seed + s, wobble: 0, tone: 0.03, grime: 0.2 }).translate(xc + door.x, door.y + door.h + door.w / 2 + 0.04, V.z1 - 0.17));
   for (const e of [-1, 1]) out.trav.push(slab(0.22, door.y + door.h + 0.02, 0.4, { bevel: 0.012, seed: seed + e * 3, wobble: 0, tone: 0.03, grime: 0.3 }).translate(xc + door.x + e * (door.w / 2 + 0.1), 0, V.z1 - 0.16));
@@ -530,7 +534,8 @@ function vestibule(lod, seed, out, stage, f, s, sacked) {
   // The roof: four slopes up to a short ridge (on the front one's inscription frieze).
   const y = V.eave;
   const top = y + 1.15;
-  const o = 0.3;
+  // (Its eaves kept within the footprint at the street and the side.)
+  const o = 0.15;
   const quads = [
     [[xa - o, y, V.z1 + o], [xb + o, y, V.z1 + o], [xb - 1.2, top, zc], [xa + 1.2, top, zc]],
     [[xb + o, y, V.z0 - o], [xa - o, y, V.z0 - o], [xa + 1.2, top, zc], [xb - 1.2, top, zc]],
@@ -662,9 +667,11 @@ export function buildThermaeWood({ lod = 0, seed = 671 } = {}) {
 
 /** What raiders leave: rubble at the doors and in the court, soot up the walls, the statues thrown down. */
 function sackedParts(lod, seed, out) {
-  for (const [x, z, r, n] of [[-7.5, 9.9 - 0.5, 0.9, 16], [7.4, 9.3, 1.1, 18], [0, 4.95, 0.9, 14], [6.2, 2.0, 1.0, 14], [-6.6, -2.4, 0.8, 10], [-2.8, 5.0, 0.5, 8]]) out.rubble.push(...rubbleHeap(x, z, r, n, seed + x * 7 + z, lod));
+  // Heaps of broken brick and stone at the doors, in the courts, and in the hall under the fallen vault.
+  const heaps = [[-7.8, 9.0, 0.75, 24], [7.6, 8.9, 0.85, 28], [0, 4.95, 1.1, 26], [6.2, 2.0, 1.4, 30], [-6.4, -2.4, 1.1, 22], [-2.2, 5.0, 0.8, 16], [3.2, 3.0, 1.3, 34], [4.6, -3.6, 0.9, 16]];
+  heaps.forEach(([x, z, r, n], i) => (i % 2 ? out.brick : out.rubble).push(...rubbleHeap(x, z, r, n, seed + x * 7 + z, lod)));
   // Soot over the doors and the windows they fired.
-  for (const [x, z, ry, w, h] of [[-7.5 + 0.3 * -1, V.z1 + 0.01, 0, 1.8, 3.4], [7.5 + 0.3, V.z1 + 0.01, 0, 1.8, 3.4], [-3.2, F.z1 + 0.01, 0, 1.6, 3.6], [3.2, F.z1 + 0.01, 0, 1.6, 3.2], [PAL.wall - 0.37, 1.0, -Math.PI / 2, 2.2, 3.0]]) out.soot.push(scorch(x, 0.2, z, ry, w, h));
+  for (const [x, z, ry, w, h] of [[-7.5 + 0.3 * -1, V.z1 + 0.01, 0, 1.8, 3.4], [7.5 + 0.3, V.z1 + 0.01, 0, 1.8, 3.4], [-3.2, F.z1 + 0.01, 0, 1.6, 3.6], [3.2, F.z1 + 0.01, 0, 1.6, 3.2], [PAL.wall - 0.37, 1.0, -Math.PI / 2, 2.2, 3.0]]) out.soot.push(scorch(x, 0.2, z, ry, w, h), scorch(x, 0.2, z + 0.002 * Math.cos(ry), ry, w * 0.6, h * 1.2));
   // A statue's broken pieces before its empty niche.
   out.marble.push(...fallenColumn(-2.8, 5.0, 0.6, 0.12, 2, 0.5, seed + 3, lod));
 }
@@ -692,9 +699,10 @@ export function thermaeSite(stage, f, work = false) {
   }
   if (stage === 1) {
     // Scaffolds round the drum's back and along the frigidarium's long walls.
-    for (const k of [4, 6, 8, 10]) {
+    // (Round the drum's sides: its back stands at the footprint's edge, built from inside.)
+    for (const k of [3, 4, 11, 12]) {
       const th = ((k + 0.5) / C.n) * Math.PI * 2;
-      S.scaffolds.push({ x: C.x + Math.sin(th) * (C.R + 0.6), z: C.z + Math.cos(th) * (C.R + 0.6), w: 1.6, d: 0.9, h: wallH(C.top), ry: th });
+      S.scaffolds.push({ x: C.x + Math.sin(th) * (C.R + 0.55), z: C.z + Math.cos(th) * (C.R + 0.55), w: 1.6, d: 0.9, h: wallH(C.top), ry: th });
     }
     S.scaffolds.push({ x: 0, z: F.z1 + 0.6, w: 8.4, d: 0.9, h: wallH(F.spring), ry: 0 });
     S.scaffolds.push({ x: F.x1 + 0.6, z: (F.z0 + F.z1) / 2, w: 2.4, d: 0.9, h: wallH(F.spring), ry: Math.PI / 2 });
@@ -708,7 +716,7 @@ export function thermaeSite(stage, f, work = false) {
       if (done - b * 1.1 < 1) S.centering.push({ x, z: (F.z0 + F.z1) / 2, ry: 0, span: F.bay - 2 * F.t, rise: F.bay / 2 - F.t, depth: F.z1 - F.z0 - 2 * F.t, y: F.spring });
     });
     if (f * 1.25 < 1) S.centering.push({ x: C.x, z: C.z, dome: DOME.r - 0.1, y: DOME.foot });
-    S.scaffolds.push({ x: C.x, z: C.z - C.R - 0.6, w: 3.2, d: 0.9, h: DOME.foot + 0.4, ry: Math.PI });
+    S.scaffolds.push({ x: C.x + C.R + 0.55, z: C.z, w: 3.0, d: 0.9, h: DOME.foot + 0.4, ry: Math.PI / 2 });
     S.scaffolds.push({ x: -3.0, z: F.z1 + 0.6, w: 3.6, d: 0.9, h: F.spring + 0.6, ry: 0 });
     S.cranes.push({ x: 5.6, z: -2.6, ry: -2.0, h: 9.0, kind: 'treadwheel' });
     S.piles.push({ x: -7.0, z: 2.0, ry: 0.15, good: 'marble', n: 3 }, { x: 7.2, z: 3.4, ry: -0.1, good: 'clay', n: 2 }, { x: -6.8, z: -2.6, ry: 0.3, good: 'marble', n: 2 });
@@ -716,7 +724,7 @@ export function thermaeSite(stage, f, work = false) {
   if (stage === 3) {
     // The block done; scaffolds along the colonnades going up and at the vestibules.
     for (const s of [-1, 1]) S.scaffolds.push({ x: s * (PAL.cols - 0.7), z: 1.0, w: 6.0, d: 0.8, h: PAL.h + 0.4, ry: Math.PI / 2 });
-    S.scaffolds.push({ x: 7.5, z: V.z1 + 0.05 - 0.6, w: 3.4, d: 0.8, h: V.eave + 0.5, ry: 0 });
+    S.scaffolds.push({ x: 7.5, z: V.z0 - 0.55, w: 3.4, d: 0.8, h: V.eave + 0.5, ry: Math.PI });
     S.cranes.push({ x: 3.2, z: 7.6, ry: 0.6, h: 5.0, kind: 'shear' });
     S.piles.push({ x: -3.6, z: 2.3, ry: 0.05, good: 'marble', n: 2 }, { x: 3.8, z: -0.2, ry: 0.2, good: 'marble', n: 1 }, { x: -3.6, z: -2.4, ry: -0.2, good: 'stone', n: 1 });
   }
@@ -783,11 +791,11 @@ export function thermaeActors(state, ice = false) {
   const fz = fq.z + Math.cos(fq.ry) * 1.2;
   if (state === 'cold') {
     list.push({ ...stoker, clip: 'idle', at: [fx + 0.6, sand, fz - 0.3], ry: -2.2 });
-    list.push({ ...door, clip: 'idle', at: [7.6, 0.05, V.z1 + 0.4], ry: 0.2 });
+    list.push({ ...door, clip: 'idle', at: [7.2, 0.05, V.z0 - 0.5], ry: Math.PI + 0.2 });
     return list;
   }
   list.push({ ...stoker, clip: 'sweep', props: { R: 'broom' }, at: [fx, sand, fz], ry: fq.ry + Math.PI });
-  list.push({ ...door, clip: 'listen', at: [-7.0, 0.05, V.z1 + 0.45], ry: 0.3 });
+  list.push({ ...door, clip: 'listen', at: [-7.4, 0.05, V.z0 - 0.5], ry: Math.PI - 0.3 });
   // The natatio: bathers to the waist (their feet on its floor), one sitting on the rim, his feet in the water.
   if (!ice) {
     list.push({ ...bare(0xa87452), hair: 'crop', clip: 'idle', at: [-2.2, 0.06, 7.0], ry: 0.6, seed: 610 });
@@ -838,7 +846,7 @@ export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = fal
   const out = bag(KEYS);
   ground(lod, seed, out, stage, f);
   foundations(lod, seed + 10, out, stage, f);
-  frigidarium(lod, seed + 20, out, stage, f, done);
+  frigidarium(lod, seed + 20, out, stage, f, done, sacked);
   tepidarium(lod, seed + 40, out, stage, f);
   caldarium(lod, seed + 60, out, stage, f);
   furnaces(lod, seed + 80, out, stage);
@@ -905,7 +913,9 @@ export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = fal
   // The windows: lit from within while the fire is in (the lanterns' horn, which the night lights); dark glass otherwise.
   const darkGlass = material('bath-glass-dark', { color: 0x3a3430, roughness: 0.25, snow: 0 });
   if (done) {
-    p.add('window', lanternPane(), out.glass, { when: 'flow', cast: false });
+    // (Glass with the warm light of the lamps and the furnace behind it; the night's glow on the ground is
+    // the lamps' list, THERMAE_LAMPS: the game's light map, as the lanterns'.)
+    p.add('window', material('bath-window-lit', { color: 0x4a3c30, roughness: 0.25, emissive: 0xff9a40, emissiveIntensity: 0.14, snow: 0 }), out.glass, { when: 'flow', cast: false });
     p.add('window', darkGlass, out.glassDark, { when: 'cold', cast: false });
   } else {
     p.add('window', darkGlass, out.glassDark, { cast: false });
@@ -916,7 +926,7 @@ export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = fal
   p.add('rubble', m.core, out.rubble);
   p.add('soot', material('soot', { color: 0x15110e, roughness: 1, opacity: 0.55, snow: 0, wet: 0 }), out.soot, small);
   if (done && !sacked && lod < 2) {
-    for (const [lx, ly, lz] of THERMAE_LAMPS) {
+    for (const [lx, ly, lz] of DOOR_LAMPS) {
       const l = lantern(lx, ly, lz, lod);
       p.add('lantern', m.bronze, [...l.bronze, staff([lx, ly + 0.3, lz], [lx, ly + 0.55, lz - 0.2], 0.012, 4)], small);
       p.add('lamp', lanternPane(), [l.pane], { when: 'flow', cast: false });
@@ -931,7 +941,7 @@ export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = fal
     const vents = lod < 2 ? [3, 7, 10, 12] : [7];
     p.add('smoke', steamMaterial(), vents.map((k, i) => {
       const [x, y, z] = ventAt(k);
-      return plume(x, y, z, { h: 1.8, r: 0.12, n: 3, seed: 30 + i, rows, rgb: smoke[i % 2], alpha: 0.85, lean: [-0.6, 0.35] });
+      return plume(x, y, z, { h: 2.6, r: 0.2, n: 3, seed: 30 + i, rows, rgb: smoke[i % 2], alpha: 0.9, lean: [-0.8, 0.45] });
     }), { when: 'flow', cast: false });
     const steam = [plume(C.x, DOME.foot + DOME.rise + 0.1, C.z, { h: 2.6, r: 0.32, n: 3, seed: 40, rows, alpha: 1, lean: [0.5, 0.4] })];
     if (lod < 2) {
@@ -949,8 +959,18 @@ export function buildThermae({ lod = 0, stage = THERMAE_STAGES, f = 1, ice = fal
   return p.build();
 }
 
-/** The baths' lanterns (x, y, z): at the vestibules' street doors, facing the street; lit while they work. */
+/** The lanterns either side of the vestibules' street doors (their doors at x = +-7.8), facing the street. */
+const DOOR_LAMPS = Object.freeze([-8.75, -6.85, 6.85, 8.75].map((x) => Object.freeze([x, 2.35, V.z1 + 0.06])));
+
+/**
+ * The baths' lights at night (x, y, z[, s, sx]: models.js modelLamps): the lanterns at the vestibules'
+ * street doors, facing the street, and the caldarium's tall windows, each facing out of its facet; lit
+ * while the baths work.
+ */
 export const THERMAE_LAMPS = Object.freeze([
-  Object.freeze([-7.0 - 0.95, 2.35, V.z1 + 0.22]), Object.freeze([-7.0 + 0.35, 2.35, V.z1 + 0.22]),
-  Object.freeze([7.0 + 0.95 - 0.7, 2.35, V.z1 + 0.22]), Object.freeze([7.0 + 1.25, 2.35, V.z1 + 0.22]),
+  ...[4, 6, 8, 10].map((k) => {
+    const th = ((k + 0.5) / C.n) * Math.PI * 2;
+    return Object.freeze([C.x + Math.sin(th) * (C.R + 0.05), 2.4, C.z + Math.cos(th) * (C.R + 0.05), Math.cos(th), Math.sin(th)]);
+  }),
+  ...DOOR_LAMPS,
 ]);
