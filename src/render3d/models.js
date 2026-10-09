@@ -64,6 +64,7 @@ import { buildVesselPart } from './ships/hulls.js';
 import { VILLAGE_MODELS, VILLAGE_PARTS } from './models/villages.js';
 import { buildSitePart } from './models/worksite.js';
 import { CIVIC_MODELS } from './models/civicMonuments.js';
+import { MONUMENT_MODELS } from './models/monumentModels.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -164,6 +165,8 @@ export const MODELS = Object.freeze({
   ...VILLAGE_MODELS,
   // The Great Baths and the Caravanserai, their sites and finished (models/civicMonuments.js says how).
   ...CIVIC_MODELS,
+  // The work camp and the Hall of Justice, built in stages (models/monumentModels.js says how).
+  ...MONUMENT_MODELS,
 });
 
 /**

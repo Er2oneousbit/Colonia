@@ -1666,13 +1666,18 @@ try {
   // Followed by its tile, not its id: a home that grows into a larger one
   // (homes merge into a 2x2) is a new building, and the check waited on the
   // gone id until it timed out (CI, v0.18.9).
-  const burnt = () => page.waitForFunction(() => {
+  // `stop`: pause the game the moment the fire is seen. The game ran on at top speed until the
+  // next step paused it, and with a prefecture next door its prefect could put the fire out in
+  // that gap on a busy machine: the douse check found nothing burning (v0.20.9, v0.21.2).
+  const burnt = (stop = false) => page.waitForFunction((halt) => {
     const g = window.colonia.game;
     const t = window.__torch;
     const b = g.buildings.get(g.map.buildingAt(t.x, t.y));
     if (b && b.house) b.fireRisk = 1e6; // (a passing prefect would lower it again)
-    return !(b && b.house) && g.city.stats.fires > t.fires;
-  }, null, { timeout: 30000, polling: 50 }).then(() => true, () => false);
+    const lit = !(b && b.house) && g.city.stats.fires > t.fires;
+    if (lit && halt) window.colonia.paused = true;
+    return lit;
+  }, stop, { timeout: 30000, polling: 50 }).then(() => true, () => false);
   const torch = await lightAHome(0);
   const lit = torch ? await burnt() : false;
   const paused = await page.evaluate(() => {
@@ -1743,7 +1748,7 @@ try {
     window.colonia.setSpeed(4);
     return { id: b.id, x: b.x, y: b.y, posts: posts.length };
   });
-  const lit3 = torch3 ? await burnt() : false;
+  const lit3 = torch3 ? await burnt(true) : false;
   const fought = lit3 ? await page.evaluate(() => {
     const app = window.colonia;
     const g = app.game;
@@ -1752,9 +1757,9 @@ try {
     for (let t = 0; t < 8 * 20 && !seen(); t++) g.runTicks(1); // up to 8 days (20 ticks a day)
     const p = seen();
     if (p) return { id: p.id, tile: p.fireTile };
-    // (None came: say what the prefects were doing. This check failed once on a
-    // random map with no cause found, v0.20.9: a lead is crews still running to
-    // fires the steps before cleared, which count as out.)
+    // (None came: say what the prefects were doing. The failures seen in v0.20.9
+    // and v0.21.2 were a fire already out before this step paused the game: burnt(true)
+    // now pauses as the fire is seen.)
     const t0 = window.__torch;
     const posts = [...g.buildings.values()].filter((b) => b.type === 'prefecture').map((b) => ({
       at: [b.x, b.y], eff: b.efficiency, road: b.accessRoad >= 0, crew: (b.walkers || []).map((id) => g.walkers.get(id)).filter(Boolean)
@@ -5430,6 +5435,68 @@ try {
           site && done && picked, JSON.stringify({ laid, site, done, picked }));
         check('monuments-civic: no page errors', cerrs.length === 0, cerrs.join(' | '));
         await gc.close();
+      }
+
+      // 8a8. monuments-site: the work camp and the Hall of Justice as models (render3d/models/
+      //      monumentModels.js): the console's `monument basilica` lays a basilica's site, a work camp,
+      //      a well and a warehouse beside the demo city; paused, staffed, each draws as a model
+      //      (waited for: kits are built a few a frame under the software GL) and a click on its
+      //      footprint opens its panel.
+      {
+        const gm = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const merrs = [];
+        gm.on('pageerror', (e) => merrs.push(`pageerror: ${e.message}`));
+        gm.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) merrs.push(m.text()); });
+        await gm.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gm.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const laidM = await gm.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          const free = app.game.cheats.freeBuild;
+          app.game.cheats.freeBuild = true;
+          const said = app.ui.console.run('monument basilica');
+          app.game.cheats.freeBuild = free;
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const all = [...app.game.buildings.values()];
+          const pick = (t) => {
+            const b = all.find((v) => v.type === t);
+            if (b) b.efficiency = 1;
+            return b ? { id: b.id, type: b.type, x: b.x, y: b.y, size: b.size } : null;
+          };
+          return { said, list: ['basilica', 'work_camp'].map(pick) };
+        });
+        const mons = [];
+        for (const b of laidM.list) {
+          if (!b) {
+            mons.push({ missing: true });
+            continue;
+          }
+          await gm.evaluate((v) => { const app = window.colonia; app.ui.info.close(); app.renderer.camera.zoomIndex = 4; app.renderer.camera.centerOnTile(v.x + v.size / 2, v.y + v.size / 2); }, b);
+          await gm.waitForFunction((t) => {
+            const r = window.colonia.renderer;
+            const mp = r.stats.modelPass || {};
+            return ((mp.byType || {})[t] || 0) >= 1 && !mp.deferred && !r.stats.pending;
+          }, b.type, { timeout: 60000, polling: 100 }).catch(() => {});
+          const drawn = await gm.evaluate((t) => (window.colonia.renderer.stats.modelPass?.byType || {})[t] || 0, b.type);
+          const p = await gm.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [b.x + b.size / 2, b.y + b.size / 2]);
+          await gm.mouse.click(p.x, p.y);
+          await gm.waitForFunction((id) => window.colonia.ui.info.target?.id === id, b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          const target = await gm.evaluate(() => window.colonia.ui.info.target);
+          mons.push({ type: b.type, drawn, picked: target?.kind === 'building' && target.id === b.id });
+        }
+        await gm.evaluate(() => window.colonia.ui.info.close());
+        if (shots) await gm.screenshot({ path: path.join(shots, 'smoke-webgl-monuments-site.png') });
+        check('WebGL renderer: the Hall of Justice\'s site and the work camp are 3D models, and a click picks each',
+          mons.length === 2 && mons.every((v) => !v.missing && v.drawn >= 1 && v.picked), JSON.stringify({ said: laidM.said, mons }));
+        check('WebGL renderer, monuments-site models: no page errors', merrs.length === 0, merrs.join(' | '));
+        await gm.close();
       }
 
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
