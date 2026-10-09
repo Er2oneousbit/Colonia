@@ -69,7 +69,7 @@ const ITEMS = [
 const INFO = `<button class="close" type="button" aria-label="Close">Close</button>
 <h2>The sacred monuments and the lighthouse</h2>
 <p><b>The Great Sanctuary</b> (<i>fanum</i>): the terraced sanctuaries of the late Republic, Fortuna Primigenia at Praeneste,
-Jupiter Anxur at Terracina, Hercules Victor at Tibur: terraces faced in polygonal and squared limestone, two ramps across the
+the sanctuary of Anxur at Terracina, Hercules Victor at Tibur: terraces faced in polygonal and squared limestone, two ramps across the
 lowest face, an arcade of arched rooms, arches framed by half-columns under an attic cut with the sanctuary's name, porticoes round
 the summit court and the god's own temple at its head, painted and gilded as the god's temples are; each god's ground on the lower
 terrace: Ceres's grove and cista, Neptune's spring and bronze dolphins, Mercury's market and caduceus, Mars's spoils and sacred

@@ -510,7 +510,7 @@ export function pharusSite(t, piles = {}) {
   } else if (stage === 1) {
     const h = (S.top - H.top) * hgrow(t, 'square') + 1.4;
     for (const [dx, dz, ry] of [[0, -1, 0], [1, 0, Math.PI / 2], [0, 1, 0], [-1, 0, Math.PI / 2]]) site.scaffolds.push({ x: TX + dx * (S.foot + 0.5), z: TZ + dz * (S.foot + 0.5), w: 2 * S.foot + 1.4, d: 0.75, h, ry, y: H.top });
-    site.cranes.push({ x: 3.5, z: -1.7, ry: Math.PI, h: 9.5, kind: 'treadwheel', y: H.top });
+    site.cranes.push({ x: 3.5, z: -1.7, ry: 0, h: 9.5, kind: 'treadwheel', y: H.top });
   } else if (stage === 2) {
     const h = (H.oct.top - S.top) * hgrow(t, 'oct') + 1.4;
     for (const [dx, dz, ry] of [[0, -1, 0], [1, 0, Math.PI / 2], [0, 1, 0], [-1, 0, Math.PI / 2]]) site.scaffolds.push({ x: TX + dx * (H.oct.r + 0.45), z: TZ + dz * (H.oct.r + 0.45), w: 2 * H.oct.r + 0.6, d: 0.6, h, ry, y: S.top + 0.2 });

@@ -9,7 +9,7 @@
  *     in polygonal limestone below and squared stone above, two long ramps
  *     climbing across the lowest face to meet in the middle, a terrace of
  *     arched rooms, a stair up the axis to the top.
- *   - Jupiter Anxur at Terracina: the summit platform carried on a row of
+ *   - the sanctuary of Anxur at Terracina: the summit platform carried on a row of
  *     arches over vaulted rooms (the substructure that still stands over
  *     the sea), the temple on its podium at the top.
  *   - Hercules Victor at Tibur: the temple in a court closed by porticoes
@@ -304,9 +304,10 @@ function massif(out, t, god, lod, seed) {
   // The footings: a low course round the whole plan, laid in the trenches.
   const fo = grow(t, 'footings');
   if (fo > 0 && grow(t, 'lower') < 0.3) {
-    const h = 0.12 + 0.3 * fo;
+    // (Out of the trenches as they are filled: a course of rubble in lime showing over the ground from the first day.)
+    const h = 0.15 + 0.35 * fo;
     for (const [x0, x1, z0, z1] of [[-X, X, t1.z1 - 0.6, t1.z1], [-X, X, back + 0.05, back + 0.6], [-X, -X + 0.6, back, t1.z1], [X - 0.6, X, back, t1.z1], [-X, X, t2.z1 - 0.5, t2.z1 + 0.1], [-X, X, t3.z1 - 0.5, t3.z1 + 0.1]]) {
-      out.core.push(box(x1 - x0, h, z1 - z0, (x0 + x1) / 2, -0.25, (z0 + z1) / 2, 0.85));
+      out.core.push(box(x1 - x0, h, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2, 0.85));
     }
     // The trenches' spoil heaped by them, the plan marked out on the ground.
     out.earth.push(box(2 * X - 0.2, 0.04, t1.z1 - back - 0.1, 0, -0.02, (t1.z1 + back) / 2, 0.75));

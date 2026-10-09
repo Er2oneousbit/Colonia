@@ -5372,6 +5372,65 @@ try {
         await gv.close();
       }
 
+      // 8a8. monuments-sacred: the Great Sanctuary in 3D (render3d/models/sacredMonuments.js). The
+      //      console lays Mars's sanctuary's site beside the demo city; the site draws as a model (its
+      //      stage's kit, waited for: kits are built a few a frame under the software GL); finished
+      //      and staffed it draws again as the finished model, and a click on its footprint picks it.
+      {
+        const gs = await glBrowser.newPage({ viewport: { width: 1280, height: 800 } });
+        const serrs = [];
+        gs.on('pageerror', (e) => serrs.push(`pageerror: ${e.message}`));
+        gs.on('console', (m) => { if (m.type() === 'error' && !ignorable(m.text())) serrs.push(m.text()); });
+        await gs.goto(`${url}?skipmenu=1&map=small&seed=webgl3&mute=1&renderer=3d&scale=1`);
+        await gs.waitForFunction(() => window.colonia && window.colonia.game && window.colonia.renderer.stats.backend === 'webgl', null, { timeout: 30000 });
+        const laidS = await gs.evaluate(() => {
+          const app = window.colonia;
+          app.ui.console.run('demo 2');
+          app.game.money = 1e6;
+          const said = app.ui.console.run('monument fanum_mars');
+          app.paused = true;
+          app.renderer.fixedTime = 0.3;
+          const b = [...app.game.buildings.values()].find((v) => v.type === 'fanum_mars');
+          if (b) app.renderer.camera.centerOnTile(b.x + 2.5, b.y + 2.5);
+          return { said, b: b ? { id: b.id, x: b.x, y: b.y } : null };
+        });
+        // (Drawn, and its look's own kit, a site's step or the finished one, built and shown.)
+        const drawnAs = (done) => gs.waitForFunction((done) => {
+          const r = window.colonia.renderer;
+          const mp = r.stats.modelPass || {};
+          const kits = r.backend.models.kits;
+          const shown = [...kits.values()].some((k) => k.key.startsWith('fanum_mars:') && (k.key === 'fanum_mars:done') === done && k.meshes.some((im) => im.count > 0));
+          return ((mp.byType || {}).fanum_mars || 0) >= 1 && shown && !mp.deferred && !r.stats.pending;
+        }, done, { timeout: 60000, polling: 100 }).then(() => true).catch(() => false);
+        const siteDrawn = laidS.b ? await drawnAs(false) : false;
+        const done = laidS.b ? await gs.evaluate(() => {
+          const app = window.colonia;
+          const said = app.ui.console.run('monument fanum_mars done');
+          const b = [...app.game.buildings.values()].find((v) => v.type === 'fanum_mars');
+          b.efficiency = 1;
+          return { said, finished: b.mon.stage === 4 };
+        }) : null;
+        const doneDrawn = laidS.b ? await drawnAs(true) : false;
+        let picked = false;
+        if (laidS.b) {
+          const p = await gs.evaluate(([x, y]) => {
+            const app = window.colonia;
+            const cam = app.renderer.camera;
+            const w = cam.mapToWorld(x, y);
+            const r = app.canvas.getBoundingClientRect();
+            return { x: r.left + ((w.x - cam.x) * cam.scale) / cam.dpr, y: r.top + ((w.y - cam.y) * cam.scale) / cam.dpr };
+          }, [laidS.b.x + 2.5, laidS.b.y + 2.5]);
+          await gs.mouse.click(p.x, p.y);
+          await gs.waitForFunction((id) => window.colonia.ui.info.target?.id === id, laidS.b.id, { timeout: 5000, polling: 50 }).catch(() => {});
+          picked = await gs.evaluate((id) => window.colonia.ui.info.target?.id === id, laidS.b.id);
+        }
+        if (shots) await gs.screenshot({ path: path.join(shots, 'smoke-webgl-sacred.png') });
+        check('monuments-sacred: a Great Sanctuary site and the finished sanctuary are 3D models, and a click picks it',
+          !!laidS.b && siteDrawn && !!done && done.finished && doneDrawn && picked, JSON.stringify({ laidS, siteDrawn, done, doneDrawn, picked }));
+        check('monuments-sacred: no page errors', serrs.length === 0, serrs.join(' | '));
+        await gs.close();
+      }
+
       // 8b. The 3D ground (render3d/ground/): Auto keeps the flat sprites on a
       //     software GL (this browser's), so the console asks for Low. It
       //     draws, keeps its picture while nothing moves, a click still picks
