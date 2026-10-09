@@ -57,7 +57,7 @@ const HUT_LOOKS = [
 function footing(bag, { x0, x1, z0, z1 }, h = 0.34) {
   const p = 0.05;
   const c = lin(0x9a9284, 0.9);
-  bag.add('rubble', box(x1 - x0 + 2 * p, h, z1 - z0 + 2 * p, (x0 + x1) / 2, 0, (z0 + z1) / 2, c));
+  bag.add('stone', box(x1 - x0 + 2 * p, h, z1 - z0 + 2 * p, (x0 + x1) / 2, 0, (z0 + z1) / 2, c));
 }
 
 /** A jar by a door: an amphora or a big storage jar, leaning on the wall. */

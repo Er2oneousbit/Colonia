@@ -44,7 +44,7 @@ const RIGHT = [1, -1, 1, -1];
 
 /** The townhouse's measures (metres): the tests, the lab and the people read them. */
 export const TOWNHOUSE = Object.freeze({
-  x0: -1.65, x1: 1.65, z0: -1.7, z1: 1.35, lower: 2.9, upper: 2.6, floorY: 0.06,
+  x0: -1.6, x1: 1.6, z0: -1.62, z1: 1.35, lower: 2.9, upper: 2.6, floorY: 0.06,
   /** The shop's mouth: x of its middle (mirrored by RIGHT), width, height. */
   mouth: Object.freeze({ x: -0.35, w: 2.0, h: 2.35 }),
   /** The counter's middle (z) and the shopkeeper's place behind it. */
@@ -54,7 +54,7 @@ export const TOWNHOUSE = Object.freeze({
 
 /** The apartment house's measures. */
 export const APARTMENT = Object.freeze({
-  x0: -1.7, x1: 1.7, z0: -1.75, z1: 1.5, floors: Object.freeze([3.0, 2.7, 2.6]), floorY: 0.06,
+  x0: -1.65, x1: 1.65, z0: -1.68, z1: 1.5, floors: Object.freeze([3.0, 2.7, 2.6]), floorY: 0.06,
   mouth: Object.freeze({ x: -0.5, w: 1.9, h: 2.4 }),
   counterZ: 0.92,
   stair: 1.2,
@@ -236,7 +236,7 @@ const APT_LOOKS = [
   { brick: BRICK.red, ground: 'brick', roof: 'gable-x', shut: WOODS.olive, balcony: 2, ware: 'amph', extra: 'sign', shutters: 'open' },
   { brick: BRICK.yellow, ground: 'plaster', groundC: WASH.cream, roof: 'hip', shut: WOODS.oak, balcony: 3, ware: 'cloth', extra: 'laundry', shutters: 'closed' },
   { brick: BRICK.grey, ground: 'brick', roof: 'gable-z', shut: WOODS.brown, balcony: 2, ware: 'fruit', extra: 'awning', shutters: 'open' },
-  { brick: BRICK.dark, ground: 'plaster', groundC: WASH.red, roof: 'gable-x', shut: WOODS.olive, balcony: 0, ware: 'bread', extra: 'chimney', shutters: 'open' },
+  { brick: WASH.ochre, upperKey: 'plaster', ground: 'brick', groundC: BRICK.red, roof: 'gable-x', shut: WOODS.olive, balcony: 0, ware: 'bread', extra: 'chimney', shutters: 'open' },
 ];
 
 /** An apartment house, its look `v` (0 to 3), at a level of detail. */
@@ -253,7 +253,7 @@ export function buildApartment(v = 0, lod = 0) {
   const brickC = lin(L.brick);
   slabBox(bag, 'flags', x0, x1, z0 + 0.3, z1 + 0.04, floorY, lin(0xa89c86, 0.9));
   const low = shell(bag, {
-    x0, x1, z0, z1, h: f1, t: 0.32, c: L.ground === 'brick' ? brickC : lin(L.groundC), k: 0.97, key: L.ground,
+    x0, x1, z0, z1, h: f1, t: 0.32, c: L.groundC ? lin(L.groundC) : brickC, k: 0.97, key: L.ground,
     openings: {
       '+z': [{ x: mx, y: 0, w: mouth.w, h: mouth.h }, { x: sx, y: 0, w: 0.9, h: 2.1 }],
       '+x': [{ x: 0.5, y: 1.3, w: 0.5, h: 0.6 }],
@@ -278,7 +278,7 @@ export function buildApartment(v = 0, lod = 0) {
   }
   const sideWin = (fl) => [-0.9, 0.9].map((x) => ({ x, y: rows[fl], w: 0.6, h: fl ? 0.95 : 1.1 }));
   const up = shell(bag, {
-    x0, x1, z0, z1, y0: f1, h: top - f1, t: 0.32, c: brickC, k: 0.97, key: 'brick',
+    x0, x1, z0, z1, y0: f1, h: top - f1, t: 0.32, c: brickC, k: 0.97, key: L.upperKey || 'brick',
     openings: {
       '+z': front3.map((w) => ({ x: w.x, y: w.y - f1, w: w.w, h: w.h })),
       '+x': [...sideWin(0), ...sideWin(1)].map((w) => ({ ...w, y: w.y - f1 })),
@@ -307,7 +307,7 @@ export function buildApartment(v = 0, lod = 0) {
   if (L.balcony) balcony(bag, upFront, { x: 0, w: L.balcony === 2 ? 3.1 : 2.2, d: 0.45, y: L.balcony === 2 ? f1 : f1 + floors[1], corbels: true, col: OAK });
   if (L.extra === 'sign') sign(bag, front, mx + mouth.w / 2 + 0.15, 2.6, CLOTH.woad);
   if (L.extra === 'awning') awning(bag, front, { x: mx, w: mouth.w + 0.3, y: 2.65, d: 0.42, drop: 0.3, cols: [lin(CLOTH.woad), lin(CLOTH.linen)] });
-  if (L.extra === 'laundry') laundry(bag, upFront, -1.2, 1.2, f1 + floors[1] + 1.7, 0.5, 11);
+  if (L.extra === 'laundry') laundry(bag, upFront, -1.2, 1.2, f1 + floors[1] + 1.7, 0.38, 11);
   const roof = { x0, x1, z0, z1, eaveY: top, over: 0.25, fill: brickC.map((c) => c * 0.96) };
   if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.85 });
   else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.9, over: 0.18 });
@@ -430,4 +430,40 @@ export function buildTenement(v = 0, lod = 0) {
     bag.add('wood', r.wood);
   });
   return Object.assign(bag.build(), { shopsX: TENEMENT.shops.map(([x]) => x * sg), stairX: TENEMENT.stair * sg });
+}
+
+// ---------------------------------------------------------------------------
+// Lamps: the windows a home may light at night (models.js modelLamps: [x, y, z, s], facing the street)
+// ---------------------------------------------------------------------------
+
+/** The townhouse's: its upper windows' middles on the front, and the lamp in its shop. */
+export function townLamps(v) {
+  const L = TOWN_LOOKS[v & 3];
+  const sg = RIGHT[v & 3];
+  const mx = TOWNHOUSE.mouth.x * sg;
+  const y = TOWNHOUSE.lower + 1.0;
+  const xs = L.balcony ? [mx, TOWNHOUSE.stair * sg] : [-0.95, 0.15, 1.15].map((x) => x * sg);
+  return Object.freeze([...xs.map((x) => Object.freeze([x, y, TOWNHOUSE.z1 + 0.05, 1])), Object.freeze([mx, 1.5, TOWNHOUSE.z1 - 0.35, 1])]);
+}
+
+/** The apartment house's: three windows on each of its two upper floors, and the shop's lamp. */
+export function apartmentLamps(v) {
+  const sg = RIGHT[v & 3];
+  const [f1, f2] = APARTMENT.floors;
+  const out = [];
+  for (const y of [f1 + 1.15, f1 + f2 + 1.0]) for (const x of [-1.1, 0, 1.1]) out.push(Object.freeze([x * sg, y, APARTMENT.z1 + 0.05, 1]));
+  out.push(Object.freeze([APARTMENT.mouth.x * sg, 1.5, APARTMENT.z1 - 0.35, 1]));
+  return Object.freeze(out);
+}
+
+/** The tenement's: five windows on each of three floors, and a lamp in each shop. */
+export function tenementLamps(v) {
+  const sg = RIGHT[v & 3];
+  const [, f2, f3, f4] = TENEMENT.floors;
+  const ys = [TENEMENT.floors[0] + 1.2, TENEMENT.floors[0] + f2 + 1.1, TENEMENT.floors[0] + f2 + f3 + 1.0];
+  void f4;
+  const out = [];
+  for (const y of ys) for (const x of [-2.8, -1.4, 0, 1.4, 2.8]) out.push(Object.freeze([x * sg, y, TENEMENT.half + 0.05, 1]));
+  for (const [x] of TENEMENT.shops) out.push(Object.freeze([x * sg, 1.5, TENEMENT.half - 0.35, 1]));
+  return Object.freeze(out);
 }

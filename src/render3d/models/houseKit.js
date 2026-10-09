@@ -38,7 +38,7 @@ export const WASH = Object.freeze({
   cream: 0xe6d9b8, white: 0xf0eadb, ochre: 0xd6ad62, yellow: 0xe0c078, red: 0xb4573f, pink: 0xd6a28a, grey: 0xcdc4b0, sand: 0xd8c39a, mud: 0xb39a74, lime: 0xe6dfc9,
 });
 /** Brick of Ostia's insulae: red, yellow-brown and a warm grey-red. */
-export const BRICK = Object.freeze({ red: 0xc8745a, yellow: 0xd8aa68, grey: 0xb98066, dark: 0xa2634d });
+export const BRICK = Object.freeze({ red: 0xc8745a, yellow: 0xe0bc78, grey: 0xbdae98, dark: 0xa5604a });
 /** Woodwork: dark oak, weathered grey, ochre-brown, an olive green of the painted ones. */
 export const WOODS = Object.freeze({ oak: 0x6a4a2c, grey: 0x8a7d68, brown: 0x8a5e34, olive: 0x59683f, red: 0x8a4630 });
 /** Awnings and cloths: madder, woad, weld, undyed. */
@@ -84,6 +84,10 @@ const PART = {
   flags: ['flags', 'flags', { cast: false }],
 };
 
+/** Keys that share another's material (see Bag.add). */
+const MERGED = { stone: 'plaster', clay: 'tile', dark: 'paint' };
+const DARK = [0.011, 0.009, 0.008];
+
 /** A house's geometry gathered by part, built to a level of detail. */
 export class Bag {
   constructor(name, lod, seed) {
@@ -94,10 +98,19 @@ export class Bag {
     this.o = {};
   }
 
-  /** Add geometries (arrays nest) to a part. */
+  /**
+   * Add geometries (arrays nest) to a part. Trim in stone and plaster, pots and tiles, and the dark of a
+   * window and plain colour share a material each (their colour is in the vertices): a draw fewer a kit,
+   * and a kit is a draw a part for every home of its look in view.
+   */
   add(key, ...g) {
     if (!PART[key]) throw new Error(`houses: no part ${key}`);
-    (this.o[key] ??= []).push(...g.flat(Infinity).filter(Boolean));
+    const list = g.flat(Infinity).filter(Boolean);
+    const to = MERGED[key];
+    if (to) {
+      if (key === 'dark') for (const x of list) tintGeometry(x, () => DARK);
+      (this.o[to] ??= []).push(...list);
+    } else (this.o[key] ??= []).push(...list);
     return this;
   }
 

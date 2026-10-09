@@ -130,7 +130,7 @@ const LOOKS = [['well', 'well'], ['well', 'well:ice'], ...[1, 2, 3, 4].map((t) =
 
 test('render3d: every model fits its tile at every turn and level of detail, standing on the ground', () => {
   assert.ok(hasModel('well') && hasModel('fountain'));
-  assert.ok(!hasModel('house') && !hasModel('toString'), 'only types with a model');
+  assert.ok(hasModel('house') && !hasModel('villa_of_nobody') && !hasModel('toString'), 'only types with a model (the houses have one, for the levels models/houses.js draws)');
   const S = 1;
   for (const [type, key] of LOOKS) {
     for (let lod = 0; lod < 3; lod++) {
