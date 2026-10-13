@@ -240,3 +240,14 @@ test('houses3d: a street of one level costs a few instanced draws, not one a hou
   assert.ok(mp.kits.size <= 22, `${mp.kits.size} kits`);
   mp.dispose();
 });
+
+test('houses3d: no home shows bare brick or a chimney (the games are set in the Republic)', () => {
+  // Bare brick-faced fronts are Ostia's, three centuries after 300 BC, and read as a modern
+  // block; a Roman hearth had no chimney. Mud brick under plaster or thatch (the hut) is fine.
+  for (const key of houseKeys()) {
+    const g = buildHouse(key, 0);
+    const names = [];
+    g.traverse((o) => { if (o.isMesh) names.push(o.material?.name || ''); });
+    assert.ok(!names.includes('brick'), `${key} uses the brick material`);
+  }
+});

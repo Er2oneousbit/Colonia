@@ -12,18 +12,22 @@
  *                    Abbondanza, whose shops opened onto the street and whose
  *                    upper rooms were lived in (the House of the Wooden
  *                    Partition's neighbours).
- *   Apartment House  a three-storey house on one tile in Ostia's manner:
- *                    brick-faced concrete with a stucco string course between
- *                    the storeys, a shop and a stair door below, windows
- *                    with wooden shutters, a balcony on brick corbels, a
- *                    low tiled roof (the Casa dei Dipinti, the houses of the
- *                    Via dei Balconi).
- *   Tenement         an Ostian insula on a 2 x 2 footprint (8 m): four storeys
- *                    of brick-faced concrete round a small light court, shops
- *                    along the street front, balconies on brick corbels,
- *                    windows rising in rows on the street and the court, a
- *                    stucco band, a tiled roof sloping outward from the
- *                    court's rim (the Garden Houses and the Casa di Diana).
+ *   Apartment House  a three-storey house on one tile: a ground floor of tufa
+ *                    rubble or plaster with a shop and a stair door, plastered
+ *                    storeys above with a string course, windows with wooden
+ *                    shutters, a balcony on timber beams, a low tiled roof.
+ *   Tenement         an insula on a 2 x 2 footprint (8 m): four plastered
+ *                    storeys round a small light court, shops along the street
+ *                    front, balconies on timber beams, windows rising in rows
+ *                    on the street and the court, a tiled roof sloping outward
+ *                    from the court's rim.
+ *
+ * The games are set in the Republic (from 300 BC): Rome's tall houses then
+ * were rubble, tufa and timber framing under plaster (opus craticium, as in
+ * Herculaneum's House of the Wattle Work). The bare brick-faced fronts of
+ * Ostia's insulae are three centuries later and read as a modern block, so
+ * no home here shows bare brick, and none has a chimney (a Roman hearth's
+ * smoke left by the roof or the window).
  *
  * States: 'open' lived in (shutters back, doors open, people), 'shut' empty
  * (shutters closed, the shop boarded up).
@@ -37,7 +41,7 @@ import { artRng } from '../texgen.js';
 import { roofSlope } from './learning.js';
 import { merge } from '../shapes.js';
 import {
-  Bag, box, WASH, BRICK, WOODS, CLOTH, shell, wall, windowTrim, doorLeaf, doorFrame, balcony, awning, ridgeRoof, slabBox,
+  Bag, box, WASH, TUFA, WOODS, CLOTH, shell, wall, windowTrim, doorLeaf, doorFrame, balcony, awning, ridgeRoof, slabBox,
 } from './houseKit.js';
 
 /** Mirror a look left to right on odd variants: the stair door and the shop swap sides. */
@@ -110,12 +114,6 @@ function counter(bag, put, x, w, z, kind, floorY) {
   }
 }
 
-/** A brick chimney stack with a stone cap, its foot at (x, y, z), h tall. */
-function chimney(bag, x, z, y, h = 1.4) {
-  bag.add('brick', box(0.5, h, 0.5, x, y, z, lin(BRICK.dark, 0.9)));
-  if (bag.lod < 2) bag.add('stone', box(0.62, 0.08, 0.62, x, y + h, z, 0.95));
-}
-
 /** A line of laundry across x0..x1 at y, on the wall's frame at local z: a rope and cloths hanging from it. */
 function laundry(bag, put, x0, x1, y, z, seed) {
   if (bag.lod === 2) return;
@@ -163,7 +161,7 @@ const TOWN_LOOKS = [
   { lower: 'plaster', lowerC: WASH.lime, upper: WASH.ochre, roof: 'gable-x', shut: WOODS.olive, balcony: true, ware: 'amph', extra: 'sign', shutters: 'open' },
   { lower: 'plaster', lowerC: WASH.red, upper: WASH.white, roof: 'hip', shut: WOODS.oak, balcony: false, ware: 'fruit', extra: 'awning', shutters: 'closed' },
   { lower: 'plaster', lowerC: WASH.cream, upper: WASH.pink, roof: 'gable-z', shut: WOODS.brown, balcony: true, ware: 'cloth', extra: 'laundry', shutters: 'open' },
-  { lower: 'brick', lowerC: BRICK.yellow, upper: WASH.lime, roof: 'gable-x', shut: WOODS.olive, balcony: false, ware: 'bread', extra: 'chimney', shutters: 'open' },
+  { lower: 'rubble', lowerC: TUFA, upper: WASH.lime, roof: 'gable-x', shut: WOODS.olive, balcony: false, ware: 'bread', extra: 'laundry', shutters: 'open' },
 ];
 
 /** A townhouse, its look `v` (0 to 3), at a level of detail. */
@@ -225,7 +223,6 @@ export function buildTownhouse(v = 0, lod = 0) {
   if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.72 });
   else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.72, over: 0.18 });
   else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.68, hip: true });
-  if (L.extra === 'chimney') chimney(bag, -1.0 * sg, -0.7, top - 0.1);
   return Object.assign(bag.build(), { mouthX: mx, stairX: sx });
 }
 
@@ -234,10 +231,10 @@ export function buildTownhouse(v = 0, lod = 0) {
 // ---------------------------------------------------------------------------
 
 const APT_LOOKS = [
-  { brick: BRICK.red, ground: 'brick', roof: 'gable-x', shut: WOODS.olive, balcony: 2, ware: 'amph', extra: 'sign', shutters: 'open' },
+  { brick: WASH.red, upperKey: 'plaster', ground: 'rubble', groundC: TUFA, roof: 'gable-x', shut: WOODS.olive, balcony: 2, ware: 'amph', extra: 'sign', shutters: 'open' },
   { brick: WASH.cream, upperKey: 'plaster', ground: 'plaster', groundC: WASH.lime, roof: 'hip', shut: WOODS.oak, balcony: 3, ware: 'cloth', extra: 'laundry', shutters: 'closed' },
   { brick: WASH.ochre, upperKey: 'plaster', ground: 'plaster', groundC: WASH.sand, roof: 'gable-z', shut: WOODS.brown, balcony: 2, ware: 'fruit', extra: 'awning', shutters: 'open' },
-  { brick: WASH.pink, upperKey: 'plaster', ground: 'brick', groundC: BRICK.red, roof: 'gable-x', shut: WOODS.olive, balcony: 0, ware: 'bread', extra: 'chimney', shutters: 'open' },
+  { brick: WASH.pink, upperKey: 'plaster', ground: 'rubble', groundC: TUFA, roof: 'gable-x', shut: WOODS.olive, balcony: 0, ware: 'bread', extra: 'laundry', shutters: 'open' },
 ];
 
 /** An apartment house, its look `v` (0 to 3), at a level of detail. */
@@ -305,7 +302,7 @@ export function buildApartment(v = 0, lod = 0) {
     band(bag, up['+x'], 0, z1 - z0 - 0.5, y);
     band(bag, up['-x'], 0, z1 - z0 - 0.5, y);
   }
-  // The balcony on brick corbels (a floor's doors open onto it), laundry, sign, awning.
+  // The balcony on timber beams (a floor's doors open onto it), laundry, sign, awning.
   if (L.balcony) balcony(bag, upFront, { x: 0, w: L.balcony === 2 ? 3.1 : 2.2, d: 0.45, y: L.balcony === 2 ? f1 : f1 + floors[1], corbels: true, col: OAK });
   if (L.extra === 'sign') sign(bag, front, mx + mouth.w / 2 + 0.15, 2.3, CLOTH.woad);
   if (L.extra === 'awning') awning(bag, front, { x: mx, w: mouth.w + 0.3, y: 2.35, d: 0.42, drop: 0.3, cols: [lin(CLOTH.woad), lin(CLOTH.linen)] });
@@ -315,7 +312,6 @@ export function buildApartment(v = 0, lod = 0) {
   if (L.roof === 'gable-x') ridgeRoof(bag, { ...roof, along: 'x', rise: 0.62 });
   else if (L.roof === 'gable-z') ridgeRoof(bag, { ...roof, along: 'z', rise: 0.65, over: 0.18 });
   else ridgeRoof(bag, { ...roof, along: 'x', rise: 0.6, hip: true });
-  if (L.extra === 'chimney') chimney(bag, 1.0 * sg, -0.8, top - 0.1);
   return Object.assign(bag.build(), { mouthX: mx, stairX: sx });
 }
 
@@ -324,8 +320,8 @@ export function buildApartment(v = 0, lod = 0) {
 // ---------------------------------------------------------------------------
 
 const TEN_LOOKS = [
-  { brick: BRICK.red, key: 'brick', court: WASH.cream, shut: WOODS.olive, ware: ['amph', 'cloth', 'fruit'], shutters: 'open' },
-  { brick: BRICK.yellow, key: 'brick', court: WASH.ochre, shut: WOODS.oak, ware: ['bread', 'amph', 'cloth'], shutters: 'closed' },
+  { brick: WASH.red, key: 'plaster', court: WASH.cream, shut: WOODS.olive, ware: ['amph', 'cloth', 'fruit'], shutters: 'open' },
+  { brick: WASH.cream, key: 'plaster', court: WASH.ochre, shut: WOODS.oak, ware: ['bread', 'amph', 'cloth'], shutters: 'closed' },
   { brick: WASH.ochre, key: 'plaster', court: WASH.white, shut: WOODS.brown, ware: ['fruit', 'bread', 'amph'], shutters: 'open' },
   { brick: WASH.pink, key: 'plaster', court: WASH.cream, shut: WOODS.olive, ware: ['cloth', 'fruit', 'bread'], shutters: 'open' },
 ];
@@ -407,7 +403,7 @@ export function buildTenement(v = 0, lod = 0) {
   // One stucco band round the building at the first floor.
   for (const s of ['+z', '-z']) band(bag, out[s], 0, 2 * H + 0.1, ys[1] - 0.04);
   for (const s of ['+x', '-x']) band(bag, out[s], 0, 2 * H - 0.6, ys[1] - 0.04);
-  // Balconies on brick corbels over the street front: a long one on the second floor, a short one above.
+  // Balconies on timber beams over the street front: a long one on the second floor, a short one above.
   balcony(bag, fr, { x: -1.4 * sg, w: 2.9, d: 0.25, y: ys[1], corbels: true, col: OAK });
   balcony(bag, fr, { x: 1.4 * sg, w: 1.6, d: 0.25, y: ys[2], corbels: true, col: OAK });
   laundry(bag, fr, 0.7 * sg - 0.8, 0.7 * sg + 0.8, ys[3] + 0.4, 0.0, 17 + v);

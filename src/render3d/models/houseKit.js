@@ -81,6 +81,8 @@ export const VARIANTS = 4;
 export const WASH = Object.freeze({
   cream: 0xe9ddbd, white: 0xf3eee1, ochre: 0xdcb878, yellow: 0xe6cd88, red: 0xc2705a, pink: 0xe2ae98, grey: 0xd2cab6, sand: 0xd8c39a, mud: 0xb39a74, lime: 0xe9e3cf,
 });
+/** Tufa rubble, the stone of a Republican ground floor left unplastered. */
+export const TUFA = 0xd0bc94;
 /** Brick of Ostia's insulae: red, yellow-brown and a warm grey-red. */
 export const BRICK = Object.freeze({ red: 0xd49078, yellow: 0xe6cc92, grey: 0xcdc0ac, dark: 0xc07e68 });
 /** Woodwork: dark oak, weathered grey, ochre-brown, an olive green of the painted ones. */
@@ -330,7 +332,7 @@ export function balcony(bag, put, { x, w, d = 0.5, y, rail = 0.95, corbels = fal
   const m = Math.max(2, Math.round(w / 0.9));
   for (let k = 0; k < m; k++) {
     const px = x - w / 2 + (w * (k + 0.5)) / m;
-    if (corbels) bag.add('brick', put(box(0.2, 0.12, d * 0.9, px, y - 0.12, d * 0.45, lin(BRICK.red, 0.85))), put(box(0.2, 0.1, d * 0.5, px, y - 0.22, d * 0.25, lin(BRICK.red, 0.8))));
+    if (corbels) bag.add('wood', put(box(0.16, 0.14, d * 1.1, px, y - 0.13, d * 0.5, lin(WOODS.oak, 0.85))), put(box(0.12, 0.1, d * 0.5, px, y - 0.25, d * 0.2, lin(WOODS.oak, 0.75)))); // (timber beam ends, a Republican balcony's)
     else bag.add('wood', put(box(0.1, 0.13, d + 0.1, px, y - 0.13, d / 2 - 0.1, lin(WOODS.oak, 0.85))));
   }
 }
