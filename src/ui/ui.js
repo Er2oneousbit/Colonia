@@ -7,6 +7,7 @@
  */
 
 import { h, mount, fmt } from './dom.js';
+import { canvasRect } from './canvasRect.js';
 import { Hud } from './hud.js';
 import { Sidebar } from './sidebar.js';
 import { InfoPanel } from './infoPanel.js';
@@ -347,7 +348,12 @@ export class UI {
     this.tipEl.classList.toggle('hidden', !text);
     if (!text) return;
     if (this.tipEl.textContent !== text) this.tipEl.textContent = text;
-    const r = app.canvas.getBoundingClientRect();
+    // Placed again only when the pointer, the text or the canvas's box changed: reading the
+    // tip's size forces a layout, and a still pointer asked for it every frame.
+    const r = canvasRect(app.canvas);
+    const at = this.tipAt;
+    if (at && at.text === text && at.x === m.x && at.y === m.y && at.rect === r && at.iw === window.innerWidth && at.ih === window.innerHeight) return;
+    this.tipAt = { text, x: m.x, y: m.y, rect: r, iw: window.innerWidth, ih: window.innerHeight };
     const x = Math.min(r.left + m.x + 16, window.innerWidth - this.tipEl.offsetWidth - 8);
     const y = Math.min(r.top + m.y + 18, window.innerHeight - this.tipEl.offsetHeight - 8);
     this.tipEl.style.left = `${Math.max(4, x)}px`;

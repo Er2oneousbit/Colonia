@@ -22,6 +22,7 @@
  */
 
 import { CONFIG } from '../config.js';
+import { canvasRect } from '../ui/canvasRect.js';
 import { dragMode, planAction, turnRule } from '../sim/construction.js';
 import { postsAway } from '../sim/battle.js';
 import { BUILDINGS } from '../data/buildings.js';
@@ -169,7 +170,7 @@ export class Input {
   }
 
   localPos(e) {
-    const r = this.canvas.getBoundingClientRect();
+    const r = canvasRect(this.canvas);
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
@@ -288,7 +289,8 @@ export class Input {
     } else if (!this.press && !this.pan && !this.drag && !this.tool && !this.app.deploying && !this.pinch && e.pointerType === 'mouse') {
       // An open hand over a rally flag says it can be picked up.
       const r = this.app.renderer;
-      this.canvas.style.cursor = r.pickFlag(p.x, p.y) && !r.pickShip?.(p.x, p.y, true) ? 'grab' : 'crosshair';
+      // (No flag drawn: pickFlag could only say 0, so its screen-to-world work is skipped.)
+      this.canvas.style.cursor = r.flagSpots?.length !== 0 && r.pickFlag(p.x, p.y) && !r.pickShip?.(p.x, p.y, true) ? 'grab' : 'crosshair';
     }
     if (this.press && this.press.id === e.pointerId) {
       if (!this.press.moved && Math.hypot(p.x - this.press.sx, p.y - this.press.sy) > CLICK_SLOP) this.press.moved = true;
@@ -541,7 +543,7 @@ export class Input {
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) dy -= speed;
     // Edge scrolling only after a real pointer move on this map (see this.mouse).
     if (this.app.settings.edgeScroll && this.mouse.over && this.mouse.game === this.game && !this.pan && !this.press && !this.flag) {
-      const r = this.canvas.getBoundingClientRect();
+      const r = canvasRect(this.canvas);
       const m = CONFIG.EDGE_SCROLL_PX;
       if (this.mouse.x < m) dx += speed;
       else if (this.mouse.x > r.width - m) dx -= speed;

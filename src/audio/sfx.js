@@ -11,6 +11,9 @@
  * ----------------------------------------------------------------------------
  */
 
+/** Length of the one shared noise buffer (a burst longer than this loops it). */
+const NOISE_SECONDS = 2;
+
 export class Sfx {
   constructor() {
     this.ctx = null;
@@ -97,20 +100,39 @@ export class Sfx {
     o.stop(t + dur + 0.05);
   }
 
+  /** One buffer of white noise kept for every burst (a thunderclap used to bake a fresh 2.6 s one in JS). */
+  noiseBuffer() {
+    const ctx = this.ctx;
+    if (!this.noiseBuf || this.noiseBuf.sampleRate !== ctx.sampleRate) {
+      const len = Math.floor(ctx.sampleRate * NOISE_SECONDS);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      this.noiseBuf = buf;
+    }
+    return this.noiseBuf;
+  }
+
+  /**
+   * A burst of low-passed noise that fades linearly from `gain` to nothing
+   * over `dur`: the same envelope the baked samples had, now a gain ramp.
+   * The source loops the shared buffer when the burst is longer than it, and
+   * starts at a random spot so two bursts at once are not the same noise.
+   */
   noise(t, dur, gain = 0.2, cutoff = 1000) {
     const ctx = this.ctx;
-    const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const buf = this.noiseBuffer();
     const src = ctx.createBufferSource();
     src.buffer = buf;
+    src.loop = dur > buf.duration;
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = cutoff;
     const g = ctx.createGain();
-    g.gain.value = gain;
+    g.gain.setValueAtTime(gain, t);
+    g.gain.linearRampToValueAtTime(0, t + dur);
     src.connect(f).connect(g).connect(this.master);
-    src.start(t);
+    src.start(t, Math.random() * Math.max(0, buf.duration - dur));
+    src.stop(t + dur + 0.02);
   }
 }
