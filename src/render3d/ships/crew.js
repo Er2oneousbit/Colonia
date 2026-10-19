@@ -32,11 +32,11 @@
 
 import {
   MeshStandardMaterial, MeshDepthMaterial, MeshDistanceMaterial, DataTexture, RGBAFormat, FloatType, NearestFilter, Vector2,
-  InstancedMesh, InstancedBufferAttribute, DynamicDrawUsage, Group, BufferGeometry, Matrix4, WebGLRenderTarget,
+  Matrix4,
 } from 'three';
 import { patchLook, surfaceTextures, cachedMaterial } from '../materials.js';
 import { patchPeopleShader } from '../people/material.js';
-import { buildPiece } from '../people/pieces.js';
+import { FigurePass, KEEP_FRAMES } from '../figures/figurePass.js';
 import { pack } from '../people/actors.js';
 import { TILE_M } from './motion.js';
 
@@ -175,13 +175,8 @@ export function piecesAt(c, far) {
   return c.farPieces || (c.farPieces = c.pieces.filter((k) => !FAR_SKIPS.some((s) => k.startsWith(s))).map((k) => (k.startsWith('hair:') ? `hair:crop:${k.split(':')[2]}` : k)));
 }
 
-/** First room in a piece's instance buffers (doubled as needed). */
-const FIRST_ROOM = 32;
-/** Frames a piece is kept unseen. */
-const KEEP_FRAMES = 900;
-/** Milliseconds a frame may spend building pieces (one build may overrun). */
-const BUILD_MS = 5;
-const ATTRS = ['aActClip', 'aActRoute', 'aActCol0', 'aActCol1', 'aActMisc'];
+/** Milliseconds a frame may spend building pieces (one build may overrun): a millisecond under the walkers' and the units', the crews being the lighter set. */
+const CREW_BUILD_MS = 5;
 const TILE = new Matrix4().makeScale(1 / TILE_M, 1 / TILE_M, 1 / TILE_M);
 
 /**
@@ -189,31 +184,13 @@ const TILE = new Matrix4().makeScale(1 / TILE_M, 1 / TILE_M, 1 / TILE_M);
  * every ship's people, written when the set changes (set()), carried each
  * frame by the ships' texture (the pass writes it).
  */
-export class CrewBatch {
+export class CrewBatch extends FigurePass {
   constructor(parent) {
-    this.group = new Group();
-    this.group.name = 'ship-crews';
-    this.group.userData.opaque = true;
-    parent.add(this.group);
-    this.pieces = new Map(); // `${key}|${lod}` -> { base, geometry, mesh, attrs, room, n, seen, tris, lod }
-    this.wanted = new Set();
-    this.frame = 0;
+    // (No shadows from the crews: on a deck they fall on the hull and its people, and drawing them twice
+    // cost what the sprites cost: measured.)
+    super(parent, { name: 'ship-crews', material: crewMaterial, depthMaterial: crewDepthMaterial, shadows: false });
     this.lod = 1;
-    this.casting = true;
-    this.dirty = false;
-    this.lastSig = -1;
-    this.compiled = false;
     this.stats = { people: 0, draws: 0, triangles: 0, writes: 0, pieces: 0, deferred: 0 };
-  }
-
-  /** A piece built at a level, or another level's standing in, or null. */
-  pieceAt(key, lod) {
-    for (const l of [lod, lod + 1, lod - 1, lod + 2, lod - 2]) {
-      if (l < 0 || l > 2) continue;
-      const p = this.pieces.get(`${key}|${l}`);
-      if (p) return p;
-    }
-    return null;
   }
 
   /**
@@ -235,33 +212,11 @@ export class CrewBatch {
         for (const c of e.crew) for (const key of piecesAt(c, this.far)) if (!this.pieces.has(`${key}|${lod}`)) this.wanted.add(`${key}|${lod}`);
       }
     }
-    this.build(performance.now() + BUILD_MS);
+    this.build(performance.now() + CREW_BUILD_MS);
     if (sig !== this.lastSig || this.dirty) this.write(list, sig);
     if (this.frame % 120 === 0) {
       for (const [id, p] of this.pieces) if (p.n === 0 && this.frame - p.seen > KEEP_FRAMES) this.drop(id);
     }
-  }
-
-  build(until) {
-    let first = true;
-    for (const id of this.wanted) {
-      if (!first && performance.now() > until) {
-        this.stats.deferred = this.wanted.size;
-        return;
-      }
-      first = false;
-      this.wanted.delete(id);
-      if (this.pieces.has(id)) continue;
-      const i = id.lastIndexOf('|');
-      const key = id.slice(0, i);
-      const lod = Number(id.slice(i + 1));
-      const base = buildPiece(key, lod);
-      const p = this.make(base, FIRST_ROOM);
-      Object.assign(p, { key, lod, seen: this.frame, tris: base.index.count / 3 });
-      this.pieces.set(id, p);
-      this.dirty = true;
-    }
-    this.stats.deferred = 0;
   }
 
   write(list, sig) {
@@ -303,154 +258,12 @@ export class CrewBatch {
         }
       }
     }
-    let draws = 0;
-    let tris = 0;
-    for (const p of this.pieces.values()) {
-      const n = p.n;
-      p.mesh.count = n;
-      p.mesh.visible = n > 0;
-      if (!n) continue;
-      p.seen = this.frame;
-      // (No shadows from the crews: on a deck they fall on the hull and its people, and drawing them twice
-      // cost what the sprites cost: measured.)
-      p.mesh.castShadow = false;
-      draws++;
-      tris += n * p.tris;
-      const im = p.mesh.instanceMatrix;
-      im.clearUpdateRanges();
-      im.addUpdateRange(0, n * 16);
-      im.needsUpdate = true;
-      for (const name of ATTRS) {
-        const a = p.attrs[name];
-        a.clearUpdateRanges();
-        a.addUpdateRange(0, n * 4);
-        a.needsUpdate = true;
-      }
-    }
+    const { draws, tris } = this.flush();
     Object.assign(this.stats, { people, draws, triangles: tris, pieces: this.pieces.size, writes: this.stats.writes + 1 });
   }
 
-  make(base, room) {
-    const g = new BufferGeometry();
-    for (const [name, a] of Object.entries(base.attributes)) g.setAttribute(name, a);
-    g.setIndex(base.index);
-    g.boundingSphere = base.boundingSphere;
-    const attrs = {};
-    for (const name of ATTRS) {
-      const a = new InstancedBufferAttribute(new Float32Array(room * 4), 4);
-      a.setUsage(DynamicDrawUsage);
-      g.setAttribute(name, a);
-      attrs[name] = a;
-    }
-    const mesh = new InstancedMesh(g, crewMaterial(), room);
-    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
-    mesh.customDepthMaterial = crewDepthMaterial('depth');
-    mesh.customDistanceMaterial = crewDepthMaterial('distance');
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
-    mesh.count = 0;
-    mesh.visible = false;
-    this.group.add(mesh);
-    return { base, geometry: g, mesh, attrs, room, n: 0 };
-  }
-
-  grow(p, n) {
-    let room = p.room;
-    while (room < n) room *= 2;
-    const q = this.make(p.base, room);
-    q.mesh.instanceMatrix.array.set(p.mesh.instanceMatrix.array.subarray(0, p.n * 16));
-    for (const name of ATTRS) q.attrs[name].array.set(p.attrs[name].array.subarray(0, p.n * 4));
-    this.group.remove(p.mesh);
-    p.mesh.dispose();
-    p.geometry.dispose();
-    p.mesh = q.mesh;
-    p.geometry = q.geometry;
-    p.attrs = q.attrs;
-    p.room = room;
-  }
-
-  /** The sun's shadow map on or off: kept, though crews cast none (write). */
-  setCasting(on) {
-    this.casting = on;
-  }
-
   hide() {
-    for (const p of this.pieces.values()) {
-      p.mesh.count = 0;
-      p.mesh.visible = false;
-      p.n = 0;
-    }
-    this.lastSig = -1;
+    super.hide();
     this.stats.people = 0;
-  }
-
-  drop(id) {
-    const p = this.pieces.get(id);
-    if (!p) return;
-    this.group.remove(p.mesh);
-    p.mesh.dispose();
-    p.geometry.dispose();
-    p.base.dispose();
-    this.pieces.delete(id);
-    this.dirty = true;
-  }
-
-  /** Compile the crews' programs in the background (a hidden proxy each; the shadow caster's under a render target): a promise. */
-  warm(gl, camera, scene, withOutput) {
-    if (this.warming) return this.warming;
-    const gen = this.warmGen = (this.warmGen || 0) + 1;
-    const g = buildPiece('body:m', 2);
-    this.proxyBase = g;
-    this.proxies = [crewMaterial(), crewDepthMaterial('depth')].map((mat) => {
-      const p = this.make(g, 1);
-      p.mesh.material = mat;
-      p.mesh.castShadow = false;
-      p.mesh.name = 'ship-crews-warm';
-      return p.mesh;
-    });
-    const [colour, depth] = this.proxies;
-    depth.removeFromParent();
-    this.depthScene = new Group();
-    this.depthScene.add(depth);
-    this.target = new WebGLRenderTarget(1, 1);
-    const a = withOutput(() => gl.compileAsync(colour, camera, scene));
-    const prev = gl.getRenderTarget();
-    gl.setRenderTarget(this.target);
-    let b;
-    try {
-      b = gl.compileAsync(this.depthScene, camera, scene);
-    } finally {
-      gl.setRenderTarget(prev);
-    }
-    const done = () => { if (gen === this.warmGen) this.compiled = true; };
-    this.warming = Promise.all([a, b]).then(done, done);
-    return this.warming;
-  }
-
-  restored() {
-    this.compiled = false;
-    this.warmGen = (this.warmGen || 0) + 1;
-    this.warming = null;
-    this.disposeProxies();
-  }
-
-  disposeProxies() {
-    for (const m of this.proxies || []) {
-      m.removeFromParent();
-      m.dispose();
-      m.geometry.dispose();
-    }
-    this.proxies = null;
-    if (this.proxyBase) this.proxyBase.dispose();
-    this.proxyBase = null;
-    if (this.target) this.target.dispose();
-    this.target = null;
-  }
-
-  dispose() {
-    for (const id of [...this.pieces.keys()]) this.drop(id);
-    this.disposeProxies();
-    this.group.removeFromParent();
   }
 }

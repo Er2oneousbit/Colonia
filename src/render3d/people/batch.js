@@ -19,16 +19,13 @@
  * ----------------------------------------------------------------------------
  */
 
-import { InstancedMesh, InstancedBufferAttribute, DynamicDrawUsage, Matrix4, Group, BufferGeometry } from 'three';
+import { Matrix4 } from 'three';
+import { FigurePass } from '../figures/figurePass.js';
 import { buildPiece } from './pieces.js';
 import { peopleMaterial, peopleDepthMaterial } from './material.js';
 
-/** First room in a piece's instance buffers (doubled as needed). */
+/** First room in a piece's instance buffers (doubled as needed): smaller than the figure passes', the buildings' casts being small. */
 const FIRST_ROOM = 16;
-/** Frames a piece is kept unseen before it is freed. */
-const KEEP_FRAMES = 900;
-/** The per-instance attributes (4 floats each) besides the matrix. */
-const ATTRS = ['aActClip', 'aActRoute', 'aActCol0', 'aActCol1', 'aActMisc'];
 
 const _m = new Matrix4();
 const _a = new Matrix4();
@@ -41,25 +38,17 @@ function mix(h, v) {
   return Math.imul(h ^ U32[0], 0x01000193) >>> 0;
 }
 
-export class PeopleBatch {
+export class PeopleBatch extends FigurePass {
   /**
    * @param {import('three').Object3D} parent where the meshes go (the model slot, a lab scene)
    */
   constructor(parent) {
-    this.group = new Group();
-    this.group.name = 'people';
-    // (Drawn with the opaque models: sunRig.js renderModels leaves a group of opaque meshes out of the see-through draw.)
-    this.group.userData.opaque = true;
-    parent.add(this.group);
-    this.pieces = new Map(); // `${key}|${lod}` -> { geometry, mesh, n, seen, key, lod, ms }
+    super(parent, { name: 'people', material: peopleMaterial, depthMaterial: peopleDepthMaterial, firstRoom: FIRST_ROOM });
     this.byId = []; // the frame's level's pieces by their number (actors.js pieceId)
     this.found = []; // (a person's pieces, gathered before any is written)
     this.list = []; // this frame's [cast, matrix, seed]
     this.used = 0;
     this.sig = 0;
-    this.lastSig = -1;
-    this.frame = 0;
-    this.casting = true;
     this.buildUntil = 0;
     this.stats = { people: 0, pieces: 0, draws: 0, triangles: 0, writes: 0, deferred: 0 };
   }
@@ -152,29 +141,7 @@ export class PeopleBatch {
         }
       }
     }
-    let draws = 0;
-    let tris = 0;
-    for (const p of this.pieces.values()) {
-      const n = p.n;
-      p.mesh.count = n;
-      p.mesh.visible = n > 0;
-      if (!n) continue;
-      p.seen = this.frame;
-      // (Far out a person's shadow is a few pixels: no shadow draw for the far level, half the draws.)
-      p.mesh.castShadow = this.casting && p.lod < 2;
-      draws++;
-      tris += n * p.tris;
-      const im = p.mesh.instanceMatrix;
-      im.clearUpdateRanges();
-      im.addUpdateRange(0, n * 16);
-      im.needsUpdate = true;
-      for (const name of ATTRS) {
-        const a = p.attrs[name];
-        a.clearUpdateRanges();
-        a.addUpdateRange(0, n * 4);
-        a.needsUpdate = true;
-      }
-    }
+    const { draws, tris } = this.flush();
     this.stats.people = people;
     this.stats.pieces = this.pieces.size;
     this.stats.draws = draws;
@@ -214,7 +181,7 @@ export class PeopleBatch {
     }
     const t0 = performance.now();
     const geometry = buildPiece(key, lod);
-    p = this.make(geometry, FIRST_ROOM);
+    p = this.make(geometry, this.firstRoom);
     Object.assign(p, { key, lod, seen: this.frame, ms: performance.now() - t0, tris: geometry.index.count / 3 });
     this.pieces.set(id, p);
     this.builtThisFrame = true;
@@ -222,71 +189,8 @@ export class PeopleBatch {
     return p;
   }
 
-  /** A piece's InstancedMesh over `geometry` with room for `room` copies (its own instance attributes). */
-  make(base, room) {
-    // (A geometry of the piece's own attributes and the instances': growing makes a new one round the same piece.)
-    const g = new BufferGeometry();
-    for (const [name, a] of Object.entries(base.attributes)) g.setAttribute(name, a);
-    g.setIndex(base.index);
-    g.boundingSphere = base.boundingSphere;
-    const attrs = {};
-    for (const name of ATTRS) {
-      const a = new InstancedBufferAttribute(new Float32Array(room * 4), 4);
-      a.setUsage(DynamicDrawUsage);
-      g.setAttribute(name, a);
-      attrs[name] = a;
-    }
-    const mesh = new InstancedMesh(g, peopleMaterial(), room);
-    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
-    mesh.customDepthMaterial = peopleDepthMaterial('depth');
-    mesh.customDistanceMaterial = peopleDepthMaterial('distance');
-    mesh.castShadow = this.casting;
-    mesh.receiveShadow = true;
-    // (Only the buildings in view are handed over; and the shader moves people about: no culling by bounds.)
-    mesh.frustumCulled = false;
-    mesh.count = 0;
-    mesh.visible = false;
-    this.group.add(mesh);
-    return { base, geometry: g, mesh, attrs, room, n: 0 };
-  }
-
-  /** More room in piece `p` (a new mesh in its place, the instances written so far copied). */
-  grow(p, n) {
-    let room = p.room;
-    while (room < n) room *= 2;
-    const q = this.make(p.base, room);
-    q.mesh.instanceMatrix.array.set(p.mesh.instanceMatrix.array.subarray(0, p.n * 16));
-    for (const name of ATTRS) q.attrs[name].array.set(p.attrs[name].array.subarray(0, p.n * 4));
-    this.group.remove(p.mesh);
-    p.mesh.dispose();
-    // (The old wrapper freed: its instance buffers with it. The piece's own buffers, shared with the new
-    // wrapper, go too and are sent again at its first draw: a few kilobytes, and growing is rare.)
-    p.geometry.dispose();
-    p.mesh = q.mesh;
-    p.geometry = q.geometry;
-    p.attrs = q.attrs;
-    p.room = room;
-  }
-
-  /** Cast shadows or not (the sun's shadow map on or off). */
-  setCasting(on) {
-    this.casting = on;
-    for (const p of this.pieces.values()) p.mesh.castShadow = on && p.lod < 2;
-  }
-
-  drop(id) {
-    const p = this.pieces.get(id);
-    if (!p) return;
-    this.group.remove(p.mesh);
-    p.mesh.dispose();
-    p.geometry.dispose();
-    p.base.dispose();
-    this.pieces.delete(id);
+  /** A freed piece: the frame's pieces by number forgotten (this batch has no looks cache to invalidate, and a drop alone asks no new write). */
+  dropped() {
     this.byId = [];
-  }
-
-  dispose() {
-    for (const id of [...this.pieces.keys()]) this.drop(id);
-    this.group.removeFromParent();
   }
 }

@@ -37,9 +37,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { MeshStandardMaterial, MeshDepthMaterial, MeshDistanceMaterial, DataTexture, RGBAFormat, FloatType, NearestFilter, Vector2 } from 'three';
-import { patchLook, surfaceTextures, cachedMaterial } from '../materials.js';
-import { patchPeopleShader } from '../people/material.js';
+import { makeFigureTexture, figureMaterial, figureDepthMaterial } from '../figures/figureMaterial.js';
 
 /** Figures a row of the figures' texture, and texels a figure. */
 export const FIGURES_ROW = 256;
@@ -52,16 +50,7 @@ const FIGURES = { value: null };
 
 /** The figures' texture for `rows` rows (a new one: the uniform is pointed at it). */
 export function figureTexture(rows) {
-  const data = new Float32Array(FIGURES_ROW * FIGURE_FLOATS * rows);
-  const t = new DataTexture(data, FIGURES_ROW * FIGURE_TEXELS, rows, RGBAFormat, FloatType);
-  t.magFilter = NearestFilter;
-  t.minFilter = NearestFilter;
-  t.generateMipmaps = false;
-  t.flipY = false;
-  t.needsUpdate = true;
-  t.name = 'walker-figures';
-  FIGURES.value = t;
-  return t;
+  return makeFigureTexture(FIGURES, 'walker-figures', rows, FIGURES_ROW, FIGURE_TEXELS);
 }
 
 const PARS = /* glsl */ `
@@ -144,32 +133,14 @@ transformed = transformed * aActRoute.x + pWalk;
 
 const VARIANT = Object.freeze({ uniforms: { uWalkers: FIGURES }, pars: PARS, main: MAIN, begin: BEGIN });
 
+const variant = () => VARIANT;
+
 /** The walkers' material (the people's, placed by the figures' texture). */
 export function walkerMaterial() {
-  return cachedMaterial('walkers', () => {
-    const wool = surfaceTextures('wool');
-    const m = new MeshStandardMaterial({
-      color: 0xffffff, roughness: 1, metalness: 1, vertexColors: false,
-      map: wool.map, normalMap: wool.normalMap, normalScale: new Vector2(0.8, 0.8), roughnessMap: wool.orm, metalnessMap: wool.orm,
-    });
-    m.name = 'walkers';
-    patchLook(m, { snow: 1, wet: 1 });
-    const look = m.onBeforeCompile;
-    m.onBeforeCompile = (shader, renderer) => {
-      look(shader, renderer);
-      patchPeopleShader(shader, false, VARIANT);
-    };
-    m.customProgramCacheKey = () => 'walkers1';
-    return m;
-  });
+  return figureMaterial('walkers', variant);
 }
 
 /** The walkers' shadow casters: the sun's depth and a lamp's distance, placed alike. */
 export function walkerDepthMaterial(kind = 'depth') {
-  return cachedMaterial(`walkers-${kind}`, () => {
-    const m = kind === 'depth' ? new MeshDepthMaterial() : new MeshDistanceMaterial();
-    m.onBeforeCompile = (shader) => patchPeopleShader(shader, true, VARIANT);
-    m.customProgramCacheKey = () => `walkers-${kind}1`;
-    return m;
-  });
+  return figureDepthMaterial('walkers', kind, variant);
 }
