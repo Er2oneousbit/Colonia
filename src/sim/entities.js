@@ -78,6 +78,12 @@ export class Building {
     if (!def) throw new Error(`Unknown building type "${type}"`);
     this.id = id;
     this.type = type;
+    // Cached once: `def` is read thousands of times a tick, and a getter doing
+    // the BUILDINGS lookup each time was first in a CPU profile. Non-enumerable
+    // so `{ ...b }` in save.js leaves it out of the save. A building's type
+    // never changes after construction (a home that evolves keeps its type
+    // and changes `house.level`).
+    Object.defineProperty(this, 'def', { value: def, writable: true, configurable: true, enumerable: false });
     this.x = x;
     this.y = y;
     this.size = size ?? def.size;
@@ -109,8 +115,6 @@ export class Building {
     this.buyerCooldown = 0;
     initKind(this, def);
   }
-
-  get def() { return BUILDINGS[this.type]; }
 }
 
 /** Set up the fields a building needs based on its behavior family. */
@@ -739,6 +743,7 @@ export function spawnWalker(game, type, startIdx, origin, init = {}) {
     origin.walkers.push(w.id);
   }
   game.walkers.set(w.id, w);
+  if (w.kind === 'criminal') game.criminalWalkers++;
   return w;
 }
 
@@ -754,7 +759,7 @@ export function killWalker(game, w) {
       if (k >= 0) o.walkers.splice(k, 1);
     }
   }
-  game.walkers.delete(w.id);
+  if (game.walkers.delete(w.id) && w.kind === 'criminal') game.criminalWalkers--;
 }
 
 /** Undo whatever the walker reserved at its target (storage space, house beds). */
