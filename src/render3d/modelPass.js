@@ -134,6 +134,15 @@ function ghostMeshes(k) {
   return k.ghosts ? [...k.ghosts.ok, ...k.ghosts.warn].filter(Boolean) : [];
 }
 
+/**
+ * Every mesh of a kit, its own and its ghosts', as one array kept on the
+ * kit: three passes a frame walk it, and building it each time was churn.
+ * Whoever adds or replaces a mesh sets `k.all = null` to rebuild it.
+ */
+export function allMeshes(k) {
+  return k.all ??= k.meshes.concat(ghostMeshes(k));
+}
+
 /** The ghost's see-through tint: green where it can be built, orange where no road would reach it (renderer.js NO_ROAD_FILL). */
 function ghostMaterial(tint) {
   return withColourManagement(() => (tint === 'ok'
@@ -342,6 +351,8 @@ export class ModelPass {
   grow(k, i, n) {
     const im = this.bigger(k.meshes[i], n);
     k.meshes[i] = im;
+    k.all = null;
+    k.casting = undefined; // (the new mesh starts with its part's own flag: setCasting applies it again)
     return im;
   }
 
@@ -365,7 +376,7 @@ export class ModelPass {
     const scale = r.camera ? r.camera.scale : 1;
     let peopleMs = 0;
     this.people.begin(peopleLodFor(scale), this.buildUntil);
-    for (const k of this.kits.values()) for (const im of k.meshes.concat(ghostMeshes(k))) im.userData.n = 0;
+    for (const k of this.kits.values()) for (const im of allMeshes(k)) im.userData.n = 0;
     const byType = {};
     // (The shadow map is cleared rather than drawn when no model wants it: sunRig.js fitShadow.)
     for (const m of placed) {
@@ -404,7 +415,7 @@ export class ModelPass {
     this.buildUntil = 0;
     let tris = 0;
     for (const [id, k] of this.kits) {
-      for (const im of k.meshes.concat(ghostMeshes(k))) {
+      for (const im of allMeshes(k)) {
         const n = im.userData.n;
         im.count = n;
         im.visible = n > 0;
@@ -506,10 +517,11 @@ export class ModelPass {
       if (!im) {
         im = this.instanced({ ...part, material: ghostMaterial(tint), cast: false }, 2, this.rig.ghostSlot);
         list[p] = im;
+        k.all = null;
       }
       const n = im.userData.n;
       // (A drag of fountains along a street.)
-      if (n >= im.instanceMatrix.count) list[p] = im = this.bigger(im, n + 1);
+      if (n >= im.instanceMatrix.count) { list[p] = im = this.bigger(im, n + 1); k.all = null; }
       m.toArray(im.instanceMatrix.array, n * 16);
       im.userData.n = n + 1;
     });
@@ -517,7 +529,12 @@ export class ModelPass {
 
   /** Hide the casters from the shadow map while it is cleared (sunRig.js: nothing in it to show). */
   setCasting(on) {
-    for (const k of this.kits.values()) for (const im of k.meshes) im.castShadow = on && im.userData.part.cast;
+    // (Only a kit whose flag changed is walked: every mesh of every kit each frame was churn.)
+    for (const k of this.kits.values()) {
+      if (k.casting === on) continue;
+      k.casting = on;
+      for (const im of k.meshes) im.castShadow = on && im.userData.part.cast;
+    }
     this.people.setCasting(on);
   }
 
@@ -541,7 +558,7 @@ export class ModelPass {
   dropKit(id) {
     const k = this.kits.get(id);
     if (!k) return;
-    for (const im of k.meshes.concat(ghostMeshes(k))) {
+    for (const im of allMeshes(k)) {
       im.parent.remove(im);
       im.dispose();
     }

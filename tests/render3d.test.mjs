@@ -36,7 +36,7 @@ import { spriteRect, K_WALKER, K_UNIT, K_FIRE, K_EXTRA } from '../src/render/ite
 import { aimCamera, groundDepth, standDepth, depthOf, worldPxOf, ART_PX, KAPPA, TILE_LEN } from '../src/render3d/projection.js';
 import { MODELS, hasModel, modelMatrix, partShows, fountainState, TILE_M } from '../src/render3d/models.js';
 import { kitOf } from '../src/render3d/kit.js';
-import { lodFor, LOD0_PX, LOD1_PX, ModelPass } from '../src/render3d/modelPass.js';
+import { lodFor, LOD0_PX, LOD1_PX, ModelPass, allMeshes } from '../src/render3d/modelPass.js';
 import { Group } from 'three';
 import { fountainTier, tierOf, TIER_FLOORS, HYSTERESIS } from '../src/render3d/fountainTier.js';
 import { triangles } from '../src/render3d/shapes.js';
@@ -377,4 +377,29 @@ test('render3d: the sun draws no shadow map while it gives no light', () => {
   rig.sunK = 0.5;
   assert.equal(rig.fitShadow(0, 0, 8, 8, 5), true, 'dusk: back');
   assert.equal(rig.fitShadow(0, 0, 8, 8, 0), false, 'nothing to cast');
+});
+
+test('allMeshes: the flat list follows the kit meshes and ghosts once reset, and setCasting only touches a kit when the flag changes', () => {
+  const mk = (cast) => ({ castShadow: cast, userData: { part: { cast } } });
+  const a = mk(true);
+  const b = mk(false);
+  const k = { meshes: [a, b] };
+  const first = allMeshes(k);
+  assert.deepEqual(first, [a, b]);
+  assert.equal(allMeshes(k), first, 'the same array while nothing changed');
+  const g = mk(false);
+  k.ghosts = { ok: [g], warn: [] };
+  k.all = null; // (what placeGhostKit does when it adds a ghost mesh)
+  assert.deepEqual(allMeshes(k), [a, b, g]);
+  const pass = Object.create(ModelPass.prototype);
+  pass.kits = new Map([[1, k]]);
+  pass.people = { setCasting() {} };
+  pass.setCasting(false);
+  assert.equal(a.castShadow, false);
+  a.castShadow = true; // changed behind its back: not rewritten while the flag stays
+  pass.setCasting(false);
+  assert.equal(a.castShadow, true);
+  pass.setCasting(true);
+  assert.equal(a.castShadow, true);
+  assert.equal(b.castShadow, false, 'a part that never casts stays off');
 });
