@@ -857,7 +857,7 @@ export class Advisors {
           h('div', { class: 'row' }, h('h4', { style: { flex: 1, color: GODS[k].color } }, GODS[k].name), h('span', { class: 'muted' }, GODS[k].domain)),
           kv('Mood', `${Math.round(s.mood)} / 100`), bar(s.mood, 100),
           kv('Staffed temples', templeCount(g, k).text),
-          jealous.favourite === k ? h('div', { class: 'status good', style: { fontSize: '12px' }, dataset: { jealous: 'favourite' } }, `The favourite: more temples than any other god, so ${GODS[k].name}'s mood target rises to 100 (by 50 if below 50).`) : null,
+          jealous.favorite === k ? h('div', { class: 'status good', style: { fontSize: '12px' }, dataset: { jealous: 'favorite' } }, `The favorite: more temples than any other god, so ${GODS[k].name}'s mood target rises to 100 (by 50 if below 50).`) : null,
           jealous.neglected === k ? h('div', { class: 'status bad', style: { fontSize: '12px' }, dataset: { jealous: 'neglected' } }, `Jealous: fewer temples than any other god, mood target -${JEALOUS_PENALTY}. Build ${GODS[k].name} a temple to match the next fewest.`) : null,
           kv('Last festival', s.festivalsHeld ? (months === 0 ? 'this month' : `${months} month${months === 1 ? '' : 's'} ago`) : 'none yet'),
           penalty > 0 ? h('div', { class: 'status bad', style: { fontSize: '12px' }, dataset: { neglect: penalty } }, `Neglected: mood target -${penalty}. A festival of any size in ${GODS[k].name}'s honor ends it.`) : null,

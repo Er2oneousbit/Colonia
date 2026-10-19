@@ -471,13 +471,13 @@ export function settingsMenu(app) {
 
 /**
  * Settings > Renderer: the Classic 2D canvas, or WebGL (beta), which draws the
- * same city with the graphics card and some buildings as 3D models. The URL's
+ * same city with the graphics card and nearly everything as 3D models. The URL's
  * renderer= flag gives way once the player picks here.
  */
 function rendererField(app) {
   const s = app.settings;
   const now = (app.flags.renderer || s.renderer) === 'webgl' ? 'webgl' : 'classic';
-  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), with some buildings and the trees and rocks of the countryside as 3D models, more to come. The Classic renderer stays the default while WebGL is in beta.');
+  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), with nearly every building (homes at five levels, the services, temples, venues, government, forts and harbour buildings, the monuments), the people, walkers, soldiers and ships, and the trees and rocks of the countryside as 3D models; the industry buildings and the other home levels are still flat. The Classic renderer stays the default while WebGL is in beta.');
   return h('div', { class: 'field' }, h('label', {}, 'Renderer'),
     h('select', {
       'aria-label': 'Renderer',

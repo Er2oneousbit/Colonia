@@ -55,7 +55,7 @@ function hasBuilding(game, type) {
 
 export function scheduleNextRequest(game, first = false) {
   const k = game.difficulty.requestInterval;
-  // A new city's first request comes in its third year (FIRST_REQUEST_MONTHS):
+  // A new city's first request comes in its fourth year (FIRST_REQUEST_MONTHS):
   // from month 14, as the later ones come, it caught a town still finding its feet.
   const [a, b] = first ? CONFIG.FIRST_REQUEST_MONTHS : CONFIG.REQUEST_INTERVAL_MONTHS;
   game.city.nextRequestMonth = game.time.totalMonths + game.rng.range(Math.round(a * k), Math.round(b * k));

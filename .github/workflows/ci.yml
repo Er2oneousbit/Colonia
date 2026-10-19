@@ -47,7 +47,7 @@ jobs:
 
       - name: Install Playwright + Chromium (not a project dependency)
         run: |
-          npm i --no-save playwright@1
+          npm i --no-save playwright@1.63.0
           npx playwright install --with-deps chromium
 
       - name: Browser smoke test

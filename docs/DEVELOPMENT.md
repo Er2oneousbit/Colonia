@@ -14,7 +14,7 @@ Colonia is inspired by *Caesar III*, but contains nothing from it or any other c
 
 ## Setup
 
-Requirements: **Node 18+** (22 or newer recommended) and a modern browser.
+Requirements: **Node 22+** (what CI runs; `npm test` relies on its glob support) and a modern browser.
 
 ```bash
 npm install        # esbuild (the build) and three.js (bundled into it: the WebGL renderer; the dev pages reach it through an import map in index.html)
@@ -26,14 +26,14 @@ Opening `index.html` straight from disk shows a warning on purpose: browsers blo
 Playwright is only needed for the browser tests and screenshots:
 
 ```bash
-npm i --no-save playwright && npx playwright install chromium
+npm i --no-save playwright@1.63.0 && npx playwright install chromium   # the version CI pins (.github/workflows/ci.yml)
 ```
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `npm test` | Headless tests (`node:test`, no browser, a few seconds) |
+| `npm test` | Headless tests (`node:test`, no browser, about a minute and a half) |
 | `npm run build` | Builds `dist/colonia.html`, the whole game in one file (reproducible byte for byte) |
 | `npm run test:e2e` | Plays the built game in headless Chromium (`--file <html>` tests another build, `--shots <dir>` saves screenshots) |
 | `npm run check` | test + build + e2e, the same as CI |
@@ -178,7 +178,7 @@ src/
 scripts/                serve.mjs, build.mjs, simulate.mjs, sweep.mjs, run.ps1, run.sh
 tests/                  *.test.mjs, e2e/ (smoke test, screenshots, art sheet,
                         render and music pages)
-docs/                   ARCHITECTURE.md, GAMEPLAY.md, ROADMAP.md, DEVELOPMENT.md
+docs/                   ARCHITECTURE.md, GAMEPLAY.md, ROADMAP.md, CHANGELOG.md, DEVELOPMENT.md
 .github/                CI, publishing to GitHub Pages, the pull-request auto-close, the bug report form
 ```
 

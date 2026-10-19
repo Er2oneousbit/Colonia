@@ -1,6 +1,6 @@
 {
   "name": "colonia",
-  "version": "0.30.3",
+  "version": "0.30.4",
   "description": "Colonia: an original, open-source browser city builder inspired by classic Roman city-building games (Caesar III style): housing, services, trade by land and sea, and a military with walls, forts and cavalry.",
   "type": "module",
   "private": true,
@@ -8,11 +8,11 @@
   "author": "er2oneousbit",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Er2oneousbit/Caesar.git"
+    "url": "git+https://github.com/Er2oneousbit/Colonia.git"
   },
-  "homepage": "https://github.com/Er2oneousbit/Caesar#readme",
+  "homepage": "https://github.com/Er2oneousbit/Colonia#readme",
   "bugs": {
-    "url": "https://github.com/Er2oneousbit/Caesar/issues"
+    "url": "https://github.com/Er2oneousbit/Colonia/issues"
   },
   "keywords": [
     "city-builder",
@@ -24,7 +24,7 @@
     "simulation"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "node scripts/serve.mjs --open",
@@ -38,7 +38,7 @@
     "check": "npm test && npm run build && npm run test:e2e"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "0.28.2"
   },
   "dependencies": {
     "three": "0.186.1"
