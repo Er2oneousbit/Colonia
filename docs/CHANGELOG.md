@@ -2,6 +2,11 @@
 
 Every release, newest first: what changed and why, with what was measured. The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.8
+
+* **The garrison smoke check waits out a march.** CI failed v0.30.7 on "undeployed soldiers stand by their forts" with one legionary 9 tiles from his fort, still marching, on seed 981886. The same seed passes on this machine with both the v0.30.7 and the v0.30.6 build: the check judged one instant after a fixed 60 days, and the steps before it run the game in real time, so how many days they took differs by machine, and a man can be on a march that ends by itself (standing down after a wolf came near, back from the Campus, a late recruit). The check now steps on a few days at a time, up to 40 more, before judging, and says how many it took; a stuck man never arrives, so the road bug this check once found would still fail it. No game code changed.
+* 1434 unit tests
+
 ## v0.30.7
 
 * **Saves, clicks under WebGL, and names** (the last of the audit's code items). A save no longer carries what the game recomputes anyway (a fort's post and its map-revision stamp, a home's evaluated levels and blocked list: about 7% of the file), and on load a home's tables, a store's stock, its incoming loads and its orders are merged over fresh defaults, so a key a save lacks takes the default instead of a new upgrade step (save version 35; older saves load as before; a game saved in the middle of a month, loaded, matches the unsaved one 500 ticks on). Under WebGL a modelled building's click cover was its full 2D art drawn at one pixel a world pixel, and that silhouette (a fort 36 px tall) hid walkers the model (17 px) does not: the cover is a box at the model's measured height now, so nothing is drawn only to be clicked through, and the first frame after a lost WebGL context draws flat footprints within the sprite budget instead of making every visible sprite at once. The home panel's needs and the Population ladder name buildings in Latin, as the Names help promises ("Theatrum (Theater)", "Balneae (Baths)", "Ludus Litterarius"). Housekeeping: 67 inline font sizes are two classes; one `D()` and one `withColourManagement` instead of nine and four.
