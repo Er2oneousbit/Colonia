@@ -40,6 +40,7 @@ import {
   DoubleSide,
 } from 'three';
 import { SURFACES, SURFACE_SET, surfaceSize, nameSeed } from './surfaces.js';
+import { log } from '../core/debug.js';
 import { Field } from './texgen.js';
 import { painterFor, surfaceTargets } from './paint/painter.js';
 
@@ -459,6 +460,19 @@ export function surfacesReady() {
 
 /** Materials made so far, by key. */
 const CACHE = new Map();
+/** The options each key was made with (optsSignature), and the mismatches seen since (tests: materialConflicts). */
+const SIGNATURES = new Map();
+const CONFLICTS = [];
+
+/** The options of a material() call as one string, keys sorted, numbers as given (0x7aa8b8 and 8038584 are the same). */
+function optsSignature(opts) {
+  return JSON.stringify(Object.fromEntries(Object.entries(opts).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
+}
+
+/** Every material() call so far that asked for a cached key with other options: empty when every key means one look. */
+export function materialConflicts() {
+  return CONFLICTS.slice();
+}
 
 /**
  * A material on a procedural surface, shared by key:
@@ -475,7 +489,18 @@ const CACHE = new Map();
  */
 export function material(key, opts = {}) {
   let m = CACHE.get(key);
-  if (m) return m;
+  if (m) {
+    // The first caller's material is shared: a key asked for with other
+    // options would silently get its look from whichever model built first
+    // (v0.30.3: nine such keys), so the mismatch is reported instead.
+    const sig = optsSignature(opts);
+    if (sig !== SIGNATURES.get(key)) {
+      CONFLICTS.push({ key, first: SIGNATURES.get(key), asked: sig });
+      log.warn(`material "${key}" asked for with other options than it was made with: ${sig} (made: ${SIGNATURES.get(key)})`);
+    }
+    return m;
+  }
+  SIGNATURES.set(key, optsSignature(opts));
   const {
     surface = null, color = 0xffffff, rough = 1, metal = 0, normal = 1, snow = 1, wet = 1, vertexColors = true,
     physical = false, side, sway = 0, swayH = 1, kind, emissive, emissiveIntensity, roughness, metalness, opacity, worldUV = false,
@@ -701,6 +726,7 @@ export function resetLook() {
   for (const m of CACHE.values()) m.dispose();
   TEXTURES.clear();
   CACHE.clear();
+  SIGNATURES.clear();
   asked = [];
   failedCount = 0;
 }

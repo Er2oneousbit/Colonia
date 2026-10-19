@@ -281,7 +281,7 @@ export function castraMaterials() {
     red: material('stucco-red', { surface: 'plaster', color: 0xc0644a, vertexColors: true, snow: 1 }),
     wood: material('wood', { surface: 'wood', vertexColors: true, snow: 1 }),
     tile: material('roof-tile', { surface: 'terracotta', vertexColors: true, snow: 1 }),
-    clay: material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
+    clay: material('terracotta-ware', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
     thatch: material('thatch', { surface: 'thatch', vertexColors: true, snow: 1 }),
     // The rampart's bank: cut turves, green going brown, laid in courses.
     turf: material('turf', { surface: 'earth', color: 0xb4c27e, vertexColors: true, snow: 1 }),

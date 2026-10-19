@@ -28,6 +28,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { OrthographicCamera, Vector3, Box3 } from 'three';
+import { SunRig } from '../src/render3d/sunRig.js';
 import { HALF_W, HALF_H, CONFIG } from '../src/config.js';
 import { Camera } from '../src/render/camera.js';
 import { SpriteCache } from '../src/render/sprites.js';
@@ -360,4 +361,20 @@ test('render3d: ?renderer=3d asks for WebGL, ?renderer=2d for Classic, nothing f
   assert.equal(parseFlags({ renderer: '2d' }).renderer, 'classic');
   assert.equal(parseFlags({ renderer: 'vulkan' }).renderer, null);
   assert.equal(parseFlags({}).renderer, null);
+});
+
+test('render3d: the sun draws no shadow map while it gives no light', () => {
+  // At night (or under heavy cloud) the sun's intensity is 0, but the depth
+  // pass over every caster in view still ran every frame (v0.30.3).
+  const rig = new SunRig({ shadowMap: {} });
+  rig.setShadows(true);
+  rig.sunK = 1;
+  assert.equal(rig.fitShadow(0, 0, 8, 8, 5), true, 'day: the shadow is fitted to the view');
+  assert.equal(rig.shadowLive, true);
+  rig.sunK = 0;
+  assert.equal(rig.fitShadow(0, 0, 8, 8, 5), false, 'night: no shadow');
+  assert.equal(rig.shadowLive, false, 'cleared once, then left alone');
+  rig.sunK = 0.5;
+  assert.equal(rig.fitShadow(0, 0, 8, 8, 5), true, 'dusk: back');
+  assert.equal(rig.fitShadow(0, 0, 8, 8, 0), false, 'nothing to cast');
 });

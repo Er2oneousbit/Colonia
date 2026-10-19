@@ -141,7 +141,8 @@ export class SunRig {
   fitShadow(u0, v0, u1, v1, models) {
     if (!this.sun.castShadow) return false;
     const span = Math.max(u1 - u0, v1 - v0);
-    const want = models > 0 && span < SHADOW_MAX;
+    // (And none while the sun gives no light: at night or under heavy cloud the depth pass would draw a map nothing reads.)
+    const want = models > 0 && span < SHADOW_MAX && this.sunK > 0.02;
     this.sun.shadow.needsUpdate = want || this.shadowLive || !this.sun.shadow.map;
     this.shadowLive = want;
     // (With nothing to show the models cast nothing into the redraw, so the map is cleared: ModelPass.setCasting.)

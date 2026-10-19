@@ -67,6 +67,19 @@ export function updateLabor(game) {
   for (const [cat, e] of byCat) if (!alloc.has(cat)) restDemand += e.demand;
   const share = restDemand > 0 ? Math.min(1, remaining / restDemand) : 0;
   for (const [cat, e] of byCat) if (!alloc.has(cat)) alloc.set(cat, Math.floor(e.demand * share));
+  // The floors' rounding leaves a few workers over (one short of a category
+  // each, at worst): they go to the categories still short, one at a time,
+  // rather than being counted jobless with places open.
+  if (share < 1) {
+    let left = remaining;
+    for (const [cat] of byCat) if (!c.laborPriority.includes(cat)) left -= alloc.get(cat);
+    for (const [cat, e] of byCat) {
+      if (left <= 0) break;
+      if (c.laborPriority.includes(cat) || alloc.get(cat) >= e.demand) continue;
+      alloc.set(cat, alloc.get(cat) + 1);
+      left--;
+    }
+  }
 
   // Spread each category's workers across its buildings.
   let employed = 0;

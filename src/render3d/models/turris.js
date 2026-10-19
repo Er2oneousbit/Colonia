@@ -257,7 +257,7 @@ export function buildTurris({ look = 'polygonal', lod = 0 } = {}) {
     // A bronze finial at the apex.
     const fin = new ConeGeometry(0.09, 0.38, 8, 1);
     fin.translate(0, eave + T.roof + 0.16, 0);
-    P.add('finial', material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.5 }), tintGeometry(boxUV(fin)));
+    P.add('finial', material('bronze-finial', { surface: 'bronze', vertexColors: true, snow: 0.5 }), tintGeometry(boxUV(fin)));
   }
   P.add('roof', M.tile, tiles);
   // (The crew on the gallery are actors: turrisActors.)

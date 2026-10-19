@@ -105,8 +105,10 @@ export function updateImmigration(game) {
     return;
   }
   c.flags.entryWarned = false;
-  if (c.sentiment < CONFIG.IMMIGRATION_MIN_MOOD) return;
 
+  // The free space and each lot's link to the entry are counted first, so
+  // the Overview, the lot panel and the Problems overlay stay true while
+  // the mood keeps settlers away (only the arrivals are gated below).
   const vacancies = [];
   for (const b of game.buildings.values()) {
     const h = b.house;
@@ -122,6 +124,7 @@ export function updateImmigration(game) {
   }
   c.vacancies = vacancies.reduce((s, v) => s + v.free, 0);
   if (vacancies.length === 0) return;
+  if (c.sentiment < CONFIG.IMMIGRATION_MIN_MOOD) return;
 
   const perDay = immigrationPerDay(c.sentiment, newCityShare(game.time.totalDays), game.difficulty.immigration);
   c.immigrationAcc = Math.min(40, c.immigrationAcc + perDay);

@@ -274,7 +274,7 @@ export function buildPortus({ lod = 0, seed = 83, ice = false } = {}) {
   if (lod < 2) {
     p.add('iron', m.iron, out.iron);
     p.add('rope', m.rope, out.rope);
-    p.add('jars', material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 0.8 }), out.clay);
+    p.add('jars', material('terracotta-ware', { surface: 'terracotta', vertexColors: true, snow: 0.8 }), out.clay);
   }
   if (!ice) p.add('foam', m.foam, out.foam, { cast: false });
   // The lanterns: on a post at the quay's east end, and at the hortator's dais.

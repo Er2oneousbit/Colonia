@@ -17,7 +17,7 @@ Colonia is inspired by *Caesar III*, but contains nothing from it or any other c
 Requirements: **Node 18+** (22 or newer recommended) and a modern browser.
 
 ```bash
-npm install        # esbuild (the build) and three.js (bundled into it: the WebGL renderer)
+npm install        # esbuild (the build) and three.js (bundled into it: the WebGL renderer; the dev pages reach it through an import map in index.html)
 npm run dev        # dev server at http://localhost:8080/ with live source files
 ```
 

@@ -733,9 +733,9 @@ function basilicaMaterials() {
     // Fresh Roman concrete (lime, pozzolana and rubble), grey-beige, as a vault is cast.
     concrete: material('roman-concrete', { surface: 'limestone', color: 0xc4b8a4, rough: 1.1, vertexColors: true, snow: 1 }),
     earthYard: material('beaten-earth', { surface: 'earth', vertexColors: true, snow: 1 }),
-    trench: material('trench-earth', { surface: 'earth', color: 0x6a5240, vertexColors: true, snow: 1 }),
+    trench: material('trench-earth-dark', { surface: 'earth', color: 0x6a5240, vertexColors: true, snow: 1 }),
     cord: material('rope', { surface: 'rope', vertexColors: true, snow: 0.6, normal: 1 }),
-    plaster: material('plaster', { surface: 'plaster', vertexColors: true, snow: 0 }),
+    plaster: material('plaster-dry', { surface: 'plaster', vertexColors: true, snow: 0 }),
     ivory: material('ivory', { color: 0xf0e6d0, roughness: 0.35, vertexColors: true, snow: 0 }),
   };
 }

@@ -144,7 +144,7 @@ export function pantheumMaterials() {
     grey: material('granite-grey', { surface: 'limestone', color: 0xaeb0b6, rough: 0.7, vertexColors: true, snow: 0.8 }),
     pink: material('granite-pink', { surface: 'limestone', color: 0xd09484, rough: 0.7, vertexColors: true, snow: 0.8 }),
     // Fresh concrete: grey lime and pozzolana, rough (the signinum's red read as brick).
-    concrete: material('roman-concrete', { surface: 'plaster', color: 0xb4ada2, vertexColors: true, snow: 1 }),
+    concrete: material('concrete-render', { surface: 'plaster', color: 0xb4ada2, vertexColors: true, snow: 1 }),
     // The dome's gilt bronze tiles, mellowed (gold leaf over bronze, weathered).
     // (A plain gilt bronze: on the bronze surface's own dark albedo the dome read as copper, not gold.)
     tiles: material('dome-bronze', { color: 0xd2ab62, roughness: 0.42, metalness: 0.85, vertexColors: true, snow: 0.6 }),

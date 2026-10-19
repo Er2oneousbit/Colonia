@@ -441,7 +441,7 @@ export function campMaterials() {
     wood: material('wood', { surface: 'wood', vertexColors: true, snow: 1 }),
     bark: material('bark', { surface: 'bark', vertexColors: true, snow: 0.6 }),
     tile: material('roof-tile', { surface: 'terracotta', vertexColors: true, snow: 1 }),
-    clay: material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
+    clay: material('terracotta-ware', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
     stone: material('travertine', { surface: 'travertine', vertexColors: true, snow: 1 }),
     tufa: material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }),
     marble: material('marble', { surface: 'marble', vertexColors: true, snow: 1 }),

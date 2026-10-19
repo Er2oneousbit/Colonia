@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { log } from '../src/core/debug.js';
 import { CONFIG } from '../src/config.js';
 import { GOOD_KEYS, FOOD_TYPES } from '../src/data/goods.js';
-import { addBuilding, spawnWalker } from '../src/sim/entities.js';
+import { addBuilding, spawnWalker, removeBuilding } from '../src/sim/entities.js';
 import { updateWalkers } from '../src/sim/walkers.js';
 import { findDeliveryTarget, findSupplier, storageSpaceFor, takeFromCity, storageByRoad } from '../src/sim/storage.js';
 import { dispatchCart } from '../src/sim/production.js';
@@ -711,4 +711,35 @@ test('a demo city with Get and Empty orders keeps its books straight', () => {
     const incoming = Object.values(b.incoming).reduce((s, v) => s + v, 0);
     assert.equal(incoming, held, `${b.type} #${b.id} holds only for carts on their way`);
   }
+});
+
+test('a workshop cart whose warehouse is demolished on the way brings its pottery home', () => {
+  // Before v0.30.3 receiveGoods had no home branch for a workshop's own
+  // product, so the cart's load was thrown away with the cart.
+  const game = newGame({ size: 64 });
+  const { map } = game;
+  const e = map.entry;
+  build(game, 'road', e.x, e.y, e.x, Math.min(map.h - 3, e.y + 40));
+  const net = map.roadNet[map.idx(e.x, e.y)];
+  let yEnd = e.y;
+  while (map.inBounds(e.x, yEnd + 1) && map.road[map.idx(e.x, yEnd + 1)] && map.roadNet[map.idx(e.x, yEnd + 1)] === net) yEnd++;
+  let potter = null;
+  let wh = null;
+  for (let y = e.y + 1; y <= yEnd - 3 && !potter; y++) for (const x of [e.x + 1, e.x + 2]) if (build(game, 'pottery_ws', x, y).ok) { potter = [...game.buildings.values()].find((b) => b.type === 'pottery_ws'); break; }
+  for (let y = yEnd - 3; y > potter.y + 4 && !wh; y--) for (const x of [e.x + 1, e.x + 2]) if (build(game, 'warehouse', x, y).ok) { wh = [...game.buildings.values()].find((b) => b.type === 'warehouse'); break; }
+  assert.ok(potter && wh, 'a potter and a warehouse on the entry road');
+  const staff = () => { for (const b of [potter, wh]) if (game.buildings.has(b.id)) { b.laborAccess = 999; b.efficiency = 1; b.workers = b.def.workers; } };
+  staff();
+  potter.stock.pottery = 200;
+  let cart = null;
+  for (let t = 0; t < 600 && !cart; t++) { game.tick(); staff(); cart = [...game.walkers.values()].find((w) => w.type === 'cart' && w.origin === potter.id); }
+  assert.ok(cart && cart.cargo.good === 'pottery' && cart.cargo.amount > 0, 'the potter sent a cart');
+  const carried = cart.cargo.amount;
+  const atHome = potter.stock.pottery;
+  removeBuilding(game, wh, 'demolish');
+  game.onMapEdited();
+  for (let t = 0; t < 3000 && game.walkers.has(cart.id); t++) { game.tick(); staff(); }
+  assert.ok(!game.walkers.has(cart.id), 'the cart came home and was done with');
+  const made = game.city.produced.pottery || 0;
+  assert.equal(potter.stock.pottery, atHome + carried + made, 'the load is back on the potter\'s shelf');
 });

@@ -224,7 +224,7 @@ export class Game {
     eventStateOf(this.city); // saves from before events: Rome pays the base wage, nothing cooling down or shaking
     this.city.natives ??= null; // a city with native villages: their state (sim/natives.js); none in older saves
     if (!restore) foundVillages(this); // a new game: the native villages of the missions that have them
-    this.projectiles = []; // arrows and sling stones in flight (not saved)
+    this.projectiles = []; // arrows and sling stones in flight (saved since v34: core/save.js)
     this.enemyField = null; // raider flow field (derived, see sim/field.js)
     this.events.on('buildingRemoved', ({ building }) => {
       if (building.def.kind === 'fort') disbandFort(this, building);

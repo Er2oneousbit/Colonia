@@ -1145,7 +1145,16 @@ export class App {
     this.ui.onViewTurned?.(r.viewTurn);
   }
 
-  toggleDebugHud() { this.debugHud = !this.debugHud; }
+  /** F3: the readout off if the setting keeps it on (else F3 would do nothing visible), on or off otherwise. */
+  toggleDebugHud() {
+    if (this.settings.showFps) {
+      this.settings.showFps = false;
+      this.debugHud = false;
+      this.applySettings();
+      return;
+    }
+    this.debugHud = !this.debugHud;
+  }
 
   /**
    * The graphics chip the browser draws with: the WebGL back end's, or with

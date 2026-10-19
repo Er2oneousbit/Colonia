@@ -207,3 +207,19 @@ test('a save keeps the desirability the running game had, and whether it was due
   delete old.desirability;
   assert.notEqual(deserializeGame(old).map.desirability[game.map.idx(5, 5)], 77);
 });
+
+test('save: missiles in flight survive a save, and a save from before v34 loads with none', () => {
+  const game = newGame({ seed: 'arrows' });
+  const arrow = { x: 12.5, y: 9, z: 38, target: 7, damage: 11, speed: 0.45, kind: 'arrow', life: 60 };
+  game.projectiles.push({ ...arrow });
+  const data = JSON.parse(JSON.stringify(serializeGame(game)));
+  assert.deepEqual(data.projectiles, [arrow]);
+  const back = deserializeGame(data);
+  assert.deepEqual(back.projectiles, [arrow]);
+  assert.notEqual(back.projectiles[0], data.projectiles[0], 'a copy, not the save\'s own record');
+  const old = { ...data, version: 33 };
+  delete old.projectiles;
+  assert.deepEqual(deserializeGame(old).projectiles, []);
+  const junk = { ...data, projectiles: [null, 'x', { x: 1 }, arrow] };
+  assert.deepEqual(deserializeGame(junk).projectiles, [arrow], 'a hand-edited file keeps only whole records');
+});
