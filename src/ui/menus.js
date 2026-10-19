@@ -31,6 +31,8 @@ export const SAVE_SLOTS = ['auto', 'quick', 'slot1', 'slot2', 'slot3', 'slot4', 
 const SLOT_NAMES = { auto: 'Autosave', quick: 'Quicksave', slot1: 'Slot 1', slot2: 'Slot 2', slot3: 'Slot 3', slot4: 'Slot 4', slot5: 'Slot 5' };
 
 const FOOTER = 'Made with ❤️ from your friendly hacker - er2oneousbit';
+/** The modal options of a game's outcome screens (victory, defeat, and what opens from them): paused, and not dismissed by Esc or a click beside the box. */
+const OUTCOME = { pause: true, kind: 'outcome' };
 
 function modal(title, body, foot, cls = '', onClose = null) {
   return h('div', { class: `modal ${cls}` },
@@ -382,7 +384,14 @@ function storageNote() {
       `Most browsers allow about ${Math.round(STORAGE_BUDGET / 1048576)} MB per site. Saves stay on this computer and browser only, and clearing site data deletes them: export or copy a save to back it up. The autosave slot is written every ${CONFIG.AUTOSAVE_EVERY_MONTHS} months and whenever you leave the page.`));
 }
 
-export function loadMenu(app) {
+/**
+ * The load screen. `back` is where Back (and a click beside the box) goes:
+ * the defeat screen, when it was opened from there, so the player cannot
+ * slip back into a fallen city by closing it; by default the box just closes.
+ */
+export function loadMenu(app, back = null) {
+  const again = () => app.ui.showModal(loadMenu(app, back), back ? OUTCOME : undefined);
+  const close = back || (() => app.ui.closeModal());
   const slots = listSlots(SAVE_SLOTS);
   const byName = Object.fromEntries(slots.map((s) => [s.slot, s]));
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'hidden', onchange: (e) => { const f = e.target.files[0]; if (f) app.importSave(f); } });
@@ -391,14 +400,14 @@ export function loadMenu(app) {
     return slotRow(app, slot, s?.meta, s ? [
       s.corrupt ? h('span', { class: 'no' }, 'Corrupt') : h('button', { class: 'btn small primary', onclick: () => app.loadSlot(slot) }, 'Load'),
       slotExportButton(app, slot),
-      h('button', { class: 'btn small danger', title: 'Delete this save', onclick: () => app.ui.confirm(`Delete ${SLOT_NAMES[slot]}? This cannot be undone.`, () => { deleteSlot(slot); app.ui.showModal(loadMenu(app)); }, { yes: 'Delete', danger: true }) }, '🗑'),
+      h('button', { class: 'btn small danger', title: 'Delete this save', onclick: () => app.ui.confirm(`Delete ${SLOT_NAMES[slot]}? This cannot be undone.`, () => { deleteSlot(slot); again(); }, { yes: 'Delete', danger: true }) }, '🗑'),
     ] : null);
   });
   return modal('Load game', [rows, fileInput, storageNote()], [
     h('button', { class: 'btn', onclick: () => fileInput.click() }, '📂 Import from file'),
     h('button', { class: 'btn', onclick: () => app.ui.askText('Paste save data', 'Paste the text you copied with "Copy save data".', 'Load', (text) => app.importText(text)) }, '📋 Paste save data'),
-    h('button', { class: 'btn', onclick: () => app.ui.closeModal() }, 'Back'),
-  ], 'narrow', () => app.ui.closeModal());
+    h('button', { class: 'btn', onclick: close }, 'Back'),
+  ], 'narrow', close);
 }
 
 export function saveMenu(app) {
@@ -621,7 +630,8 @@ export function defeatMenu(app, reason) {
     h('p', {}, reason || 'Your governorship has ended.'),
     h('p', { class: 'muted' }, defeatTip()),
   ], [
-    h('button', { class: 'btn', onclick: () => app.ui.showModal(loadMenu(app)) }, 'Load a save'),
+    // An outcome modal, like this one: Esc or a click beside it must not drop the player back into the fallen city.
+    h('button', { class: 'btn', onclick: () => app.ui.showModal(loadMenu(app, () => app.ui.showModal(defeatMenu(app, reason), OUTCOME)), OUTCOME) }, 'Load a save'),
     h('button', { class: 'btn', onclick: () => app.restart() }, 'Try again'),
     choice.length > 1 ? h('button', { class: 'btn choose-post', onclick: () => showChoice(app, choice, () => app.ui.showModal(defeatMenu(app, reason), { pause: true, kind: 'outcome' })) }, 'Choose a province again') : null,
     h('button', { class: 'btn primary', onclick: () => app.toMainMenu() }, 'Main menu'),

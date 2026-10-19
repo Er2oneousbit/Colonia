@@ -726,7 +726,7 @@ export function buildMansio({ lod = 0, stage = MANSIO_STAGES, f = 1, ice = false
   p.add('hay', material('hay', { surface: 'thatch', color: 0xc4ad7c, vertexColors: true, snow: 1 }), out.hay, small);
   p.add('jugs', R.clay, out.clay, small);
   p.add('vine', material('vine-leaf', { roughness: 0.75, vertexColors: true, snow: 0.85, wet: 0.6 }), out.vine, small);
-  p.add('vault', material('vault-render', { surface: 'limestone', color: 0xe6c8b6, vertexColors: true, snow: 1 }), out.vault);
+  p.add('vault', material('vault-lime', { surface: 'limestone', color: 0xe6c8b6, vertexColors: true, snow: 1 }), out.vault);
   p.add('trough-water', ice ? iceMaterial() : shallowWaterMaterial(), out.troughWater, { cast: false });
   p.add('rubble', m.core, out.rubble);
   p.add('soot', material('soot', { color: 0x15110e, roughness: 1, opacity: 0.55, snow: 0, wet: 0 }), out.soot, small);

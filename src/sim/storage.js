@@ -183,6 +183,13 @@ export function receiveGoods(b, good, amount, home = false) {
     b.stock[good] += amount; // returned undeliverable cargo
     return amount;
   }
+  // A workshop's own cart back with its product (the warehouse it set out
+  // for demolished or closed to it): the load goes back on the shelf, past
+  // the output cap if need be, since that cap only gates what is made.
+  if (home && kind === 'workshop' && b.def.produces === good) {
+    b.stock[good] += amount;
+    return amount;
+  }
   return 0;
 }
 

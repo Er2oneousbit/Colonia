@@ -735,7 +735,7 @@ export function hortusMaterials() {
     // The pergola's pillars: stuccoed white (the plaster's painted dado is a wall's, not a pillar's).
     plaster: material('garden-stucco', { surface: 'limestone', color: 0xf4efe4, vertexColors: true, snow: 1 }),
     // A pool's floor and sides, painted blue as Pompeii's were.
-    lining: material('pool-blue', { color: 0x4f8aa6, roughness: 0.7, vertexColors: true, snow: 1 }),
+    lining: material('pool-lining', { color: 0x4f8aa6, roughness: 0.7, vertexColors: true, snow: 1 }),
     wood: c.wood,
     bark: r.bark,
     bronze: c.bronze,

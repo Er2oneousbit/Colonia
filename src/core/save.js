@@ -477,6 +477,9 @@ export function serializeGame(game, extra = {}) {
     fires: [...game.fires].map(([i, d]) => [i, d, fireOf(game, i)]),
     ruins: serializeRuins(game),
     units,
+    // Missiles in flight (plain records: sim/military.js updateProjectiles),
+    // so a save made mid-fight lands the same arrows the unsaved game would (v34).
+    projectiles: game.projectiles.map((p) => ({ ...p })),
     military: game.military,
     wildlife: game.wildlife,
     wallHp: [...game.wallHp],
@@ -605,6 +608,10 @@ export function deserializeGame(data, flags = {}) {
     maxU = Math.max(maxU, u.id);
   }
   game.nextUnitId = Math.max(game.nextUnitId, maxU + 1);
+  // Missiles in flight (none in a save before v34: they had fallen harmlessly on load).
+  game.projectiles = (Array.isArray(data.projectiles) ? data.projectiles : [])
+    .filter((p) => p && typeof p === 'object' && Number.isFinite(p.x) && Number.isFinite(p.y))
+    .map((p) => ({ ...p }));
 
   if (data.version < 5) upgradeV4(game);
   if (data.version < 6) upgradeV5(game);

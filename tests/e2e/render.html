@@ -26,6 +26,8 @@
                 view=1 (the view turned 1 to 3 quarter turns: the city seen from another side)
 -->
 <canvas id="c"></canvas>
+<!-- The sources are loaded unbundled here, so the bare "three" import (src/render3d) needs this map. -->
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js" } }</script>
 <script type="module">
   import { Game } from '../../src/core/game.js';
   import { SCENARIOS, sandboxScenario } from '../../src/data/scenarios.js';

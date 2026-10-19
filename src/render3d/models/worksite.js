@@ -825,7 +825,7 @@ export function siteMaterials() {
     rope: material('rope', { surface: 'rope', vertexColors: true, snow: 0.6, normal: 1 }),
     iron: material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }),
     marble: material('marble', { surface: 'marble', vertexColors: true, snow: 1 }),
-    brick: material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
+    brick: material('terracotta-ware', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
     stone: material('travertine', { surface: 'travertine', vertexColors: true, snow: 1 }),
     tufa: material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }),
     lime: material('slaked-lime', { color: 0xe9e5da, roughness: 0.95, vertexColors: true, snow: 0.6 }),

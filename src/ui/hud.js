@@ -70,7 +70,7 @@ export class Hud {
     // Raid alert: hidden in peace time, amber when scouts warn, red during an attack.
     this.threat = h('button', { class: 'hud-btn threat hidden', onclick: () => app.focusThreat() }, '');
     this.speedBtns = SPEED_LABELS.map((lbl, i) => h('button', { class: 'hud-btn', title: SPEED_TITLES[i], onclick: () => (i === 0 ? app.togglePause() : app.setSpeed(i)) }, lbl));
-    this.overlaySel = h('select', { class: 'hud-select', title: 'Information overlay (O)', onchange: (e) => app.setOverlay(e.target.value) },
+    this.overlaySel = h('select', { class: 'hud-select', title: 'Information overlay (O)', onchange: (e) => { app.setOverlay(e.target.value); e.target.blur(); } },
       OVERLAYS.map((o) => h('option', { value: o.key }, o.key === 'none' ? '🗺 Overlays' : o.name)));
     // Turning the view (render/view.js): the city a quarter turn either way,
     // and a needle pointing north (a click turns back to the start, north up).

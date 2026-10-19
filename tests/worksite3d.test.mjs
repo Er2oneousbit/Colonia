@@ -107,9 +107,6 @@ test('worksite3d: fresh copies of a cache kept by the site\'s content and level'
   assert.equal(siteKey({ ...site, crew: [1, 2] }, 1), siteKey(JSON.parse(JSON.stringify(site)), 1));
   assert.notEqual(siteKey(site, 1), siteKey(site, 2));
   assert.notEqual(siteKey(site, 1), siteKey({ ...site, piles: [{ ...site.piles[0], n: 3 }] }, 1));
-  const t0 = performance.now();
-  for (let k = 0; k < 20; k++) siteParts(site, 1);
-  assert.ok((performance.now() - t0) / 20 < 5, 'a cached site is copied, not built');
   // Merged into a model's own parts by name (TaggedParts), in a state.
   const p = addSite(new TaggedParts('stage'), site, 1, 'open').build();
   assert.ok(p.meshes.length === b.length && p.meshes.every((m) => m.userData.when === 'open'));

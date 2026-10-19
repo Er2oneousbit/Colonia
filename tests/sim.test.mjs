@@ -26,6 +26,7 @@ import { planAction, applyPlan, undoLast, canUndo, checkBuilding } from '../src/
 import { addBuilding } from '../src/sim/entities.js';
 import { checkTier, growHouse } from '../src/sim/housing.js';
 import { updateLabor } from '../src/sim/labor.js';
+import { updateImmigration } from '../src/sim/population.js';
 import { updateWater } from '../src/sim/water.js';
 import { monthlyEconomy, houseMonthlyTax, ledgerNet } from '../src/sim/economy.js';
 import { loanTerms, takeLoan, repayLoan } from '../src/sim/loans.js';
@@ -701,4 +702,41 @@ test('the level 3 demo city (the money yardstick) pipes water to its fountains',
   // All but one at most: on some maps the town fills the spots a second
   // reservoir would need to reach the last one.
   assert.ok(fountains.length >= 4 && fountains.filter((f) => !f.hasWater).length <= 1, 'fountains wet');
+});
+
+test('labor: the rounding of a short workforce goes to work, not to the jobless count', () => {
+  // Two categories, no priority, fewer workers than places: each category's
+  // share is floored, and before v0.30.3 the one or two left over were
+  // counted unemployed with places open.
+  const game = newGame();
+  const spot = findFree(game, 10, 3);
+  build(game, 'road', spot.x, spot.y + 1, spot.x + 9, spot.y + 1);
+  const pre = addBuilding(game, 'prefecture', spot.x, spot.y);
+  const eng = addBuilding(game, 'engineer_post', spot.x + 2, spot.y);
+  const house = addBuilding(game, 'house', spot.x + 4, spot.y);
+  game.processRoadChanges();
+  house.house.tier = 3;
+  house.house.pop = 20; // workforce = floor(20 * 0.32) = 6
+  pre.laborAccess = eng.laborAccess = 30;
+  game.city.laborPriority = [];
+  updateLabor(game);
+  const demand = pre.def.workers + eng.def.workers;
+  assert.ok(demand > 6, `more places (${demand}) than workers`);
+  assert.equal(pre.workers + eng.workers, 6, 'every worker has a place');
+  assert.equal(game.city.unemployed, 0);
+});
+
+test('immigration: the free housing count and each lot\'s link to the entry stay true while the mood keeps settlers away', () => {
+  const game = newGame();
+  const res = buildDemoCity(game, { level: 1 });
+  assert.ok(res.ok, res.reason);
+  game.runDays(4);
+  const fresh = game.city.vacancies;
+  assert.ok(fresh > 0, `free space to count (${fresh})`);
+  game.city.vacancies = -1; // a stale value, as a day the mood gate skipped would leave it
+  game.city.sentiment = CONFIG.IMMIGRATION_MIN_MOOD - 1;
+  const incoming = [...game.buildings.values()].reduce((s, b) => s + (b.house ? b.house.incoming : 0), 0);
+  updateImmigration(game);
+  assert.ok(game.city.vacancies >= 0 && game.city.vacancies !== -1, 'the count was refreshed');
+  assert.equal([...game.buildings.values()].reduce((s, b) => s + (b.house ? b.house.incoming : 0), 0), incoming, 'nobody set out');
 });

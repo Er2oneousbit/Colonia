@@ -73,7 +73,7 @@ export function ruralMaterials() {
     iron: material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }),
     rope: material('rope', { surface: 'rope', vertexColors: true, snow: 0.6, normal: 1 }),
     tile: material('roof-tile', { surface: 'terracotta', vertexColors: true, snow: 1 }),
-    clay: material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
+    clay: material('terracotta-ware', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
     thatch: material('thatch', { surface: 'thatch', vertexColors: true, snow: 1 }),
     bark: material('bark', { surface: 'bark', vertexColors: true, snow: 0.6 }),
     wicker: material('wicker', { surface: 'wicker', vertexColors: true, snow: 0.8 }),
