@@ -23,9 +23,9 @@
  * ----------------------------------------------------------------------------
  */
 
-import { InstancedMesh, InstancedBufferAttribute, DynamicDrawUsage, Group, BufferGeometry, Matrix4, WebGLRenderTarget } from 'three';
+import { Matrix4 } from 'three';
+import { FigurePass, KEEP_FRAMES, BUILD_MS } from '../figures/figurePass.js';
 import { pack, pick, hash01, TUNICS, SKINS, HAIRS } from '../people/actors.js';
-import { buildPiece } from '../people/pieces.js';
 import { peopleLodFor } from '../modelPass.js';
 import { unitMaterial, unitDepthMaterial, unitFigureTexture, UNIT_FIGURES_ROW, UNIT_FIGURE_FLOATS } from './material.js';
 import { buildUnitPiece } from './pieces.js';
@@ -37,12 +37,8 @@ import { HALF_W, HALF_H } from '../../config.js';
 import { UNIT_TYPES } from '../../data/units.js';
 import { ART_PX } from '../projection.js';
 
-const FIRST_ROOM = 32;
-const KEEP_FRAMES = 900;
-const BUILD_MS = 6;
 /** The dead kept at most (the oldest go first). */
 const MAX_DEAD = 160;
-const ATTRS = ['aActClip', 'aActRoute', 'aActCol0', 'aActCol1', 'aActMisc'];
 const TILE = new Matrix4().makeScale(1 / 4, 1 / 4, 1 / 4);
 
 /** A prop's piece key from a look's hand entry: the people's (prop:<name>) or the units' (uprop:<name>). */
@@ -66,43 +62,20 @@ export function packUnitFigure(f, index) {
   return { pieces: [f.rigid], col0, col1, route: new Float32Array([f.scale || 1, 0, 0, 1]), head: 1 };
 }
 
-export class UnitPass {
+export class UnitPass extends FigurePass {
   /** @param {import('three').Object3D} parent where the meshes go (the models' slot, a lab scene) */
   constructor(parent) {
-    this.group = new Group();
-    this.group.name = 'units';
-    this.group.userData.opaque = true;
-    parent.add(this.group);
-    this.pieces = new Map();
+    super(parent, { name: 'units', material: unitMaterial, depthMaterial: unitDepthMaterial, makeTexture: unitFigureTexture });
     this.looks = new Map(); // unit id -> { key, look, packed, h, built, gen }
-    this.wanted = new Set();
     this.motion = new UnitMotion();
     this.threats = new ThreatGrid();
     this.list = [];
     this.used = 0;
-    this.rows = 0;
-    this.tex = null;
-    this.data = null;
     this.ensureRows(1);
-    this.lastSig = -1;
     this.lod = 1;
-    this.frame = 0;
-    this.casting = true;
-    this.compiled = false;
-    this.gen = 0;
     this.dead = []; // unit ids lying dead, oldest first
     this.view = null;
     this.stats = { units: 0, figures: 0, dead: 0, draws: 0, triangles: 0, writes: 0, deferred: 0, pieces: 0, ms: 0 };
-  }
-
-  ensureRows(rows) {
-    if (rows <= this.rows) return;
-    let r = Math.max(1, this.rows);
-    while (r < rows) r *= 2;
-    if (this.tex) this.tex.dispose();
-    this.tex = unitFigureTexture(r);
-    this.data = this.tex.image.data;
-    this.rows = r;
   }
 
   /**
@@ -136,15 +109,6 @@ export class UnitPass {
     }
     this.looks.set(u.id, fresh);
     return fresh;
-  }
-
-  pieceAt(key, lod) {
-    for (const l of [lod, lod + 1, lod - 1, lod + 2, lod - 2]) {
-      if (l < 0 || l > 2) continue;
-      const p = this.pieces.get(`${key}|${l}`);
-      if (p) return p;
-    }
-    return null;
   }
 
   /** Every piece of entry e built at some level? */
@@ -341,28 +305,9 @@ export class UnitPass {
     return e ? (e.look.reach || 0) / 4 : 0;
   }
 
-  build(until) {
-    if (!this.wanted.size) return;
-    let first = true;
-    for (const id of this.wanted) {
-      if (!first && performance.now() > until) {
-        this.stats.deferred = this.wanted.size;
-        return;
-      }
-      first = false;
-      this.wanted.delete(id);
-      if (this.pieces.has(id)) continue;
-      const i = id.lastIndexOf('|');
-      const key = id.slice(0, i);
-      const lod = Number(id.slice(i + 1));
-      const t = performance.now();
-      const base = buildUnitPiece(key, lod);
-      const p = this.make(base, FIRST_ROOM);
-      Object.assign(p, { key, lod, seen: this.frame, ms: performance.now() - t, tris: base.index.count / 3 });
-      this.pieces.set(id, p);
-      this.dirty = true;
-    }
-    this.stats.deferred = 0;
+  /** What a unit's piece is: the people's or a unit's own (pieces.js). */
+  buildBase(key, lod) {
+    return buildUnitPiece(key, lod);
   }
 
   write(sig) {
@@ -379,173 +324,22 @@ export class UnitPass {
           const i = p.n;
           if (i >= p.room) this.grow(p, i + 1);
           TILE.toArray(p.mesh.instanceMatrix.array, i * 16);
-          const at = p.attrs;
-          at.aActClip.array.fill(0, i * 4, i * 4 + 4);
-          at.aActRoute.array.set(f.route, i * 4);
-          at.aActCol0.array.set(f.col0, i * 4);
-          at.aActCol1.array.set(f.col1, i * 4);
-          const mi = i * 4;
-          at.aActMisc.array[mi] = f.head;
-          at.aActMisc.array[mi + 1] = 0;
-          at.aActMisc.array[mi + 2] = 0;
-          at.aActMisc.array[mi + 3] = fi;
+          this.writeFigure(p, i, f, fi);
           p.n = i + 1;
         }
         fi++;
       }
     }
     this.lastSig = sig;
-    let draws = 0;
-    let tris = 0;
-    for (const p of this.pieces.values()) {
-      const n = p.n;
-      p.mesh.count = n;
-      p.mesh.visible = n > 0;
-      if (!n) continue;
-      p.seen = this.frame;
-      p.mesh.castShadow = this.casting && p.lod < 2;
-      draws++;
-      tris += n * p.tris;
-      const im = p.mesh.instanceMatrix;
-      im.clearUpdateRanges();
-      im.addUpdateRange(0, n * 16);
-      im.needsUpdate = true;
-      for (const name of ATTRS) {
-        const a = p.attrs[name];
-        a.clearUpdateRanges();
-        a.addUpdateRange(0, n * 4);
-        a.needsUpdate = true;
-      }
-    }
+    const { draws, tris } = this.flush();
     Object.assign(this.stats, { draws, triangles: tris, pieces: this.pieces.size, writes: this.stats.writes + 1 });
-  }
-
-  make(base, room) {
-    const g = new BufferGeometry();
-    for (const [name, a] of Object.entries(base.attributes)) g.setAttribute(name, a);
-    g.setIndex(base.index);
-    g.boundingSphere = base.boundingSphere;
-    const attrs = {};
-    for (const name of ATTRS) {
-      const a = new InstancedBufferAttribute(new Float32Array(room * 4), 4);
-      a.setUsage(DynamicDrawUsage);
-      g.setAttribute(name, a);
-      attrs[name] = a;
-    }
-    const mesh = new InstancedMesh(g, unitMaterial(), room);
-    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
-    mesh.customDepthMaterial = unitDepthMaterial('depth');
-    mesh.customDistanceMaterial = unitDepthMaterial('distance');
-    mesh.castShadow = this.casting;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = false;
-    mesh.count = 0;
-    mesh.visible = false;
-    this.group.add(mesh);
-    return { base, geometry: g, mesh, attrs, room, n: 0 };
-  }
-
-  grow(p, n) {
-    let room = p.room;
-    while (room < n) room *= 2;
-    const q = this.make(p.base, room);
-    q.mesh.instanceMatrix.array.set(p.mesh.instanceMatrix.array.subarray(0, p.n * 16));
-    for (const name of ATTRS) q.attrs[name].array.set(p.attrs[name].array.subarray(0, p.n * 4));
-    this.group.remove(p.mesh);
-    p.mesh.dispose();
-    p.geometry.dispose();
-    p.mesh = q.mesh;
-    p.geometry = q.geometry;
-    p.attrs = q.attrs;
-    p.room = room;
-  }
-
-  setCasting(on) {
-    this.casting = on;
-    for (const p of this.pieces.values()) p.mesh.castShadow = on && p.lod < 2 && p.n > 0;
   }
 
   /** Nobody drawn this frame. */
   hide() {
+    super.hide();
     this.used = 0;
-    for (const p of this.pieces.values()) {
-      p.mesh.count = 0;
-      p.mesh.visible = false;
-      p.n = 0;
-    }
-    this.lastSig = -1;
     this.stats.units = 0;
-  }
-
-  drop(id) {
-    const p = this.pieces.get(id);
-    if (!p) return;
-    this.group.remove(p.mesh);
-    p.mesh.dispose();
-    p.geometry.dispose();
-    p.base.dispose();
-    this.pieces.delete(id);
-    this.dirty = true;
-    this.gen++;
-  }
-
-  /** Compile the units' programs before the first is drawn (as the walkers': walkers/pass.js warm). */
-  warm(gl, camera, scene, withOutput) {
-    if (this.warming) return this.warming;
-    const gen = this.warmGen = (this.warmGen || 0) + 1;
-    const g = buildPiece('body:m', 2);
-    this.proxyBase = g;
-    this.proxies = [unitMaterial(), unitDepthMaterial('depth')].map((mat) => {
-      const p = this.make(g, 1);
-      p.mesh.material = mat;
-      p.mesh.castShadow = false;
-      p.mesh.name = 'units-warm';
-      return p.mesh;
-    });
-    const [colour, depth] = this.proxies;
-    depth.removeFromParent();
-    this.depthScene = new Group();
-    this.depthScene.add(depth);
-    this.target = new WebGLRenderTarget(1, 1);
-    const a = withOutput(() => gl.compileAsync(colour, camera, scene));
-    const prev = gl.getRenderTarget();
-    gl.setRenderTarget(this.target);
-    let b;
-    try {
-      b = gl.compileAsync(this.depthScene, camera, scene);
-    } finally {
-      gl.setRenderTarget(prev);
-    }
-    const done = () => { if (gen === this.warmGen) this.compiled = true; };
-    this.warming = Promise.all([a, b]).then(done, done);
-    return this.warming;
-  }
-
-  restored() {
-    this.compiled = false;
-    this.warmGen = (this.warmGen || 0) + 1;
-    this.warming = null;
-    this.disposeProxies();
-  }
-
-  disposeProxies() {
-    for (const m of this.proxies || []) {
-      m.removeFromParent();
-      m.dispose();
-      m.geometry.dispose();
-    }
-    this.proxies = null;
-    if (this.proxyBase) this.proxyBase.dispose();
-    this.proxyBase = null;
-    if (this.target) this.target.dispose();
-    this.target = null;
-  }
-
-  dispose() {
-    for (const id of [...this.pieces.keys()]) this.drop(id);
-    this.disposeProxies();
-    if (this.tex) this.tex.dispose();
-    this.group.removeFromParent();
   }
 }
 

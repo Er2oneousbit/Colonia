@@ -28,9 +28,8 @@
  * ----------------------------------------------------------------------------
  */
 
-import { MeshStandardMaterial, MeshDepthMaterial, MeshDistanceMaterial, DataTexture, RGBAFormat, FloatType, NearestFilter, Vector2 } from 'three';
-import { patchLook, surfaceTextures, cachedMaterial, LOOK } from '../materials.js';
-import { patchPeopleShader } from '../people/material.js';
+import { makeFigureTexture, figureMaterial, figureDepthMaterial } from '../figures/figureMaterial.js';
+import { LOOK } from '../materials.js';
 import { bakeBeasts } from './quadRig.js';
 import { beastBones } from './beastTexture.js';
 
@@ -47,16 +46,7 @@ const FIGURES = { value: null };
 
 /** The figures' texture for `rows` rows (a new one: the uniform points at it). */
 export function unitFigureTexture(rows) {
-  const data = new Float32Array(UNIT_FIGURES_ROW * UNIT_FIGURE_FLOATS * rows);
-  const t = new DataTexture(data, UNIT_FIGURES_ROW * UNIT_FIGURE_TEXELS, rows, RGBAFormat, FloatType);
-  t.magFilter = NearestFilter;
-  t.minFilter = NearestFilter;
-  t.generateMipmaps = false;
-  t.flipY = false;
-  t.needsUpdate = true;
-  t.name = 'unit-figures';
-  FIGURES.value = t;
-  return t;
+  return makeFigureTexture(FIGURES, 'unit-figures', rows, UNIT_FIGURES_ROW, UNIT_FIGURE_TEXELS);
 }
 
 /** The beasts' baked clips as a texture and their table (units/beastTexture.js: shared with the buildings' beasts). */
@@ -182,34 +172,11 @@ function variant() {
 
 /** The units' material (the people's, placed by the units' texture, the beasts skinned their own way). */
 export function unitMaterial() {
-  return cachedMaterial('units', () => {
-    const wool = surfaceTextures('wool');
-    const m = new MeshStandardMaterial({
-      color: 0xffffff, roughness: 1, metalness: 1, vertexColors: false,
-      map: wool.map, normalMap: wool.normalMap, normalScale: new Vector2(0.8, 0.8), roughnessMap: wool.orm, metalnessMap: wool.orm,
-    });
-    m.name = 'units';
-    patchLook(m, { snow: 1, wet: 1 });
-    const look = m.onBeforeCompile;
-    m.onBeforeCompile = (shader, renderer) => {
-      look(shader, renderer);
-      patchPeopleShader(shader, false, variant());
-    };
-    m.customProgramCacheKey = () => 'units1';
-    return m;
-  });
+  return figureMaterial('units', variant);
 }
 
 /** The units' shadow casters: the sun's depth and a lamp's distance, placed alike. */
 export function unitDepthMaterial(kind = 'depth') {
-  return cachedMaterial(`units-${kind}`, () => {
-    const m = kind === 'depth' ? new MeshDepthMaterial() : new MeshDistanceMaterial();
-    m.onBeforeCompile = (shader) => {
-      patchPeopleShader(shader, true, variant());
-      // (The flag's ripple reads the normal and the clock: a depth shader declares neither until asked.)
-      shader.uniforms.uLookTime = LOOK.uniforms.uLookTime;
-    };
-    m.customProgramCacheKey = () => `units-${kind}1`;
-    return m;
-  });
+  // (The flag's ripple reads the normal and the clock: a depth shader declares neither until asked.)
+  return figureDepthMaterial('units', kind, variant, (shader) => { shader.uniforms.uLookTime = LOOK.uniforms.uLookTime; });
 }
