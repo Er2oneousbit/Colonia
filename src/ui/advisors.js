@@ -40,6 +40,7 @@ import { threatSummary, garrisonCounts, recallFort, RUMOUR_MONTHS, SCOUT_MONTHS,
 import { packSummary } from '../sim/wildlife.js';
 import { squadronCounts, recallStation, fleetSummary, navalNeed } from '../sim/navy.js';
 import { trainedTotals } from '../sim/training.js';
+import { tabSignature, SLOW_REFRESH } from './advisorSig.js';
 import { templeCount } from './trainingInfo.js';
 import { GODS, GOD_KEYS } from '../data/gods.js';
 import { TRADE_PARTNERS } from '../data/scenarios.js';
@@ -198,6 +199,8 @@ export class Advisors {
     this.body = null;
     this.timer = 0;
     this.interacting = false;
+    this.sig = null; // what the tab on screen was built from (advisorSig.js)
+    this.sinceBuild = 0; // seconds since then, for the slow fallback rebuild
     this.showNext = new Map(); // Production: which building of a trouble group "Show" goes to next
   }
 
@@ -210,9 +213,15 @@ export class Advisors {
       h('div', { class: 'modal-head' }, h('h2', {}, 'Advisors'), h('button', { class: 'panel-close', title: 'Close (Esc)', onclick: () => this.app.ui.closeModal() }, '×')),
       this.tabsEl,
       this.body);
-    // Pause auto refresh while dragging sliders.
+    // Pause auto refresh while dragging sliders. The release can land outside
+    // the box, so it is heard on the window (as ui/empire.js does).
     modal.addEventListener('pointerdown', (e) => { if (e.target.tagName === 'INPUT') this.interacting = true; });
-    modal.addEventListener('pointerup', () => { this.interacting = false; });
+    if (!this.releaseBound && typeof window !== 'undefined') {
+      this.releaseBound = true;
+      const release = () => { this.interacting = false; };
+      window.addEventListener('pointerup', release);
+      window.addEventListener('pointercancel', release);
+    }
     this.render();
     return modal;
   }
@@ -226,13 +235,19 @@ export class Advisors {
     this.timer += dt;
     if (this.timer < 1.5 || this.interacting) return;
     this.timer = 0;
+    this.sinceBuild += 1.5;
     const active = document.activeElement;
-    if (active && this.body && this.body.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) return;
+    if (active && this.body && this.body.contains(active) && ['INPUT', 'SELECT', 'BUTTON'].includes(active.tagName)) return;
+    // Rebuild only when what the tab shows changed; the slow fallback
+    // catches a field its signature does not cover.
+    if (this.app.game && this.sig === tabSignature(this.tab, this.app.game) && this.sinceBuild < SLOW_REFRESH) return;
     this.render();
   }
 
   render() {
     if (!this.body || !this.app.game) return;
+    this.sig = tabSignature(this.tab, this.app.game);
+    this.sinceBuild = 0;
     mount(this.tabsEl, ADVISOR_TABS.map(([k, name]) => h('button', { class: `tab${k === this.tab ? ' active' : ''}`, onclick: () => this.switchTab(k) }, name)));
     const fn = this[`tab_${this.tab}`];
     const scroll = this.body.scrollTop;

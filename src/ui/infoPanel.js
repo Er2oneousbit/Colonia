@@ -164,7 +164,7 @@ export function timberAdvice(game, full = true) {
 }
 
 /** Status line for any non-house building. */
-export function buildingStatus(game, b) {
+export function buildingStatus(game, b, counts = null) {
   const def = b.def;
   if (lacksRoad(b)) return { level: 'bad', text: 'No road touches this building, so it gets no workers and does nothing. Build a road along any of its edges (any side works; a corner does not).' };
   // A monument's site employs nobody: its own words come before the staff's (ui/monumentInfo.js).
@@ -209,7 +209,7 @@ export function buildingStatus(game, b) {
       return schoolStatus(game, b);
     case 'station': {
       if (!waterOf(game, b)) return { level: 'bad', text: 'Not beside water that ships can sail.' };
-      const n = squadronCounts(game).get(b.id) || 0;
+      const n = (counts || squadronCounts(game)).get(b.id) || 0;
       if (n >= STATION_CAPACITY) return { level: 'good', text: `Squadron at full strength (${STATION_CAPACITY} liburnians).` };
       const yard = [...game.buildings.values()].some((x) => x.def.kind === 'navalia' && waterOf(game, x) === waterOf(game, b));
       if (!yard) return { level: 'bad', text: 'No Navalia on this water: build one on its shore to build liburnians for this station.' };
@@ -242,7 +242,7 @@ export function buildingStatus(game, b) {
       if (dockHint(game, b)) return { level: 'warn', text: dockHint(game, b) };
       break;
     case 'fort': {
-      const n = garrisonCounts(game).get(b.id) || 0;
+      const n = (counts || garrisonCounts(game)).get(b.id) || 0;
       if (n >= FORT_CAPACITY) return { level: 'good', text: `Garrison at full strength (${FORT_CAPACITY} soldiers).` };
       const hasBarracks = [...game.buildings.values()].some((x) => x.def.kind === 'barracks');
       if (!hasBarracks) return { level: 'bad', text: 'No Tirocinium (Barracks): build one, connected by road, to train recruits for this fort.' };
@@ -651,7 +651,9 @@ export class InfoPanel {
 
   renderBuilding(g, b) {
     const def = b.def;
-    const st = buildingStatus(g, b);
+    // One pass over the units per render, shared by the status line and the Garrison/Squadron section.
+    const counts = def.kind === 'fort' ? garrisonCounts(g) : def.kind === 'station' ? squadronCounts(g) : null;
+    const st = buildingStatus(g, b, counts);
     const r = footprintRect(b); // (a hippodrome turned north-south: 5x15)
     // A fort's title carries its number (Castra III, sim/fortNumbers.js).
     const parts = [this.head(fortTitle(b), `${r.w}×${r.h}`, def.en), h('div', { class: `status ${st.level}` }, st.text), this.cycleRow(b)];
@@ -740,7 +742,8 @@ export class InfoPanel {
         break;
       case 'fort': {
         const unit = UNIT_TYPES[def.unit];
-        const n = garrisonCounts(g).get(b.id) || 0;
+        const n = counts.get(b.id) || 0;
+        const away = awayOf(g, b.id).length;
         parts.push(sec('Garrison',
           kv(`${unit.name}s`, `${n} / ${FORT_CAPACITY}`), bar(n, FORT_CAPACITY),
           b.recruiting ? kv('Recruits on the way', `${b.recruiting}`) : null,
@@ -750,8 +753,8 @@ export class InfoPanel {
           h('div', { class: 'muted', style: { fontSize: '12px' } }, trainingNote(g, b)),
           kv('Orders', b.rally ? `Holding ${Math.floor(b.rally.x)}, ${Math.floor(b.rally.y)}` : 'Holding the fort'),
           kv('Keys', fortKey(b) ? `${fortKey(b)} picks up its standard (twice: goes to it), F deploys it` : 'F deploys it (Shift+1 to 9 pick up the standards of forts I to IX)'),
-          awayOf(g, b.id).length ? kv('Away', `${awayOf(g, b.id).length} at a distant battle (their places are kept)`) : null,
-          kv('Pay', `${fmt(unit.upkeep * (n + awayOf(g, b.id).length))} Dn / month`),
+          away ? kv('Away', `${away} at a distant battle (their places are kept)`) : null,
+          kv('Pay', `${fmt(unit.upkeep * (n + away))} Dn / month`),
           h('div', { class: 'muted' }, unit.desc),
           h('div', { class: 'row', style: { marginTop: '6px' } },
             h('button', { class: 'btn small primary', disabled: n === 0, title: 'Then click the map where they should stand (key: F). Their standard can be dragged afterwards.', onclick: () => this.app.startDeploy(b.id) }, '⚑ Deploy…'),
@@ -817,7 +820,8 @@ export class InfoPanel {
       }
       case 'station': {
         const unit = UNIT_TYPES.liburnian;
-        const n = squadronCounts(g).get(b.id) || 0;
+        const n = counts.get(b.id) || 0;
+        const away = awayOf(g, b.id).length;
         parts.push(sec('Squadron',
           kv('Liburnians', `${n} / ${STATION_CAPACITY}`), bar(n, STATION_CAPACITY),
           newMenNote(g, b) ? h('div', { class: 'status warn new-men-note' }, newMenNote(g, b)) : null,
@@ -827,8 +831,8 @@ export class InfoPanel {
           kv('Orders', b.rally ? `Holding the water at ${Math.floor(b.rally.x)}, ${Math.floor(b.rally.y)}` : 'Guarding its berths'),
           kv('Keys', 'F deploys it'),
           kv('Guards', `raider ships within ${b.rally ? CONFIG.STATION_GUARD_DEPLOYED : CONFIG.STATION_GUARD} tiles (chases ${CONFIG.STATION_CHASE} more)`),
-          awayOf(g, b.id).length ? kv('Away', `${awayOf(g, b.id).length} at a distant battle (their berths are kept)`) : null,
-          kv('Pay', `${fmt(unit.upkeep * (n + awayOf(g, b.id).length))} Dn / month`),
+          away ? kv('Away', `${away} at a distant battle (their berths are kept)`) : null,
+          kv('Pay', `${fmt(unit.upkeep * (n + away))} Dn / month`),
           h('div', { class: 'muted' }, unit.desc),
           h('div', { class: 'row', style: { marginTop: '6px' } },
             h('button', { class: 'btn small primary', disabled: n === 0, title: 'Then click the water where they should go (key: F). Their flag can be dragged afterwards.', onclick: () => this.app.startDeploy(b.id) }, '⚑ Deploy…'),
