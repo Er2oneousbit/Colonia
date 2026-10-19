@@ -298,12 +298,46 @@ export class Game {
     refreshWaterways(this);
   }
 
-  /** Called by construction after any map edit. */
+  /**
+   * Called by construction after any map edit. While a batch is open
+   * (holdMapEdits) the work waits for flushMapEdits: the road networks,
+   * access roads and water are a pure function of the map, so one pass at
+   * the end of a run of edits gives what a pass after each would have.
+   */
   onMapEdited() {
+    if (this.mapEditsHeld) {
+      this.mapEditsPending = true;
+      return;
+    }
+    this.mapEditsPending = false;
     this.markDirty('roads', 'des', 'water');
     this.processRoadChanges();
     updateWater(this);
     this.map.touch();
+  }
+
+  /** Open a batch of map edits (an earthquake's strikes in one tick): see onMapEdited. */
+  holdMapEdits() {
+    this.mapEditsHeld = true;
+  }
+
+  /** Close the batch and do the one pass for every edit made while it was open. */
+  releaseMapEdits() {
+    this.mapEditsHeld = false;
+    this.flushMapEdits();
+  }
+
+  /**
+   * Do the waiting pass now, batch still open. For a reader that looks at the
+   * road networks or access roads between two edits (a home falling sends
+   * its people out from its access road).
+   */
+  flushMapEdits() {
+    if (!this.mapEditsPending) return;
+    const held = this.mapEditsHeld;
+    this.mapEditsHeld = false;
+    this.onMapEdited();
+    this.mapEditsHeld = held;
   }
 
   /** Road network ids + every building's access road. */

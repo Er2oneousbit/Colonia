@@ -512,7 +512,15 @@ export function updateQuake(game) {
   if (!q) return;
   const due = Math.floor(((q.t + 1) * q.perDay) / TPD) - Math.floor((q.t * q.perDay) / TPD);
   q.t++;
-  for (let k = 0; k < due && q.left > 0; k++) crackTry(game, q);
+  // The tick's strikes share one road, access-road and water pass (a medium
+  // quake is 100+ strikes, each used to redo them all); strike() flushes the
+  // waiting pass before a building falls, the one reader in between.
+  game.holdMapEdits();
+  try {
+    for (let k = 0; k < due && q.left > 0; k++) crackTry(game, q);
+  } finally {
+    game.releaseMapEdits();
+  }
   if (q.left <= 0) endQuake(game, q);
 }
 
@@ -550,6 +558,7 @@ function strike(game, q, i) {
   const id = map.building[i];
   const b = id ? game.buildings.get(id) : null;
   if (b) {
+    game.flushMapEdits(); // (a home's people leave by its access road, as the last strike left it)
     const main = ruinBuilding(game, b, 'quake', i);
     q.lost++;
     if (main.house) q.homes++;
