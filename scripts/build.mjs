@@ -131,7 +131,7 @@ ${js}
 `;
   const html = opts.artifact ? fragment.replace('<script>\n', '<script>\nwindow.__COLONIA_EMBED__ = true;\n') : `<!doctype html>
 <!-- Colonia v${version}: an original, open-source (MIT) browser city builder.
-     Source: https://github.com/Er2oneousbit/Caesar
+     Source: https://github.com/Er2oneousbit/Colonia
      Made with ❤️ from your friendly hacker - er2oneousbit -->
 <html lang="en">
 <head>

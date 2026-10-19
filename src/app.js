@@ -437,8 +437,7 @@ export class App {
     this.festivalDay = null; // the game day of the last festival held this session (not saved: music only)
     this.acc = 0;
     this.renderer.attach(game);
-    if (cameraState) this.renderer.camera.restore(cameraState);
-    else this.centerOnEntry();
+    if (cameraState) this.renderer.camera.restore(cameraState); // (else centred on the entry below, once the view has its size)
     const ev = game.events;
     this.gameUnsub.push(
       ev.on('message', (m) => this.onGameMessage(m)),

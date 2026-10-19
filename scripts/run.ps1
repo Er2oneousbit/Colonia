@@ -23,7 +23,7 @@
     Port for the dev server (default 8080).
 
 .PARAMETER Flags
-    Extra URL options, e.g. "debug=1&seed=42" (see README "Debug options").
+    Extra URL options, e.g. "debug=1&seed=42" (see docs/DEVELOPMENT.md "Debug options").
 
 .EXAMPLE
     .\scripts\run.ps1

@@ -1,6 +1,6 @@
 # Contributing
 
-**Bug reports are welcome.** If something in the game does not work the way it should, [open an issue](https://github.com/Er2oneousbit/Caesar/issues/new/choose) with the bug report form. What helps most:
+**Bug reports are welcome.** If something in the game does not work the way it should, [open an issue](https://github.com/Er2oneousbit/Colonia/issues/new/choose) with the bug report form. What helps most:
 
 * what you did, what you expected, and what happened;
 * your browser and operating system;

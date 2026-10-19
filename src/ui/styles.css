@@ -229,7 +229,6 @@ button, input, select { font: inherit; color: inherit; }
 }
 .cat-btn:hover { background: var(--panel-3); }
 .cat-btn.active { background: var(--bronze); border-color: var(--bronze); filter: saturate(1.2); }
-.cat-btn.tool-btn { font-size: 15px; font-weight: 700; }
 
 #build-list { flex: 1; overflow-y: auto; padding: 4px 6px; }
 .build-cat-title { font-family: var(--font-title); font-weight: 700; color: var(--bronze); margin: 4px 2px 6px; font-size: 13px; letter-spacing: 0.03em; }

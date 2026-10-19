@@ -27,7 +27,8 @@ for (const page of ['index.html', 'tests/e2e/render.html']) {
     const map = JSON.parse(m[1]);
     const three = map.imports && map.imports.three;
     assert.ok(typeof three === 'string' && three.startsWith('/'), 'three mapped to a path from the server root');
-    assert.ok(fs.existsSync(path.join(ROOT, three)), `${three} exists`);
+    // (A fresh clone or an agent worktree without node_modules: the map is still checked, the file is not.)
+    if (fs.existsSync(path.join(ROOT, "node_modules", "three"))) assert.ok(fs.existsSync(path.join(ROOT, three)), `${three} exists`);
     assert.ok(html.indexOf('<script type="importmap">') < html.indexOf('<script type="module"'), 'the map comes before the module script');
   });
 }
