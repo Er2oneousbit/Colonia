@@ -12,7 +12,24 @@
  * ----------------------------------------------------------------------------
  */
 
+import { ColorManagement } from 'three';
 import { merge, triangles } from './shapes.js';
+
+/**
+ * Run `fn` with three's colour management on: the look's colours and
+ * materials are written in sRGB and must be converted while a kit or a
+ * pass builds them (modelPass.js header). The setting is put back after,
+ * for the WebGL backend runs with it off.
+ */
+export function withColourManagement(fn) {
+  const was = ColorManagement.enabled;
+  ColorManagement.enabled = true;
+  try {
+    return fn();
+  } finally {
+    ColorManagement.enabled = was;
+  }
+}
 
 /** Flatten a built model into its parts: { parts: [{ geometry, material, when, cast }], triangles }. */
 export function kitOf(group) {

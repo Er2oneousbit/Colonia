@@ -28,7 +28,7 @@
  * ----------------------------------------------------------------------------
  */
 
-import { ColorManagement } from 'three';
+import { withColourManagement } from '../kit.js';
 import { Flora, floraLod, CHUNK } from './flora.js';
 import { climateOf } from './species.js';
 import { FLORA_SURFACES } from '../surfacesFlora.js';
@@ -50,17 +50,6 @@ const SHADOW_MAX_TREES = 3500;
 /** World px a tree's shadow may reach into the view from off it (a low sun: about a tile and a half of the 2D projection's ground per 10 m of tree). */
 const SHADOW_REACH_PX = 260;
 
-/** Run `fn` with three's colour management on (the look's colours are sRGB to convert: modelPass.js). */
-function withColour(fn) {
-  const was = ColorManagement.enabled;
-  ColorManagement.enabled = true;
-  try {
-    return fn();
-  } finally {
-    ColorManagement.enabled = was;
-  }
-}
-
 /** A game's province for the flora: its region, site and map type (species.js climateOf). */
 export function provinceOf(game) {
   const site = siteIdOf(game && game.scenario);
@@ -76,7 +65,7 @@ export class FloraPass {
   constructor(gl, rig) {
     this.gl = gl;
     this.rig = rig;
-    this.flora = new Flora(gl, { slot: rig.modelSlot, withColour });
+    this.flora = new Flora(gl, { slot: rig.modelSlot, withColour: withColourManagement });
     // (Drawn with the opaque parts; sunRig.js renderModels leaves it out of the see-through draw.)
     this.flora.group.userData.opaque = true;
     this.flora.group.visible = false;

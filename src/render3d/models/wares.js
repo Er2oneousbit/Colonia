@@ -39,7 +39,7 @@
 import {
   Group, Mesh, CylinderGeometry, IcosahedronGeometry, SphereGeometry, Float32BufferAttribute,
 } from 'three';
-import { revolve, profileOf, block, merge, tintGeometry, boxUV, tube } from '../shapes.js';
+import { revolve, profileOf, block, merge, tintGeometry, boxUV, tube, D } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab } from './masonry.js';
 import { artRng, smoothstep } from '../texgen.js';
@@ -95,8 +95,6 @@ export function wareMaterials() {
 // ---------------------------------------------------------------------------
 
 const seg = (lod, a, b, c) => (lod === 2 ? c : lod ? b : a);
-const D = (deg) => (deg * Math.PI) / 180;
-
 /** A colour or a shade for tintGeometry: a number (grey) or a linear RGB from an sRGB hex. */
 const hue = (hex, k = 1) => srgb(hex).map((v) => v * k);
 

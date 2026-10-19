@@ -37,7 +37,7 @@
  */
 
 import { Group, Mesh, Matrix4, CylinderGeometry, BufferGeometry, Float32BufferAttribute } from 'three';
-import { revolve, profileOf, block, merge, tintGeometry, boxUV, triangles } from '../shapes.js';
+import { revolve, profileOf, block, merge, tintGeometry, boxUV, triangles, D } from '../shapes.js';
 import { material, waterMaterial } from '../materials.js';
 import { slab, paving, tuscanColumn, tiledRoof, tube, lantern, lanternPane } from './masonry.js';
 import { buildDisplay, displayStep, displayShows, wareMaterials, DISPLAY, fishPiece } from './wares.js';
@@ -63,7 +63,6 @@ export const MARKET_STALLS = Object.freeze([0, 1, 2, 3].flatMap((side) => [-1.6,
 /** The awnings' stripes, a pair of colours (sRGB) a stall. */
 const AWNINGS = [[0xb5452f, 0xeee6d6], [0x3f6390, 0xeee6d6], [0xc9902e, 0xf2ead8], [0x5f7f3e, 0xeee6d6], [0x8d3a52, 0xefe5d4], [0xb5452f, 0xd9a13a], [0x3f6390, 0xd9c9a4], [0xa4572e, 0xf0e4cc]];
 
-const D = (deg) => (deg * Math.PI) / 180;
 const lin = (hex) => {
   const f = (x) => {
     const v = x / 255;

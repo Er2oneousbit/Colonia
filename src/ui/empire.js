@@ -261,8 +261,8 @@ export class EmpireView {
     const imperial = () => this.app.ui.openAdvisors('imperial');
     const figure = (t) => glyph((ctx) => (t.kind === 'legion' ? drawStandard(ctx, 2.5, 4.4, null, 1, '#6d2a6b') : t.kind === 'troops' ? drawStandard(ctx, 2.5, 4.4, null, 1, '#a8322b') : t.kind === 'rider' ? drawRider(ctx, 2.5, 3.8, 1.2) : drawBanner(ctx, 3.1, 3.8, null, 1, t.kind === 'raid', !!t.sea)), 5, 4.4);
     const button = (t) => {
-      if (t.kind === 'warband' && t.rumour) return h('span', { class: 'muted', style: { fontSize: '12px' } }, 'Road not yet known');
-      if (t.kind === 'warband' && t.noShore) return h('span', { class: 'muted', style: { fontSize: '12px' } }, 'Coming overland');
+      if (t.kind === 'warband' && t.rumour) return h('span', { class: 'muted note' }, 'Road not yet known');
+      if (t.kind === 'warband' && t.noShore) return h('span', { class: 'muted note' }, 'Coming overland');
       if (t.kind === 'warband') return h('button', { class: 'btn small', title: t.sea ? 'Close the map and look at the shore where it will land' : 'Close the map and look at the map edge it will enter by', onclick: () => this.goToEdge(t) }, t.sea ? 'Show the landing' : 'Show the edge');
       if (t.kind === 'raid' || (t.kind === 'legion' && t.here)) return h('button', { class: 'btn small primary', onclick: () => { this.app.ui.closeModal(); this.app.focusThreat(); } }, 'Show them');
       return h('button', { class: 'btn small', title: 'Caesar\'s anger and his calls for troops', onclick: imperial }, 'Imperial advisor');

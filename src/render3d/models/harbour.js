@@ -30,13 +30,11 @@
  */
 
 import { BufferGeometry, Float32BufferAttribute, CylinderGeometry, BoxGeometry, SphereGeometry, TorusGeometry, Vector3 } from 'three';
-import { revolve, profileOf, boxUV, tintGeometry, merge } from '../shapes.js';
+import { revolve, profileOf, boxUV, tintGeometry, merge, D } from '../shapes.js';
 import { material } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { slab, wallWithOpenings } from './masonry.js';
 import { lin } from './rural.js';
-
-const D = (deg) => (deg * Math.PI) / 180;
 
 /** The measures every fleet building shares (metres). */
 export const HARBOUR = Object.freeze({

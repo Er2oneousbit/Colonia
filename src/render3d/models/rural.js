@@ -33,11 +33,9 @@
 
 import { BufferGeometry, Float32BufferAttribute, CylinderGeometry, BoxGeometry, IcosahedronGeometry, Group, Mesh } from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { revolve, profileOf, block, tube, merge, tintGeometry, boxUV } from '../shapes.js';
+import { revolve, profileOf, block, tube, merge, tintGeometry, boxUV, D } from '../shapes.js';
 import { material } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
-
-const D = (deg) => (deg * Math.PI) / 180;
 
 /** An sRGB colour (hex) as linear-light [r, g, b] for vertex colours, which three reads as linear. */
 export function lin(hex, k = 1) {

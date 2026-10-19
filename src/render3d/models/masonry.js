@@ -20,11 +20,9 @@
 import {
   BufferGeometry, Float32BufferAttribute, CylinderGeometry, Shape, Path, ExtrudeGeometry, BoxGeometry, Group, Mesh,
 } from 'three';
-import { revolve, profileOf, boxUV, tintGeometry, tube, merge } from '../shapes.js';
+import { revolve, profileOf, boxUV, tintGeometry, tube, merge, D } from '../shapes.js';
 import { artRng, smoothstep } from '../texgen.js';
 import { material } from '../materials.js';
-
-const D = (deg) => (deg * Math.PI) / 180;
 
 /**
  * A cut stone w x h x d, centred on x and z, its foot at y 0: a box whose

@@ -23,6 +23,9 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeVertices, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { artRng } from './texgen.js';
 
+/** Degrees to radians: the models write their angles in degrees (D(22) for a roof's pitch). */
+export const D = (deg) => (deg * Math.PI) / 180;
+
 /** Snap a length around a shape to a whole number of texture repeats (at least one). */
 export function wrapLength(len, metres) {
   return Math.max(1, Math.round(len / metres)) * metres;

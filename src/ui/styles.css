@@ -366,6 +366,9 @@ table.tbl.coverage td.num, table.tbl.coverage td.r { white-space: nowrap; }
 .status.bad { background: color-mix(in srgb, var(--bad) 14%, var(--panel)); color: var(--bad); }
 .status.warn { background: color-mix(in srgb, var(--warn) 14%, var(--panel)); }
 .status.good { background: color-mix(in srgb, var(--good) 12%, var(--panel)); }
+/* The panels' small notes under a figure or a switch: two deliberate sizes. After .status so a note on a status line wins. */
+.note { font-size: 12px; }
+.note-lg { font-size: 12.5px; }
 /* storage orders: one button per good, cycling Accept / Refuse / Get */
 .order-btn { min-width: 62px; }
 .order-btn.refuse { border-color: var(--bad); color: var(--bad); }
