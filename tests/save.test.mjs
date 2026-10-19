@@ -223,3 +223,63 @@ test('save: missiles in flight survive a save, and a save from before v34 loads 
   const junk = { ...data, projectiles: [null, 'x', { x: 1 }, arrow] };
   assert.deepEqual(deserializeGame(junk).projectiles, [arrow], 'a hand-edited file keeps only whole records');
 });
+
+/** The saved state without the wall-clock stamp, as one string to compare. */
+function stateText(game) {
+  const d = serializeGame(game);
+  delete d.meta.savedAt;
+  return JSON.stringify(d);
+}
+
+test('save: derived caches stay out of the file (v35)', () => {
+  const game = newGame();
+  assert.ok(buildDemoCity(game, { level: 2 }).ok);
+  game.runDays(16 * 6);
+  assert.ok([...game.buildings.values()].some((b) => b.house && b.house.levels), 'the run left a cache to strip');
+  for (const b of serializeGame(game).buildings) {
+    assert.equal(b.post, undefined, 'fort post');
+    assert.equal(b.postRev, undefined, 'fort postRev');
+    if (b.house) { assert.equal(b.house.levels, undefined, 'house levels'); assert.equal(b.house.blocked, null, 'house blocked'); }
+  }
+});
+
+test('save: a game saved mid-run plays on exactly as the unsaved one', () => {
+  const game = newGame({ seed: 'roundtrip-hash' });
+  assert.ok(buildDemoCity(game, { level: 2 }).ok);
+  game.runDays(16 * 8 + 5);
+  const copy = deserializeGame(JSON.parse(JSON.stringify(serializeGame(game))));
+  assert.equal(stateText(copy), stateText(game), 'the same the moment it loads');
+  for (let i = 0; i < 500; i++) { game.tick(); copy.tick(); }
+  assert.equal(stateText(copy), stateText(game), 'the same 500 ticks on');
+});
+
+test('save: a home missing keys and a store missing a good load with defaults and tick clean', () => {
+  const game = newGame();
+  assert.ok(buildDemoCity(game, { level: 2 }).ok);
+  game.runDays(16 * 2);
+  const data = JSON.parse(JSON.stringify(serializeGame(game)));
+  const home = data.buildings.find((b) => b.house && b.house.pop > 0);
+  const market = data.buildings.find((b) => b.type === 'market');
+  assert.ok(home && market);
+  delete home.house.ent.theater;
+  delete home.house.ent.colosseum;
+  delete home.house.religion;
+  delete home.house.goods.pottery;
+  const good = Object.keys(market.stock)[0];
+  delete market.stock[good];
+  delete market.incoming[good];
+  const copy = deserializeGame(data);
+  const h = copy.buildings.get(home.id).house;
+  assert.equal(h.ent.theater, 0);
+  assert.equal(h.ent.colosseum, 0);
+  assert.equal(typeof h.religion, 'object');
+  assert.equal(h.goods.pottery, 0);
+  assert.equal(copy.buildings.get(market.id).stock[good], 0);
+  assert.equal(copy.buildings.get(market.id).incoming[good], 0);
+  copy.runDays(16 * 2);
+  for (const b of copy.buildings.values()) {
+    if (b.house) for (const k of ['theater', 'amphitheater', 'colosseum', 'hippodrome']) assert.ok(Number.isFinite(b.house.ent[k]), `ent.${k}`);
+    for (const v of Object.values(b.stock || {})) assert.ok(Number.isFinite(v), `stock of ${b.type}`);
+  }
+  assert.ok(Number.isFinite(copy.city.treasury));
+});

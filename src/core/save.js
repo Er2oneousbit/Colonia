@@ -241,6 +241,10 @@
  *      Circenses, the lift to the city mood still felt, the months before
  *      the next and how many were held. An older save starts with none held
  *      and nothing to wait for, see upgradeGamesV32().
+ *  35  derived caches stay out of the file (a fort's post and postRev, a
+ *      home's levels and blocked list); they are worked out again on first
+ *      use. Loading also fills any key a saved building lacks from a fresh
+ *      one (mergeDefaults). An older save loads as it did, no step needed.
  *
  * Typed-array map layers are base64 encoded, run-length compressed first
  * when that is smaller (encodeLayer). Derived data (building tile layer,
@@ -439,10 +443,31 @@ export function decodePath(p) {
 // Serialize
 // ---------------------------------------------------------------------------
 
+/**
+ * A building as the file holds it, without its derived caches (v35). These
+ * are recomputed on first use or on the home's next daily check, and none of
+ * them steers the sim: a fort's parade tile (stamped with map.revision, which
+ * restarts at 0 on a load, so a saved stamp could vouch for a stale tile), and
+ * a home's last evaluation and list of unmet needs (info panel and overlay
+ * only; they read an absent one as "not worked out yet"). What does steer the
+ * sim stays: roamers' memory, a prefect's noChase, a shipyard's fleetNeeds.
+ */
+function savedBuilding(b) {
+  const out = { ...b };
+  delete out.post;
+  delete out.postRev;
+  if (b.house) {
+    out.house = { ...b.house };
+    delete out.house.levels;
+    out.house.blocked = null;
+  }
+  return out;
+}
+
 /** Turn a game into a plain JSON-safe object. */
 export function serializeGame(game, extra = {}) {
   const buildings = [];
-  for (const b of game.buildings.values()) buildings.push({ ...b });
+  for (const b of game.buildings.values()) buildings.push(savedBuilding(b));
   const walkers = [];
   for (const w of game.walkers.values()) walkers.push({ ...w, path: encodePath(w.path) });
   const units = [];
@@ -499,6 +524,36 @@ function assert(cond, msg) {
   if (!cond) throw new Error(`Invalid save file: ${msg}`);
 }
 
+const HOUSE_SUBS = ['food', 'goods', 'religion', 'ent', 'entBoth'];
+
+/** Copy `defaults` into `target` for every key the target lacks. */
+function fillMissing(target, defaults) {
+  for (const k of Object.keys(defaults)) if (target[k] === undefined) target[k] = defaults[k];
+}
+
+/**
+ * After Object.assign(b, raw) replaced the fresh per-building objects with
+ * the saved ones: fill what the save lacks from the fresh ones. House data
+ * and its sub-tables, and the stock, incoming and orders tables, merge key by
+ * key; a table the save has but with a bad type (null) is replaced whole.
+ * Upgrade steps still run after this and set values that are not defaults.
+ */
+function mergeDefaults(b, fresh) {
+  for (const k of ['stock', 'incoming', 'orders']) {
+    if (!fresh[k]) continue;
+    if (!b[k] || typeof b[k] !== 'object') b[k] = fresh[k];
+    else fillMissing(b[k], fresh[k]);
+  }
+  if (fresh.house) {
+    if (!b.house || typeof b.house !== 'object') { b.house = fresh.house; return; }
+    for (const k of HOUSE_SUBS) {
+      if (!b.house[k] || typeof b.house[k] !== 'object') b.house[k] = fresh.house[k];
+      else fillMissing(b.house[k], fresh.house[k]);
+    }
+    fillMissing(b.house, fresh.house);
+  }
+}
+
 /**
  * Rebuild a Game from saved data. Throws a readable error for bad files.
  * @param {object} data parsed save object
@@ -548,16 +603,20 @@ export function deserializeGame(data, flags = {}) {
 
   // Buildings
   let maxB = 0;
+  const freshOf = new Map(); // building id -> its fresh per-building tables (mergeDefaults)
   for (const raw of data.buildings) {
     if (!BUILDINGS[raw.type]) {
       log.warn(`Skipping unknown building type "${raw.type}" in save`);
       continue;
     }
     const b = new Building(raw.id, raw.type, raw.x, raw.y, raw.size);
-    const freshOrders = b.orders;
+    const fresh = { house: b.house, stock: b.stock, incoming: b.incoming, orders: b.orders };
     Object.assign(b, raw);
     // A good added since the save was made gets its default order.
-    if (freshOrders && b.orders && b.orders !== freshOrders) b.orders = { ...freshOrders, ...b.orders };
+    mergeDefaults(b, { orders: fresh.orders });
+    // The rest merges after the upgrade steps, which read a missing key as
+    // "a save from before it" (upgradeClothV9, upgradeMarbleV31).
+    freshOf.set(b.id, fresh);
     game.buildings.set(b.id, b);
     for (const i of footprintTiles(map, b.x, b.y, b.size)) map.building[i] = b.id;
     if (b.id < NATIVE_ID_BASE) maxB = Math.max(maxB, b.id); // (a native village's ids are apart: sim/natives.js)
@@ -643,6 +702,12 @@ export function deserializeGame(data, flags = {}) {
   if (data.version < 31) upgradeMonumentsV30(game);
   if (data.version < 32) upgradeMarbleV31(game);
   if (data.version < 33) upgradeGamesV32(game);
+  // A key still missing (a field added without a step, or a hand-edited
+  // file) takes its default, so no daily sum reads undefined into NaN.
+  for (const b of game.buildings.values()) {
+    const fresh = freshOf.get(b.id);
+    if (fresh) mergeDefaults(b, fresh);
+  }
   // Games state out of shape (a hand-edited file) starts as in a new city.
   gamesStateOf(game.city);
   // A monument's or camp's record missing a part (a hand-edited file) gets a
