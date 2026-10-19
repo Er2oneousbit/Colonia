@@ -380,6 +380,16 @@ export class WebGLBackend {
     return hasModel(type) && this.models.ready && (!def.needsGround || this.drawsGround) && (!b || !def.fits || def.fits(b));
   }
 
+  /**
+   * How high (world px) the model a building shows now stands, for the cover
+   * the renderer keeps for clicks (render/coverArt.js); undefined until its
+   * kit is built, which the next frame's draw does.
+   */
+  modelCoverPx(b, place) {
+    const v = MODELS[b.type].variant(b, place, this.models);
+    return this.models.coverPx(v.key, v.state, v.ice);
+  }
+
   /** A model's lamps at night (models.js modelLamps), for the renderer's light map. */
   modelLamps(b, T) { return modelLamps(b, T); }
 

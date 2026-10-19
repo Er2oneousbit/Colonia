@@ -37,7 +37,10 @@ import { yardSpot } from '../src/sim/military.js';
 import { FORT_CAPACITY } from '../src/data/units.js';
 import { planAction, applyPlan } from '../src/sim/construction.js';
 import { serializeGame } from '../src/core/save.js';
-import { HALF_W, HALF_H } from '../src/config.js';
+import { HALF_W, HALF_H, CONFIG } from '../src/config.js';
+import { Group } from 'three';
+import { ModelPass } from '../src/render3d/modelPass.js';
+import { modelCoverH, modelCoverKey, modelCoverSpec } from '../src/render/coverArt.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 
 const TURNS = [0, 1, 2, 3];
@@ -570,4 +573,67 @@ test('view: the minimap turns with the view (a burning tile shows where the view
   } finally {
     globalThis.document = had;
   }
+});
+
+test('view: a building drawn as a model keeps a cover as high as the model, not its art', () => {
+  // Under WebGL the cover decided clicks and where signs stand with the 2D art's silhouette: a
+  // fort's rampart is 17 px high as a model and 36 as art, so a soldier behind the low rampart
+  // was unclickable where the art said he was hidden.
+  assert.equal(modelCoverH(0), 4, 'at least a step');
+  assert.equal(modelCoverH(17), 20, 'rounded up to a step');
+  assert.equal(modelCoverKey(3, 17), 'mcov:3:20');
+  const spec = modelCoverSpec(3, 17);
+  assert.equal(spec.ay, 20, 'its anchor is its height');
+  assert.equal(spec.w, 3 * CONFIG.TILE_W);
+
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  assert.equal(mp.coverPx('fort_legion', 'open', false), undefined, 'unknown until a kit is built');
+  mp.kitFor('fort_legion', 2);
+  const px = mp.coverPx('fort_legion', 'open', false);
+  assert.ok(px > 10 && px < 36, `the fort's measured height, not the art's 36 px (${px})`);
+  mp.dispose();
+  assert.ok(mp.coverPx('fort_legion', 'open', false) > 0, 'kept when kits are dropped');
+
+  const game = newGame({ seed: 'view-pick' });
+  const at = findFree(game, 7, 7);
+  const B = addBuilding(game, 'fort_legion', at.x + 2, at.y + 2);
+  const S = B.size;
+  for (const t of TURNS) {
+    const rr = rendererFor(game.map, t);
+    Object.assign(rr, { game, overlay: { key: 'none' }, pal: { snow: 0 }, snowKey: '', snowPrev: null, appear: new Map(), coverStrips: [], noRoadMarks: [], walkerSpots: [], unitSpots: [] });
+    let height; // what the back end says
+    rr.be = { hasModel: () => true, model() {}, modelCoverPx: () => height };
+    const mainAsked = [];
+    rr.sprites = { get: (k) => { mainAsked.push(k); return blockSprite(S, 36, 1); } };
+    const asked = [];
+    rr.coverSprites = { get: (k) => { asked.push(k); return blockSprite(S, 36, 1); } };
+    // Not measured yet: the art's cover for a frame.
+    rr.collectBuilding(B, [], false);
+    assert.equal(rr.coverStrips.length, 2 * S);
+    assert.ok(asked.length === 1 && !asked[0].startsWith('mcov'), `turn ${t}: no measure yet, the art's cover`);
+    // Measured: a box that high.
+    height = px;
+    asked.length = 0;
+    rr.coverStrips = [];
+    rr.collectBuilding(B, [], false);
+    assert.deepEqual(asked, [modelCoverKey(S, px)], `turn ${t}: the cover is the model's box`);
+    assert.equal(mainAsked.length, 0, `turn ${t}: the main sprite cache is never asked for a model's art`);
+  }
+});
+
+test('view: classic keeps the art for the cover, with a stand-in for a spent budget', () => {
+  const game = newGame({ seed: 'view-pick' });
+  const at = findFree(game, 7, 7);
+  const B = addBuilding(game, 'well', at.x + 2, at.y + 2);
+  const rr = rendererFor(game.map, 0);
+  Object.assign(rr, { game, overlay: { key: 'none' }, pal: { snow: 0 }, snowKey: '', snowPrev: null, appear: new Map(), coverStrips: [], noRoadMarks: [], walkerSpots: [], unitSpots: [] });
+  rr.flatSprites = new Map();
+  rr.be = undefined;
+  const standIns = [];
+  rr.sprites = { get: (k, f, was, standIn) => { standIns.push(typeof standIn); return blockSprite(1, 24, 1); } };
+  const items = [];
+  rr.collectBuilding(B, items, false);
+  assert.deepEqual(standIns, ['function']);
+  assert.equal(items.length >= 1, true, 'its strip is drawn');
 });

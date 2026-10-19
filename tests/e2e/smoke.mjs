@@ -4318,9 +4318,9 @@ try {
       await gp.waitForTimeout(150);
       const wellAt4 = await gp.evaluate(() => {
         const r = window.colonia.renderer;
-        // (A model's own sprite, never drawn, only read for what hides a figure: from the small cover cache, not at 4x's scale.)
+        // (A model's cover, never drawn, only read for what hides a figure: a box as high as the model from the small cover cache, not its art at 4x's scale.)
         const wellKeys = (m) => [...m.keys()].filter((k) => k.startsWith('b:well:')).length;
-        return { zoom: r.camera.zoom, target: window.colonia.ui.info.target, models: r.stats.models, drawnSprites: wellKeys(r.sprites.current), cover: wellKeys(r.coverSprites.current) };
+        return { zoom: r.camera.zoom, target: window.colonia.ui.info.target, models: r.stats.models, drawnSprites: wellKeys(r.sprites.current), cover: [...r.coverSprites.current.keys()].filter((k) => k.startsWith('mcov:1:')).length };
       });
       await gp.evaluate(() => window.colonia.ui.info.close());
       const walker4 = await gp.evaluate(() => {
@@ -4353,7 +4353,7 @@ try {
       }
       if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-zoom4.png') });
       const top = closest.levels.at(-1);
-      check('WebGL renderer: the wheel zooms in past 2x to its closest level, and at 4x a click picks the well (its sprite only in the small cover cache) and a walker',
+      check('WebGL renderer: the wheel zooms in past 2x to its closest level, and at 4x a click picks the well (its cover only in the small cover cache) and a walker',
         top >= 4 && wheelSeen.join() === closest.levels.slice(5).concat([top, top, top, top]).slice(0, 4).join() && closest.zoom === top && !closest.moving
           && wellAt4.zoom === 4 && wellAt4.models >= 1 && wellAt4.target?.kind === 'building' && wellAt4.target.id === well.id && wellAt4.drawnSprites === 0 && wellAt4.cover >= 1
           && !!walker4 && wpick4?.kind === 'walker' && wpick4.id === walker4.id,

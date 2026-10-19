@@ -133,9 +133,15 @@ export class SpriteCache {
    * Get (or render) a sprite.
    * @param {string} key unique id for this art at any scale
    * @param {() => {w:number,h:number,ax:number,ay:number,draw:(ctx:CanvasRenderingContext2D)=>void}} specFn
+   * @param {string|null} fallback the key of the old look, while a look change runs
+   * @param {((spec:object) => object)|null} standIn a cheap sprite (made once, kept by the caller) to
+   *   draw when the budget is spent and there is nothing to borrow. Without it the sprite is made
+   *   anyway (something must show), which is right for a few but not for a whole screen of
+   *   buildings at once: after a fall back from WebGL the cache holds none of them at its zoom.
+   *   The real sprite is made on a later frame with time, so the stand-in sharpens into it.
    * @returns {{canvas:HTMLCanvasElement, ax:number, ay:number, w:number, h:number, s:number}}
    */
-  get(key, specFn, fallback = null) {
+  get(key, specFn, fallback = null, standIn = null) {
     let spr = this.current.get(key);
     if (fallback !== null) {
       // A look change in progress: draw the old look wherever it exists and
@@ -153,6 +159,10 @@ export class SpriteCache {
       if (alt) {
         this.borrowed++;
         return alt;
+      }
+      if (standIn) {
+        this.pending++;
+        return standIn(specFn());
       }
     }
     return this.make(key, specFn);

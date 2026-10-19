@@ -15,6 +15,8 @@
  *                            star-shaped from its last point
  *   model(b, place)          a building with a 3D model (never called here:
  *                            hasModel() says no)
+ *   modelCoverPx(b, place)   how high a model stands, world px, for the cover
+ *                            kept for clicks (coverArt.js); undefined: unknown
  *   items(list)              the objects, sorted back to front
  *   post(layers)             only a back end that `composes` (WebGL): what
  *                            lies over the scene and under the night
@@ -41,6 +43,7 @@ export class CanvasBackend {
 
   /** Buildings are always their sprites here. */
   hasModel() { return false; }
+  modelCoverPx() { return undefined; }
 
   begin() {}
 
