@@ -20,7 +20,7 @@
  */
 
 import { Matrix4 } from 'three';
-import { FigurePass } from '../figures/figurePass.js';
+import { FigurePass, KEEP_FRAMES } from '../figures/figurePass.js';
 import { buildPiece } from './pieces.js';
 import { peopleMaterial, peopleDepthMaterial } from './material.js';
 

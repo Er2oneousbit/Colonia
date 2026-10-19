@@ -35,6 +35,7 @@ import { TEMPLUM } from '../src/render3d/models/templum.js';
 import { peopleMaterial, peopleDepthMaterial, patchPeopleShader } from '../src/render3d/people/material.js';
 import { MODELS, modelMatrix, TILE_M } from '../src/render3d/models.js';
 import { ModelPass, peopleLodFor } from '../src/render3d/modelPass.js';
+import { KEEP_FRAMES } from '../src/render3d/figures/figurePass.js';
 import { BUILDINGS } from '../src/data/buildings.js';
 import { PORTUS, tholePin, HORTATOR } from '../src/render3d/models/portus.js';
 import { NAVALIA } from '../src/render3d/models/navalia.js';
@@ -453,4 +454,20 @@ test('people3d: the working clips meet the models\' parts: the Portus\'s oars on
   const dock = actorsOf('navalia', { efficiency: 1, side: 2 }).find((a) => a.clipName === 'windlass');
   const [, wy, wz] = NAVALIA.windlass;
   assert.ok(toWorld(dock, w).distanceTo(new Vector3(NAVALIA.crankX - 0.06, wy, wz)) < 1e-4, 'the dockyard\'s crank on its axle\'s end');
+});
+
+test('people3d: a piece unseen for KEEP_FRAMES frames is dropped by end() (the shared constant must reach the batch)', () => {
+  // The constants moved to figures/figurePass.js (v0.30.6); the people's
+  // batch kept using KEEP_FRAMES without importing it, which only the
+  // browser smoke test caught. end() past the limit is exercised here.
+  const crew = cast([{ clip: 'idle' }]);
+  const rig = { modelSlot: new Group(), ghostSlot: new Group(), groundSlot: new Group() };
+  const mp = new ModelPass(null, rig);
+  const batch = mp.people;
+  batch.begin(0);
+  batch.add(crew, new Matrix4(), 17);
+  batch.end();
+  assert.ok(batch.pieces.size > 0, 'pieces built');
+  for (let f = 1; f <= KEEP_FRAMES + 240; f++) { batch.begin(f); batch.end(); } // (the sweep runs every 120 frames)
+  assert.equal(batch.pieces.size, 0, 'every piece dropped once unseen long enough');
 });
