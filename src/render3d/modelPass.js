@@ -46,7 +46,8 @@
  */
 
 import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement, WebGLRenderTarget, Group } from 'three';
-import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
+import { MODELS, partShows, modelMatrix, modelFor, TILE_M } from './models.js';
+import { ART_PX } from './projection.js';
 import { kitOf, disposeKit } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
@@ -125,6 +126,12 @@ function withColourManagement(fn) {
   }
 }
 
+/** The top of a geometry (metres): its bounding box's highest point. */
+function topOf(geometry) {
+  if (!geometry.boundingBox) geometry.computeBoundingBox();
+  return geometry.boundingBox.max.y;
+}
+
 const _m = new Matrix4();
 const _l = new Matrix4();
 const _ml = new Matrix4();
@@ -160,6 +167,7 @@ export class ModelPass {
     this.rig = rig;
     this.slot = rig.modelSlot;
     this.kits = new Map(); // `${key}|${lod}` -> { kit, meshes: [InstancedMesh], seen }
+    this.tops = new Map(); // key -> [{ when, y }]: how high each of a look's parts reaches, metres (coverPx); kept when kits are dropped
     this.tiers = new Map(); // building id -> { t, seen }
     this.frame = 0;
     this.compiled = false;
@@ -304,10 +312,25 @@ export class ModelPass {
       group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
       return out;
     });
+    if (!this.tops.has(key)) this.tops.set(key, kit.parts.map((p) => ({ when: p.when, y: topOf(p.geometry) })));
     const meshes = kit.parts.map((p) => this.instanced(p, FIRST_ROOM));
     k = { kit, meshes, seen: this.frame, id, key, lod, ms: performance.now() - t0 };
     this.kits.set(id, k);
     return k;
+  }
+
+  /**
+   * How high a look stands as drawn in `state`, in world px of art (renderer.js
+   * keeps a cover that high for clicks), or undefined while no kit of it has
+   * been built. The highest of the parts that show: a model is one kit (its
+   * `more` kits, a farm's trees or a granary's sacks, are left out).
+   */
+  coverPx(key, state, ice) {
+    const parts = this.tops.get(key);
+    if (!parts) return undefined;
+    let y = 0;
+    for (const p of parts) if (partShows(p.when, state, ice) && p.y > y) y = p.y;
+    return y / TILE_M / ART_PX;
   }
 
   /** An InstancedMesh of a part with room for `room` copies, in `slot` (the models', or the ghosts'). */

@@ -32,6 +32,7 @@ import assert from 'node:assert/strict';
 import { CONFIG, HALF_W, HALF_H } from '../src/config.js';
 import { Camera, worldOf } from '../src/render/camera.js';
 import { SpriteCache } from '../src/render/sprites.js';
+import { flatSprite, modelCoverH, modelCoverKey, modelCoverSpec } from '../src/render/coverArt.js';
 import { skyAt, dayTime, DAY_TICKS } from '../src/render/lighting.js';
 import { seasonOf, seasonPalette, seasonalKind, Weather, WEATHER, SEASON_NAMES, MONTH_LOOK, SNOW_LEVELS, coverLevelOf, FLAKE_COLOR } from '../src/render/weather.js';
 import { groundColor } from '../src/render/terrainArt.js';
@@ -1017,5 +1018,38 @@ test('the menu city opens in daylight (it always opened at nightfall)', async ()
   for (const start of [0, 7, 1234, DAY_TICKS - 1]) {
     const n = ticksUntil(start, MENU_TIME);
     assert.ok(n >= 0 && n < DAY_TICKS, `never more than a day (${n})`);
+  }
+});
+
+test('sprite cache: a spent budget with nothing to borrow draws stand-ins, never every sprite in one frame', () => {
+  // A fall back from WebGL to the 2D view: the cache holds no building at its zoom, and every
+  // visible building asks at once. Past the budget each gets a flat footprint, and the real
+  // sprites are made over the following frames.
+  const had = globalThis.OffscreenCanvas;
+  globalThis.OffscreenCanvas = FakeCanvas;
+  try {
+    const cache = new SpriteCache();
+    const flats = new Map();
+    const spec = () => ({ w: 128, h: 100, ax: 64, ay: 68, draw() {} });
+    const standIn = (sp) => flatSprite(flats, sp);
+    cache.beginFrame(4, 5);
+    cache.spentMs = 6; // the budget is already used up
+    for (let k = 0; k < 40; k++) {
+      const spr = cache.get(`b${k}`, spec, null, standIn);
+      assert.equal(spr.s, 1, 'a stand-in, at one world px a pixel');
+    }
+    assert.equal(cache.created, 0, 'no sprite made past the budget');
+    assert.equal(cache.pending, 40, 'every one still to be sharpened');
+    assert.equal(flats.size, 1, 'one flat footprint serves every building of a size');
+    // A frame with time: the real sprite is made, and drawn from then on.
+    cache.beginFrame(4, Infinity);
+    assert.equal(cache.get('b0', spec, null, standIn).s, 4, 'sharpened');
+    assert.equal(cache.created, 1);
+    // Without a stand-in the sprite is still made (something must show): the rule for a few sprites.
+    cache.beginFrame(4, 0);
+    cache.spentMs = 1;
+    assert.equal(cache.get('lone', spec).s, 4);
+  } finally {
+    globalThis.OffscreenCanvas = had;
   }
 });

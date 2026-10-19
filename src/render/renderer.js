@@ -95,6 +95,7 @@ import { Ambient } from './ambient.js';
 import { NightLights, NOON, skyAt, dayTime, lightsOf, isLit } from './lighting.js';
 import { Weather, seasonPalette } from './weather.js';
 import { hash01 } from './draw.js';
+import { modelCoverKey, modelCoverSpec, flatSprite } from './coverArt.js';
 import { turnUV, turnDir } from './turn.js';
 import { toView, viewTileOf, viewSize, tileAxes, viewFoot, viewDir, rotMask, rotNibbles, rotBlend, viewAxis, mapRectOfView } from './view.js';
 import { spanOrigin } from '../sim/entities.js';
@@ -568,6 +569,7 @@ export class Renderer {
     // (coverStrips) and where a sign stands, both in world px. Made at one world px a pixel
     // whatever the zoom: at WebGL's closest zooms a farm's sprite at the zoom's scale was 3.5 MB.
     this.coverSprites = new SpriteCache();
+    this.flatSprites = new Map(); // the flat footprints drawn for a frame when the sprite budget is spent (coverArt.js)
     this.effects = new Effects();
     this.game = null;
     this.overlay = overlayByKey('none');
@@ -1805,7 +1807,18 @@ export class Renderer {
     // (A model's sprite from the small cover cache, its look changed as the drawn ones are: the old
     // one kept while the new one waits for the frame's budget.)
     const was = this.snowPrev === null ? null : key + this.snowPrev;
-    const spr = (model ? this.coverSprites : this.sprites).get(key + this.snowKey, spec, was);
+    let spr;
+    // (The model's own height, once its kit is built: a box that high over the footprint. Until then,
+    // for a frame, and for a back end that cannot say, the art's cover. Classic never takes this path.)
+    const coverPx = model ? this.be.modelCoverPx?.(b, { T, state, snow }) : undefined;
+    if (coverPx !== undefined && coverPx !== null) {
+      spr = this.coverSprites.get(modelCoverKey(b.size, coverPx), () => modelCoverSpec(b.size, coverPx));
+    } else if (model) {
+      spr = this.coverSprites.get(key + this.snowKey, spec, was);
+    } else {
+      // (Over the budget with nothing to borrow, a flat footprint rather than every building's sprite in one frame.)
+      spr = this.sprites.get(key + this.snowKey, spec, was, (sp) => flatSprite(this.flatSprites, sp));
+    }
     if (lacksRoad(b)) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0 });
     if (sick) this.noRoadMarks.push({ b, H: spr && spr.s ? spr.ay / spr.s : 0, sick: true }); // (the green sign: drawNoRoadMarks)
     const n = depths.length;
