@@ -82,7 +82,6 @@ import { GpuTimer } from './gpuTimer.js';
 import { PostPass } from './postPass.js';
 import { cloudPuffSpec, CLOUD_RGB } from '../render/ambient.js';
 import { FLASH_RGB } from '../render/weather.js';
-import { drawParticle, particleBox } from '../render/effects.js';
 import { drawGulls } from '../render/waterArt.js';
 import { AutoScale, startRung, fixedScale } from './renderScale.js';
 import { gpuOf, isSoftwareGpu } from '../render/perf.js';
@@ -281,6 +280,7 @@ export class WebGLBackend {
     this.mesh = new Mesh(this.geometry, this.materials);
     this.mesh.frustumCulled = false;
     this.quadScene.add(this.mesh);
+    this.particleRgb = new Map(); // particle colour string -> [r, g, b] in 0..1
     this.white = new DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
     this.white.needsUpdate = true;
 
@@ -712,7 +712,7 @@ export class WebGLBackend {
     this.closeBatch();
     this.postFrom = this.batches.length;
     this.layers = layers;
-    for (const p of layers.particles) this.live((ctx) => drawParticle(ctx, p, cam), particleBox(p, cam), FRONT);
+    for (const p of layers.particles) this.particle(p, cam);
     for (const g of layers.gulls) this.live((ctx) => drawGulls(ctx, g.sx, g.sy, g.k, g.t, g.seed), g.box, FRONT);
     if (layers.puffs.length) {
       const tex = this.puffTexture();
@@ -723,6 +723,45 @@ export class WebGLBackend {
       }
     }
     for (const f of layers.flocks) this.live((ctx) => r.ambient.drawFlock(ctx, f, cam, r.time), r.ambient.flockBox(f, cam), FRONT);
+  }
+
+  /**
+   * One smoke, dust or spark particle as a tinted quad, the same shape and
+   * colour as effects.js drawParticle: a puff is a disc of its colour at
+   * half alpha fading out, a spark a flat square fading from yellow to red.
+   * Up to 600 live at once, so they are quads of two shared textures rather
+   * than a Canvas2D cell each, re-uploaded every frame.
+   */
+  particle(p, cam) {
+    const k = cam.scale;
+    const sx = (p.x - cam.x) * k;
+    const sy = (p.y - cam.y) * k;
+    if (p.spark) {
+      const s = 1 - p.life / p.max;
+      const h = p.size * k * 0.5;
+      this.rect(this.white, sx - h, sy - h, sx + h, sy + h, 0, 0, 1, 1, FRONT, [1, (150 + 100 * s) / 255, (60 * s) / 255], s);
+      return;
+    }
+    let rgb = this.particleRgb.get(p.color);
+    if (!rgb) {
+      rgb = p.color.split(',').map((v) => Number(v) / 255);
+      this.particleRgb.set(p.color, rgb);
+    }
+    const r = p.size * k;
+    this.rect(this.discTexture(), sx - r, sy - r, sx + r, sy + r, 0, 0, 1, 1, FRONT, rgb, 0.5 * (1 - p.life / p.max));
+  }
+
+  /** A white disc with an antialiased edge (made once): the smoke particle's shape. */
+  discTexture() {
+    if (this.discTex) return this.discTex;
+    const c = makeCanvas(64, 64);
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff';
+    x.beginPath();
+    x.arc(32, 32, 31, 0, Math.PI * 2);
+    x.fill();
+    this.discTex = liveTexture(c);
+    return this.discTex;
   }
 
   /** The cloud shade's puff (ambient.js cloudPuffSpec), white, as a texture (made once). */
