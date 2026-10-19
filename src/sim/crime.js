@@ -663,6 +663,7 @@ function chase(game, p, t) {
 }
 
 function runAfter(game, p, t, path) {
+  game.huntersOut = true;
   p.state = 'hunt';
   p.huntTarget = t.id;
   p.offRoad = true;
@@ -704,6 +705,8 @@ function caught(game, c, bySoldier) {
 
 /** Per tick: prefects and soldiers next to criminals hold and catch them; prefects hunt. */
 export function updateCriminals(game) {
+  // Calm streets: no criminal alive and no hunter left to call home.
+  if (game.criminalWalkers <= 0 && !game.huntersOut) return;
   const criminals = [];
   const prefects = [];
   for (const w of game.walkers.values()) {
@@ -714,6 +717,7 @@ export function updateCriminals(game) {
   if (!criminals.length) {
     // Nobody left to chase: hunters head home.
     for (const p of prefects) if (p.state === 'hunt') endHunt(game, p);
+    game.huntersOut = false;
     return;
   }
   const soldiers = [];

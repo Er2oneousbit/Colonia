@@ -61,10 +61,10 @@ function anchorOf(game, fort) {
  */
 export function formationSpots(game, fort) {
   const base = anchorOf(game, fort);
-  const key = `${game.map.revision}:${base.x},${base.y}`;
-  if (!game.formations) game.formations = new Map(); // fort id -> { key, spots } (derived, not saved)
+  if (!game.formations) game.formations = new Map(); // fort id -> { rev, bx, by, spots } (derived, not saved)
   const hit = game.formations.get(fort.id);
-  if (hit && hit.key === key) return hit.spots;
+  // Numeric compares, not a string key: this runs for every soldier every tick.
+  if (hit && hit.rev === game.map.revision && hit.bx === base.x && hit.by === base.y) return hit.spots;
   const map = game.map;
   const bx = Math.floor(base.x);
   const by = Math.floor(base.y);
@@ -96,7 +96,7 @@ export function formationSpots(game, fort) {
     const off = SLOT_OFFSETS[Math.floor(s / tiles.length) % SLOT_OFFSETS.length];
     spots.push({ x: map.xOf(i) + 0.5 + off[0], y: map.yOf(i) + 0.5 + off[1] });
   }
-  game.formations.set(fort.id, { key, spots });
+  game.formations.set(fort.id, { rev: game.map.revision, bx: base.x, by: base.y, spots });
   return spots;
 }
 
@@ -152,10 +152,10 @@ export function yardSpot(fort, slot) {
  */
 export function fortGate(game, fort) {
   const map = game.map;
-  const key = `${map.revision}:${fort.x},${fort.y},${fort.turn || 0}`;
-  if (!game.fortGates) game.fortGates = new Map(); // fort id -> { key, gate }
+  if (!game.fortGates) game.fortGates = new Map(); // fort id -> { rev, x, y, turn, gate }
   const hit = game.fortGates.get(fort.id);
-  if (hit && hit.key === key) return hit.gate;
+  const turn = fort.turn || 0;
+  if (hit && hit.rev === map.revision && hit.x === fort.x && hit.y === fort.y && hit.turn === turn) return hit.gate;
   const S = fort.size;
   const tile = (p) => ({ x: Math.floor(p.x), y: Math.floor(p.y) });
   const open = (t) => map.inBounds(t.x, t.y) && passable(game, 'rome', map.idx(t.x, t.y));
@@ -169,7 +169,7 @@ export function fortGate(game, fort) {
     const door = { x: Math.min(fort.x + S - 1, Math.max(fort.x, post.x)), y: Math.min(fort.y + S - 1, Math.max(fort.y, post.y)) };
     gate = { out: mid(post), door: mid(door) };
   }
-  game.fortGates.set(fort.id, { key, gate });
+  game.fortGates.set(fort.id, { rev: map.revision, x: fort.x, y: fort.y, turn, gate });
   return gate;
 }
 

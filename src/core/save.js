@@ -585,6 +585,8 @@ export function deserializeGame(data, flags = {}) {
     w.path = decodePath(raw.path);
     w.dead = false;
     game.walkers.set(w.id, w);
+    if (w.kind === 'criminal') game.criminalWalkers++;
+    if (w.state === 'hunt' && w.type === 'prefect') game.huntersOut = true;
     maxW = Math.max(maxW, w.id);
   }
   game.nextWalkerId = Math.max(game.nextWalkerId, maxW + 1);

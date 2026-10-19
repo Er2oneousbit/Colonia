@@ -170,6 +170,10 @@ export class Game {
     this.cheats = { freeBuild: false };
     this.buildings = new Map();
     this.walkers = new Map();
+    // Derived, for sim/crime.js updateCriminals to skip its scan when the streets
+    // are calm: criminal walkers alive, and whether a prefect may still be hunting.
+    this.criminalWalkers = 0;
+    this.huntersOut = false;
     this.fires = new Map(); // tile index -> days left burning
     // Burning tile -> the fire it belongs to (the id of the building that
     // burned there): a prefect puts out one building's tiles together
