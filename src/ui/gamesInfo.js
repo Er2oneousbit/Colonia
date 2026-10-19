@@ -59,7 +59,7 @@ function holdControls(g, kind, b, onChange, toastError) {
           onChange();
         },
       }, `${holdWords(kind)} (${fmt(gamesCost(g, kind))} Dn)`)),
-    why ? h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '2px' }, dataset: { gamesWhy: kind } }, why) : null,
+    why ? h('div', { class: 'muted note', style: { marginTop: '2px' }, dataset: { gamesWhy: kind } }, why) : null,
   ];
 }
 
@@ -84,7 +84,7 @@ export function gamesCard(g, onChange, toastError) {
       return h('div', { style: { marginTop: '6px' }, dataset: { gamesKind: kind } },
         h('b', {}, gamesTitle(kind)), h('span', { class: 'muted' }, ` at ${withArticle(`${venue.name} (${venue.en})`)}`),
         unlocked ? [gamesRows(g, kind), holdControls(g, kind, b, onChange, toastError)]
-          : h('div', { class: 'muted', style: { fontSize: '12px' } }, `This province has no ${venue.name}.`));
+          : h('div', { class: 'muted note' }, `This province has no ${venue.name}.`));
     }),
     h('div', { class: 'muted sub', style: { marginTop: '4px' } }, 'Paid in money only, all at once. They lift every home\'s mood through the city\'s, apart from festivals and on top of them, and each kind waits its own months before the next.'));
 }

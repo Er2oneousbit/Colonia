@@ -55,7 +55,7 @@ import {
   Group, Mesh, CylinderGeometry, SphereGeometry, CircleGeometry, BufferGeometry, Float32BufferAttribute, ConeGeometry,
   IcosahedronGeometry, Vector3,
 } from 'three';
-import { revolve, profileOf, block, tube, merge, tintGeometry, triangles, frameSweep, boxUV } from '../shapes.js';
+import { revolve, profileOf, block, tube, merge, tintGeometry, triangles, frameSweep, boxUV, D } from '../shapes.js';
 import {
   material, waterMaterial, streamMaterial, ringMaterial, stagnantMaterial, iceMaterial,
 } from '../materials.js';
@@ -76,7 +76,6 @@ export const FOUNTAIN_STATES = Object.freeze({
   dry: Object.freeze(['always', 'dry']),
 });
 
-const D = (deg) => (deg * Math.PI) / 180;
 /** The nymph's hydria, scaled to her (a real one is about a quarter of a woman's height). */
 const JAR = 0.72;
 const G = 9.81;

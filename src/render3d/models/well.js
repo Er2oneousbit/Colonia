@@ -36,7 +36,7 @@
  */
 
 import { Group, Mesh, TorusGeometry, CylinderGeometry, SphereGeometry, PointLight, Vector3 } from 'three';
-import { revolve, profileOf, block, tube, merge, tintGeometry, triangles } from '../shapes.js';
+import { revolve, profileOf, block, tube, merge, tintGeometry, triangles, D } from '../shapes.js';
 import { material, waterMaterial, shallowWaterMaterial } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
 
@@ -56,8 +56,6 @@ export const WELL = Object.freeze({
   ropeR: 0.011,
   waterY: 0.96, // the water, 20 cm under the lip (1.16 m), kept high so it shows from the game's camera (a real well's lay metres down)
 });
-
-const D = (deg) => (deg * Math.PI) / 180;
 
 /** Build the puteal (the turned curb) on y = 0. */
 function puteal(seed, lod = 0) {

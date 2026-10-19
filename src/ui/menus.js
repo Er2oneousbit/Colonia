@@ -185,7 +185,7 @@ export function showChoice(app, missions, onClose = null) {
  * @param {(key:string)=>void} onChange
  */
 function difficultyField(current, onChange) {
-  const desc = h('div', { class: 'muted', style: { fontSize: '12px' } }, DIFFICULTY[current].desc);
+  const desc = h('div', { class: 'muted note' }, DIFFICULTY[current].desc);
   return h('div', { class: 'field' }, h('label', {}, 'Difficulty'),
     h('select', {
       class: 'difficulty-select',
@@ -241,7 +241,7 @@ const WOLVES_HELP = 'Wolf packs in the woods (none on the desert map). They keep
 const EVENTS_HELP = 'Now and then fortune strikes the province, each event at its own odds (less often on Easy, more on Hard and Insane). An event unticked never comes; the others come as often as before. This box ticks or clears them all.';
 
 /** Muted help text under a switch's name. */
-const helpText = (text) => h('div', { class: 'muted', style: { fontSize: '12px' } }, text);
+const helpText = (text) => h('div', { class: 'muted note' }, text);
 
 /**
  * The setup's events: a master switch above one switch per event the
@@ -295,7 +295,7 @@ export function sandboxMenu(app) {
   };
   // Who the province's own people are, for the site picked now.
   const siteFolk = () => PEOPLES[PEOPLE_BY_SITE[state.site]] || PEOPLES[GENERIC_PEOPLE];
-  const raidersDesc = h('div', { class: 'muted', style: { fontSize: '12px' } });
+  const raidersDesc = h('div', { class: 'muted note' });
   const showRaiders = () => {
     raidersDesc.textContent = state.raiders === 'site'
       ? `${siteFolk().name}: ${siteFolk().desc}`
@@ -303,8 +303,8 @@ export function sandboxMenu(app) {
   };
   showRaiders();
   const seedInput = h('input', { type: 'text', value: state.seed, oninput: (e) => { state.seed = e.target.value.trim() || '1'; } });
-  const typeDesc = h('div', { class: 'muted', style: { fontSize: '12px' } }, MAP_TYPES[state.type].desc);
-  const sizeDesc = h('div', { class: 'muted', style: { fontSize: '12px' } }, MAP_SIZE_NOTES[state.size] || '');
+  const typeDesc = h('div', { class: 'muted note' }, MAP_TYPES[state.type].desc);
+  const sizeDesc = h('div', { class: 'muted note' }, MAP_SIZE_NOTES[state.size] || '');
   return modal('Sandbox', [
     h('div', { class: 'grid2' },
       h('div', { class: 'field' }, h('label', {}, 'Map size'),
@@ -322,28 +322,28 @@ export function sandboxMenu(app) {
         h('select', { onchange: (e) => { state.invasions = e.target.value; } },
           [['none', 'Peaceful (no raids)'], ['occasional', 'Occasional raids'], ['frequent', 'Frequent raids']].map(([k, n]) => h('option', { value: k, selected: k === state.invasions }, n))),
         // From the game's own numbers (this said 120 people long after the minimum became 300).
-        h('div', { class: 'muted', style: { fontSize: '12px' } }, `The first raid comes after about ${INVASION_PRESETS.occasional.first / 12} years (occasional) or ${INVASION_PRESETS.frequent.first / 12} (frequent), never before the city has ${RAID_MIN_POP} people; word of one comes about 6 months ahead, and scouts report its size and side about 3 months ahead.`)),
+        h('div', { class: 'muted note' }, `The first raid comes after about ${INVASION_PRESETS.occasional.first / 12} years (occasional) or ${INVASION_PRESETS.frequent.first / 12} (frequent), never before the city has ${RAID_MIN_POP} people; word of one comes about 6 months ahead, and scouts report its size and side about 3 months ahead.`)),
       h('div', { class: 'field' }, h('label', {}, 'Your rank'),
         h('select', { class: 'rank-select', onchange: (e) => { state.rank = Number(e.target.value); } },
           RANKS.map((r, i) => h('option', { value: i, selected: i === state.rank }, `${r.name} (salary ${r.salary} Dn a month)`))),
-        h('div', { class: 'muted', style: { fontSize: '12px' } }, 'Sets the most salary Rome lets you draw: less, by your own choice, earns a little favor.')),
+        h('div', { class: 'muted note' }, 'Sets the most salary Rome lets you draw: less, by your own choice, earns a little favor.')),
       h('div', { class: 'field' }, h('label', {}, 'Province'),
         h('select', { class: 'site-select', onchange: (e) => { state.site = e.target.value; showRaiders(); } },
           SANDBOX_SITES.map((id) => h('option', { value: id, selected: id === state.site }, `${SITES[id].name} (${SITES[id].region})`))),
-        h('div', { class: 'muted', style: { fontSize: '12px' } }, 'Where your city stands on the empire map: the way each partner\'s traders come, how long a far one takes (it comes less often) and how far your army marches to a distant battle. The landscape above is the map you build on.')),
+        h('div', { class: 'muted note' }, 'Where your city stands on the empire map: the way each partner\'s traders come, how long a far one takes (it comes less often) and how far your army marches to a distant battle. The landscape above is the map you build on.')),
       h('div', { class: 'field' }, h('label', {}, 'Raiders'),
         h('select', { class: 'raiders-select', onchange: (e) => { state.raiders = e.target.value; showRaiders(); } },
           [['generic', 'A mixed band from beyond the frontier'], ['site', 'The province\'s own people']].map(([k, n]) => h('option', { value: k, selected: k === state.raiders }, n))),
         raidersDesc),
       h('label', { class: 'check-row' },
         h('input', { type: 'checkbox', checked: state.seaRaids, onchange: (e) => { state.seaRaids = e.target.checked; } }),
-        h('span', {}, 'Sea raids', h('div', { class: 'muted', style: { fontSize: '12px' } }, SEA_RAIDS_HELP))),
+        h('span', {}, 'Sea raids', h('div', { class: 'muted note' }, SEA_RAIDS_HELP))),
       h('label', { class: 'check-row' },
         h('input', { type: 'checkbox', class: 'natives-check', checked: state.natives, onchange: (e) => { state.natives = e.target.checked; } }),
-        h('span', {}, 'Native villages', h('div', { class: 'muted', style: { fontSize: '12px' } }, 'One to three villages of the land\'s own people, away from the road. They attack what you build on their land until a missionary from a Sacellum Pacis (Mission Post) calms them; calmed, they come to buy your exports.'))),
+        h('span', {}, 'Native villages', h('div', { class: 'muted note' }, 'One to three villages of the land\'s own people, away from the road. They attack what you build on their land until a missionary from a Sacellum Pacis (Mission Post) calms them; calmed, they come to buy your exports.'))),
       h('label', { class: 'check-row' },
         h('input', { type: 'checkbox', class: 'wolves-check', checked: state.wolves, onchange: (e) => { state.wolves = e.target.checked; } }),
-        h('span', {}, 'Wolves', h('div', { class: 'muted', style: { fontSize: '12px' } }, WOLVES_HELP)))),
+        h('span', {}, 'Wolves', h('div', { class: 'muted note' }, WOLVES_HELP)))),
     eventsField(state),
   ], [
     h('button', { class: 'btn', onclick: () => app.ui.closeModal() }, 'Back'),
@@ -366,7 +366,7 @@ function slotRow(app, slot, meta, actions) {
   return h('div', { class: 'card row', style: { marginBottom: '6px' } },
     h('div', { style: { flex: 1 } },
       h('b', {}, SLOT_NAMES[slot] || slot),
-      meta ? h('div', { class: 'muted', style: { fontSize: '12px' } }, `${meta.city} · ${meta.date} · pop ${fmt(meta.population)}${DIFFICULTY[meta.difficulty] && meta.difficulty !== 'normal' ? ` · ${DIFFICULTY[meta.difficulty].name}` : ''} · ${new Date(meta.savedAt).toLocaleString()} · ${fmt(kb)} KB`) : h('div', { class: 'muted' }, 'Empty')),
+      meta ? h('div', { class: 'muted note' }, `${meta.city} · ${meta.date} · pop ${fmt(meta.population)}${DIFFICULTY[meta.difficulty] && meta.difficulty !== 'normal' ? ` · ${DIFFICULTY[meta.difficulty].name}` : ''} · ${new Date(meta.savedAt).toLocaleString()} · ${fmt(kb)} KB`) : h('div', { class: 'muted' }, 'Empty')),
     actions);
 }
 
@@ -380,7 +380,7 @@ function storageNote() {
   return h('div', { class: 'card', style: { marginTop: '6px' } },
     h('div', { class: 'row' }, h('b', { style: { flex: 1 } }, '💾 Stored in this browser (localStorage)'), h('span', { class: 'num' }, `${fmt(Math.ceil(u.used / 1024))} KB`)),
     h('div', { class: 'bar' }, h('i', { style: { width: `${Math.round(frac * 100)}%`, background: frac > 0.85 ? 'var(--bad)' : frac > 0.6 ? 'var(--warn)' : 'var(--good)' } })),
-    h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '3px' } },
+    h('div', { class: 'muted note', style: { marginTop: '3px' } },
       `Most browsers allow about ${Math.round(STORAGE_BUDGET / 1048576)} MB per site. Saves stay on this computer and browser only, and clearing site data deletes them: export or copy a save to back it up. The autosave slot is written every ${CONFIG.AUTOSAVE_EVERY_MONTHS} months and whenever you leave the page.`));
 }
 
@@ -433,7 +433,7 @@ export function settingsMenu(app) {
   const mvol = h('b', {}, `${Math.round((s.musicVolume ?? 0.35) * 100)}%`);
   const check = (key, label, help) => h('label', { class: 'check-row' },
     h('input', { type: 'checkbox', checked: !!s[key], onchange: (e) => { s[key] = e.target.checked; app.applySettings(); } }),
-    h('span', {}, label, help ? h('div', { class: 'muted', style: { fontSize: '12px' } }, help) : null));
+    h('span', {}, label, help ? h('div', { class: 'muted note' }, help) : null));
   return modal('Settings', [
     h('div', { class: 'field' }, h('label', {}, 'Sound effects volume'), vol,
       h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: s.volume, oninput: (e) => { s.volume = Number(e.target.value); vol.textContent = `${Math.round(s.volume * 100)}%`; app.applySettings(); } })),
@@ -447,7 +447,7 @@ export function settingsMenu(app) {
           app.applySettings();
         },
       }),
-      h('span', {}, 'Sea raids', h('div', { class: 'muted', style: { fontSize: '12px' } }, `${SEA_RAIDS_HELP} For new games and the city you are playing.`))),
+      h('span', {}, 'Sea raids', h('div', { class: 'muted note' }, `${SEA_RAIDS_HELP} For new games and the city you are playing.`))),
     h('div', { class: 'field' }, h('label', {}, 'Music volume'), mvol,
       h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: s.musicVolume ?? 0.35, 'aria-label': 'Music volume', oninput: (e) => { s.musicVolume = Number(e.target.value); mvol.textContent = `${Math.round(s.musicVolume * 100)}%`; app.applySettings(); } })),
     check('muted', 'Mute all sounds'),
@@ -477,7 +477,7 @@ export function settingsMenu(app) {
 function rendererField(app) {
   const s = app.settings;
   const now = (app.flags.renderer || s.renderer) === 'webgl' ? 'webgl' : 'classic';
-  const note = h('div', { class: 'muted', style: { fontSize: '12px' } }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), with nearly every building (homes at five levels, the services, temples, venues, government, forts and harbour buildings, the monuments), the people, walkers, soldiers and ships, and the trees and rocks of the countryside as 3D models; the industry buildings and the other home levels are still flat. The Classic renderer stays the default while WebGL is in beta.');
+  const note = h('div', { class: 'muted note' }, app.rendererNote || 'WebGL draws the same city with the graphics card, on 3D ground (see Ground below), with nearly every building (homes at five levels, the services, temples, venues, government, forts and harbour buildings, the monuments), the people, walkers, soldiers and ships, and the trees and rocks of the countryside as 3D models; the industry buildings and the other home levels are still flat. The Classic renderer stays the default while WebGL is in beta.');
   return h('div', { class: 'field' }, h('label', {}, 'Renderer'),
     h('select', {
       'aria-label': 'Renderer',
@@ -511,7 +511,7 @@ function groundField(app) {
         app.applySettings();
       },
     }, [['auto', 'Auto'], ['high', '3D, high quality'], ['low', '3D, low quality'], ['off', 'Flat (as Classic)']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
-    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections, the trees and rocks standing on it in 3D. Low quality is much lighter: Auto picks it on phones, tablets and graphics built into the processor (most laptops), and if frames stay slow even at the lowest render scale; without a graphics chip at all Auto keeps the ground flat, which is faster there.'));
+    h('div', { class: 'muted note' }, 'With the WebGL renderer the ground is drawn in 3D: lit by the sun, the season and the weather on it, water with depth and reflections, the trees and rocks standing on it in 3D. Low quality is much lighter: Auto picks it on phones, tablets and graphics built into the processor (most laptops), and if frames stay slow even at the lowest render scale; without a graphics chip at all Auto keeps the ground flat, which is faster there.'));
 }
 
 /**
@@ -533,7 +533,7 @@ function renderScaleField(app) {
         app.applySettings();
       },
     }, [['auto', 'Auto'], ['1', '100%'], ['0.75', '75%'], ['0.5', '50%']].map(([k, n]) => h('option', { value: k, selected: now === k }, n))),
-    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'How sharp the 3D city is drawn, as a share of your screen\'s pixels. Lower is faster on a laptop or a high-resolution screen; the menus and text stay sharp. Auto draws the 3D ground with fewer pixels first, then the rest, only when frames run slow, and goes back up when there is room.'));
+    h('div', { class: 'muted note' }, 'How sharp the 3D city is drawn, as a share of your screen\'s pixels. Lower is faster on a laptop or a high-resolution screen; the menus and text stay sharp. Auto draws the 3D ground with fewer pixels first, then the rest, only when frames run slow, and goes back up when there is room.'));
 }
 
 /**
@@ -549,7 +549,7 @@ function autoPauseField(app) {
         onchange: (e) => { app.settings.autoPause = { ...autoPauseSwitches(app.settings), [sw.key]: e.target.checked }; app.applySettings(); },
       }),
       h('span', {}, sw.label))),
-    h('div', { class: 'muted', style: { fontSize: '12px' } }, 'A note says what stopped the game: click it to look, and Space or P resumes. For a raid, the scouts\' report comes about 3 months ahead; the traders\' word before it and the reminder a month out never pause.'));
+    h('div', { class: 'muted note' }, 'A note says what stopped the game: click it to look, and Space or P resumes. For a raid, the scouts\' report comes about 3 months ahead; the traders\' word before it and the reminder a month out never pause.'));
 }
 
 export function creditsMenu(app) {

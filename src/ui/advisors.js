@@ -30,7 +30,7 @@
 import { h, mount, fmt, pct, bar, kv } from './dom.js';
 import { openMessage, clickHint } from './messages.js';
 import { CONFIG } from '../config.js';
-import { LABOR_CATEGORIES, ENT_BASE_MAX, VENUE_SEATS, ARENA_ENT_BONUS } from '../data/buildings.js';
+import { BUILDINGS, LABOR_CATEGORIES, ENT_BASE_MAX, VENUE_SEATS, ARENA_ENT_BONUS } from '../data/buildings.js';
 import { gamesCard } from './gamesInfo.js';
 import { arenaStaffed } from '../sim/entertainment.js';
 import { HOUSE_TIERS } from '../data/housing.js';
@@ -149,15 +149,15 @@ export function tradeRouteCard(app, g, id, onChange) {
   });
   const idle = partnerIdle(g, id, partnerBuys(g, id));
   let how;
-  if (!sea) how = h('div', { class: 'muted', style: { fontSize: '12px' } }, 'Caravans come along the Imperial road to a staffed warehouse.');
-  else if (!seaOk) how = h('div', { class: 'status bad', style: { fontSize: '12px' } }, 'Unreachable: no river or coast connects this province to the sea.');
-  else if (!docks.length) how = h('div', { class: 'status warn', style: { fontSize: '12px' } }, 'Ships need an Emporium (Trade Dock): build one on the bank of the river or sea.');
-  else if (!staffedDock) how = h('div', { class: 'status warn', style: { fontSize: '12px' } }, 'Your Emporium has no workers: ships cannot tie up.');
-  else how = h('div', { class: 'muted', style: { fontSize: '12px' } }, 'Ships wait at your Emporium while dock workers unload them and fetch exports from warehouses near it.');
+  if (!sea) how = h('div', { class: 'muted note' }, 'Caravans come along the Imperial road to a staffed warehouse.');
+  else if (!seaOk) how = h('div', { class: 'status bad note' }, 'Unreachable: no river or coast connects this province to the sea.');
+  else if (!docks.length) how = h('div', { class: 'status warn note' }, 'Ships need an Emporium (Trade Dock): build one on the bank of the river or sea.');
+  else if (!staffedDock) how = h('div', { class: 'status warn note' }, 'Your Emporium has no workers: ships cannot tie up.');
+  else how = h('div', { class: 'muted note' }, 'Ships wait at your Emporium while dock workers unload them and fetch exports from warehouses near it.');
   // How far it is and how often its traders come (a far quiet route less often, a busy one more: sim/tradeDemand.js).
   const trip = tripDays(homeSiteId(g), id);
   const [a, b] = routeInterval(g, id);
-  const pace = h('div', { class: 'muted route-pace', style: { fontSize: '12px' } }, `About ${trip} day${trip === 1 ? '' : 's'} ${sea ? 'at sea' : 'on the road'} each way; ${sea ? 'a ship' : 'a caravan'} every ${a} to ${b} days.`);
+  const pace = h('div', { class: 'muted route-pace note' }, `About ${trip} day${trip === 1 ? '' : 's'} ${sea ? 'at sea' : 'on the road'} each way; ${sea ? 'a ship' : 'a caravan'} every ${a} to ${b} days.`);
   return h('div', { class: 'card' },
     h('div', { class: 'row' },
       h('h4', { style: { flex: 1 } }, h('span', { style: { color: p.color } }, '● '), p.name),
@@ -169,11 +169,11 @@ export function tradeRouteCard(app, g, id, onChange) {
       }, `Open route (${fmt(p.openCost)} Dn)`)),
     how,
     pace,
-    h('div', { class: 'muted route-prices', style: { fontSize: '12px' } }, distanceNote(g.scenario, id)),
-    idle ? h('div', { class: 'status warn route-idle', style: { fontSize: '12px' } }, `Every good is switched off: ${sea ? 'no ships' : 'no caravans'} will come until you tick one.`) : null,
-    r.open && tradeHaltText(g, sea ? 'sea' : 'land') ? h('div', { class: 'status warn route-halt', style: { fontSize: '12px' } }, tradeHaltText(g, sea ? 'sea' : 'land')) : null,
+    h('div', { class: 'muted route-prices note' }, distanceNote(g.scenario, id)),
+    idle ? h('div', { class: 'status warn route-idle note' }, `Every good is switched off: ${sea ? 'no ships' : 'no caravans'} will come until you tick one.`) : null,
+    r.open && tradeHaltText(g, sea ? 'sea' : 'land') ? h('div', { class: 'status warn route-halt note' }, tradeHaltText(g, sea ? 'sea' : 'land')) : null,
     // A working Pharus or Mansio Magna: a quarter more each way (sim/tradeDemand.js tradeBoost).
-    tradeBoost(g, id) > 1 ? h('div', { class: 'status good route-boost', style: { fontSize: '12px' } }, `+25% a year each way: the ${sea ? 'Pharus (Lighthouse)' : 'Mansio Magna (Caravanserai)'}.`) : null,
+    tradeBoost(g, id) > 1 ? h('div', { class: 'status good route-boost note' }, `+25% a year each way: the ${sea ? 'Pharus (Lighthouse)' : 'Mansio Magna (Caravanserai)'}.`) : null,
     h('div', { class: 'muted' }, 'They sell (you can import):'), h('div', {}, list(partnerSells(g, id), r.bought, 'buy')),
     h('div', { class: 'muted' }, 'They buy (you can export):'), h('div', {}, list(partnerBuys(g, id), r.sold, 'sell')));
 }
@@ -444,7 +444,7 @@ export class Advisors {
         HOUSE_TIERS.map((t, i) => (i === 0 ? null : h('tr', {},
           h('td', {}, `${i}. ${t.name}`),
           h('td', { class: 'r num' }, fmt(tiers[i] || 0)),
-          h('td', { class: 'muted', style: { fontSize: '12px' } }, tierNeeds(i)))))),
+          h('td', { class: 'muted note' }, tierNeeds(i)))))),
     ];
   }
 
@@ -540,15 +540,15 @@ export class Advisors {
           title: s.mode === 'export' ? 'Keep at least this much in storage' : 'Buy until storage holds this much',
           onchange: (e) => setTradeMode(g, k, null, Number(e.target.value)),
         })),
-        h('td', { class: 'muted', style: { fontSize: '12px' } }, s.mode === 'export' ? 'keep' : s.mode === 'import' ? 'target' : ''));
+        h('td', { class: 'muted note' }, s.mode === 'export' ? 'keep' : s.mode === 'import' ? 'target' : ''));
     });
     // Goods on Import from an open route that cannot come in now (horses with no Horse Ranch).
     const blocked = importWarnings(g);
-    const log = t.log.slice(0, 6).map((e) => h('div', { class: 'muted trade-log', style: { fontSize: '12px' } }, tradeLogLine(e)));
+    const log = t.log.slice(0, 6).map((e) => h('div', { class: 'muted trade-log note' }, tradeLogLine(e)));
     return [
       h('div', { class: 'card empire-card' },
         empireMapCanvas(g),
-        h('div', { class: 'row', style: { fontSize: '12px', marginTop: '4px' } },
+        h('div', { class: 'row note', style: { marginTop: '4px' } },
           h('span', { class: 'muted', style: { flex: 1 } }, '╌ land route (caravans)   ··· sea route (ships)   solid = open. ', seaOk ? 'Ships can reach this province.' : 'No ships can reach this province: only land routes work here.'),
           h('button', { class: 'btn small', title: 'Who is on the way, and when (E)', onclick: () => this.app.ui.openEmpire() }, 'Empire map'))),
       h('div', { class: 'muted', style: { marginTop: '8px' } }, 'Land routes: caravans trade with staffed warehouses on the Imperial road. Sea routes: ships wait at a staffed Emporium (Trade Dock) while its workers cart their imports to storage and fetch exports from warehouses near it (a stay of 2 to 7 weeks: several sea partners need more than one Emporium). Prices are per 100 units, each partner\'s own this year: dearer both ways the farther its route, and every price moves a little each New Year (a range: the cheapest partner to the dearest).'),
@@ -573,8 +573,8 @@ export class Advisors {
     if (!all) return '';
     const who = mode === 'export' ? (all === 1 ? 'buyer' : 'buyers') : (all === 1 ? 'seller' : 'sellers');
     const title = 'Partners you trade it with, of those that deal in it (open routes or not). Switch each on or off on its route card.';
-    if (!on) return h('span', { class: 'status warn trade-partners', style: { fontSize: '12px' }, title }, `${all === 1 ? 'its only' : 'every'} ${who.replace(/s$/, '')} switched off`);
-    return h('span', { class: 'muted trade-partners', style: { fontSize: '12px' }, title }, `${mode === 'export' ? 'to' : 'from'} ${on} of ${all} ${who}`);
+    if (!on) return h('span', { class: 'status warn trade-partners note', title }, `${all === 1 ? 'its only' : 'every'} ${who.replace(/s$/, '')} switched off`);
+    return h('span', { class: 'muted trade-partners note', title }, `${mode === 'export' ? 'to' : 'from'} ${on} of ${all} ${who}`);
   }
 
   tab_military(g) {
@@ -599,7 +599,7 @@ export class Advisors {
       h('h4', {}, 'Threat'),
       h('div', { class: `status ${t.level === 'attack' ? 'bad' : t.level === 'warned' ? 'warn' : 'good'}` }, t.level === 'calm' ? 'Scouts see no warband near the province.' : t.text),
       m.settings ? h('div', { class: 'muted', style: { marginTop: '4px' } }, `Raiders come from the map edges${seaOk && m.seaRaids ? `, and about ${Math.round(CONFIG.SEA_RAID_SHARE * 100)}% of raids by sea` : ''}. Word of a warband comes about ${RUMOUR_MONTHS} months ahead, the scouts' report of its size and side about ${SCOUT_MONTHS}; warbands grow with your city.`) : null,
-      m.settings && seaOk ? h('div', { class: 'muted', style: { fontSize: '12px' } }, `Sea raids: ${m.seaRaids ? 'on' : 'off'} (Settings).`) : null,
+      m.settings && seaOk ? h('div', { class: 'muted note' }, `Sea raids: ${m.seaRaids ? 'on' : 'off'} (Settings).`) : null,
       // Who raids this province (data/peoples.js), when it is a people of its own.
       m.settings && folk.mix ? h('div', { class: 'muted', style: { marginTop: '4px' } }, h('b', {}, `Your enemies here: the ${folk.name}. `), folk.desc) : null,
       t.level === 'attack' ? h('button', { class: 'btn small primary', style: { marginTop: '6px' }, onclick: () => { this.app.ui.closeModal(); this.app.focusThreat(); } }, t.legion && t.enemies === t.legion ? 'Show me the legions' : 'Show me the raiders') : null,
@@ -689,7 +689,7 @@ export class Advisors {
         : h('div', { class: 'muted' }, 'No forts yet. Build a Tirocinium (Barracks) and at least one fort (Military menu). Garrisons at rest hold their fort and fight only what comes to them; use Deploy to send them out to meet raiders.'),
       h('h4', {}, 'Supplies'),
       supplies,
-      h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } },
+      h('div', { class: 'muted note-lg', style: { marginTop: '4px' } },
         'Each recruit needs equipment at the Tirocinium: a legionary 50 weapons (Fabrica: iron), an archer 50 arrows (Officina Sagittaria: timber + iron), a cavalryman one horse (Equaria on meadow, or imported). Carts deliver them automatically while forts have empty places.'),
       showFleet ? h('h4', {}, 'Naval stations') : null,
       showFleet ? (stations.length
@@ -855,7 +855,7 @@ export class Advisors {
             cell(r.need.wine, have.wine, ''),
             h('td', { class: 'r num' }, `${CONFIG.FESTIVAL_COOLDOWN[r.size]} months`))),
           h('tr', { class: 'muted' }, h('td', {}, 'The city has'), h('td', { class: 'r num' }, `${fmt(have.money)} Dn`), h('td', { class: 'r num', title: 'Food in the granaries' }, fmt(have.food)), h('td', { class: 'r num', title: 'Wine in the warehouses' }, fmt(have.wine)), h('td', {}))),
-        sizes.filter(short).map((r) => h('div', { class: 'status bad', style: { fontSize: '12px', marginTop: '4px' }, dataset: { short: r.key } }, `${r.name}: ${r.blocked}`)),
+        sizes.filter(short).map((r) => h('div', { class: 'status bad note', style: { marginTop: '4px' }, dataset: { short: r.key } }, `${r.name}: ${r.blocked}`)),
         h('div', { class: 'muted sub', style: { marginTop: '4px' } }, `Food comes from the granaries (the largest stocks first), wine from the warehouses; a festival is held only if all of it is there. It is held at the god's own temples, and a bigger feast needs more priests: a staffed temple of the god has 1, a large temple 2; a small festival needs 1, a large one 3, a grand one 3 and an Oracle. Any festival resets its god's year; a large or grand one lifts the god and the people more.`),
         c.festivalCooldown > 0 ? h('div', { class: 'muted', style: { marginTop: '4px' } }, `Next festival possible in ${c.festivalCooldown} month${c.festivalCooldown === 1 ? '' : 's'}.`) : null),
       // A working Pantheum or Great Sanctuary (sim/religion.js), said once above the gods.
@@ -872,13 +872,13 @@ export class Advisors {
           h('div', { class: 'row' }, h('h4', { style: { flex: 1, color: GODS[k].color } }, GODS[k].name), h('span', { class: 'muted' }, GODS[k].domain)),
           kv('Mood', `${Math.round(s.mood)} / 100`), bar(s.mood, 100),
           kv('Staffed temples', templeCount(g, k).text),
-          jealous.favorite === k ? h('div', { class: 'status good', style: { fontSize: '12px' }, dataset: { jealous: 'favorite' } }, `The favorite: more temples than any other god, so ${GODS[k].name}'s mood target rises to 100 (by 50 if below 50).`) : null,
-          jealous.neglected === k ? h('div', { class: 'status bad', style: { fontSize: '12px' }, dataset: { jealous: 'neglected' } }, `Jealous: fewer temples than any other god, mood target -${JEALOUS_PENALTY}. Build ${GODS[k].name} a temple to match the next fewest.`) : null,
+          jealous.favorite === k ? h('div', { class: 'status good note', dataset: { jealous: 'favorite' } }, `The favorite: more temples than any other god, so ${GODS[k].name}'s mood target rises to 100 (by 50 if below 50).`) : null,
+          jealous.neglected === k ? h('div', { class: 'status bad note', dataset: { jealous: 'neglected' } }, `Jealous: fewer temples than any other god, mood target -${JEALOUS_PENALTY}. Build ${GODS[k].name} a temple to match the next fewest.`) : null,
           kv('Last festival', s.festivalsHeld ? (months === 0 ? 'this month' : `${months} month${months === 1 ? '' : 's'} ago`) : 'none yet'),
-          penalty > 0 ? h('div', { class: 'status bad', style: { fontSize: '12px' }, dataset: { neglect: penalty } }, `Neglected: mood target -${penalty}. A festival of any size in ${GODS[k].name}'s honor ends it.`) : null,
-          waiting ? h('div', { class: 'muted', style: { fontSize: '12px' } }, `No festival for ${months} months: from 800 people ${GODS[k].name}'s mood target will fall ${festivalNeglect(months)}.`) : null,
-          s.angered ? h('div', { class: 'status bad', style: { fontSize: '12px' } }, `Angered: until ${GODS[k].name}'s mood is back above ${CONFIG.GOD_CALM_MOOD}, another wrath strikes ${GODS[k].harderWrath && g.scenario.majorWrath !== false ? 'harder' : 'again'}.`) : null,
-          h('div', { class: 'muted', style: { fontSize: '12px' } }, `Blessing: ${GODS[k].blessing} Wrath: ${GODS[k].wrath}`),
+          penalty > 0 ? h('div', { class: 'status bad note', dataset: { neglect: penalty } }, `Neglected: mood target -${penalty}. A festival of any size in ${GODS[k].name}'s honor ends it.`) : null,
+          waiting ? h('div', { class: 'muted note' }, `No festival for ${months} months: from 800 people ${GODS[k].name}'s mood target will fall ${festivalNeglect(months)}.`) : null,
+          s.angered ? h('div', { class: 'status bad note' }, `Angered: until ${GODS[k].name}'s mood is back above ${CONFIG.GOD_CALM_MOOD}, another wrath strikes ${GODS[k].harderWrath && g.scenario.majorWrath !== false ? 'harder' : 'again'}.`) : null,
+          h('div', { class: 'muted note' }, `Blessing: ${GODS[k].blessing} Wrath: ${GODS[k].wrath}`),
           h('div', { class: 'row', style: { marginTop: '6px' } },
             sizes.map((r) => {
               const why = festivalBlocked(g, r.size, k);
@@ -892,7 +892,7 @@ export class Advisors {
             })),
           // What the temples lack, in words as well as the buttons' tooltips
           // (a phone has no hover): one line per reason, its sizes together.
-          templeNotes(g, k, sizes).map((n) => h('div', { class: 'muted', style: { fontSize: '12px', marginTop: '2px' }, dataset: { temples: n.keys.join(' ') } }, `${n.names}: ${n.reason}`)));
+          templeNotes(g, k, sizes).map((n) => h('div', { class: 'muted note', style: { marginTop: '2px' }, dataset: { temples: n.keys.join(' ') } }, `${n.names}: ${n.reason}`)));
       }),
     ];
   }
@@ -903,7 +903,7 @@ export class Advisors {
     const goals = g.scenario.goals;
     const row = (key, name, tip) => h('div', { class: 'card', style: { marginTop: '8px' } },
       kv(name, `${Math.floor(r[key])}${goals[key] ? ` (goal ${goals[key]})` : ''}`), bar(r[key], 100),
-      h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '3px' } }, tip));
+      h('div', { class: 'muted note-lg', style: { marginTop: '3px' } }, tip));
     const seats = g.city.entCoverage || {};
     const seatText = `Venue seats for ${seats.theater || 0}% (theaters), ${seats.amphitheater || 0}% (amphitheaters) and ${seats.colosseum || 0}% (arenas) of the city${seats.hippodrome ? ', and races at the hippodrome for everyone,' : ''}${arenaStaffed(g) ? ` and a staffed Great Arena (+${ARENA_ENT_BONUS})` : ''} give every home +${g.city.entBase || 0} entertainment.`;
     // A finished monument (sim/ratings.js): culture while it stands, the Basilica's prosperity while it works.
@@ -948,7 +948,7 @@ export class Advisors {
             onclick: () => { const res = sendGift(g, i); if (!res.ok) this.app.ui.toastError(res.reason); else this.app.sfx.play('coin'); this.render(); },
           }, giftLabel(g, i));
         })),
-        h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, giftNote(g))),
+        h('div', { class: 'muted note-lg', style: { marginTop: '4px' } }, giftNote(g))),
     ];
   }
 
@@ -958,7 +958,7 @@ export class Advisors {
     return h('div', { class: `card legion-card${t.level === 'none' ? '' : ` ${t.level}`}`, style: { marginTop: '10px' } },
       h('h4', {}, 'Caesar\'s legions'),
       h('div', { class: `status ${t.level === 'none' ? 'good' : t.level}` }, t.status),
-      h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, t.note),
+      h('div', { class: 'muted note-lg', style: { marginTop: '4px' } }, t.note),
       t.show ? h('button', { class: 'btn small primary', style: { marginTop: '6px' }, onclick: () => { this.app.ui.closeModal(); this.app.focusThreat(); } }, 'Show me the legions') : null,
       t.map ? h('button', { class: 'btn small', style: { marginTop: '6px' }, onclick: () => this.app.ui.openEmpire('legion') }, 'Show on the empire map') : null);
   }
@@ -1052,13 +1052,13 @@ export class Advisors {
           onchange: (e) => { const res = setSalary(g, Number(e.target.value)); if (!res.ok) this.app.ui.toastError(res.reason); this.render(); },
         }, RANKS.map((r, i) => h('option', { value: i, selected: i === gv.salaryRank, disabled: !salaryPickable(i, gv.rank) }, salaryOption(i, gv.rank))))),
       kv('Paid this year', `${fmt(gv.paidThisYear)} Dn`),
-      h('div', { class: 'muted', style: { fontSize: '12.5px' } }, salaryOutlookText(g)),
-      h('div', { class: 'muted', style: { fontSize: '12.5px', marginTop: '4px' } }, 'Rome pays no governor above his rank. At New Year it looks at the year\'s pay: a year below your rank\'s, by your own choice, earns a little favor. The salary is not paid while the treasury cannot cover it.'),
+      h('div', { class: 'muted note-lg' }, salaryOutlookText(g)),
+      h('div', { class: 'muted note-lg', style: { marginTop: '4px' } }, 'Rome pays no governor above his rank. At New Year it looks at the year\'s pay: a year below your rank\'s, by your own choice, earns a little favor. The salary is not paid while the treasury cannot cover it.'),
       h('div', { class: 'row', style: { marginTop: '6px', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
         h('span', {}, 'Give to the city:'),
         amounts.map((n) => h('button', { class: 'btn small donate-btn', onclick: () => give(n) }, `${fmt(n)} Dn`)),
         h('button', { class: 'btn small donate-btn', disabled: gv.savings <= 0, onclick: () => give(gv.savings) }, `All (${fmt(gv.savings)} Dn)`)),
-      h('div', { class: 'muted', style: { fontSize: '12.5px' } }, 'Donations go into the treasury, on a ledger line of their own; they are not counted as the city\'s profit. Your savings go with you to your next mission.'));
+      h('div', { class: 'muted note-lg' }, 'Donations go into the treasury, on a ledger line of their own; they are not counted as the city\'s profit. Your savings go with you to your next mission.'));
   }
 
   tab_messages(g) {
@@ -1115,14 +1115,15 @@ function unregisteredNote(g) {
 export function tierNeeds(i) {
   const t = HOUSE_TIERS[i];
   const parts = [];
+  const B = Object.fromEntries(['school', 'library', 'academy', 'clinic', 'hospital'].map((k) => [k, BUILDINGS[k].name]));
   if (t.water) parts.push(t.water === 2 ? 'fountain' : 'well');
   if (t.food) parts.push(`${t.food} food`);
   if (t.religion) parts.push(`${t.religion} god${t.religion > 1 ? 's' : ''}`);
   if (t.ent) parts.push(`ent ${t.ent}`);
-  if (t.edu) parts.push(['', 'school or library', 'school+library', 'school+library+academy'][t.edu]);
-  if (t.baths) parts.push('baths');
-  if (t.barber) parts.push('barber');
-  if (t.health) parts.push(t.health >= 2 ? 'medicus+hospital' : 'medicus or hospital');
+  if (t.edu) parts.push(['', `${B.school} or ${B.library}`, `${B.school}+${B.library}`, `${B.school}+${B.library}+${B.academy}`][t.edu]);
+  if (t.baths) parts.push(BUILDINGS.baths.name);
+  if (t.barber) parts.push(BUILDINGS.barber.name);
+  if (t.health) parts.push(t.health >= 2 ? `${B.clinic}+${B.hospital}` : `${B.clinic} or ${B.hospital}`);
   if (t.goods.length) parts.push(t.goods.join(', '));
   if (t.wine > 1) parts.push(`${t.wine} wine sources`);
   const prev = i > 0 ? HOUSE_TIERS[i - 1].up : -99;

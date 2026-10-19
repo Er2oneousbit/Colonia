@@ -19,6 +19,7 @@
 
 import { P, poly, quad, box, gableRoof, shade } from './draw.js';
 import { OVER_WATER_ART as OVER_WATER } from '../sim/entities.js';
+import { mappedRect as turnedRect } from './turn.js';
 
 const WOOD = '#8a5a33';
 const WOOD_DARK = '#5e3b20';
@@ -32,12 +33,8 @@ export function turner(S, side) {
   return (u, v) => (side === 1 ? [u, v] : side === 3 ? [S - u, v] : side === 2 ? [v, u] : [v, S - u]);
 }
 
-/** A box given in designed coordinates, turned into place (its corners re-sorted). */
-export function turnedRect(T, u0, v0, du, dv) {
-  const a = T(u0, v0);
-  const b = T(u0 + du, v0 + dv);
-  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
-}
+/** A box given in designed coordinates, turned into place (its corners re-sorted): turn.js mappedRect under the shore's name. */
+export { turnedRect };
 
 /** Draw the queued pieces back to front by where they stand on screen. */
 export function paint(items) {

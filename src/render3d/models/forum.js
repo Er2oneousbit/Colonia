@@ -37,7 +37,7 @@
  */
 
 import { Group, Mesh, CylinderGeometry, BufferGeometry, Float32BufferAttribute, BoxGeometry } from 'three';
-import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube } from '../shapes.js';
+import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube, D } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, tuscanColumn, tiledRoof, wallWithOpenings, lantern, lanternPane, inscription } from './masonry.js';
 import { figureParts } from './figure.js';
@@ -56,8 +56,6 @@ export const FORUM = Object.freeze({
   /** Where the lamps hang by the middle door (x, y, z): the game's night lights read them. */
   lamps: Object.freeze([Object.freeze([-0.95, 2.55, -0.98]), Object.freeze([0.95, 2.55, -0.98])]),
 });
-
-const D = (deg) => (deg * Math.PI) / 180;
 
 /** The forum's state from the sim: open (staffed) or shut. */
 export function forumState(b) {

@@ -64,11 +64,20 @@ export function turnDir(du, dv, t) {
   }
 }
 
+/**
+ * A rectangle u0..u0+du, v0..v0+dv carried through a point mapper T(u, v) =>
+ * [u, v] (a turn, a mirror): its two corners mapped and re-sorted, as
+ * [u0, v0, du, dv]. waterArt's turner() makes such a mapper for the shore.
+ */
+export function mappedRect(T, u0, v0, du, dv) {
+  const a = T(u0, v0);
+  const b = T(u0 + du, v0 + dv);
+  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
+}
+
 /** A rectangle u0..u0+du, v0..v0+dv of an S x S footprint turned t times: [u0, v0, du, dv]. */
 export function turnedRect(u0, v0, du, dv, S, t) {
-  const a = turnUV(u0, v0, S, t);
-  const b = turnUV(u0 + du, v0 + dv, S, t);
-  return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
+  return mappedRect((u, v) => turnUV(u, v, S, t), u0, v0, du, dv);
 }
 
 /** A rectangle of the current drawing, turned (with the sub-square offset). */

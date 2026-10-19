@@ -45,9 +45,9 @@
  * ----------------------------------------------------------------------------
  */
 
-import { InstancedMesh, Matrix4, DynamicDrawUsage, ColorManagement, WebGLRenderTarget, Group } from 'three';
+import { InstancedMesh, Matrix4, DynamicDrawUsage, WebGLRenderTarget, Group } from 'three';
 import { MODELS, partShows, modelMatrix, modelFor } from './models.js';
-import { kitOf, disposeKit } from './kit.js';
+import { kitOf, disposeKit, withColourManagement } from './kit.js';
 import { LOOK, waterMaterial, surfacesReady, surfacesFailed, surfacesFailedCount, surfacesCount, surfacesAsked, material } from './materials.js';
 import { fountainLife } from './models/fountain.js';
 import { aqueductLife } from './models/aqueduct.js';
@@ -112,17 +112,6 @@ function seedOf(b) {
 export function lodFor(scale) {
   const tile = CONFIG.TILE_W * scale;
   return tile >= LOD0_PX ? 0 : tile >= LOD1_PX ? 1 : 2;
-}
-
-/** Run `fn` with three's colour management on (see the header). */
-function withColourManagement(fn) {
-  const was = ColorManagement.enabled;
-  ColorManagement.enabled = true;
-  try {
-    return fn();
-  } finally {
-    ColorManagement.enabled = was;
-  }
 }
 
 const _m = new Matrix4();

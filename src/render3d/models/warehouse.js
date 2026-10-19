@@ -39,7 +39,7 @@
  */
 
 import { Group, Mesh, Matrix4, BufferGeometry, Float32BufferAttribute, BoxGeometry } from 'three';
-import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube } from '../shapes.js';
+import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube, D } from '../shapes.js';
 import { material } from '../materials.js';
 import { slab, paving, tiledRoof, wallWithOpenings, lantern, lanternPane } from './masonry.js';
 import { WARE_GOODS } from './wares.js';
@@ -65,8 +65,6 @@ export const WAREHOUSE = Object.freeze({
 
 /** Loads of 100 units: a warehouse holds 32 (config.js WAREHOUSE_CAPACITY 3200). */
 export const LOAD_UNITS = 100;
-
-const D = (deg) => (deg * Math.PI) / 180;
 
 /** The bays' middles: a 3 x 3 grid of the court, less the middle of the front row (the way in from the gate). */
 export const BAYS = Object.freeze([-1, 0, 1].flatMap((j) => [-1, 0, 1].map((i) => [i * WAREHOUSE.bay, j * WAREHOUSE.bay])).filter(([x, z]) => !(x === 0 && z > 0)));

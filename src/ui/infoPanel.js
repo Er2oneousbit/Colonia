@@ -82,19 +82,24 @@ function madeBy(good) {
   return `; ${withArticle(def.name)} makes it from ${inputs}`;
 }
 
-/** Plain-English description of one missing house requirement. */
+/** The Latin names the needs text uses, read from the data so a rename follows. */
+const N = { get school() { return BUILDINGS.school.name; }, get library() { return BUILDINGS.library.name; }, get academy() { return BUILDINGS.academy.name; } };
+
+/** Description of one missing house requirement (buildings by their Latin names). */
 export function describeNeed(m) {
   switch (m.key) {
     case 'water': return m.need >= 2 ? 'Clean water from a fountain within 4 tiles (fountains need a reservoir).' : 'Access to water: a well within 2 tiles.';
     case 'food': return `${m.need} type${m.need > 1 ? 's' : ''} of food (has ${m.have}). A market vendor must pass by, and the market needs a stocked granary.`;
     case 'religion': return `Priests of ${m.need} different god${m.need > 1 ? 's' : ''} visiting (has ${m.have}). Build temples nearby.`;
-    case 'ent': return `Entertainment ${m.need} (has ${m.have}). Entertainers passing by: theater ${VENUE_POINTS.theater}, amphitheater ${VENUE_POINTS.amphitheater} (${VENUE_POINTS.amphitheater + VENUE_BOTH_BONUS.amphitheater} with plays and gladiators), arena ${VENUE_POINTS.colosseum} (${VENUE_POINTS.colosseum + VENUE_BOTH_BONUS.colosseum} with gladiators and beasts), the hippodrome's charioteers ${VENUE_POINTS.hippodrome}, plus up to ${ENT_SEATS_MAX} when the city's venues have seats for everyone (${ENT_BASE_MAX} with races at the hippodrome), and ${ARENA_ENT_BONUS} more while a Great Arena is staffed.`;
-    case 'edu': return `${['', 'A school or a library nearby.', 'Both a school and a library nearby.', 'A school, a library and an academy nearby.'][m.need]} (has ${['none', 'one of school and library', 'school and library', 'all three'][m.have]})`;
-    case 'barber': return 'A barber nearby.';
-    case 'baths': return 'Public baths (Balneae) nearby. They need piped water from a reservoir.';
+    case 'ent': return `Entertainment ${m.need} (has ${m.have}). Entertainers passing by: ${fullName(BUILDINGS.theater)} ${VENUE_POINTS.theater}, ${fullName(BUILDINGS.amphitheater)} ${VENUE_POINTS.amphitheater} (${VENUE_POINTS.amphitheater + VENUE_BOTH_BONUS.amphitheater} with plays and gladiators), ${fullName(BUILDINGS.colosseum)} ${VENUE_POINTS.colosseum} (${VENUE_POINTS.colosseum + VENUE_BOTH_BONUS.colosseum} with gladiators and beasts), the ${fullName(BUILDINGS.hippodrome)}'s charioteers ${VENUE_POINTS.hippodrome}, plus up to ${ENT_SEATS_MAX} when the city's venues have seats for everyone (${ENT_BASE_MAX} with races at the ${BUILDINGS.hippodrome.name}), and ${ARENA_ENT_BONUS} more while the ${BUILDINGS.colosseum.name} is staffed.`;
+    case 'edu': return `${[
+      '', `A ${N.school} or a ${N.library} nearby.`, `Both a ${N.school} and a ${N.library} nearby.`, `A ${N.school}, a ${N.library} and an ${N.academy} nearby.`,
+    ][m.need]} (has ${['none', `one of ${N.school} and ${N.library}`, `${N.school} and ${N.library}`, 'all three'][m.have]})`;
+    case 'barber': return `A ${fullName(BUILDINGS.barber)} nearby.`;
+    case 'baths': return `${fullName(BUILDINGS.baths)} nearby. They need piped water from a reservoir.`;
     case 'health': return m.need >= 2
-      ? `Both a medicus nearby and a hospital within ${CONFIG.HOSPITAL_RADIUS} tiles (has ${m.have === 0 ? 'neither' : m.hospital ? 'the hospital' : 'the medicus'}).`
-      : `A medicus nearby, or a hospital within ${CONFIG.HOSPITAL_RADIUS} tiles.`;
+      ? `Both a ${BUILDINGS.clinic.name} nearby and a ${BUILDINGS.hospital.name} within ${CONFIG.HOSPITAL_RADIUS} tiles (has ${m.have === 0 ? 'neither' : m.hospital ? `the ${BUILDINGS.hospital.name}` : `the ${BUILDINGS.clinic.name}`}).`
+      : `A ${BUILDINGS.clinic.name} nearby, or a ${BUILDINGS.hospital.name} within ${CONFIG.HOSPITAL_RADIUS} tiles.`;
     case 'goods': return `${GOODS[m.good].name} sold by a market vendor (needs a warehouse stocked with ${GOODS[m.good].name.toLowerCase()}${madeBy(m.good)}).`;
     case 'wine': return `Two sources of wine in the city (has ${m.have}): a working winery, and each open trade route that sells wine while wine is set to import and switched on with that partner.`;
     case 'des': return `Desirability ${m.need} (now ${m.have}). Gardens, statues, plazas, temples and grand homes help; humble homes, industry and storage hurt.`;
@@ -547,7 +552,7 @@ export class InfoPanel {
         },
       }, '⛏ Demolish'),
       // (said in words too: a touch screen shows no tooltip)
-      h('span', { class: 'muted', style: { fontSize: '12px' } }, away ? `${away}.` : `#${b.id} at ${b.x},${b.y}`));
+      h('span', { class: 'muted note' }, away ? `${away}.` : `#${b.id} at ${b.x},${b.y}`));
   }
 
   renderHouse(g, b) {
@@ -750,7 +755,7 @@ export class InfoPanel {
           newMenNote(g, b) ? h('div', { class: 'status warn new-men-note' }, newMenNote(g, b)) : null,
           kv('Training', trainedText(g, b)),
           inTrainingText(g, b) ? kv('At the Campus', inTrainingText(g, b)) : null,
-          h('div', { class: 'muted', style: { fontSize: '12px' } }, trainingNote(g, b)),
+          h('div', { class: 'muted note' }, trainingNote(g, b)),
           kv('Orders', b.rally ? `Holding ${Math.floor(b.rally.x)}, ${Math.floor(b.rally.y)}` : 'Holding the fort'),
           kv('Keys', fortKey(b) ? `${fortKey(b)} picks up its standard (twice: goes to it), F deploys it` : 'F deploys it (Shift+1 to 9 pick up the standards of forts I to IX)'),
           away ? kv('Away', `${away} at a distant battle (their places are kept)`) : null,
@@ -827,7 +832,7 @@ export class InfoPanel {
           newMenNote(g, b) ? h('div', { class: 'status warn new-men-note' }, newMenNote(g, b)) : null,
           kv('Crews', trainedText(g, b)),
           inTrainingText(g, b) ? kv('At the Portus', inTrainingText(g, b)) : null,
-          h('div', { class: 'muted', style: { fontSize: '12px' } }, trainingNote(g, b)),
+          h('div', { class: 'muted note' }, trainingNote(g, b)),
           kv('Orders', b.rally ? `Holding the water at ${Math.floor(b.rally.x)}, ${Math.floor(b.rally.y)}` : 'Guarding its berths'),
           kv('Keys', 'F deploys it'),
           kv('Guards', `raider ships within ${b.rally ? CONFIG.STATION_GUARD_DEPLOYED : CONFIG.STATION_GUARD} tiles (chases ${CONFIG.STATION_CHASE} more)`),
@@ -838,7 +843,7 @@ export class InfoPanel {
             h('button', { class: 'btn small primary', disabled: n === 0, title: 'Then click the water where they should go (key: F). Their flag can be dragged afterwards.', onclick: () => this.app.startDeploy(b.id) }, '⚑ Deploy…'),
             h('button', { class: 'btn small', disabled: !b.rally, onclick: () => { recallStation(g, b.id); this.render(); } }, '↩ Recall'),
             serviceButton(g, b, () => this.render())),
-          serviceNote(g, b) ? h('div', { class: 'muted', style: { fontSize: '12px' } }, serviceNote(g, b)) : null,
+          serviceNote(g, b) ? h('div', { class: 'muted note' }, serviceNote(g, b)) : null,
           recallControls(g, b, () => this.render(), (why) => this.app.ui.toastError(why))));
         break;
       }
@@ -935,7 +940,7 @@ export class InfoPanel {
           title: b.emptying ? 'Take deliveries again' : 'Take nothing in and send everything stored here elsewhere, one cart at a time',
           onclick: () => { setEmptying(b, !b.emptying); this.render(); },
         }, b.emptying ? 'Stop emptying' : `Empty the ${granary ? 'granary' : 'warehouse'}`),
-        h('span', { class: 'muted', style: { fontSize: '12px' } }, 'Click an order to change it: Accept, Refuse, Get.')),
+        h('span', { class: 'muted note' }, 'Click an order to change it: Accept, Refuse, Get.')),
       h('table', { class: 'tbl', style: { marginTop: '6px' } },
         h('tr', {}, h('th', {}, 'Good'), h('th', { class: 'r' }, 'Stored'), h('th', { class: 'r' }, 'Orders')),
         orderGoods(b).map((k) => {
@@ -974,7 +979,7 @@ export class InfoPanel {
       !ours ? kv('Fire pots left', `${fmt(u.pots || 0)} of ${CONFIG.RAID_SHIP_POTS}`) : null,
       h('div', { class: 'panel-sec row' },
         st ? h('button', { class: 'btn small', onclick: () => this.showBuilding(st.id) }, 'Its station') : null,
-        h('span', { class: 'muted', style: { fontSize: '12px' } }, `#${u.id} at ${Math.floor(u.x)},${Math.floor(u.y)}`)));
+        h('span', { class: 'muted note' }, `#${u.id} at ${Math.floor(u.x)},${Math.floor(u.y)}`)));
   }
 
   /**
@@ -1006,7 +1011,7 @@ export class InfoPanel {
       ours ? kv('Pay', `${def.upkeep} Dn / month`) : null,
       h('div', { class: 'panel-sec row' },
         fort ? h('button', { class: 'btn small', onclick: () => this.showBuilding(fort.id) }, 'Its fort') : null,
-        h('span', { class: 'muted', style: { fontSize: '12px' } }, `#${u.id} at ${Math.floor(u.x)},${Math.floor(u.y)}`)));
+        h('span', { class: 'muted note' }, `#${u.id} at ${Math.floor(u.x)},${Math.floor(u.y)}`)));
   }
 
   /** A walker: who, from where, doing what, carrying what, and what it says. */

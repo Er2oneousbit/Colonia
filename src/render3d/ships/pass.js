@@ -31,8 +31,8 @@
  * ----------------------------------------------------------------------------
  */
 
-import { Matrix4, Vector3, Quaternion, BufferGeometry, BufferAttribute, Mesh, DynamicDrawUsage, Group, InstancedMesh, ColorManagement } from 'three';
-import { kitOf } from '../kit.js';
+import { Matrix4, Vector3, Quaternion, BufferGeometry, BufferAttribute, Mesh, DynamicDrawUsage, Group, InstancedMesh } from 'three';
+import { kitOf, withColourManagement } from '../kit.js';
 import { HALF_W, HALF_H } from '../../config.js';
 import { TRADE_PARTNERS } from '../../data/scenarios.js';
 import { toView, viewDir } from '../../render/view.js';
@@ -73,17 +73,6 @@ const _q = new Quaternion();
 const _v = new Vector3();
 const _p = new Vector3();
 const _e = new Vector3();
-
-/** Run `fn` with three's colour management on: the look's materials are written in sRGB (modelPass.js withColourManagement). */
-function withCM(fn) {
-  const was = ColorManagement.enabled;
-  ColorManagement.enabled = true;
-  try {
-    return fn();
-  } finally {
-    ColorManagement.enabled = was;
-  }
-}
 
 /** A CSS hex colour ('#3f6fb0') as a number. */
 function hexOf(css) {
@@ -152,7 +141,7 @@ export class ShipPass {
     ix.setUsage(DynamicDrawUsage);
     g.setIndex(ix);
     g.setDrawRange(0, 0);
-    this.wake = new Mesh(g, withCM(() => material('ship-wake', { color: 0xf4f8f6, roughness: 0.5, opacity: 0.62, snow: 0, wet: 0 })));
+    this.wake = new Mesh(g, withColourManagement(() => material('ship-wake', { color: 0xf4f8f6, roughness: 0.5, opacity: 0.62, snow: 0, wet: 0 })));
     this.wake.name = 'ship-wakes';
     this.wake.frustumCulled = false;
     this.wake.castShadow = false;
@@ -358,7 +347,7 @@ export class ShipPass {
   /** The lantern's place on a kind (hulls.js records it as it builds a hull: built once at the far level if not yet). */
   lanternOf(kind) {
     if (!LANTERNS.has(kind)) {
-      const h = withCM(() => buildHull(kind, 2));
+      const h = withColourManagement(() => buildHull(kind, 2));
       for (const mesh of h.meshes) mesh.geometry.dispose();
     }
     return LANTERNS.get(kind) || null;
@@ -723,7 +712,7 @@ export class ShipPass {
     const gen = this.warmGen = (this.warmGen || 0) + 1;
     this.proxyGroup = new Group();
     // (The look's materials are written in sRGB, built with colour management on: as the model pass builds its kits.)
-    withCM(() => {
+    withColourManagement(() => {
       for (const key of ['vessel:corbita:hull', 'vessel:corbita:sail:0:3f6fb0', 'vessel:gaulish:sail:0']) {
         const kit = kitOf(buildVesselPart(key, 2));
         for (const part of kit.parts) {
