@@ -35,6 +35,24 @@ const CATEGORY_COLORS = {
   military: [170, 60, 50],
 };
 
+const SLOW_REFRESH_MS = 10000;
+const SIG_CHECK_MS = 500;
+
+/**
+ * A number that changes when what the minimap paints from the sim (a
+ * house's tier tints it, a fire is orange, a building's presence) does,
+ * without touching the map's 40,000 tiles. Collisions only delay a redraw
+ * to the slow refresh.
+ */
+export function shownSignature(game) {
+  let s = game.buildings.size | 0;
+  for (const b of game.buildings.values()) {
+    if (b.house) s = Math.imul(s ^ (b.id * 8 + b.house.tier + 1), 0x9e3779b1);
+  }
+  for (const i of game.fires.keys()) s = Math.imul(s ^ (i + 0x51ed), 0x85ebca6b);
+  return (s ^ (game.fires.size << 20)) >>> 0;
+}
+
 export class Minimap {
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
@@ -44,16 +62,34 @@ export class Minimap {
     this.lastRevision = -1;
     this.lastBuild = 0;
     this.lastTurn = 0;
+    this.lastSig = 0; // what the picture showed besides the map's own tiles (shownSignature)
+    this.lastSigCheck = 0;
+    this.rebuilds = 0; // (for the tests)
     this.layout = { scale: 1, ox: 0, oy: 0 };
   }
 
-  /** Rebuild the map image (throttled; at once when the view turns). */
+  /**
+   * Rebuild the map image only when something it shows changed: a map edit
+   * (revision) or the view turning at once; houses changing tier, fires
+   * and the building count are told by a cheap signature over the buildings
+   * (a few hundred), checked twice a second; and a slow refresh catches
+   * what neither sees (rubble clearing). The 200 x 200 map's 40,000 tiles
+   * were redrawn every 1.5 s whether or not anything had happened.
+   */
   rebuild(game, now, turn = 0) {
     const { map } = game;
-    if (map.revision === this.lastRevision && turn === this.lastTurn && now - this.lastBuild < 1500) return;
+    let stale = !this.base || map.revision !== this.lastRevision || turn !== this.lastTurn || now - this.lastBuild >= SLOW_REFRESH_MS;
+    if (!stale && now - this.lastSigCheck >= SIG_CHECK_MS) {
+      this.lastSigCheck = now;
+      stale = shownSignature(game) !== this.lastSig;
+    }
+    if (!stale) return;
+    this.rebuilds++;
     this.lastRevision = map.revision;
     this.lastTurn = turn;
     this.lastBuild = now;
+    this.lastSig = shownSignature(game);
+    this.lastSigCheck = now;
     const W = map.w + map.h;
     const H = Math.ceil((map.w + map.h) / 2);
     const [VW, VH] = viewSize(map.w, map.h, turn);

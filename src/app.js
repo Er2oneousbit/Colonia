@@ -49,6 +49,7 @@ import { AUTO_PAUSE_DEFAULTS, autoPauseFor, autoPauseText } from './ui/autoPause
 import { stepOfKind, nextIdleFrom, cyclable, kindPosition } from './ui/cycle.js';
 import { newFame, cleanFame, winOf, recordWin } from './sim/fame.js';
 import { fullscreenElement, fullscreenAvailable, requestFullscreen, exitFullscreen, escapeLeavesFullscreen } from './ui/fullscreen.js';
+import { watchCanvasRect, dropCanvasRect } from './ui/canvasRect.js';
 
 /** Input events that count as a user activation (HTML spec) in some browser. */
 /** Shift+N pressed twice within this long glides to the fort (app.showFort): once picks up its standard. */
@@ -176,6 +177,7 @@ export class App {
         this.ui.hud.showFullscreen(!!fullscreenElement());
       });
     }
+    watchCanvasRect(this.canvas);
     this.watchPixelRatio();
     this.resize();
     // Where the browser (or the page embedding the game) allows autoplay, the
@@ -258,6 +260,7 @@ export class App {
     const w = Math.max(200, (rect.width || window.innerWidth) - sidebarW);
     const hgt = Math.max(200, rect.height || window.innerHeight);
     this.renderer.resize(w, hgt, window.devicePixelRatio || 1);
+    dropCanvasRect(this.canvas); // (the sidebar or HUD may have moved it without a window resize)
   }
 
   // -------------------------------------------------------------- settings

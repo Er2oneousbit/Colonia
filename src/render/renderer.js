@@ -82,7 +82,7 @@ import { roman } from '../sim/fortNumbers.js';
 import { rallyTarget } from '../sim/rallyPoints.js';
 import { Camera, tileOfWorld } from './camera.js';
 import { SpriteCache } from './sprites.js';
-import { groundTileSpec, groundBlendSpec, waterTileSpec, shoreSpec, roadSpec, plazaSpec, bridgeSpec, bridgeFootSpec, lowBridgeSpec, rubbleSpec, treesSpec, rocksSpec, aqueductSpec, BLEND_RANK, roadblockSpec } from './terrainArt.js';
+import { groundTileSpec, groundBlendSpec, waterTileSpec, shoreSpec, roadSpec, plazaSpec, bridgeSpec, bridgeFootSpec, lowBridgeSpec, rubbleSpec, treesSpec, rocksSpec, aqueductSpec, BLEND_RANK, roadblockSpec, BRIDGE_DECK_Z } from './terrainArt.js';
 import { bridgeLook, footLook, bridgeFeet, deckLift, mastClip } from './bridgeProfile.js';
 import { buildingSpec, artState, drawWarehouseStock, drawGranaryStock, shadowLength, flagsFor, templeAltar, FARM_BARE } from './buildingArt.js';
 import { drawFlag, drawShoppers, drawCrowd, drawAltarFlame, drawMapGate, GATE_H, drawNoRoadSign, drawSickSign, NO_ROAD_SIGN_R } from './liveArt.js';
@@ -424,6 +424,25 @@ export function walkerWorld(w, alpha, t = 0, W = 0, H = 0) {
   const fy = w.y + (w.ty - w.y) * p + 0.5;
   const [vx, vy] = toView(fx, fy, t, W, H);
   return { fx, fy, wx: (vx - vy) * HALF_W, wy: (vx + vy) * HALF_H, d: vx + vy };
+}
+
+/**
+ * A cheap yes-or-no ahead of walkerWorld and bridgeSpan: could walker `w`
+ * land inside the box x0..x1, y0..y1 (world px)? False only when it surely
+ * cannot, so the caller skips the exact placement for the thousands of
+ * walkers far off screen. From its tile's middle the walker is at most
+ * |dx| + |dy| tiles off (a map tile moves a world point by at most HALF_W
+ * across and HALF_H down, whatever the view turn), and a bridge's deck
+ * lifts it by at most BRIDGE_DECK_Z px (bridgeSpan only ever lifts).
+ */
+export function walkerMayShow(w, t, W, H, x0, x1, y0, y1) {
+  const [vx, vy] = toView(w.x + 0.5, w.y + 0.5, t, W, H);
+  const steps = Math.abs(w.tx - w.x) + Math.abs(w.ty - w.y);
+  const mx = steps * HALF_W;
+  const my = steps * HALF_H;
+  const gx = (vx - vy) * HALF_W;
+  const gy = (vx + vy) * HALF_H;
+  return !(gx + mx < x0 || gx - mx > x1 || gy + my < y0 || gy - my - BRIDGE_DECK_Z > y1);
 }
 
 /** A sprite pixel this opaque or more hides what was drawn under it (its soft contact shadows do not). */
@@ -1175,6 +1194,7 @@ export class Renderer {
     const w3 = !!be.drawsWalkers;
     for (const w of game.walkers.values()) {
       if (overlayOn && ov.walkers && !ov.walkers.includes(w.type)) continue;
+      if (!walkerMayShow(w, vt, map.w, map.h, x0w, x1w, y0w, vr.y + vr.h + 30)) continue;
       const { fx, fy, wx, wy: groundY, d: fd } = walkerWorld(w, alpha, vt, map.w, map.h);
       const span = bridgeSpan(map, fx, fy, w.kind === 'ship', vt);
       const wy = groundY - span.lift;
