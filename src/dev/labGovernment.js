@@ -46,10 +46,10 @@ const HALF = (kind) => BUILDINGS[kind].size * 2;
 
 const INFO = `<button class="close" type="button" aria-label="Close">Close</button>
 <h2>The senate house and the governor's residences</h2>
-<p><b>The senate house</b> (<i>curia</i>): after the Curia Julia in the Forum Romanum (a tall brick hall, its front stuccoed and scored to
-look like marble, three windows high under the gable, bronze doors, steps up; Octavian's coins show a Victory on a globe at the top of
-its gable) and the town curiae of the provinces, as Sabratha's on its podium behind a portico. Here a porch of six Corinthian columns cut
-CVRIA, a tablet S·P·Q·R over the bronze doors, the gilt Victory on the gable, honorary statues at the foot of the steps. In session the
+<p><b>The senate house</b> (<i>curia</i>): as the Republic had it, after the Curia Hostilia in the Forum Romanum before Sulla's rebuilding
+and the council halls of the Latin colonies, as Cosa's: a plain hall of tufa, stuccoed and painted, with a porch dressed as an Etrusco-Italic
+temple. Here four Tuscan columns under a low tiled gable, its eaves and edges hung with painted terracotta plaques and a disc on the
+ridge, a tablet S·P·Q·R over the studded timber doors, honorary statues at the foot of the steps. In session the
 doors stand open, senators in the toga with the broad purple stripe come up the steps, a magistrate's lictors wait with the fasces.</p>
 <p><b>The governor's residences</b>: a provincial governor lived in the <i>praetorium</i> of his capital (Herod's palace on the
 promontory at Caesarea, where Pilate lived; the praetorium at Cologne by the Rhine; the great palace at Fishbourne). <b>The house</b> is
