@@ -54,10 +54,10 @@ him with an iron razor; a basin and towels; inside, a mirror of polished bronze,
 instruments of the House of the Surgeon at Pompeii (scalpels, probes, forceps, cupping vessels) on a cloth, remedies ground in a mortar
 and kept in pots (Celsus), a brazier for the cautery. The doctor talks with a patient while his assistant grinds a remedy; outside, the staff of Asclepius with its
 serpent, herbs in pots, MEDICVS over the door.</p>
-<p><b>The baths</b> (<i>balneum</i>): a neighbourhood bath after Pompeii's Stabian, Forum and Sarno baths and Vitruvius 5.10: a
-vaulted caldarium in brick with its window to the afternoon sun, a round room under a cone of a dome open at the top, a portico, a
+<p><b>The baths</b> (<i>balneum</i>): a neighbourhood bath as a town of about 300 BC had it, the Greek bathhouse (Gela, Olympia, Eretria, the oldest Stabian baths): a
+warm room under a timber roof of tiles with a shuttered window, a round tholos of hip-baths under a cone open at the top, a portico, a
 palaestra where bathers talk, rest and splash at the labrum (Seneca's Letter 56), a cold pool with a bronze spout; behind, the furnace
-(praefurnium), its stoker and firewood, the boiler, a flue, the pilae of the hypocaust through a hole in the wall. With piped water and
+(praefurnium), its stoker and firewood, the bronze boilers over its arched mouth, a terracotta flue, braziers for warmth (no hypocaust yet). With piped water and
 staff the fire is in and smoke rises; with water and no staff the pool lies still and the doors are shut; without water the pool is
 dry. In a hard frost the pool freezes and the working baths steam.</p>
 <p><b>The hospital</b> (<i>valetudinarium</i>): the plan of the army's hospitals (Inchtuthil, Novaesium, Vetera): small wards round a
