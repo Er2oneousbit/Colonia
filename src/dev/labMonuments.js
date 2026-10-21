@@ -36,14 +36,14 @@ const camp = (x, y, name, note, o = {}) => ({ type: 'work_camp', x, y, name, not
 /** What stands where (map tiles, its top-left), its label. */
 const ITEMS = [
   bas(0, 0, 0, 'Hall of Justice: foundations begun', 'The plan set out with stakes and cords, the trenches dug'),
-  bas(6, 0, 3, 'Foundations, three quarters', 'The podium\'s concrete core rising in its shuttering'),
-  bas(12, 0, 5, 'Walls and piers, a quarter', 'Brick courses, putlog holes, column drums stacked'),
-  bas(18, 0, 6, 'Walls and piers, half', 'The scaffolds a lift over the courses, the apse arch on its centering'),
+  bas(6, 0, 3, 'Foundations, three quarters', 'The podium\'s tufa courses rising round the rubble core'),
+  bas(12, 0, 5, 'Walls and piers, a quarter', 'Tufa ashlar courses, column drums stacked'),
+  bas(18, 0, 6, 'Walls and piers, half', 'The scaffolds a lift over the courses, the crane lifting the blocks'),
   bas(24, 0, 7, 'Walls and piers, three quarters', 'The columns stand fluted, the clerestory begun'),
   bas(0, 6, 9, 'The roof, a quarter', 'The clerestory topped out, the first trusses'),
   bas(6, 6, 11, 'The roof, three quarters', 'Trusses along the nave, the aisles tiled'),
-  bas(12, 6, 12, 'The tribunal begun', 'The apse\'s half dome on its centering'),
-  bas(18, 6, 14, 'The tribunal, half', 'The half dome cast, the tribunal raised'),
+  bas(12, 6, 12, 'The tribunal begun', 'The tribunal\'s platform of tufa rising course by course'),
+  bas(18, 6, 14, 'The tribunal, half', 'The platform with its steps and timber rail'),
   bas(24, 6, 16, 'Hall of Justice (basilica)', 'Finished and sitting: advocates, litigants, the money changer'),
   bas(0, 12, 16, 'Hall of Justice', 'Finished, closed: too few hands', { shut: true }),
   bas(6, 12, 16, 'Hall of Justice', 'Sacked by raiders: doors broken, rubble', { sacked: true }),
@@ -78,9 +78,9 @@ legs and a windlass; timber centering under arches and domes; marble, timber, br
 <p><b>The work camp</b> (<i>Castra Operarum</i>): the contractor's yard by the works: the masons' and the carpenters' sheds, the
 crews' goatskin tents (the army's papiliones), the clerk's hut with the plans on his table and the groma, the kitchen fire, the
 water jars and the stores, the ox wagons parked.</p>
-<p><b>The Hall of Justice</b> (<i>basilica</i>): after the Basilicas Aemilia and Julia, Pompeii's basilica and Vitruvius's at Fano:
-a long hall, the nave between aisles on columns, a clerestory over the aisles' roofs, a portico on the forum side, the tribunal in
-an apse opposite it; raised stage by stage from its podium to its walls and columns, its roof, its tribunal.</p>
+<p><b>The Hall of Justice</b> (<i>basilica</i>): as the Basilicas Porcia and Aemilia were first built, after Pompeii's basilica and Vitruvius's at Fano:
+a long hall of tufa, the nave between aisles on columns, a clerestory over the aisles' roofs, a portico on the forum side, the tribunal a
+raised rectangular platform at the back; raised stage by stage from its podium to its walls and columns, its roof, its tribunal.</p>
 <h3>Controls</h3>
 <ul>
 <li>Shift+W: this scene. L: the level of detail. V: close on the next item (orbit), and back. 1 to 4: day, golden hour,
