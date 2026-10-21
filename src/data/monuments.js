@@ -183,13 +183,13 @@ export const MONUMENT_TYPES = Object.freeze({
     workers: 20, labor: 'industry', upkeep: 40, store: Object.freeze({ good: 'food', cap: 200, perYear: 1200 }),
     hp: Object.freeze([2400, 4000]), needs: 'land2', fromStep: 6,
   }),
-  // The Baths of Agrippa, later Caracalla's and Diocletian's.
+  // The great bath as the Greek cities of Italy and Sicily had it before the Roman bath (v0.30.9): round rooms of hip-baths and a tub hall round a palaestra.
   thermae: Object.freeze({
     place: 1200,
     stages: Object.freeze([
-      S('Fundamenta et hypocausta', 'Foundations and underfloor heating', { clay: 1400, timber: 400 }, 70, 600),
-      S('Caldarium et tepidarium', 'The hot and warm halls', { clay: 1200, iron: 400, timber: 400 }, 90, 600),
-      S('Frigidarium et natatio', 'The cold hall and the pool', { marble: 1600, clay: 400 }, 90, 600),
+      S('Fundamenta et piscina', 'Foundations and the pool\'s pit', { clay: 1400, timber: 400 }, 70, 600),
+      S('Muri et tholi', 'The ashlar walls and the round rooms', { clay: 1200, iron: 400, timber: 400 }, 90, 600),
+      S('Tecta', 'The trusses, the cones and the tiles', { marble: 1600, clay: 400 }, 90, 600),
       S('Palaestra', 'The exercise court and its fittings', { marble: 600, oil: 400, linen: 400 }, 40, 600),
     ]),
     workers: 40, labor: 'healthEdu', upkeep: 80, store: Object.freeze({ good: 'timber', cap: 300, perYear: 300 }),
@@ -202,7 +202,7 @@ export const MONUMENT_TYPES = Object.freeze({
       S('Fundamenta', 'Foundations', { clay: 1000, timber: 400 }, 60, 500),
       S('Muri', 'Walls and piers', { clay: 1200, marble: 400 }, 80, 500),
       S('Tectum', 'The great timber roof over the nave', { timber: 1400, iron: 300 }, 90, 500),
-      S('Tribunal', 'The magistrates\' apse and its fittings', { marble: 800, furniture: 400 }, 40, 500),
+      S('Tribunal', 'The magistrates\' tribunal and its fittings', { marble: 800, furniture: 400 }, 40, 500),
     ]),
     workers: 30, labor: 'govReligion', upkeep: 50, store: null,
     hp: Object.freeze([2400, 4000]), needs: null, fromStep: 6,
