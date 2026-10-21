@@ -1,26 +1,34 @@
 /**
  * models/warehouse.js
  * ----------------------------------------------------------------------------
- * The warehouse (Horreum) of the 3D look, 3 x 3 tiles (12 m square), from
- * the storehouses of Ostia and Rome rather than from the 2D sprite:
+ * The warehouse (Horreum) of the 3D look, 3 x 3 tiles (12 m square), as a
+ * Republican storehouse of about 300 BC, not the brick horrea of the Empire
+ * (fired-brick facing came with the Empire, so none is used here):
  *
- *   - Ostia's Horrea Epagathiana et Epaphroditiana (about AD 145): a
- *     brick-faced block whose only way in from the street is a monumental
- *     gateway, its door framed by two engaged brick columns carrying an
- *     entablature and a pediment, the owners' names on a marble plaque
- *     over it; behind it a court ringed by storerooms (cellae) opening on
- *     it through arched doorways. Ostia's other horrea (Hortensius's, the
- *     Grandi Horrea) and Rome's commercial horrea (Galbana, Agrippiana)
- *     repeat the plan: rooms round a court, few and high slit windows,
- *     thick walls, one gate that could be locked.
- *   - Here: outer walls of brick (opus testaceum) on a travertine plinth,
- *     brick pilasters at the corners and along the facades, a moulded
- *     brick cornice; the gateway on the front with its columns, pediment
- *     and plaque, its two doors of studded timber; four ranges of rooms
- *     round a paved court, their arched doorways dark, their tiled roofs
- *     sloping into the court (so the court and its goods show over the
- *     walls from the game's camera, and the rain runs to the court's
- *     gutter).
+ *   - The plan comes from the storehouses of the Mediterranean ports that
+ *     Rome traded through: the Hellenistic warehouses of Delos, ranges of
+ *     rooms round a paved court; and Rome's own Porticus Aemilia (193 BC),
+ *     the great warehouse by the Tiber. Common to them: thick walls, few
+ *     high slit windows, one gate that could be locked.
+ *   - The walls come from the building habit of Latium and Campania: a
+ *     plinth of tufa ashlar (opus quadratum, the soft grey-yellow volcanic
+ *     stone of the Servian Wall) with the street walls above of tufa
+ *     blocks, paler and smaller, and the court walls of rubble set in
+ *     mortar and plastered (the early opus incertum of Pompeii and Cosa),
+ *     framed in timber where a store needs it: posts at the corners and
+ *     along the walls, a wall plate under the eaves, lintels over the
+ *     openings (Vitruvius notes timber as the binder of such walls).
+ *   - The gateway: two tufa piers rising above the walls, a stout timber
+ *     lintel between them over the gate, a small tiled hood on timber
+ *     brackets over the doors, and above it a terracotta plaque painted
+ *     with the owners' names, as Etruscan and Latin buildings of the time
+ *     were dressed in painted terracotta. Two leaves of studded timber.
+ *   - The roofs are timber-trussed (the wall plates and the ends of the
+ *     rafters show at the court) under tegulae and imbrices, with terracotta
+ *     antefixes along the eaves toward the street (as on the temples of
+ *     Satricum and Veii); the four ranges' roofs slope into the court, so
+ *     the court and its goods show over the walls from the game's camera
+ *     and the rain runs to the court's gutter.
  *   - In the court, eight bays of timber dunnage (the boards goods were
  *     stacked on to keep them off the wet floor), 2 m square, four loads
  *     to a bay: 32 cart loads, the game's 3200 units. What is stored is
@@ -38,29 +46,30 @@
  * ----------------------------------------------------------------------------
  */
 
-import { Group, Mesh, Matrix4, BufferGeometry, Float32BufferAttribute, BoxGeometry } from 'three';
+import { Group, Mesh, Matrix4, BoxGeometry } from 'three';
 import { revolve, profileOf, merge, tintGeometry, boxUV, triangles, tube, D } from '../shapes.js';
 import { material } from '../materials.js';
-import { slab, paving, tiledRoof, wallWithOpenings, lantern, lanternPane } from './masonry.js';
+import { slab, paving, tiledRoof, wallWithOpenings, lantern, lanternPane, inscription, antefixAt } from './masonry.js';
 import { WARE_GOODS } from './wares.js';
 import { artRng } from '../texgen.js';
 
 /** The warehouse's key measures (metres): tests and the lab read them. */
 export const WAREHOUSE = Object.freeze({
   half: 6,
-  face: 5.72, // the outer walls' faces (what stands out of them stays inside the footprint)
+  face: 5.6, // the outer walls' faces (what stands out of them stays inside the footprint)
   wall: 0.4,
-  // The court is wide and the ranges low, one storey (Ostia's rose two or three): from the game's
+  // The court is wide and the ranges low, one storey: from the game's
   // camera, 30 degrees down, a wall hides the ground for 1.7 times its height behind it, and the
   // court and its goods must show at every turn.
   court: 3.75, // the court's half width
   inner: 0.35, // the inner walls' thickness
   wallTop: 2.35,
   innerEave: 1.9,
+  plinth: 0.84, // two courses of tufa ashlar
   gate: Object.freeze({ w: 2.0, h: 1.95 }),
   bay: 2.4, // between the bays' middles
   /** The lantern at the gate (x, y, z): the game's night lights read it. */
-  lamp: Object.freeze([1.45, 1.45, 5.92]),
+  lamp: Object.freeze([2.25, 1.45, 5.9]),
 });
 
 /** Loads of 100 units: a warehouse holds 32 (config.js WAREHOUSE_CAPACITY 3200). */
@@ -169,102 +178,133 @@ export function warehouseShows(when, state) {
   return when === state;
 }
 
+
 // ---------------------------------------------------------------------------
 // The building
 // ---------------------------------------------------------------------------
 
+/** Stacked courses of tufa ashlar (opus quadratum) from y0 to y1, centred on (cx, cz), each a little narrower than the one below. */
+function ashlar(cx, cz, w, d, y0, y1, seed, lod) {
+  const out = [];
+  const n = Math.max(1, Math.round((y1 - y0) / 0.42));
+  const ch = (y1 - y0) / n;
+  for (let c = 0; c < n; c++) {
+    const shrink = lod === 2 ? 0 : (c % 2) * 0.05;
+    out.push(slab(w - shrink, ch - 0.008, d - shrink, { bevel: 0.012, seed: seed + c * 7, wobble: 0.002, tone: 0.05, grime: c ? 0.05 : 0.3 }).translate(cx, y0 + c * ch, cz));
+  }
+  return out;
+}
+
+/** A geometry's vertex colours scaled by `k` (clamped to white). */
+function lighten(g, k) {
+  const c = g.attributes.color;
+  for (let i = 0; i < c.array.length; i++) c.array[i] = Math.min(1, c.array[i] * k);
+  return g;
+}
+
 /**
  * One side's outer wall (side 0: the front, its face at z = +face), with
- * its openings (the gate on the front, slit windows high up), its plinth,
- * pilasters and cornice. Built for side 0 and turned by the caller.
+ * its openings (the gate on the front, slit windows high up), its tufa
+ * plinth, timber posts and wall plate, the tile edge and its antefixes.
+ * Built for side 0 and turned by the caller.
  */
 function outerWall(sideIndex, lod, seed) {
   const W = WAREHOUSE;
-  const out = { brick: [], trav: [] };
+  const out = { tufa: [], timber: [], tiles: [], plaster: [] };
   const len = 2 * W.face;
   const front = sideIndex === 0;
   const openings = [];
   if (front) openings.push({ x: 0, w: W.gate.w, h: W.gate.h });
   // Slit windows for air, high up where no thief reaches: two each side of the middle (the gate's flanks on the front).
-  for (const x of front ? [-3.6, 3.6] : [-3.6, -1.2, 1.2, 3.6]) openings.push({ x, w: 0.22, h: 0.5, y: 1.2 });
+  for (const x of front ? [-3.6, 3.6] : [-3.6, -1.2, 1.2, 3.6]) openings.push({ x, w: 0.22, h: 0.5, y: 1.25 });
   const wall = wallWithOpenings(len, W.wallTop, W.wall, openings, { lod });
-  out.brick.push(wall.translate(0, 0, W.face));
-  // The plinth: a course of travertine along the foot, outside.
+  // The wall above the plinth is plastered as the homes are (the surface's red dado shows as a band over
+  // the plinth): bare tufa stays at the plinth, the quoins and the gate's piers, where the stone would
+  // show. Bare blue-grey tufa all over read as a bunker (v0.30.9).
+  out.plaster.push(lighten(wall, 4).translate(0, 0, W.face)); // (the blocks' grey vertex tint would dull the plaster: whitened)
+  // The plinth: two courses of tufa blocks along the foot, outside, the joints of the upper one broken over the lower.
   const rnd = artRng(seed);
-  let x = -W.face;
-  while (x < W.face - 0.01) {
-    const xb = Math.min(W.face, x + 0.8 + rnd() * 0.6);
-    const gap = front && xb > -W.gate.w / 2 && x < W.gate.w / 2;
-    if (!gap) out.trav.push(slab(xb - x - 0.006, 0.42, 0.1, { bevel: 0.01, seed: seed + x * 13, wobble: 0.002, tone: 0.05, grime: 0.4 }).translate((x + xb) / 2, 0, W.face + 0.04));
-    x = gap ? Math.max(xb, W.gate.w / 2) : xb;
+  for (let c = 0; c < 2; c++) {
+    let x = -W.face + (c ? 0.5 : 0);
+    while (x < W.face - 0.01) {
+      const step = lod === 2 ? 2.4 : 0.8 + rnd() * 0.6;
+      const xb = Math.min(W.face, x + step);
+      const gap = front && xb > -W.gate.w / 2 && x < W.gate.w / 2;
+      if (!gap) out.tufa.push(slab(xb - x - 0.006, 0.42, 0.12, { bevel: 0.01, seed: seed + x * 13 + c, wobble: 0.002, tone: 0.05, grime: c ? 0.1 : 0.4 }).translate((x + xb) / 2, c * 0.42, W.face + 0.05));
+      x = gap ? Math.max(xb, W.gate.w / 2) : xb;
+    }
   }
-  // Pilasters: at the corners and at a third of the way along, brick on travertine bases, travertine capitals.
-  for (const px of [-W.face + 0.28, -1.95, 1.95, W.face - 0.28]) {
-    if (front && Math.abs(px) < 2) continue;
-    out.brick.push(slab(0.52, W.wallTop - 0.62, 0.1, { bevel: 0.006, seed: seed + px * 7, wobble: 0, tone: 0, grime: 0 }).translate(px, 0.42, W.face + 0.05));
-    out.trav.push(slab(0.62, 0.2, 0.16, { bevel: 0.01, seed: seed + px * 9, wobble: 0.001, tone: 0.03, grime: 0.2 }).translate(px, 0.42, W.face + 0.08));
-    out.trav.push(slab(0.66, 0.14, 0.18, { bevel: 0.01, seed: seed + px * 11, wobble: 0.001, tone: 0.03, grime: 0 }).translate(px, W.wallTop - 0.2, W.face + 0.09));
-  }
-  // The cornice: two corbelled courses of brick and a travertine coping.
-  // (Each side's a hair higher than the last: where two meet over a corner their tops never fight.)
   const lift = sideIndex * 0.003;
-  out.brick.push(slab(len + 0.1, 0.12, W.wall + 0.12, { bevel: 0.004, seed: seed + 1, wobble: 0, tone: 0, grime: 0 }).translate(0, W.wallTop - 0.06 + lift, W.face - W.wall / 2 + 0.06));
-  out.trav.push(slab(len + 0.2, 0.1, 0.32, { bevel: 0.012, seed: seed + 2, wobble: 0.001, tone: 0.03, grime: 0 }).translate(0, W.wallTop + 0.06 + lift, W.face - 0.08));
-  // The window frames: travertine sills and lintels.
+  // Timber posts standing on the plinth: one at the corner (the four sides turn it to every corner) and a stud
+  // along each side wall between the windows, which the plaster is held by.
+  const postH = W.wallTop - 0.2 - W.plinth;
+  out.timber.push(slab(0.27, postH, 0.27, { bevel: 0.012, seed: seed + 3, wobble: 0.002, tone: 0.1, grime: 0.2 }).translate(W.face - 0.11, W.plinth, W.face - 0.11));
+  if (lod < 2 && !front) {
+    for (const px of [-2.4, 0, 2.4]) out.timber.push(slab(0.2, postH, 0.12, { bevel: 0.01, seed: seed + px * 5, wobble: 0.002, tone: 0.1, grime: 0.2 }).translate(px, W.plinth, W.face + 0.03));
+  }
+  // The wall plate under the eaves, standing out of the face on the rafters' ends.
+  out.timber.push(slab(len, 0.16, 0.3, { bevel: 0.01, seed: seed + 1, wobble: 0.002, tone: 0.1, grime: 0 }).translate(0, W.wallTop - 0.28 + lift, W.face - 0.02));
+  // The tile edge on the wall's top and the antefixes along it, facing the street.
+  out.tiles.push(slab(len, 0.1, 0.34, { bevel: 0.01, seed: seed + 2, wobble: 0.002, tone: 0.06, grime: 0 }).translate(0, W.wallTop - 0.12 + lift, W.face - 0.04));
+  if (lod < 2) {
+    const ar = artRng(seed + 5);
+    const step = lod ? 1.6 : 0.8;
+    for (let x = -W.face + 0.5; x < W.face - 0.3; x += step) {
+      // (Not by the gate's tufa piers.)
+      if (front && Math.abs(x) < 2.2) continue;
+      out.tiles.push(antefixAt([x, W.wallTop - 0.02 + lift, W.face + 0.03], [0, 0, 1], ar));
+    }
+  }
+  // The windows: a timber lintel over each slit, and a shutter, shut on every other one and hanging open on the rest.
+  let k = 0;
   for (const o of openings) {
     if (o.y === undefined) continue;
-    out.trav.push(slab(o.w + 0.18, 0.08, 0.14, { bevel: 0.008, seed: seed + o.x * 5, wobble: 0.001, tone: 0.03, grime: 0.2 }).translate(o.x, o.y - 0.08, W.face + 0.03));
-    out.trav.push(slab(o.w + 0.22, 0.12, 0.14, { bevel: 0.008, seed: seed + o.x * 3, wobble: 0.001, tone: 0.03, grime: 0 }).translate(o.x, o.y + o.h, W.face + 0.03));
+    out.timber.push(slab(o.w + 0.3, 0.1, 0.16, { bevel: 0.008, seed: seed + o.x * 3, wobble: 0.001, tone: 0.1, grime: 0 }).translate(o.x, o.y + o.h, W.face + 0.04));
+    if (lod === 2) continue;
+    if (k++ % 2) {
+      out.timber.push(slab(o.w + 0.06, o.h + 0.04, 0.03, { bevel: 0.004, seed: seed + o.x * 7, wobble: 0.001, tone: 0.12, grime: 0.1 }).translate(o.x, o.y - 0.02, W.face + 0.03));
+    } else {
+      const leaf = slab(o.w, o.h, 0.03, { bevel: 0.004, seed: seed + o.x * 9, wobble: 0.001, tone: 0.12, grime: 0.1 }).translate(o.w / 2, 0, 0);
+      leaf.rotateY(-1.25);
+      out.timber.push(leaf.translate(o.x - o.w / 2, o.y, W.face + 0.03));
+    }
   }
   return out;
 }
 
-/** The gateway: engaged columns, entablature, pediment, plaque, threshold, the doors open and shut. */
+/** The gateway: tufa piers, timber lintel, the hood, the plaque, threshold, the doors open and shut. */
 function gateway(lod, seed) {
   const W = WAREHOUSE;
-  const out = { brick: [], trav: [], marble: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], pane: [] };
+  const out = { tufa: [], timber: [], tiles: [], cream: [], letters: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], pane: [] };
   const z = W.face;
   const gw = W.gate.w;
   const gh = W.gate.h;
-  // Engaged brick columns on travertine bases, brick capitals, either side of the door.
+  const top = 2.95;
+  const pz = z - 0.05; // the piers' middle: they stand 0.1 proud of the wall (and half inside it)
+  const front = pz + 0.15;
+  // Two piers of ashlar either side of the door, rising above the wall's top, and the attic between them over the lintel.
+  for (const s of [-1, 1]) out.tufa.push(...ashlar(s * (gw / 2 + 0.37), pz, 0.74, 0.3, 0, top, seed + s, lod));
+  out.tufa.push(...ashlar(0, pz, gw + 0.02, 0.3, gh + 0.18, top, seed + 11, lod));
+  out.tufa.push(slab(gw + 1.7, 0.1, 0.4, { bevel: 0.014, seed: seed + 12, wobble: 0.001, tone: 0.04, grime: 0 }).translate(0, top, pz));
+  // The timber lintel across the door, its ends bedded in the piers.
+  out.timber.push(slab(gw + 0.5, 0.2, 0.3, { bevel: 0.012, seed: seed + 3, wobble: 0.002, tone: 0.1, grime: 0.1 }).translate(0, gh - 0.02, pz + 0.01));
+  // The hood over the doors: a pent of tiles on two timber brackets, from the attic's face out over the lintel.
+  const hy = gh + 0.45;
+  const hd = 0.26;
+  const hw = gw / 2;
+  const q = [[-hw, hy - 0.2, front + hd], [hw, hy - 0.2, front + hd], [hw, hy, front], [-hw, hy, front]];
+  out.tiles.push(...tiledRoof(q, { pitch: 0.28, lod, seed: seed + 5, imbrexR: 0.04 }).tiles);
   for (const s of [-1, 1]) {
-    const x = s * (gw / 2 + 0.42);
-    out.trav.push(slab(0.6, 0.42, 0.22, { bevel: 0.012, seed: seed + s, wobble: 0.001, tone: 0.03, grime: 0.4 }).translate(x, 0, z + 0.06));
-    const shaft = revolve(profileOf([[0.22, 0.42], [0.24, 0.48], [0.22, 0.54], [0.205, gh + 0.1], [0.24, gh + 0.16], [0.26, gh + 0.3], [0, gh + 0.3]]), { segments: lod === 2 ? 6 : lod ? 10 : 18, metres: 0.96 });
-    // (Half a column stands proud of the wall: the back half is inside it.)
-    out.brick.push(shaft.translate(x, 0, z - 0.04));
+    const bx = s * 0.78;
+    out.timber.push(slab(0.1, 0.1, hd - 0.02, { bevel: 0.008, seed: seed + 30 + s, wobble: 0.001, tone: 0.1, grime: 0 }).translate(bx, hy - 0.32, front + (hd - 0.02) / 2));
+    if (lod < 2) out.timber.push(tube([[bx, gh + 0.2, front + 0.01], [bx, hy - 0.22, front + hd - 0.03]], 0.035, { radial: 4, segments: 1, around: 0.3 }));
   }
-  // The flat lintel over the door (travertine), the entablature over the columns, the pediment.
-  const eY = gh + 0.3;
-  const ew = gw + 1.5;
-  out.trav.push(slab(gw + 0.3, 0.3, 0.12, { bevel: 0.01, seed: seed + 3, wobble: 0.001, tone: 0.03, grime: 0 }).translate(0, gh, z + 0.03));
-  out.brick.push(slab(ew, 0.42, 0.42, { bevel: 0.006, seed: seed + 4, wobble: 0, tone: 0, grime: 0 }).translate(0, eY, z + 0.04));
-  out.trav.push(slab(ew + 0.2, 0.12, 0.46, { bevel: 0.012, seed: seed + 5, wobble: 0.001, tone: 0.03, grime: 0 }).translate(0, eY + 0.42, z + 0.04));
-  // The owners' plaque: white marble set in the entablature's face.
-  out.marble.push(slab(1.7, 0.3, 0.03, { bevel: 0.004, seed: seed + 6, wobble: 0, tone: 0, grime: 0 }).translate(0, eY + 0.06, z + 0.26));
-  // The pediment: a brick tympanum, travertine raking cornices.
-  const pH = 0.95;
-  const pw = ew / 2 + 0.1;
-  const py = eY + 0.54;
-  const tri = new BufferGeometry();
-  const zf = z + 0.16;
-  const zb = z - 0.1;
-  tri.setAttribute('position', new Float32BufferAttribute([
-    -pw, py, zf, pw, py, zf, 0, py + pH, zf,
-    pw, py, zb, -pw, py, zb, 0, py + pH, zb,
-  ], 3));
-  tri.computeVertexNormals();
-  out.brick.push(tintGeometry(boxUV(tri)));
-  for (const s of [-1, 1]) {
-    const len = Math.hypot(pw + 0.1, pH);
-    const g = slab(len, 0.1, 0.36, { bevel: 0.01, seed: seed + 7 + s, wobble: 0, tone: 0.03, grime: 0 });
-    // Built along x from its foot at the corner, then tipped up toward the apex.
-    g.translate((-s * len) / 2, 0, 0);
-    g.rotateZ(-s * Math.atan2(pH, pw + 0.1));
-    out.trav.push(g.translate(s * (pw + 0.1), py - 0.02, z + 0.06));
-  }
-  // The threshold with its pivot holes, travertine.
-  out.trav.push(slab(gw + 0.2, 0.06, W.wall + 0.2, { bevel: 0.01, seed: seed + 9, wobble: 0.001, tone: 0.03, grime: 0.2 }).translate(0, 0, z - W.wall / 2 + 0.05));
+  // The owners' plaque: painted terracotta set in the attic's face, their names in red.
+  const py = gh + 0.7;
+  out.cream.push(slab(gw - 0.04, 0.32, 0.04, { bevel: 0.006, seed: seed + 6, wobble: 0, tone: 0.03, grime: 0 }).translate(0, py, front));
+  if (lod === 0) out.letters.push(...inscription('HORREA·CAELI', py + 0.08, front + 0.026, 0.16));
+  // The threshold, a sill of tufa.
+  out.tufa.push(slab(gw + 0.2, 0.06, W.wall + 0.2, { bevel: 0.01, seed: seed + 9, wobble: 0.001, tone: 0.05, grime: 0.2 }).translate(0, 0, z - W.wall / 2 + 0.05));
   // The doors: two leaves of planks with iron straps and studs; open, swung in against the passage's walls.
   const lw = gw / 2 - 0.01;
   for (const s of [-1, 1]) {
@@ -276,6 +316,10 @@ function gateway(lod, seed) {
         // Vertical planks shaded apart; three iron straps across.
         for (let k = 1; k < 4; k++) wood.push(slab(0.012, gh - 0.1, 0.005, { bevel: 0.001, seed: seed + k, wobble: 0, tone: 0, grime: 0 }).translate((lw * k) / 4, 0.03, 0.042));
         for (const y of [0.35, gh / 2, gh - 0.45]) iron.push(slab(lw - 0.04, 0.07, 0.012, { bevel: 0.002, seed: seed + y * 10, wobble: 0, tone: 0, grime: 0 }).translate(lw / 2, y, 0.046));
+      }
+      if (lod === 0) {
+        // Studs in rows (the doors of a store were studded against the axe).
+        for (const y of [0.2, 0.6, 1.0, 1.4, 1.75]) for (let k = 0; k < 4; k++) iron.push(slab(0.045, 0.045, 0.02, { bevel: 0.006, seed: seed + y * 7 + k, wobble: 0, tone: 0, grime: 0 }).translate(lw * (0.12 + k * 0.25), y - 0.02, 0.05));
       }
       const turn = (g) => {
         if (s > 0) g.translate(-lw, 0, 0);
@@ -299,23 +343,35 @@ function gateway(lod, seed) {
 
 /**
  * The court's side of each range (side 0: the front range's, its face at
- * z = +court): a brick wall with arched doorways into the rooms (and the
- * passage from the gate on the front), the dark rooms behind it.
+ * z = +court): a plastered wall with timber-lintelled doorways into the
+ * rooms (and the passage from the gate on the front), the wall plate and
+ * the rafters' ends over it, the dark rooms behind.
  */
 function innerSide(sideIndex, lod, seed) {
   const W = WAREHOUSE;
-  const out = { brick: [], trav: [], dark: [] };
+  const out = { plaster: [], tufa: [], timber: [], dark: [] };
   const front = sideIndex === 0;
   const len = 2 * (W.court + W.inner);
+  const door = 1.1;
   const openings = front
     ? [{ x: 0, w: W.gate.w, h: W.gate.h - 0.3 }]
-    : [{ x: -1.5, w: 1.3, h: 1.0, arch: true }, { x: 1.5, w: 1.3, h: 1.0, arch: true }];
+    : [{ x: -1.5, w: 1.3, h: door }, { x: 1.5, w: 1.3, h: door }];
   // (Its face toward the court at z = court: the wall is built from z = 0 back, so turned half round.)
   const wall = wallWithOpenings(len, W.innerEave, W.inner, openings, { lod });
   wall.rotateY(Math.PI);
-  out.brick.push(wall.translate(0, 0, W.court));
-  // Travertine thresholds in the doorways.
-  for (const o of openings) out.trav.push(slab(o.w + 0.1, 0.05, W.inner + 0.1, { bevel: 0.008, seed: seed + o.x * 5, wobble: 0.001, tone: 0.03, grime: 0.2 }).translate(o.x, 0, W.court + W.inner / 2));
+  out.plaster.push(wall.translate(0, 0, W.court));
+  // Tufa thresholds in the doorways, a timber lintel over each (and jamb posts on the rooms' doors).
+  for (const o of openings) {
+    out.tufa.push(slab(o.w + 0.1, 0.05, W.inner + 0.1, { bevel: 0.008, seed: seed + o.x * 5, wobble: 0.001, tone: 0.05, grime: 0.2 }).translate(o.x, 0, W.court + W.inner / 2));
+    out.timber.push(slab(o.w + 0.36, 0.14, W.inner + 0.08, { bevel: 0.008, seed: seed + o.x * 3, wobble: 0.001, tone: 0.1, grime: 0 }).translate(o.x, o.h, W.court + W.inner / 2));
+    if (lod < 2 && !front) for (const s of [-1, 1]) out.timber.push(slab(0.13, o.h, 0.13, { bevel: 0.008, seed: seed + o.x + s, wobble: 0.001, tone: 0.1, grime: 0.2 }).translate(o.x + s * (o.w / 2 + 0.065), 0, W.court + 0.05));
+  }
+  // The wall plate along the wall's top, and the rafters' ends reaching over the court under the tiles' edge.
+  const lift = sideIndex * 0.003;
+  out.timber.push(slab(2 * W.court - 0.1, 0.14, 0.22, { bevel: 0.008, seed: seed + 4, wobble: 0.001, tone: 0.1, grime: 0 }).translate(0, W.innerEave - 0.14 + lift, W.court));
+  if (lod < 2) {
+    for (let x = -3.3; x < 3.31; x += 0.55) out.timber.push(slab(0.08, 0.09, 0.28, { bevel: 0.006, seed: seed + x * 11, wobble: 0.001, tone: 0.1, grime: 0 }).translate(x, W.innerEave - 0.12 + lift, W.court - 0.1));
+  }
   // The rooms behind: a dark box seen from inside (the range from the inner wall to the outer).
   const z0 = W.court + W.inner;
   const z1 = W.face - W.wall;
@@ -329,13 +385,13 @@ function innerSide(sideIndex, lod, seed) {
   box.translate(0, (W.innerEave - 0.05) / 2 + 0.01, (z0 + z1) / 2);
   box.computeVertexNormals();
   if (front) {
-    // The passage from the gate to the court is open: its walls lined in brick, the rooms either side dark.
+    // The passage from the gate to the court is open: its walls lined in tufa, the rooms either side dark.
     for (const s of [-1, 1]) {
-      const pw = slab(0.3, W.gate.h, z1 - z0 + 0.02, { bevel: 0.004, seed: seed + s, wobble: 0, tone: 0, grime: 0.3 });
-      out.brick.push(pw.translate(s * (W.gate.w / 2 + 0.15), 0, (z0 + z1) / 2));
+      const pw = slab(0.3, W.gate.h, z1 - z0 + 0.02, { bevel: 0.004, seed: seed + s, wobble: 0, tone: 0.04, grime: 0.3 });
+      out.tufa.push(pw.translate(s * (W.gate.w / 2 + 0.15), 0, (z0 + z1) / 2));
     }
     // Paving through the passage.
-    out.trav.push(...paving(-W.gate.w / 2, W.gate.w / 2, z0 - 0.02, z1 + 0.02, 0.05, seed + 9, { rowW: 0.55, minL: 0.5, maxL: 0.9, lod }));
+    out.tufa.push(...paving(-W.gate.w / 2, W.gate.w / 2, z0 - 0.02, z1 + 0.02, 0.05, seed + 9, { rowW: 0.55, minL: 0.5, maxL: 0.9, lod }));
     for (const s of [-1, 1]) {
       const half = new BoxGeometry(W.face - W.wall - W.gate.w / 2 - 0.3, W.innerEave - 0.05, z1 - z0 - 0.02);
       const ix = half.index.array;
@@ -390,7 +446,7 @@ export function buildWarehouse({ lod = 0, seed = 81 } = {}) {
     meshes.push(m);
     return m;
   };
-  const parts = { brick: [], trav: [], marble: [], dark: [], wood: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], tiles: [], pane: [] };
+  const parts = { plaster: [], tufa: [], timber: [], cream: [], letters: [], dark: [], wood: [], woodOpen: [], woodShut: [], iron: [], ironOpen: [], ironShut: [], bronze: [], tiles: [], pane: [] };
   const put = (o, turn = 0) => {
     for (const k of Object.keys(o)) for (const g of o[k]) parts[k].push(turn ? g.rotateY(turn) : g);
   };
@@ -400,13 +456,13 @@ export function buildWarehouse({ lod = 0, seed = 81 } = {}) {
   }
   put(gateway(lod, seed + 7));
   parts.tiles.push(...roof(lod, seed + 9));
-  // The court: travertine flags, a gutter round them under the eaves.
+  // The court: tufa flags, a gutter round them under the eaves.
   const c = W.court;
-  parts.trav.push(...paving(-c, c, -c, c, 0.05, seed + 11, { rowW: 0.75, minL: 0.7, maxL: 1.3, lod, tone: 0.06, grime: 0.1 }));
+  parts.tufa.push(...paving(-c, c, -c, c, 0.05, seed + 11, { rowW: 0.75, minL: 0.7, maxL: 1.3, lod, tone: 0.06, grime: 0.1 }));
   if (lod < 2) {
     for (let s = 0; s < 4; s++) {
       const g = slab(2 * c - 0.2, 0.06, 0.18, { bevel: 0.01, seed: seed + 20 + s, wobble: 0.002, tone: 0.03, grime: 0.5 });
-      parts.trav.push(tintGeometry(g, (x, y) => (y > 0.05 ? 0.6 : 0.8)).translate(0, 0, c - 0.12).rotateY((s * Math.PI) / 2));
+      parts.tufa.push(tintGeometry(g, (x, y) => (y > 0.05 ? 0.6 : 0.8)).translate(0, 0, c - 0.12).rotateY((s * Math.PI) / 2));
     }
   }
   // The bays' dunnage: boards across two bearers, under every bay.
@@ -436,14 +492,17 @@ export function buildWarehouse({ lod = 0, seed = 81 } = {}) {
     parts.iron.push(tube([[0.0, 1.65, sz], [0.0, W.gate.h, sz]], 0.006, { radial: 3, segments: 1, around: 0.3 }));
     parts.bronze.push(revolve(profileOf([[0, 0], [0.05, 0.02], [0.06, 0.08], [0.03, 0.12], [0, 0.13]]), { segments: 8, metres: 0.3 }).translate(0.42, 1.4, sz));
   }
-  add(parts.brick, material('brick', { surface: 'brick', vertexColors: true, snow: 1 }), 'brick');
-  add(parts.trav, material('travertine', { surface: 'travertine', vertexColors: true, snow: 1 }), 'stone');
-  add(parts.marble, material('marble', { surface: 'marble', vertexColors: true, snow: 1 }), 'plaque');
+  add(parts.plaster, material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }), 'walls');
+  add(parts.tufa, material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }), 'stone');
+  add(parts.timber, material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'timber');
+  add(parts.cream, material('slip-cream', { surface: 'plaster', color: 0xe6d9b8, vertexColors: true, snow: 0.6 }), 'plaque');
+  add(parts.letters, material('inscription-red', { color: 0x6a1e14, roughness: 0.8, snow: 0.3 }), 'letters', 'always', false);
   add(parts.tiles, material('terracotta', { surface: 'terracotta', vertexColors: true, snow: 1 }), 'roof');
   add(parts.dark, material('room-dark', { color: 0x0e0b09, roughness: 1, snow: 0, wet: 0 }), 'rooms', 'always', false);
   add(parts.wood, material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'dunnage');
-  add(parts.woodOpen, material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'doors-open', 'open');
-  add(parts.woodShut, material('wood', { surface: 'wood', vertexColors: true, snow: 1 }), 'doors-shut', 'shut');
+  // (Paler oak than the posts, so the iron straps and studs read on the leaves.)
+  add(parts.woodOpen, material('door-oak', { surface: 'wood', color: 0xc9a673, vertexColors: true, snow: 1 }), 'doors-open', 'open');
+  add(parts.woodShut, material('door-oak', { surface: 'wood', color: 0xc9a673, vertexColors: true, snow: 1 }), 'doors-shut', 'shut');
   add(parts.iron, material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }), 'iron');
   add(parts.ironOpen, material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }), 'straps-open', 'open');
   add(parts.ironShut, material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }), 'straps-shut', 'shut');

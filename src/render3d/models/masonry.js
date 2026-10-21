@@ -244,7 +244,7 @@ function imbrex(a, b, radial, rnd, r = 0.07) {
 }
 
 /** An antefix: a small upright palmette closing an imbrex at the eave. */
-function antefixAt(p, down, rnd) {
+export function antefixAt(p, down, rnd) {
   const g = revolve(profileOf([[0, 0], [0.06, 0], [0.075, 0.05], [0.05, 0.11], [0.015, 0.15], [0, 0.155]]), { segments: 5, metres: 0.6 });
   g.scale(1, 1, 0.12);
   g.rotateY(Math.atan2(down[0], down[2]));
