@@ -38,10 +38,10 @@ const done = (extra = {}) => ({ stage: 99, f: 1, store: 200, water: true, staff:
 
 /** What stands where (map tiles: its top-left), its record, its label. */
 const ITEMS = [
-  { type: 'thermae', x: 1, y: 1, rec: site(0, 0.6), name: 'Great Baths: foundations', note: 'Stage 1: the footings and the hypocaust\'s pilae' },
-  { type: 'thermae', x: 7, y: 1, rec: site(1, 0.55), name: 'Great Baths: walls', note: 'Stage 2: the walls and the drum rising' },
-  { type: 'thermae', x: 13, y: 1, rec: site(2, 0.4), name: 'Great Baths: vaults', note: 'Stage 3: the vaults on their centering' },
-  { type: 'thermae', x: 19, y: 1, rec: site(3, 0.55), name: 'Great Baths: palaestra', note: 'Stage 4: the colonnades and the vestibules' },
+  { type: 'thermae', x: 1, y: 1, rec: site(0, 0.6), name: 'Great Baths: foundations', note: 'Stage 1: the trenches, the rubble footings, the pool\'s pit' },
+  { type: 'thermae', x: 7, y: 1, rec: site(1, 0.55), name: 'Great Baths: walls', note: 'Stage 2: tufa ashlar rising on the hall and the round rooms' },
+  { type: 'thermae', x: 13, y: 1, rec: site(2, 0.4), name: 'Great Baths: roof timber', note: 'Stage 3: the hall\'s trusses and the cones\' rafters' },
+  { type: 'thermae', x: 19, y: 1, rec: site(3, 0.55), name: 'Great Baths: palaestra', note: 'Stage 4: tiles, stucco, the colonnade and the gate' },
   { type: 'thermae', x: 25, y: 1, rec: site(2, 0.7, { halted: true }), name: 'Great Baths: halted', note: 'No crew, the cranes still' },
   { type: 'thermae', x: 31, y: 1, rec: done(), name: 'Thermae (Great Baths)', note: 'Working: heated, piped, staffed' },
   { type: 'thermae', x: 1, y: 8, rec: done({ store: 0 }), name: 'Great Baths: cold', note: 'No timber: the furnaces dark' },
@@ -60,10 +60,11 @@ const ITEMS = [
 
 const INFO = `<button class="close" type="button" aria-label="Close">Close</button>
 <h2>The civic monuments</h2>
-<p><b>The Great Baths</b> (<i>thermae</i>): the imperial baths in miniature, after Caracalla's and Diocletian's and Pompeii's
-Stabian and Forum baths: the natatio open to the sky before the frigidarium's façade of columns and statues, the cold hall under
-three groin vaults lit by thermal windows, the tepidarium, the domed caldarium bulging out at the back with its tall windows; the
-palaestrae either side with their colonnades; the furnaces, the woodstore and the cistern in the service yards behind.</p>
+<p><b>The Great Baths</b> (<i>thermae</i>): a great Greek-style bath of about 300 BC, after the public baths of Gela, Syracuse,
+Olympia and Eretria and the oldest Stabian Baths at Pompeii: the natatio open to the sky behind the street wall, the palaestra
+with its stuccoed tufa colonnade and running track, the long tub hall under a timber-trussed tiled gable, the two round rooms
+under conical roofs (the hot hip-bath room and the sweat room with its smoke hole); the furnace with its bronze boilers and
+flue, the woodstore and the cistern in the yard behind.</p>
 <p><b>The Caravanserai</b> (<i>mansio magna</i>): a great road station after the mansiones of the Roman roads and the caravan inns
 of the eastern provinces: two storeys of rooms round a court, the colonnade and the gallery over it, the gatehouse big enough for a
 wagon, the stables, the stores and the tavern, the well and the trough, the bath's little dome at the back corner.</p>
