@@ -57,10 +57,10 @@ marble round the royal door and the guests' doors, statues above, the tribunals 
 <p><b>The amphitheatre</b> (<i>amphitheatrum</i>): after Pompeii's, the oldest that stands (70 BC): earth banks held by a wall of
 blind arches, the double stairs outside up to the top, the sand inside its podium wall, the two gates at the ends of its long
 axis (the procession's and the dead's).</p>
-<p><b>The Great Arena</b> (<i>arena</i>): the Flavian amphitheatre in miniature: three storeys of arches framed by engaged columns,
-Tuscan, Ionic and Corinthian, the attic with its pilasters, windows, bronze shields and the masts of the velarium; inside the
-podium with its marble balustrade and the governor's box, the tiers divided by walkways, the sand with the trapdoors of the
-lifts.</p>
+<p><b>The Great Arena</b> (<i>arena</i>): the earliest kind of stone amphitheatre, Pompeii's again but larger: an earth bank held
+by a wall of tufa and opus incertum with blind arches, two double stairs up the outside, the top tier in timber over the crest,
+the masts of the awning in sockets on the wall's ledge, the tunnels at the ends with the beasts' cages by their gates, the
+podium painted with gladiators and lions, the magistrates' box a railed platform.</p>
 <p><b>The hippodrome</b> (<i>circus</i>): after the Circus Maximus: the long track round the spina, the obelisk at its middle, the
 seven eggs and the seven dolphins that counted the laps, the turning posts at each end, the starting gates at the straight end,
 the stands down both sides and round the curved end, the triumphal gate in it.</p>

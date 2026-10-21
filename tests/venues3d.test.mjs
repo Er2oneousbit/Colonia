@@ -253,7 +253,7 @@ test('venues3d: a venue\'s `more` list is kept, not made again a frame, idle or 
     const a = [MODELS.hippodrome_part.variant(middle, {}, { game, tick: 3 }).more, MODELS.colosseum.variant(arena, {}, { game, tick: 3 }).more];
     const c = [MODELS.hippodrome_part.variant(middle, {}, { game, tick: 3 }).more, MODELS.colosseum.variant(arena, {}, { game, tick: 3 }).more];
     assert.equal(a[0], c[0], 'the hippodrome\'s middle');
-    assert.equal(a[1], c[1], 'the Arena (its bays)');
+    assert.equal(a[1], c[1], 'the Arena');
   }
 });
 
