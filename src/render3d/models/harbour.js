@@ -7,10 +7,12 @@
  *
  *   - timber piles driven into the bed, wet and weedy at the waterline, a
  *     ring of foam where the water laps them (pile, pileFoam)
- *   - opus pilarum: piers of harbour concrete (pozzolana, which sets under
- *     water, Vitruvius book V) faced in tufa, joined by brick arches that
- *     carry the quay and let the water through, as at Puteoli and Baiae
- *     (arcade)
+ *   - the quay and the mole: squared blocks of tufa laid in courses on a
+ *     rubble footing, the face stepped at the waterline, mooring stones let
+ *     into it, as the Greek harbours of Italy and Sicily and early Rome's
+ *     were (Piraeus, Syracuse, Ostia's first quays); and where a landing
+ *     stage stands out over the water, a jetty: bents of driven piles, cap
+ *     beams, bearers and a plank deck (quayMole, jetty)
  *   - stone bollards, iron mooring rings, steps down to the water
  *   - the liburnian: the light two-banked warship of the provincial fleets,
  *     built shell first as Graeco-Roman hulls were (keel and posts, then the
@@ -33,7 +35,7 @@ import { BufferGeometry, Float32BufferAttribute, CylinderGeometry, BoxGeometry, 
 import { revolve, profileOf, boxUV, tintGeometry, merge, D } from '../shapes.js';
 import { material } from '../materials.js';
 import { artRng, smoothstep } from '../texgen.js';
-import { slab, wallWithOpenings } from './masonry.js';
+import { slab } from './masonry.js';
 import { lin } from './rural.js';
 
 /** The measures every fleet building shares (metres). */
@@ -322,72 +324,98 @@ export function deck(x0, x1, z0, z1, y, { along = 'z', seed = 1, lod = 0, plank 
 }
 
 // ---------------------------------------------------------------------------
-// Stone: opus pilarum, bollards, rings, steps
+// Stone: the ashlar mole, the timber jetty, bollards, rings, steps
 // ---------------------------------------------------------------------------
 
 /**
- * An arcade of opus pilarum: piers of concrete faced in tufa standing in
- * the water, joined by brick arches that carry the quay (`top`) and let
- * the water through. It runs along x from x0 to x1 (or along z: `along`),
- * `thick` through (its middle at `at` on the other axis), with `n` arches.
- * Returns { tufa, brick, trav } geometries: the piers and spandrels, the
- * arches' rings, the quay's edge stones along the top.
+ * A mole or quay of squared blocks laid in courses, as the Greek harbours of
+ * Italy and Sicily and early Rome's were (Piraeus, Syracuse, the first quays
+ * of Ostia): solid ashlar carried down on a footing of rubble (under the
+ * water, which the look clips), its face stepped back at the waterline, the
+ * upper courses a little inside the lower, mooring stones set in the face
+ * under the edge. It runs along x from a0 to a1 (or along z: `along`),
+ * `thick` through (its middle at `at` on the other axis), its top at `top`.
+ * Returns { tufa, trav } geometries: the courses and mooring stones, and
+ * (with `kerb`) the edge stones along the top. The measures are those the
+ * concrete arcade had, so the quay surface and what ties up to it stay put.
  */
-export function arcade(a0, a1, at, thick, top, { along = 'x', span: want = 1.0, pier: pw = 0.7, seed = 1, lod = 0, spring = 0.05, kerb = true } = {}) {
-  const L = a1 - a0;
-  // As many arches of about `want` as fit between piers of about `pw`, a pier at each end.
-  const n = Math.max(1, Math.round((L - pw) / (want + pw)));
-  const pier = Math.min(pw, L / (n * 2.2 + 1));
-  const span = (L - pier * (n + 1)) / n;
-  const r = span / 2;
-  const openings = [];
-  for (let k = 0; k < n; k++) {
-    const x = -L / 2 + pier * (k + 1) + span * (k + 0.5);
-    // (From under the water, 0.4 m down, up to the springing, then the round head.)
-    openings.push({ x, w: span, h: spring + 0.4, y: 0.1, arch: true });
-  }
-  const h = top - 0.12 + 0.5;
-  const body = wallWithOpenings(L, h, thick, openings, { lod, y0: -0.5 });
-  boxUV(body);
-  // The piers darker and greener toward the water, the tide's line on them.
-  tintGeometry(body, (x, y) => (y < 0.08 ? 0.55 : y < 0.3 ? 0.72 : 0.92 + 0.08 * smoothstep(0.3, 0.8, y)));
-  const place = (g) => {
-    // Built in x-y with its depth toward -z: centred on its thickness, then turned onto its axis.
-    g.translate(0, 0, thick / 2);
-    if (along === 'z') g.rotateY(Math.PI / 2);
-    return along === 'z' ? g.translate(at, 0, (a0 + a1) / 2) : g.translate((a0 + a1) / 2, 0, at);
-  };
-  const out = { tufa: [place(body)], brick: [], trav: [] };
-  // The arches' brick rings on both faces: voussoirs round each head.
+export function quayMole(a0, a1, at, thick, top, { along = 'x', seed = 1, lod = 0, kerb = true, step = 0.07 } = {}) {
+  const out = { tufa: [], trav: [] };
+  const alongZ = along === 'z';
+  // A box in the mole's own frame (u along it, v across it, v about `at`) as ashlar in the world's x, z.
+  const block = (u0, u1, y0, y1, v0, v1, o) => (alongZ
+    ? ashlar(at + v0, at + v1, y0, y1, u0, u1, o)
+    : ashlar(u0, u1, y0, y1, at + v0, at + v1, o));
+  const wl = 0.12; // the waterline's step: the footing's courses below it stand full width
+  const cap = kerb ? top - 0.14 : top;
+  // The footing's courses from under the water to just over it, full width and dark with the sea.
+  out.tufa.push(...block(a0, a1, -0.5, wl, -thick / 2, thick / 2, { seed, lod, course: 0.31, min: 0.9, max: 1.5, grime: 0.55 }));
+  // The courses above, set back a hand's breadth on both faces: the face's step at the waterline.
+  const k = Math.min(step, thick * 0.1);
+  out.tufa.push(...block(a0, a1, wl, cap, -thick / 2 + k, thick / 2 - k, { seed: seed + 1, lod, course: 0.34, min: 0.9, max: 1.5, grime: 0.15 }));
   if (lod < 2) {
-    for (const o of openings) {
-      const cy = -0.5 + o.y + o.h;
-      const nv = lod ? 7 : 11;
-      for (const face of [0, -thick]) {
-        for (let k = 0; k < nv; k++) {
-          const a = Math.PI - ((k + 0.5) / nv) * Math.PI;
-          // (Its depth along the radius, its width along the ring.)
-          const g = new BoxGeometry(0.16, (Math.PI * (r + 0.08)) / nv - 0.012, 0.05);
-          g.rotateZ(a);
-          g.translate(o.x + Math.cos(a) * (r + 0.08), cy + Math.sin(a) * (r + 0.08), face + (face ? -0.02 : 0.02));
-          boxUV(g);
-          out.brick.push(place(tintGeometry(g, () => 0.85 + ((k * 37) % 7) * 0.03)));
+    // Mooring stones: a block let into each face under the top, bored through for a hawser (the hole dark).
+    const rnd = artRng(seed + 7);
+    for (let p = a0 + 0.9; p < a1 - 0.5; p += 2.2 + rnd() * 0.5) {
+      for (const s of [-1, 1]) {
+        const parts = [
+          slab(0.38, 0.22, 0.12, { bevel: 0.015, seed: seed + p * 11 + s, wobble: lod ? 0 : 0.003, tone: 0.05, grime: 0.2 }).translate(0, cap - 0.6, 0.01),
+          tintGeometry(boxUV(new BoxGeometry(0.1, 0.06, 0.02)), () => 0.12).translate(0, cap - 0.5, 0.075),
+        ];
+        // Built facing +z, its back in the face: turned to the face's normal (across the mole).
+        const nx = alongZ ? s : 0;
+        const nz = alongZ ? 0 : s;
+        const f = s * (thick / 2 - k);
+        for (const g of parts) {
+          g.rotateY(Math.atan2(nx, nz)).translate(alongZ ? at + f : p, 0, alongZ ? p : at + f);
+          out.tufa.push(g);
         }
       }
     }
   }
-  // The edge stones along the quay's top (travertine), a little proud on both faces.
+  // The edge stones along the quay's top (travertine), a little proud of the face.
   if (kerb) {
-    const rnd = artRng(seed);
-    let p = -L / 2;
-    while (p < L / 2 - 0.05) {
-      const q = Math.min(L / 2, p + 0.7 + rnd() * 0.5);
-      const g = slab(q - p - 0.008, 0.14, thick + 0.08, { bevel: 0.015, seed: seed + p * 13, wobble: lod ? 0 : 0.003, tone: 0.06, grime: 0.1 });
-      g.translate((p + q) / 2, top - 0.14, -thick / 2);
-      out.trav.push(place(g));
+    const rnd = artRng(seed + 3);
+    let p = a0;
+    while (p < a1 - 0.05) {
+      const q = Math.min(a1, p + 0.9 + rnd() * 0.6);
+      const o = { bevel: 0.015, seed: seed + p * 13, wobble: lod ? 0 : 0.003, tone: 0.06, grime: 0.1 };
+      out.trav.push(alongZ
+        ? slab(thick + 0.08, 0.14, q - p - 0.008, o).translate(at, cap, (p + q) / 2)
+        : slab(q - p - 0.008, 0.14, thick + 0.08, o).translate((p + q) / 2, cap, at));
       p = q;
     }
   }
+  return out;
+}
+
+/**
+ * A timber-pile jetty out over the water, the way the early harbours put a
+ * landing stage where a mole of stone was not worth building: bents of
+ * piles driven in rows across it, a cap beam over each row, bearers along
+ * it on the caps, a plank deck across them, a fender log along each edge.
+ * It stands over x0..x1, z0..z1 with its deck's top at `top`. Returns
+ * { wood, foam }: geometries for the timber and the water lapping the piles.
+ */
+export function jetty(x0, x1, z0, z1, top, { seed = 1, lod = 0, bent = 1.5 } = {}) {
+  const out = { wood: [], foam: [] };
+  const rnd = artRng(seed);
+  const cx = (x0 + x1) / 2;
+  const cap = top - 0.4; // the cap beam's underside
+  const nb = Math.max(2, Math.round((z1 - z0) / bent) + 1);
+  const xs = x1 - x0 > 1.9 ? [x0 + 0.2, cx, x1 - 0.2] : [x0 + 0.2, x1 - 0.2];
+  for (let i = 0; i < nb; i++) {
+    const z = z0 + 0.2 + ((z1 - z0 - 0.4) * i) / (nb - 1);
+    for (const x of xs) {
+      out.wood.push(pile(x, z, cap + 0.05, { r: 0.11, seed: seed + i * 7 + x * 3, lod }));
+      if (lod < 2) out.foam.push(pileFoam(x, z, 0.1, 0.5, seed + i + Math.round(x * 5), lod));
+    }
+    // The cap beam across the bent, on the piles' heads, its ends a little proud.
+    out.wood.push(board(x1 - x0 + 0.06, 0.18, 0.2, { tone: 0.7 + rnd() * 0.1, grime: 0.2 }).translate(cx, cap, z));
+  }
+  // The planks across, the bearers under them along the length (deck), and a fender log along each edge.
+  out.wood.push(...deck(x0, x1, z0, z1, top, { along: 'x', seed: seed + 1, lod, plank: 0.24, t: 0.06, bearers: 1.1 }));
+  for (const x of [x0 + 0.07, x1 - 0.07]) out.wood.push(board(0.12, 0.1, z1 - z0, { tone: 0.8 }).translate(x, top, (z0 + z1) / 2));
   return out;
 }
 

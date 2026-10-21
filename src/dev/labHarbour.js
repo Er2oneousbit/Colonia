@@ -41,15 +41,15 @@ coasts and rivers, after the great fleets at Misenum and Ravenna. Here the three
 back row on the shore and its two front rows out over the water, as the game places them.</p>
 <p><b>The Navalia</b> (naval dockyard), after the ship sheds of Piraeus's Zea harbour and of Oiniadai, and Rome's own navalia by
 the Tiber: an open building slip of sleepers and greased ways running down into the sea, on ashlar over the land and pile bents over
-the water, the windlass at its head; beside it a ship shed, its tiled roof on two rows of stone pillars standing on concrete piers in
+the water, the windlass at its head; beside it a ship shed, its tiled roof on two rows of stone pillars standing on footings of squared tufa in
 the water, open at the sea's end, a spare mast and yard on trestles, oars racked, the gear store at its head; behind, the stock
 yard of timber, iron and linen. The liburnian on the slip is built shell first, as Greek and Roman hulls were: the keel and posts on
 their blocks, the strakes rising, the frames fitted inside, then the wales, the oar box, the bronze ram after the one found off
 Athlit, the eye on the bow and the paint.</p>
 <p><b>The Statio</b> (naval station), after the fleets' stations at Misenum and Ravenna and the small provincial ones: a stone
 terrace with the headquarters (<i>principia</i>, CLASSIS cut over its portico, the squadron's red <i>vexillum</i> by the door) and a
-store of oars and sails; a quay with mooring rings and steps down; two moles of <i>opus pilarum</i>, harbour concrete piers with
-arches through them as at Puteoli, bollards along them; the station's boat in the basin; on one mole a beacon tower in tiers, as
+store of oars and sails; a quay with mooring rings and steps down; two moles of tufa ashlar laid in courses on a rubble footing, as at Piraeus and Syracuse (one run on as a timber jetty on piles),
+bollards and mooring stones along them; the station's boat in the basin; on one mole a beacon tower in tiers, as
 the lighthouses of Ostia and Dover, its fire burning while the station is manned. Its liburnians tie up past the moles' ends.</p>
 <p><b>The Portus</b> (training harbour), after Polybius, who tells how Rome taught its first war fleet's crews to row on benches
 set out on dry land while the ships were built, a man giving them the stroke, and of the <i>corvus</i>, the boarding bridge; and
