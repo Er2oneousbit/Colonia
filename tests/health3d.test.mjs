@@ -133,21 +133,22 @@ test('health3d: every part shows in some state, and each state shows what it sho
   // The hospital's doors, open while it works.
   assert.deepEqual(states('hospital', 'doors'), ['open', 'shut']);
   // The baths: water while piped (frozen in a hard frost), a dry floor without; smoke while the fire is in,
-  // steam only in a frost; the vaults warm (no snow) only while it works; the spout runs only at work.
+  // steam only in a frost; the tholos's cone of tiles warm (no snow) only while it works (it was the
+  // vaults' part before the baths became a Greek bathhouse); the spout runs only at work.
   assert.deepEqual(states('baths', 'pool-water'), ['flowing+still']);
   assert.deepEqual(states('baths', 'leaves'), ['dry']);
   assert.deepEqual(states('baths', 'smoke'), ['flowing']);
   assert.deepEqual(states('baths', 'steam'), ['']);
   assert.deepEqual(states('baths', 'steam', true), ['flowing']);
-  assert.deepEqual(states('baths', 'vaults'), ['flowing', 'still+dry']);
+  assert.deepEqual(states('baths', 'cone'), ['flowing', 'still+dry']);
   assert.deepEqual(states('baths', 'stream'), ['flowing']);
   assert.deepEqual(states('baths', 'doors'), ['flowing', 'still+dry']);
   const water = shownIn('baths', 0, 'baths:ice', true).find((p) => p.name === 'pool-water');
   assert.equal(water.mesh.material.name, 'ice', 'the pool frozen');
   assert.equal(shownIn('baths', 0, 'baths:ice', true).filter((p) => p.name === 'stream').length, 0, 'no spout running into ice');
-  const vaults = shownIn('baths').filter((p) => p.name === 'vaults');
+  const vaults = shownIn('baths').filter((p) => p.name === 'cone');
   const snowOn = (p) => p.mesh.material.userData.look.uLookSnowMul.value;
-  assert.ok(snowOn(vaults.find((p) => p.when === 'flow')) < snowOn(vaults.find((p) => p.when === 'cold')), 'the heat melts the snow on the vaults');
+  assert.ok(snowOn(vaults.find((p) => p.when === 'flow')) < snowOn(vaults.find((p) => p.when === 'cold')), 'the heat melts the snow on the tholos cone');
   // Each lantern's lit pane at work, its dark one when not.
   for (const type of TYPES) {
     const lamps = shownIn(type).filter((p) => p.name === 'lamp');
