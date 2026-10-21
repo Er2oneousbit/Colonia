@@ -37,7 +37,7 @@
 
 import { Group, Matrix4 } from 'three';
 import { iceMaterial } from '../materials.js';
-import { TaggedParts } from './masonry.js';
+import { TaggedParts, tuscanColumn } from './masonry.js';
 import { govMaterials, column } from './domus.js';
 import { buildCuria, CURIA, CURIA_LAMPS, curiaActors } from './curia.js';
 import { cast, NOBODY } from '../people/actors.js';
@@ -101,7 +101,7 @@ export function governmentState(b, game) {
 const DEFS = {
   senate: {
     build: buildCuria,
-    cols: [{ order: 'corinthian', h: CURIA.colH, y: CURIA.floorY, at: CURIA.cols.map((x) => [x, CURIA.porchZ]) }],
+    cols: [{ order: 'tuscan', h: CURIA.colH, y: CURIA.floorY, at: CURIA.cols.map((x) => [x, CURIA.porchZ]) }],
     lamps: CURIA_LAMPS,
     water: false,
     actors: curiaActors,
@@ -133,8 +133,14 @@ function moreOf(type) {
 function buildColumnKit(type, i, lod) {
   const c = DEFS[type].cols[i];
   const m = govMaterials();
-  const col = column(c.order, c.h, lod, { smooth: !!c.smooth });
   const p = new TaggedParts(`${type}-column`);
+  if (c.order === 'tuscan') {
+    // The senate's Tuscan columns: unfluted, a base and a plain capital, tufa under stucco (a shaft's
+    // height is seven of its diameters, Vitruvius IV.7).
+    p.add('column', m.stucco, tuscanColumn(c.h / 14.5, c.h, lod));
+    return p.build().group;
+  }
+  const col = column(c.order, c.h, lod, { smooth: !!c.smooth });
   const stone = c.order === 'pompeian' ? m.stucco : m.marble;
   p.add('column', stone, col.stone);
   p.add('capital', c.order === 'gilt' ? m.gilt : stone === m.stucco ? m.stucco : m.marble, col.cap);

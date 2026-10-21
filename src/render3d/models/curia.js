@@ -1,34 +1,38 @@
 /**
  * models/curia.js
  * ----------------------------------------------------------------------------
- * The senate house of the 3D look: a town's curia on a 4 x 4 footprint
- * (16 m), from the record rather than the 2D sprite:
+ * The senate house of the 3D look: a colony's curia on a 4 x 4 footprint
+ * (16 m), as the game's 300 BC knew it, from the record rather than the 2D
+ * sprite:
  *
- *   - The Curia Julia in the Forum Romanum (begun by Caesar, finished by
- *     Augustus, rebuilt by Diocletian after the fire of 283, and standing
- *     because it became a church): a tall hall of brick on a raised floor,
- *     its front faced with stucco scored to imitate blocks of marble, three
- *     great windows high in the front under a pediment, bronze doors (the
- *     originals hang in the Lateran), a few steps up; inside, three broad
- *     steps along each side for the senators' chairs, a floor of coloured
- *     marble, the president's platform at the far end and the statue of
- *     Victory on her globe with the altar before it, where senators burned
- *     incense as they came in. Octavian's coins of 29 to 27 BC show the new
- *     curia with a Victory on a globe at the top of its gable.
- *   - The curiae of the towns, where the decurions (the town council) sat:
- *     Pompeii's on the forum's south side, Sabratha's on a podium behind a
- *     portico with steps up to it, Timgad's off the forum. Men of the
+ *   - The Curia Hostilia of the Forum Romanum as the Republic had it before
+ *     Sulla rebuilt it (about 80 BC): a plain rectangular hall on a low
+ *     podium, built of tufa in squared courses (opus quadratum, as the
+ *     Servian Wall and the walls of Cosa), its walls plastered and painted,
+ *     the senators on tiers of benches inside, the president's platform at
+ *     the far end, the doors opening on the Comitium.
+ *   - The council halls of the Latin colonies (Cosa's by its forum, Alba
+ *     Fucens, Paestum after it became a colony): the same plain hall, with a
+ *     porch.
+ *   - The Etrusco-Italic temple, whose porch and roof every early Roman
+ *     public building copied (Vitruvius IV.7; the terracottas of Satricum,
+ *     Veii and Pyrgi): unfluted Tuscan columns of plastered tufa on stone
+ *     bases, a timber architrave under a timber-trussed gable of tegulae and
+ *     imbrices at a low pitch, the eaves and the gable's raking edges faced
+ *     with painted terracotta plaques (red, black and cream), antefixes along
+ *     the eave and a painted terracotta acroterion at the ridge. Men of the
  *     council wore the toga with the broad purple stripe on its tunic; a
  *     magistrate walked behind lictors carrying the fasces.
  *
- * So, in 16 m: a podium of travertine with a flight of steps between two
- * bronze statues of honoured citizens; a porch of six Corinthian columns
- * (instanced: models/government.js) carrying an entablature cut CVRIA, a
- * pair of bronze lampstands and benches of marble under it; behind it the
- * hall, its front stuccoed white and scored as marble, its sides and back
- * of bare brick with arched windows high up, the bronze doors under a
- * tablet cut S·P·Q·R, the pediment with an oak wreath in gilt bronze, a
- * gilt Victory on her globe at its top, a tiled roof.
+ * So, in 16 m: a low podium of tufa with a flight of steps between two
+ * bronze statues of honoured citizens in the toga; a porch of four Tuscan
+ * columns (instanced: models/government.js) under the one roof of the hall,
+ * a pair of bronze lampstands and benches of stone under it; behind it the
+ * hall, its walls stuccoed cream over a red dado and scored as blocks, its
+ * corners left as bare tufa quoins, the timber doors studded with bronze
+ * under a tablet cut S·P·Q·R; the gable with its raking plaques and a disc
+ * acroterion at the ridge. No windows (a Republican hall took its light from
+ * the door and the roof), no marble, no brick, no vault.
  *
  * States (meshes tagged in userData.when, models.js partShows):
  *   'open'  staffed: the doors open, senators coming up the steps and
@@ -44,34 +48,36 @@
  * ----------------------------------------------------------------------------
  */
 
-import { BoxGeometry, TorusGeometry, SphereGeometry, CylinderGeometry } from 'three';
+import { BoxGeometry, CylinderGeometry } from 'three';
 import { boxUV, tintGeometry, frameSweep, revolve, profileOf } from '../shapes.js';
-import { slab, paving, wallWithOpenings, TaggedParts } from './masonry.js';
+import { material } from '../materials.js';
+import { slab, paving, TaggedParts } from './masonry.js';
 
 import {
-  govMaterials, box, D, gable, slope, gableTri, rake, wallAlong, darkIn, doubleDoor, letters, statue, victory, lantern, lanternPane,
+  govMaterials, box, D, gable, gableTri, wallAlong, doubleDoor, letters, statue, lantern, lanternPane, FRESCO,
 } from './domus.js';
+import { lin } from './rural.js';
 import { DYES } from '../people/actors.js';
 import { SEAT_H } from '../people/clips.js';
 
 /** The curia's measures (metres): the tests, the lab and the game read them. */
 export const CURIA = Object.freeze({
   half: 8,
-  /** The podium's top (the porch's and the hall's floor). */
-  floorY: 1.25,
+  /** The podium's top (the porch's and the hall's floor): a low one, five steps up. */
+  floorY: 1.0,
   /** The podium: x half width, front and back z. */
   podium: Object.freeze([5.5, 3.7, -7.6]),
   /** The steps: half width, the foot's z, their number. */
-  steps: Object.freeze([3.3, 6.1, 6]),
-  /** The hall's outer faces: x half width, front z, back z; the eave (the cornice's foot). */
+  steps: Object.freeze([3.3, 6.1, 5]),
+  /** The hall's outer faces: x half width, front z, back z; the eave (the walls' top, under the beam). */
   hall: Object.freeze([5.0, 0.6, -7.45]),
-  eave: 9.6,
+  eave: 6.2,
   /** The porch: its columns' line (z), their x, their height (base to abacus). */
   porchZ: 3.15,
-  cols: Object.freeze([-4.75, -3.2, -1.6, 1.6, 3.2, 4.75]),
-  colH: 5.2,
+  cols: Object.freeze([-4.45, -1.75, 1.75, 4.45]),
+  colH: 4.7,
   /** The door (half width, height over the floor). */
-  door: Object.freeze([1.25, 4.3]),
+  door: Object.freeze([1.1, 3.4]),
   /** The lampstands' lanterns (x, y, z) in the porch, facing the street. */
   lamps: Object.freeze([Object.freeze([-2.1, 2.95, 1.25]), Object.freeze([2.1, 2.95, 1.25])]),
 });
@@ -80,204 +86,259 @@ const C = CURIA;
 const PY = C.floorY;
 const [HX, HZ1, HZ0] = C.hall;
 const WALL = 0.45;
+/** The roof's pitch: low, as an Etrusco-Italic temple's (a Greek one's is steeper). */
+const PITCH = D(17);
+/** How far the tiles reach past the walls at the eaves (x) and the gables (z). */
+const OVER = 0.7;
+const GABLE_OVER = 0.2;
+/** The painted terracotta's colours (linear RGB): red ground, black outlines, cream motifs. */
+const TC = Object.freeze({ red: lin(0xa8452c), black: lin(0x1f1813), cream: lin(0xe6d8b8) });
+
+/** The curia's materials: the shared ones, and tufa (the harbour's and the engineer's: one key, one look). */
+function curiaMaterials() {
+  return { ...govMaterials(), tufa: material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }) };
+}
 
 /** The podium, the steps, the cheeks and the paving round it. */
 function podium(lod, seed, out) {
   const [px, pz1, pz0] = C.podium;
   const hz = (pz1 - pz0) / 2;
   const cz = (pz1 + pz0) / 2;
-  // A moulded base, the die, a crown under the floor's edge: one profile run round the podium.
-  const prof = [[0.14, 0], [0.14, 0.16], [0.07, 0.22], [0.02, 0.3], [0, 0.32], [0, PY - 0.2], [0.05, PY - 0.16], [0.1, PY - 0.1], [0.12, PY - 0.06], [0.12, PY], [-Math.min(px, hz), PY]];
-  const g = frameSweep(prof, px, hz, { tint: (p) => (p.y < 0.3 ? 0.8 : 0.95) });
+  // A base, the die, a crown under the floor's edge: one profile run round the podium (a plain Republican one).
+  const prof = [[0.12, 0], [0.12, 0.14], [0.05, 0.2], [0, 0.24], [0, PY - 0.16], [0.05, PY - 0.12], [0.09, PY - 0.08], [0.09, PY], [-Math.min(px, hz), PY]];
+  const g = frameSweep(prof, px, hz, { tint: (p) => (p.y < 0.25 ? 0.8 : 0.95) });
   g.translate(0, 0, cz);
-  out.trav.push(g);
+  out.tufa.push(g);
   // The steps up the front.
   const [sw, sz, n] = C.steps;
   const rise = PY / n;
   const tread = (sz - pz1) / n;
   for (let k = 0; k < n; k++) {
     const z0 = sz - (k + 1) * tread;
-    out.trav.push(slab(2 * sw, (k + 1) * rise, z0 + tread - pz1 + 0.02, { bevel: 0.012, seed: seed + k, wobble: lod ? 0 : 0.002, tone: 0.03, grime: 0.25 }).translate(0, 0, (pz1 - 0.02 + z0 + tread) / 2));
+    out.tufa.push(slab(2 * sw, (k + 1) * rise, z0 + tread - pz1 + 0.02, { bevel: 0.012, seed: seed + k, wobble: lod ? 0 : 0.002, tone: 0.03, grime: 0.25 }).translate(0, 0, (pz1 - 0.02 + z0 + tread) / 2));
   }
-  // The cheeks either side: walls stepping down with the flight, a pedestal at the foot of each.
+  // The cheeks either side: walls stepping down with the flight.
   for (const s of [-1, 1]) {
     const x = s * (sw + 0.3);
-    out.trav.push(slab(0.6, PY, sz - 0.9 - pz1 + 0.05, { bevel: 0.015, seed: seed + 20 + s, wobble: 0, tone: 0.02, grime: 0.3 }).translate(x, 0, (pz1 - 0.05 + sz - 0.9) / 2));
-    out.marble.push(box(0.68, 0.08, sz - 0.9 - pz1 + 0.05, x, PY, (pz1 - 0.05 + sz - 0.9) / 2, 0.95));
+    out.tufa.push(slab(0.6, PY, sz - 0.9 - pz1 + 0.05, { bevel: 0.015, seed: seed + 20 + s, wobble: 0, tone: 0.02, grime: 0.3 }).translate(x, 0, (pz1 - 0.05 + sz - 0.9) / 2));
+    out.tufa.push(box(0.68, 0.08, sz - 0.9 - pz1 + 0.05, x, PY, (pz1 - 0.05 + sz - 0.9) / 2, 0.95));
   }
   // The precinct's paving round the podium and the steps.
   const H = C.half - 0.08;
   const skip = (x, z) => (Math.abs(x) < px + 0.15 && z < pz1 + 0.1) || (Math.abs(x) < sw + 0.62 && z < sz + 0.02);
   out.paving.push(...paving(-H, H, pz0 - 0.3, H, 0.06, seed + 40, { rowW: 0.8, minL: 0.7, maxL: 1.3, lod, skip, tone: 0.06, grime: 0.15 }));
-  // A kerb of travertine at the precinct's street edge.
-  out.trav.push(box(2 * H, 0.1, 0.18, 0, 0, H - 0.09, 0.9));
-  // The floor of the porch: marble flags on the podium.
-  out.marble.push(...paving(-px + 0.05, px - 0.05, HZ1, pz1 + 0.06, 0.03, seed + 50, { rowW: 0.9, minL: 0.9, maxL: 1.5, lod, tone: 0.05, grime: 0.05 }).map((p) => p.translate(0, PY, 0)));
+  // A kerb of tufa at the precinct's street edge.
+  out.tufa.push(box(2 * H, 0.1, 0.18, 0, 0, H - 0.09, 0.9));
+  // The floor of the porch: flags of tufa on the podium.
+  out.tufa.push(...paving(-px + 0.05, px - 0.05, HZ1, pz1 + 0.06, 0.03, seed + 50, { rowW: 0.9, minL: 0.9, maxL: 1.5, lod, tone: 0.05, grime: 0.05 }).map((p) => p.translate(0, PY, 0)));
 }
 
-/** The hall: walls (brick sides and back, the front stuccoed and scored as marble), cornice, windows, the doorway, the pediment and the roof. */
+/**
+ * Score a stuccoed face as courses of blocks (close up): bed joints and the
+ * courses' broken vertical joints, boxes a hair proud of the plane `at`
+ * (axis 'x': the face runs along x, `n` the side it faces; 'z': along z).
+ * `ops` are the openings [{ a, b, lo, hi }] along the face, left unscored.
+ */
+function scoreFace(axis, a, b, at, n, y0, y1, ops, out, { course = 0.55, blockL = 1.15 } = {}) {
+  const p = at + n * 0.004;
+  const line = (len, h, c, y, w) => (axis === 'x' ? box(len, h, w, c, y, p) : box(w, h, len, p, y, c));
+  for (let y = y0 + course, i = 0; y < y1 - 0.1; y += course, i++) {
+    // (Each course's bed joint broken where an opening crosses it.)
+    let x0 = a;
+    for (const o of [...ops].sort((q, r) => q.a - r.a)) {
+      if (y < o.lo - 0.01 || y > o.hi + 0.01) continue;
+      if (o.a - 0.05 > x0) out.joints.push(line(o.a - 0.05 - x0, 0.022, (x0 + o.a - 0.05) / 2, y, 0.008));
+      x0 = o.b + 0.05;
+    }
+    if (b - x0 > 0.05) out.joints.push(line(b - x0, 0.022, (x0 + b) / 2, y, 0.008));
+    // Each course's joints a half block on from the last.
+    for (let x = a + (i % 2 ? blockL / 2 : blockL); x < b - 0.1; x += blockL) {
+      const inOpening = ops.some((o) => x > o.a - 0.02 && x < o.b + 0.02 && y + course > o.lo && y < o.hi);
+      if (!inOpening) out.joints.push(line(0.022, course - 0.022, x, y - course + 0.022, 0.008));
+    }
+  }
+}
+
+/** A band of red dado, a metre high at the floor, a hair proud of a face (`gaps` [[a, b]] left bare: the door). */
+function dado(axis, a, b, at, n, gaps, out) {
+  const t = 0.02;
+  const c = at + n * t / 2;
+  const cuts = [a, ...gaps.flatMap((g) => [g[0], g[1]]), b];
+  for (let i = 0; i + 1 < cuts.length; i += 2) {
+    const p0 = cuts[i];
+    const p1 = cuts[i + 1];
+    if (p1 - p0 < 0.02) continue;
+    out.red.push(axis === 'x' ? box(p1 - p0, 1.0, t, (p0 + p1) / 2, PY, c) : box(t, 1.0, p1 - p0, c, PY, (p0 + p1) / 2));
+  }
+}
+
+/**
+ * The bare tufa quoins at a hall corner (cx, cz), `sx` and `sz` the corner's
+ * outward signs: blocks in courses, long on one face and short on the other
+ * and the reverse in the next, a little proud of the stucco, so the ashlar
+ * shows through the plaster at the angles as it does at Pompeii.
+ */
+function quoins(cx, cz, sx, sz, top, out) {
+  const course = 0.55;
+  const t = 0.03;
+  for (let y = PY, i = 0; y + course <= top + 1e-6; y += course, i++) {
+    const long = i % 2 ? 0.45 : 0.85;
+    const short = i % 2 ? 0.85 : 0.45;
+    out.tufa.push(box(long, course - 0.02, t, cx - sx * long / 2, y, cz + sz * t / 2, (px, py) => 0.88 + 0.1 * Math.sin(py * 7 + i)));
+    out.tufa.push(box(t, course - 0.02, short, cx + sx * t / 2, y, cz - sz * short / 2, (px, py) => 0.88 + 0.1 * Math.sin(py * 5 + i)));
+  }
+}
+
+/**
+ * A row of painted terracotta revetment plaques (antepagmenta): `len` long,
+ * `h` high and `d` deep, built along x about the origin, one plaque about
+ * `step` long: a red ground, a black fillet top and bottom and, close up, a
+ * cream lozenge with a dark boss in the middle of each. Returns geometries.
+ */
+function plaqueRow(len, h, d, step, lod) {
+  const n = Math.max(1, Math.round(len / step));
+  const w = len / n;
+  const geos = [];
+  for (let i = 0; i < n; i++) {
+    const x = -len / 2 + (i + 0.5) * w;
+    // (A hair's gap between plaques, so the joints read from the ground.)
+    geos.push(box(w - 0.015, h, d, x, -h / 2, 0, () => TC.red));
+    if (lod === 2) continue;
+    geos.push(box(w - 0.015, h * 0.14, d + 0.012, x, h * 0.33, 0, () => TC.black));
+    geos.push(box(w - 0.015, h * 0.14, d + 0.012, x, -h * 0.47, 0, () => TC.black));
+    if (lod === 0) {
+      geos.push(box(w * 0.34, h * 0.46, d + 0.02, x, -h * 0.23, 0, () => TC.cream));
+      geos.push(box(w * 0.14, h * 0.2, d + 0.03, x, -h * 0.1, 0, () => TC.black));
+    }
+  }
+  return geos;
+}
+
+/**
+ * `plaqueRow` hung under a line whose middle is (cx, cy, cz): turned `roll`
+ * about z (a rake climbing to the right) and then `yaw` about y (a run along z).
+ */
+function placePlaques(len, h, d, cx, cy, cz, roll, yaw, lod, out) {
+  // (The row's middle sits half its height below the line, along the line's normal.)
+  const x = cx + Math.sin(roll) * h / 2;
+  const y = cy - Math.cos(roll) * h / 2;
+  for (const g of plaqueRow(len, h, d, 0.5, lod)) {
+    g.rotateZ(roll);
+    g.rotateY(yaw);
+    g.translate(x, y, cz);
+    out.clay.push(g);
+  }
+}
+
+/** The acroterion on the ridge at (0, z): a plinth of red terracotta and a standing disc, a cream rim, a red face, a boss. */
+function acroterion(apex, z, lod, out) {
+  out.clay.push(box(0.5, 0.26, 0.4, 0, apex - 0.02, z, () => TC.red));
+  out.clay.push(box(0.56, 0.05, 0.46, 0, apex + 0.24, z, () => TC.black));
+  const seg = lod ? 12 : 28;
+  const disc = (r, t, col) => {
+    const g = new CylinderGeometry(r, r, t, seg, 1);
+    g.rotateX(Math.PI / 2);
+    g.translate(0, apex + 0.29 + 0.62, z);
+    out.clay.push(tintGeometry(boxUV(g), () => col));
+  };
+  disc(0.62, 0.09, TC.cream);
+  disc(0.5, 0.11, TC.red);
+  if (lod === 0) {
+    disc(0.36, 0.13, TC.black);
+    disc(0.3, 0.15, TC.cream);
+    disc(0.1, 0.18, TC.red);
+  }
+}
+
+/** The hall: stuccoed tufa walls (cream over a red dado, scored as blocks), quoins, the doorway, the one roof, the plaques and the acroteria. */
 function hall(lod, seed, out) {
   const top = C.eave;
   const [dw, dh] = C.door;
-  const wins = [[-3.0, 0.95], [0, 1.05], [3.0, 0.95]];
-  const winY = [8.15, 9.2];
-  // The front wall: openings for the door and the three windows.
-  const ops = [{ a: -dw, b: dw, lo: PY, hi: PY + dh }, ...wins.map(([x, w]) => ({ a: x - w / 2, b: x + w / 2, lo: winY[0], hi: winY[1] }))];
-  // (Between the brick sides, which run the hall's whole length: no two faces in one plane at the corners.)
-  out.stucco.push(...wallAlong('x', -HX + WALL, HX - WALL, HZ1 - WALL / 2, WALL, PY, top, ops, 0.97));
-  // Scored as marble blocks (close up): joints in courses, each course's joints a half block on from the last.
+  const ops = [{ a: -dw, b: dw, lo: PY, hi: PY + dh }];
+  const cream = () => FRESCO.white;
+  // The front wall (between the sides), the sides (the hall's whole length) and the back.
+  out.stucco.push(...wallAlong('x', -HX + WALL, HX - WALL, HZ1 - WALL / 2, WALL, PY, top, ops, cream));
+  for (const s of [-1, 1]) out.stucco.push(...wallAlong('z', HZ0, HZ1, s * (HX - WALL / 2), WALL, PY, top, [], cream));
+  out.stucco.push(...wallAlong('x', -HX + WALL, HX - WALL, HZ0 + WALL / 2, WALL, PY, top, [], cream));
+  // Painted dado: red to a man's height, on every face.
+  dado('x', -HX + WALL, HX - WALL, HZ1, 1, [[-dw - 0.3, dw + 0.3]], out);
+  dado('x', -HX + WALL, HX - WALL, HZ0, -1, [], out);
+  for (const s of [-1, 1]) dado('z', HZ0, HZ1, s * HX, s, [], out);
+  // Scored as courses of tufa blocks above it (close up).
   if (lod === 0) {
-    const course = 0.62;
-    const blockL = 1.25;
-    const z = HZ1 + 0.004;
-    for (let y = PY + course, i = 0; y < top - 0.1; y += course, i++) {
-      // (Each course's bed joint broken where an opening crosses it.)
-      let x0 = -HX + WALL;
-      for (const o of [...ops].sort((p, q) => p.a - q.a)) {
-        if (y < o.lo - 0.01 || y > o.hi + 0.01) continue;
-        if (o.a - 0.05 > x0) out.joints.push(box(o.a - 0.05 - x0, 0.022, 0.008, (x0 + o.a - 0.05) / 2, y, z));
-        x0 = o.b + 0.05;
-      }
-      out.joints.push(box(HX - WALL - x0, 0.022, 0.008, (x0 + HX - WALL) / 2, y, z));
-      for (let x = -HX + WALL + (i % 2 ? blockL / 2 : blockL); x < HX - WALL - 0.1; x += blockL) {
-        const inOpening = ops.some((o) => x > o.a - 0.02 && x < o.b + 0.02 && y + course > o.lo && y < o.hi);
-        if (!inOpening) out.joints.push(box(0.022, course - 0.022, 0.008, x, y - course + 0.022, z));
-      }
-    }
+    scoreFace('x', -HX + WALL, HX - WALL, HZ1, 1, PY + 1.0, top, ops, out);
+    scoreFace('x', -HX + WALL, HX - WALL, HZ0, -1, PY + 1.0, top, [], out);
+    for (const s of [-1, 1]) scoreFace('z', HZ0, HZ1, s * HX, s, PY + 1.0, top, [], out);
   }
-  // The windows' frames and sills in marble; the dark of the hall behind them.
-  for (const [x, w] of wins) {
-    out.marble.push(box(w + 0.3, 0.12, 0.2, x, winY[0] - 0.12, HZ1 + 0.05, 0.95));
-    out.marble.push(box(w + 0.3, 0.16, 0.12, x, winY[1], HZ1 + 0.03, 0.95));
-    for (const s of [-1, 1]) out.marble.push(box(0.12, winY[1] - winY[0], 0.08, x + s * (w / 2 + 0.06), winY[0], HZ1 + 0.03, 0.93));
-    out.dark.push(darkIn('x', x - w / 2, x + w / 2, winY[0], winY[1], HZ1 - WALL, -1));
-    // A grille of bronze bars across the opening (close up).
-    if (lod === 0) for (let k = 1; k < 4; k++) out.bronze.push(box(0.025, winY[1] - winY[0], 0.025, x - w / 2 + (k * w) / 4, winY[0], HZ1 - WALL / 2));
-  }
-  // The doorway: a frame of marble, the tablet over it cut S·P·Q·R.
-  for (const s of [-1, 1]) out.marble.push(box(0.26, dh + 0.1, 0.12, s * (dw + 0.13), PY, HZ1 + 0.06, 0.96));
-  out.marble.push(box(2 * dw + 0.7, 0.3, 0.16, 0, PY + dh, HZ1 + 0.08, 0.96));
-  out.marble.push(box(2 * dw + 0.9, 0.08, 0.24, 0, PY + dh + 0.3, HZ1 + 0.1, 0.98));
-  out.marble.push(box(2.2, 0.62, 0.08, 0, PY + dh + 0.52, HZ1 + 0.04, 0.97));
-  if (lod === 0) out.letters.push(...letters('S·P·Q·R', PY + dh + 0.66, HZ1 + 0.085, 0.32));
-  else if (lod === 1) out.letters.push(box(1.5, 0.3, 0.006, 0, PY + dh + 0.66, HZ1 + 0.084));
-  // The threshold and the floor inside the doorway (coloured marble), the hall's dark beyond.
+  // The corners left as bare tufa blocks.
+  if (lod < 2) for (const sx of [-1, 1]) for (const sz of [-1, 1]) quoins(sx * HX, sz > 0 ? HZ1 : HZ0, sx, sz, top, out);
+  // A plain moulded cornice of stucco round the wall's top, under the roof's overhang.
+  const cor = frameSweep([[0, 0], [0.05, 0.04], [0.09, 0.1], [0.09, 0.2], [-0.3, 0.2]], HX, (HZ1 - HZ0) / 2, { tint: (p) => (p.y < 0.1 ? 0.88 : 0.97) });
+  cor.translate(0, top - 0.2, (HZ1 + HZ0) / 2);
+  out.stucco.push(cor);
+  // The doorway: jambs and lintel of dressed tufa, the tablet over it cut S·P·Q·R on a cream ground.
+  for (const s of [-1, 1]) out.tufa.push(box(0.24, dh + 0.1, 0.1, s * (dw + 0.12), PY, HZ1 + 0.05, 0.95));
+  out.tufa.push(box(2 * dw + 0.6, 0.24, 0.14, 0, PY + dh, HZ1 + 0.07, 0.95));
+  out.stucco.push(box(2.2, 0.62, 0.05, 0, PY + dh + 0.36, HZ1 + 0.025, 1));
+  if (lod === 0) out.letters.push(...letters('S·P·Q·R', PY + dh + 0.5, HZ1 + 0.052, 0.32));
+  else if (lod === 1) out.letters.push(box(1.5, 0.3, 0.006, 0, PY + dh + 0.5, HZ1 + 0.052));
+  // The threshold and the floor inside the doorway, the hall's dark beyond.
   out.floor.push(box(2 * dw, 0.03, WALL + 1.4, 0, PY, HZ1 - (WALL + 1.4) / 2, 0.9));
-  if (lod === 0) {
-    // Opus sectile: squares of porphyry and giallo antico in the white, as the Curia's floor.
-    for (let k = 0; k < 4; k++) {
-      for (const s of [-1, 1]) {
-        out.floor.push(box(0.42, 0.034, 0.42, s * 0.62, PY, HZ1 - WALL - 0.2 - k * 0.55, () => (k + (s > 0 ? 1 : 0)) % 2 ? [0.42, 0.12, 0.1] : [0.85, 0.66, 0.3]));
-      }
-    }
-  }
   out.dark.push(box(2 * dw + 0.2, dh, 0.05, 0, PY, HZ1 - WALL - 1.45));
   for (const s of [-1, 1]) out.dark.push(box(0.05, dh, 1.5, s * (dw + 0.05), PY, HZ1 - WALL - 0.72));
-  // The sides and the back: brick, with three arched windows high in each side.
-  for (const s of [-1, 1]) {
-    const L = HZ1 - HZ0;
-    const w = wallWithOpenings(L, top - PY, WALL, lod === 2 ? [] : [-2.6, 0, 2.6].map((x) => ({ x, w: 1.05, h: 1.3, y: 6.4 - PY, arch: true })), { lod, y0: PY });
-    w.rotateY(s * Math.PI / 2);
-    w.translate(s * HX, 0, (HZ1 + HZ0) / 2);
-    out.brick.push(w);
-    if (lod < 2) {
-      for (const zz of [-2.6, 0, 2.6]) {
-        const z = (HZ1 + HZ0) / 2 + zz;
-        out.dark.push(darkIn('z', z - 0.55, z + 0.55, 6.4, 6.4 + 1.3 + 0.53, s * (HX - WALL), -s));
-        out.marble.push(box(0.16, 0.08, 1.3, s * (HX + 0.06), 6.32, z, 0.95));
-      }
-    }
-  }
-  out.brick.push(box(2 * HX, top - PY, WALL, 0, PY, HZ0 + WALL / 2));
-  // A plinth course of travertine round the brick, at the floor.
-  for (const s of [-1, 1]) out.trav.push(box(0.08, 0.5, HZ1 - HZ0, s * (HX + 0.04), PY, (HZ1 + HZ0) / 2, 0.92));
-  out.trav.push(box(2 * HX + 0.16, 0.5, 0.08, 0, PY, HZ0 - 0.04, 0.92));
-  // The cornice round the eave (stucco on brick corbels, as the Curia's).
-  const hz = (HZ1 - HZ0) / 2;
-  const cz = (HZ1 + HZ0) / 2;
-  const cor = frameSweep([[0, 0], [0.06, 0.05], [0.06, 0.14], [0.14, 0.2], [0.26, 0.24], [0.26, 0.34], [-0.3, 0.34]], HX, hz, { tint: (p) => (p.y < 0.15 ? 0.88 : 0.97) });
-  cor.translate(0, top, cz);
-  out.stucco.push(cor);
-  if (lod === 0) {
-    // Its corbels (modillions) along the sides and the front.
-    for (let z = HZ0 + 0.4; z < HZ1; z += 0.6) for (const s of [-1, 1]) out.stucco.push(box(0.14, 0.09, 0.1, s * (HX + 0.1), top + 0.05, z, 0.9));
-    for (let x = -HX + 0.3; x < HX; x += 0.6) out.stucco.push(box(0.1, 0.09, 0.14, x, top + 0.05, HZ1 + 0.1, 0.9));
-  }
-  // The roof: a tiled gable from front to back, its ridge along the hall.
-  const roof = gable({ x0: -HX - 0.05, x1: HX + 0.05, z0: HZ0, z1: HZ1, eaveY: top + 0.34, pitch: D(23), along: 'z', lod, seed: seed + 60, over: 0.32, gableOver: 0.28 });
+  // The roof: one timber-trussed gable of tegulae and imbrices over hall and porch, its ridge along the hall, the eaves reaching far out.
+  const zf = C.porchZ + 0.3;
+  const eaveY = top + 0.05;
+  const roof = gable({ x0: -HX, x1: HX, z0: HZ0, z1: zf, eaveY, pitch: PITCH, along: 'z', lod, seed: seed + 60, over: OVER, gableOver: GABLE_OVER });
   out.tile.push(...roof.tile);
   out.wood.push(...roof.wood);
   const apex = roof.ridgeY;
-  // The pediment: its tympanum set back in the frame of the raking cornices, an oak wreath in gilt bronze in it.
-  const pz = HZ1;
-  const py0 = top + 0.34;
-  out.stucco.push(gableTri(-HX + 0.05, HX - 0.05, pz - 0.06, WALL - 0.06, py0, apex - 0.05));
-  out.brick.push(gableTri(-HX + 0.05, HX - 0.05, HZ0 + WALL, WALL, py0, apex - 0.05));
-  for (const s of [-1, 1]) {
-    out.stucco.push(rake(s * (HX + 0.3), py0 - 0.06, 0, apex + 0.04, pz + 0.12, 0.42, 0.22));
-    if (lod === 0) out.stucco.push(rake(s * (HX + 0.15), py0 - 0.12, 0, apex - 0.1, pz + 0.04, 0.26, 0.1, 0.9));
+  const eY = eaveY - OVER * Math.tan(PITCH);
+  const zFront = zf + GABLE_OVER;
+  const zBack = HZ0 - GABLE_OVER;
+  // The tympanums, plain stucco behind the raking plaques: the front's on the porch's beam, the back's on the wall.
+  out.stucco.push(gableTri(-HX + 0.05, HX - 0.05, zf + 0.08, 0.35, eaveY, apex - 0.05));
+  out.stucco.push(gableTri(-HX + 0.05, HX - 0.05, HZ0 + WALL, WALL + 0.1, top, apex - 0.05));
+  if (lod === 2) return;
+  // The eaves faced with plaques, hung under the tiles' edge along each side ...
+  const ph = 0.42;
+  for (const s of [-1, 1]) placePlaques(zFront - zBack, ph, 0.1, s * (HX + OVER - 0.06), eY, (zFront + zBack) / 2, 0, Math.PI / 2, lod, out);
+  // ... and the gables' raking edges, front and back, from the eave up to the ridge.
+  const xe = HX + OVER;
+  const run = Math.hypot(xe, apex - eY);
+  const climb = Math.atan2(apex - eY, xe);
+  for (const z of [zFront - 0.06, zBack + 0.06]) {
+    for (const s of [-1, 1]) placePlaques(run, ph * 0.85, 0.1, (s * xe) / 2, (eY + apex) / 2, z, s > 0 ? -climb : climb, 0, lod, out);
   }
-  if (lod < 2) {
-    const wy = (py0 + apex) / 2 - 0.12;
-    const wreath = new TorusGeometry(0.42, 0.075, lod ? 5 : 8, lod ? 14 : 28);
-    wreath.translate(0, wy, pz - 0.03);
-    out.gilt.push(tintGeometry(boxUV(wreath)));
-    if (lod === 0) {
-      // Its oak leaves, and the ribbons trailing from its foot.
-      for (let k = 0; k < 18; k++) {
-        const a = (k / 18) * Math.PI * 2;
-        const leaf = new SphereGeometry(0.075, 5, 3);
-        leaf.scale(0.7, 1.4, 0.5);
-        leaf.rotateZ(a);
-        leaf.translate(Math.sin(a) * 0.42, wy + Math.cos(a) * 0.42, pz + 0.03);
-        out.gilt.push(tintGeometry(boxUV(leaf)));
-      }
-    }
-  }
-  // Victory on her globe at the gable's top, gilt; palmettes at its corners.
-  out.marble.push(slab(0.62, 0.32, 0.62, { bevel: 0.02, seed: seed + 70, wobble: 0, tone: 0, grime: 0 }).translate(0, apex - 0.04, pz + 0.05));
-  out.gilt.push(...victory(0, apex + 0.28, pz + 0.05, 0.92, lod));
-  for (const s of [-1, 1]) {
-    out.marble.push(slab(0.46, 0.22, 0.46, { bevel: 0.02, seed: seed + 72 + s, wobble: 0, tone: 0, grime: 0 }).translate(s * (HX + 0.05), py0 - 0.04, pz + 0.05));
-    if (lod < 2) {
-      const palm = revolve(profileOf([[0, 0], [0.12, 0], [0.2, 0.18], [0.16, 0.42], [0.06, 0.58], [0, 0.6]]), { segments: lod ? 6 : 10, metres: 0.5 });
-      palm.scale(1, 1, 0.3);
-      palm.translate(s * (HX + 0.05), py0 + 0.18, pz + 0.05);
-      out.gilt.push(palm);
+  // The acroteria at the ridge's ends: a painted terracotta disc on a plinth, a palmette on each eave's corner.
+  for (const [z, dz] of [[zf + 0.15, 1], [HZ0 - 0.1, -1]]) {
+    acroterion(apex, z, lod, out);
+    for (const s of [-1, 1]) {
+      const palm = revolve(profileOf([[0, 0], [0.1, 0], [0.16, 0.14], [0.12, 0.32], [0.04, 0.42], [0, 0.44]]), { segments: lod ? 5 : 8, metres: 0.5 });
+      palm.scale(1, 1, 0.25);
+      palm.translate(s * (HX + OVER - 0.05), eY + 0.02, z + dz * 0.05);
+      out.clay.push(tintGeometry(boxUV(palm), () => TC.red));
     }
   }
 }
 
-/** The porch: the entablature on the columns (instanced apart), its roof, the antae, the benches and the lampstands. */
+/** The porch: the timber architrave on the columns (instanced apart), its plaques, the benches and the lampstands. */
 function porch(lod, seed, out) {
   const ab = PY + C.colH;
   const pz = C.porchZ;
-  const xL = C.cols[C.cols.length - 1] + 0.42;
-  const zf = pz + 0.42;
-  // The antae: pilasters on the hall's front at the porch's ends, under the entablature's returns.
-  for (const s of [-1, 1]) out.marble.push(box(0.56, C.colH, 0.24, s * C.cols[C.cols.length - 1], PY, HZ1 + 0.12, 0.95));
-  // Architrave (three fasciae), frieze (CVRIA), cornice: along the front and back along each side to the hall.
-  const runs = [
-    (y, h, d, k) => box(2 * xL, h, d, 0, y, pz, k),
-    ...[-1, 1].map((s) => (y, h, d, k) => box(d, h, zf - HZ1, s * C.cols[C.cols.length - 1], y, (zf + HZ1) / 2, k)),
-  ];
-  const bands = lod === 2 ? [[0, 1.12, 0.58, 0.96]] : [[0, 0.17, 0.56, 0.95], [0.17, 0.17, 0.6, 0.97], [0.34, 0.17, 0.64, 0.99], [0.51, 0.42, 0.58, 0.95], [0.93, 0.12, 0.74, 0.97], [1.05, 0.12, 0.86, 0.99]];
-  for (const run of runs) for (const [y, h, d, k] of bands) out.marble.push(run(ab + y, h, d, k));
-  const fr = ab + 0.51;
-  if (lod === 0) out.letters.push(...letters('CVRIA', fr + 0.06, pz + 0.295, 0.3));
-  else if (lod === 1) out.letters.push(box(1.7, 0.28, 0.006, 0, fr + 0.07, pz + 0.294));
-  // The porch's roof: a low tiled slope from the hall's front down to the cornice, boards under it.
-  const top = ab + 1.17;
-  const r = slope([[xL + 0.1, top - 0.02, zf + 0.05], [-xL - 0.1, top - 0.02, zf + 0.05], [-xL - 0.1, top + 0.32, HZ1 + 0.02], [xL + 0.1, top + 0.32, HZ1 + 0.02]], { lod, seed: seed + 5 });
-  out.tile.push(...r.tile);
-  out.wood.push(...r.wood);
-  // The coffered ceiling under it (close up): beams across from the columns to the wall.
-  if (lod === 0) for (const x of C.cols) out.marble.push(box(0.3, 0.22, pz - HZ1, x, ab - 0.0 + 0.0 + 0.9, (pz + HZ1) / 2, 0.85));
-  // Marble benches along the hall's front, either side of the door.
+  const bh = C.eave - ab;
+  // The timber architrave: a beam across the front on the columns, one down each side to the hall's front.
+  out.wood.push(box(2 * HX, bh, 0.5, 0, ab, pz, 0.92));
+  const xs = C.cols[C.cols.length - 1];
+  for (const s of [-1, 1]) out.wood.push(box(0.4, bh, pz - HZ1 + 0.3, s * xs, ab, (pz + HZ1 + 0.3) / 2, 0.92));
+  // Its face covered in painted plaques.
+  if (lod < 2) placePlaques(2 * HX, bh * 0.95, 0.06, 0, ab + bh, pz + 0.28, 0, 0, lod, out);
+  else out.clay.push(box(2 * HX, bh * 0.95, 0.06, 0, ab + bh * 0.05, pz + 0.25, () => TC.red));
+  // Benches of tufa along the hall's front, either side of the door.
   for (const s of [-1, 1]) {
     const bx = s * 3.15;
-    out.sheltered.push(slab(1.9, 0.08, 0.5, { bevel: 0.01, seed: seed + 10 + s, wobble: 0, tone: 0, grime: 0 }).translate(bx, PY + 0.4, HZ1 + 0.35));
-    for (const e of [-1, 1]) out.sheltered.push(slab(0.16, 0.4, 0.44, { bevel: 0.012, seed: seed + 12 + e, wobble: 0.002, tone: 0.03, grime: 0.2 }).translate(bx + e * 0.78, PY, HZ1 + 0.35));
+    out.floor.push(slab(1.9, 0.08, 0.5, { bevel: 0.01, seed: seed + 10 + s, wobble: 0, tone: 0, grime: 0 }).translate(bx, PY + 0.4, HZ1 + 0.35));
+    for (const e of [-1, 1]) out.floor.push(slab(0.16, 0.4, 0.44, { bevel: 0.012, seed: seed + 12 + e, wobble: 0.002, tone: 0.03, grime: 0.2 }).translate(bx + e * 0.78, PY, HZ1 + 0.35));
   }
   // Bronze lampstands (candelabra) on lion's-foot tripods, a lantern on each.
   for (const [lx, ly, lz] of C.lamps) {
@@ -299,12 +360,12 @@ function porch(lod, seed, out) {
   }
 }
 
-/** The honorary statues at the foot of the steps: bronze men in the toga on inscribed pedestals. */
+/** The honorary statues at the foot of the steps: bronze men in the toga on pedestals of tufa. */
 function statues(lod, seed, out) {
   const [sw, sz] = C.steps;
   for (const s of [-1, 1]) {
     const st = statue(s * (sw + 0.3), sz - 0.55, s * -0.25, { y0: 0.06, h: 1.15, kind: 'togate', lod, base: 0.95 });
-    out.trav.push(...st.base);
+    out.tufa.push(...st.base);
     out.statue.push(...st.statue);
   }
 }
@@ -362,38 +423,40 @@ export function curiaActors(state) {
 /** Build the curia: { group, meshes, triangles }; meshes tagged in userData.when ('open', 'shut', 'out'). The porch's columns are not in it (government.js). */
 export function buildCuria({ lod = 0, seed = 401 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
-  const keys = ['trav', 'paving', 'marble', 'stucco', 'joints', 'brick', 'tile', 'wood', 'bronze', 'gilt', 'letters', 'dark', 'floor', 'statue', 'pane', 'sheltered'];
+  const keys = ['tufa', 'paving', 'stucco', 'red', 'joints', 'tile', 'wood', 'clay', 'bronze', 'letters', 'dark', 'floor', 'statue', 'pane'];
   const out = Object.fromEntries(keys.map((k) => [k, []]));
   podium(lod, seed, out);
   hall(lod, seed + 100, out);
   porch(lod, seed + 200, out);
   statues(lod, seed + 300, out);
-  const m = govMaterials();
+  const m = curiaMaterials();
   const p = new TaggedParts('curia');
   const small = { cast: false };
   if (lod === 2) out.letters = [];
-  p.add('stone', m.trav, out.trav);
-  p.add('paving', m.trav, out.paving, small);
-  p.add('marble', m.marble, out.marble);
+  p.add('stone', m.tufa, out.tufa);
+  p.add('paving', m.tufa, out.paving, small);
   p.add('stucco', m.stucco, out.stucco);
+  p.add('dado', m.red, out.red);
   p.add('joints', m.joint, out.joints, small);
-  p.add('brick', m.brick, out.brick);
   p.add('roof', m.tile, out.tile);
   p.add('wood', m.wood, out.wood);
+  p.add('terracotta', m.clay, out.clay);
   p.add('bronze', m.bronze, out.bronze, { cast: lod === 0 });
-  p.add('gilt', m.gilt, out.gilt);
   p.add('letters', m.letters, out.letters, small);
   p.add('inside', m.dark, out.dark, small);
   // The porch's floor inside the door and its benches under the roof: no snow on them.
-  p.add('floor', m.shelteredMarble, [...out.floor, ...out.sheltered], small);
+  p.add('floor', m.shelteredStone, out.floor, small);
   p.add('statues', m.statueBronze, out.statue);
-  // The doors: bronze, shut (idle, or barred against a mob) or open (in session).
+  // The doors: timber studded with bronze, shut (idle, or barred against a mob) or open (in session).
   const [dw, dh] = C.door;
-  const shut = doubleDoor(0, HZ1 - WALL / 2 + 0.05, 2 * dw, dh, PY, { open: false, lod, metal: true });
-  const open = doubleDoor(0, HZ1 - WALL / 2 + 0.05, 2 * dw, dh, PY, { open: true, lod, metal: true });
-  p.add('doors', m.bronze, open.bronze, { when: 'open' });
-  p.add('doors', m.bronze, shut.bronze, { when: 'shut' });
-  p.add('doors', m.bronze, shut.bronze.map((g) => g.clone()), { when: 'out' });
+  const shut = doubleDoor(0, HZ1 - WALL / 2 + 0.05, 2 * dw, dh, PY, { open: false, lod });
+  const open = doubleDoor(0, HZ1 - WALL / 2 + 0.05, 2 * dw, dh, PY, { open: true, lod });
+  p.add('doors', m.wood, open.wood, { when: 'open' });
+  p.add('doors', m.wood, shut.wood, { when: 'shut' });
+  p.add('doors', m.wood, shut.wood.map((g) => g.clone()), { when: 'out' });
+  p.add('door-studs', m.bronze, open.bronze, { when: 'open' });
+  p.add('door-studs', m.bronze, shut.bronze, { when: 'shut' });
+  p.add('door-studs', m.bronze, shut.bronze.map((g) => g.clone()), { when: 'out' });
   // The lanterns' panes: lit while there is anyone there (in session, or the guard), dark when idle.
   p.add('lamp', lanternPane(), out.pane, { when: 'staffed', cast: false });
   p.add('lamp', m.lampOut, out.pane.map((g) => g.clone()), { when: 'shut', cast: false });
@@ -403,4 +466,3 @@ export function buildCuria({ lod = 0, seed = 401 } = {}) {
 
 /** The curia's lamps for models.js modelLamps: the porch's lanterns, facing the street. */
 export const CURIA_LAMPS = Object.freeze(C.lamps.map(([x, y, z]) => Object.freeze([x, y + 0.1, z, 1])));
-
