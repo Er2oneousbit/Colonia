@@ -9,11 +9,10 @@
  *     the provincial fleets had smaller stations along coasts and rivers,
  *     a squadron of liburnians each, with a headquarters (the principia, as
  *     in a fort), stores and the crews' quarters.
- *   - Their harbours were walled in by moles of opus pilarum: piers of
- *     harbour concrete (Vitruvius: lime and the pozzolana of Puteoli, which
- *     sets under water) joined by arches, which let the current through so
- *     the basin did not silt; the Puteoli mole is drawn so on glass flasks
- *     and frescoes, and its piers still stand under the sea.
+ *   - Harbours of the early fleets were walled in by moles of squared
+ *     blocks laid in courses on a rubble footing, as at Piraeus and
+ *     Syracuse (harbour concrete came only in the first century BC), with
+ *     a timber jetty on driven piles run out where stone was dear.
  *   - At the harbour's mouth a lighthouse: the Pharos of Alexandria's
  *     tiered tower became the type, Ostia's appears on the Torlonia relief
  *     and on coins, Dover's (in the fort of the classis Britannica) still
@@ -26,8 +25,8 @@
  * columns facing the water, CLASSIS cut over its door, the squadron's red
  * standard (vexillum) by it; a store shed for spare oars, a mast and sails.
  * Over the water: a quay of ashlar along the shore with mooring rings and
- * steps down, two moles of opus pilarum out to the front, arches through
- * them, bollards along their edges; between them a sheltered basin with
+ * steps down, two moles of ashlar out to the front (the west one ending
+ * in a timber jetty), bollards along their edges; between them a sheltered basin with
  * the station's boat; on the east mole's end a beacon tower in three
  * tiers of tufa with brick courses, its fire under a small tiled roof. The
  * squadron's liburnians moor past the moles' ends, as the game draws them.
@@ -50,13 +49,14 @@ import { slab, paving, tuscanColumn, wallWithOpenings, lantern, lanternPane, ins
 import { gableRoof, leanTo, doorLeaf, D } from './rural.js';
 import { DYES } from '../people/actors.js';
 import {
-  HARBOUR, harbourMaterials, board, arcade, ashlar, bollard, mooringRing, waterSteps, pierFoam, oar, ropeCoil, liburnianHull,
+  HARBOUR, harbourMaterials, board, quayMole, jetty, ashlar, bollard, mooringRing, waterSteps, pierFoam, oar, ropeCoil, liburnianHull,
 } from './harbour.js';
 
 /** The station's measures (metres): the tests, the lab and the game read them. */
 export const STATIO = Object.freeze({
   top: 0.8, // the terrace's, the quay's and the moles' top
   quayZ: -0.4, // the quay's face over the basin
+  timberFrom: 2.6, // where the west mole's stone ends and its timber jetty begins
   west: Object.freeze([-5.95, -4.2]), // the west mole (x0, x1)
   east: Object.freeze([3.15, 5.95]), // the east mole, wide enough for the beacon
   /** The principia: its walls' outer faces, the portico's columns' line, the door's middle. */
@@ -104,28 +104,37 @@ function terrace(out, lod, seed) {
   }
 }
 
-/** A mole of opus pilarum from the quay out to the front, its arches through it, flags and bollards on top. */
+/**
+ * A mole from the quay out to the front: solid courses of tufa ashlar on a rubble footing, travertine kerbs and
+ * flags on top, bollards along it. The west one is stone only to `timberFrom` and goes on as a timber jetty on
+ * piles (an early mole was run out so, where stone was dear); the east one carries the beacon, so it is all stone.
+ */
 function mole(out, x0, x1, lod, seed) {
   const top = S.top;
   const z0 = S.quayZ - 0.5;
   const z1 = HARBOUR.half - 0.05;
-  const a = arcade(z0, z1, (x0 + x1) / 2, x1 - x0, top, { along: 'z', span: 0.8, pier: 0.75, seed, lod, kerb: false });
+  const timber = x0 < 0;
+  const zm = timber ? S.timberFrom : z1;
+  // (The courses end under the kerbs, which are ashlar of their own.)
+  const a = quayMole(z0, zm, (x0 + x1) / 2, x1 - x0, top - 0.14, { along: 'z', seed, lod, kerb: false });
   out.tufa.push(...a.tufa);
-  out.brick.push(...a.brick);
-  // The mole's end over the open water: a cutwater of ashlar.
-  out.stone.push(...ashlar(x0, x1, -0.5, top - 0.14, z1 - 0.5, z1, { seed: seed + 3, lod, course: 0.33 }));
   // Its top: travertine kerbs along both edges, flags between.
-  out.stone.push(...ashlar(x0 - 0.04, x0 + 0.3, top - 0.14, top, z0 + 0.5, z1 + 0.04, { seed: seed + 5, lod, course: 0.14, min: 0.8, max: 1.3, grime: 0 }));
-  out.stone.push(...ashlar(x1 - 0.3, x1 + 0.04, top - 0.14, top, z0 + 0.5, z1 + 0.04, { seed: seed + 6, lod, course: 0.14, min: 0.8, max: 1.3, grime: 0 }));
-  out.flags.push(...paving(x0 + 0.3, x1 - 0.3, z0 + 0.5, z1, top - 0.02, seed + 7, { rowW: Math.min(0.6, (x1 - x0 - 0.6) / 2), lod }));
-  if (lod < 2) out.foam.push(pierFoam(x0, x1, z0 + 0.5, z1, 0.4, seed + 9, lod));
+  out.stone.push(...ashlar(x0 - 0.04, x0 + 0.3, top - 0.14, top, z0 + 0.5, zm + 0.04, { seed: seed + 5, lod, course: 0.14, min: 0.8, max: 1.3, grime: 0 }));
+  out.stone.push(...ashlar(x1 - 0.3, x1 + 0.04, top - 0.14, top, z0 + 0.5, zm + 0.04, { seed: seed + 6, lod, course: 0.14, min: 0.8, max: 1.3, grime: 0 }));
+  out.flags.push(...paving(x0 + 0.3, x1 - 0.3, z0 + 0.5, zm, top - 0.02, seed + 7, { rowW: Math.min(0.6, (x1 - x0 - 0.6) / 2), lod }));
+  if (lod < 2) out.foam.push(pierFoam(x0, x1, z0 + 0.5, zm, 0.4, seed + 9, lod));
+  if (timber) {
+    const j = jetty(x0 + 0.04, x1 - 0.04, zm - 0.1, z1, top, { seed: seed + 11, lod });
+    out.wood.push(...j.wood);
+    out.foam.push(...j.foam);
+  }
   // Bollards along the inner edge and at the end; rings on the faces.
   const inner = x0 < 0 ? x1 - 0.32 : x0 + 0.32;
   const outer = x0 < 0 ? x0 + 0.32 : x1 - 0.32;
   for (const z of lod === 2 ? [z1 - 0.4] : [0.9, 3.0, z1 - 0.4]) out.stone.push(bollard(inner, top, z, lod));
   if (lod < 2) {
     out.stone.push(bollard(outer, top, z1 - 0.4, lod));
-    for (const z of [1.9, 4.1]) out.iron.push(mooringRing(x0 < 0 ? x1 : x0, top - 0.16, z, x0 < 0 ? 1 : -1, lod, true));
+    for (const z of timber ? [1.9] : [1.9, 4.1]) out.iron.push(mooringRing(x0 < 0 ? x1 : x0, top - 0.16, z, x0 < 0 ? 1 : -1, lod, true));
   }
 }
 

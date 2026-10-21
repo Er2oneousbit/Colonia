@@ -22,14 +22,14 @@
  * fleet's: models/harbour.js HARBOUR, facing +z, the land row behind the
  * shore line, the two front rows out over the water whose surface is
  * y = 0): a quay on the land row with the keeper's lodge and the timber
- * store under a lean-to; a platform of opus pilarum out over the water,
- * its arches letting the sea through, a cutwater at its end; on it the
+ * store under a lean-to; a platform of squared tufa out over the water on a rubble footing,
+ * a cutwater at its end; on it the
  * tower: a battered square storey of squared limestone with courses of
  * tile, slit windows and a ramp winding round it twice; an eight-sided
  * storey; the round lantern of eight columns under a bronze cupola with
  * the god's statue, the blaze inside before its bronze reflector.
  *
- * Built in four stages (data/monuments.js pharus): the piers in their
+ * Built in four stages (data/monuments.js pharus): the walls in their
  * cofferdam of piles (0), the square storey (1), the eight-sided storey (2),
  * the lantern and the first fire (3): read as a timeline `t` from 0 to 4.
  *
@@ -48,7 +48,7 @@ import { material, iceMaterial } from '../materials.js';
 import { slab, paving, TaggedParts } from './masonry.js';
 import { gableRoof, leanTo, woodpile } from './rural.js';
 import { box, rake, gableTri } from './domus.js';
-import { HARBOUR, harbourMaterials, arcade, ashlar, bollard, mooringRing, waterSteps, pile, pierFoam } from './harbour.js';
+import { HARBOUR, harbourMaterials, quayMole, ashlar, bollard, mooringRing, waterSteps, pile, pierFoam } from './harbour.js';
 import { hearthFire } from './sacra.js';
 import { trident } from './numina.js';
 import { DYES } from '../people/actors.js';
@@ -152,7 +152,7 @@ function lodge(out, t, lod, seed) {
   for (const geo of lt.wood) out.wood.push(geo.translate((sx0 + sx1) / 2, 0, sz0 + 0.3));
 }
 
-/** The platform out over the water: the cofferdam's piles first, then the piers and arches, the flags, the cutwater. */
+/** The platform out over the water: the cofferdam's piles first, then the walls of ashlar, the flags, the cutwater. */
 function platform(out, t, lod, seed, ice) {
   const P = H.platform;
   const pl = hgrow(t, 'piles');
@@ -173,12 +173,11 @@ function platform(out, t, lod, seed, ice) {
   if (pr <= 0) return;
   const top = H.top;
   const h = -0.5 + (top + 0.5) * pr;
-  // The piers and their arches along both sides, and across the end.
+  // The walls of ashlar along both sides, and across the end.
   if (pr >= 1) {
     for (const s of [-1, 1]) {
-      const a = arcade(HARBOUR.shore, P.z1 - 0.5, s * (P.hw - 0.45), 0.9, top, { along: 'z', span: 0.9, pier: 0.8, seed: seed + 40 + s, lod, kerb: true });
+      const a = quayMole(HARBOUR.shore, P.z1 - 0.5, s * (P.hw - 0.45), 0.9, top, { along: 'z', seed: seed + 40 + s, lod, kerb: true });
       out.tufa.push(...a.tufa);
-      out.brick.push(...a.brick);
       out.stone.push(...a.trav);
     }
     out.stone.push(...ashlar(-P.hw, P.hw, -0.5, top, P.z1 - 0.5, P.z1, { seed: seed + 50, lod, course: 0.34 }));
@@ -192,7 +191,7 @@ function platform(out, t, lod, seed, ice) {
       if (!ice) out.foam.push(pierFoam(-P.hw, P.hw, HARBOUR.shore + 0.1, P.z1, 0.45, seed + 70, lod));
     }
   } else {
-    // The piers rising inside the cofferdam: blocks of concrete faced in tufa, out of the drained floor.
+    // The piers rising inside the cofferdam: blocks of squared tufa, out of the drained floor.
     for (const s of [-1, 1]) for (let z = HARBOUR.shore + 0.4; z < P.z1; z += 1.7) out.tufa.push(box(0.9, h + 0.5, 0.8, s * (P.hw - 0.45), -0.5, z, 0.85));
     out.tufa.push(box(2 * P.hw, h + 0.5, 0.5, 0, -0.5, P.z1 - 0.25, 0.85));
   }

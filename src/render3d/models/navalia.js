@@ -27,7 +27,7 @@
  * it (its own kit: buildNavaliaHull, on its keel blocks and shores, the
  * shipwrights at work beside it); a narrow staging on piles west of the
  * slip; on the east a ship shed after Zea's, its tiled gable roof on two
- * rows of stone pillars standing on harbour concrete piers in the water,
+ * rows of stone pillars standing on footings of squared tufa in the water,
  * open at the sea's end, a slipway under it, its trusses showing, a spare
  * mast and yard on trestles, oars racked along its side and the gear store
  * at its head; behind the shed and beside the windlass the stock yard,
@@ -174,7 +174,7 @@ function shed(out, lod, seed) {
   const top = S.eave - 0.3; // the pillars' capitals' top; the beams on them
   for (const x of S.pillarX) {
     S.pillarZ.forEach((z, k) => {
-      // Over the water: a pier of harbour concrete faced in tufa from the bed to above the tide, the pillar on it.
+      // Over the water: a footing of squared tufa blocks from the bed to above the tide, the pillar on it.
       const footY = 0.4;
       const pier = slab(0.82, footY + 0.5, 0.82, { bevel: 0.02, seed: seed + k * 5 + x, wobble: 0.006, tone: 0.06, grime: 0 }).translate(x, -0.5, z);
       out.tufa.push(tintGeometry(pier, (px, py) => (py < 0.08 ? 0.5 : py < 0.35 ? 0.68 : 0.95)));
