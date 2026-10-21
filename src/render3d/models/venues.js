@@ -42,7 +42,7 @@ import { cast, NOBODY, DYES, hash01 } from '../people/actors.js';
 import { buildCrowdGroup, CROWD_VARIANTS } from './venue.js';
 import { buildTheatrum, theatrumSeats, THEATRUM_LAMPS } from './theatrum.js';
 import { buildAmphitheatrum, buildAmphitheatrumStage, amphitheatrumSeats, AMPHITHEATRUM_LAMPS } from './amphitheatrum.js';
-import { buildArena, buildArenaBay, arenaSeats, ARENA_LAMPS, ARENA_BAYS } from './arena.js';
+import { buildArena, arenaSeats, ARENA_LAMPS } from './arena.js';
 import { buildCircus, buildLapCounter, circusSeats, circusLamps, LAP_PLACES } from './circus.js';
 import { lapsNow, leaderU } from './venueShow.js';
 import { theaterActors, amphitheaterActors, colosseumActors, hippodromeActors } from './venueActors.js';
@@ -230,8 +230,8 @@ const I16 = new Matrix4().toArray(new Float32Array(16));
 const EXTRA = {
   amphitheater: (acts) => (acts.play ? [Object.freeze({ key: 'amphitheater:stage', n: 1, mats: I16, state: 'always' })] : []),
 };
-/** Kits a venue always shows, instanced apart: the Great Arena's façade, a kit a kind of bay (models/arena.js). */
-const BASE = { colosseum: ARENA_BAYS };
+/** Kits a venue always shows, instanced apart (none now: the Great Arena's wall is part of its model, no longer a kit of bays). */
+const BASE = {};
 /**
  * A venue's `more`: its own kits (BASE), its crowd and the kits of what is
  * on, the list kept by signature and made again only when the crowd's
@@ -338,7 +338,7 @@ function entry(type, builds, lamps, warm = []) {
 export const VENUE_MODELS = Object.freeze({
   theater: entry('theater', { theater: buildTheatrum }, THEATRUM_LAMPS),
   amphitheater: entry('amphitheater', { amphitheater: buildAmphitheatrum, 'amphitheater:stage': buildAmphitheatrumStage }, AMPHITHEATRUM_LAMPS, ['amphitheater:stage']),
-  colosseum: entry('colosseum', { colosseum: buildArena, 'colosseum:bay:even': (o) => buildArenaBay('even', o), 'colosseum:bay:odd': (o) => buildArenaBay('odd', o), 'colosseum:bay:gate': (o) => buildArenaBay('gate', o) }, ARENA_LAMPS, ARENA_BAYS.map((e) => e.key)),
+  colosseum: entry('colosseum', { colosseum: buildArena }, ARENA_LAMPS),
   hippodrome: circusEntry(),
   hippodrome_part: circusEntry(),
 });
