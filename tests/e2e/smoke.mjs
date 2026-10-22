@@ -3853,7 +3853,9 @@ try {
   await tapPage.goto(url);
   await tapPage.waitForTimeout(2500);
   await tapPage.touchscreen.tap(195, 422);
-  await tapPage.waitForTimeout(800);
+  // The unlock is async (the context resumes after the gesture): wait for it rather than read it 800 ms
+  // on, which a loaded machine (software GL, other browsers running) missed (v0.30.16).
+  await tapPage.waitForFunction(() => window.colonia && window.colonia.music.playing && window.colonia.sfx.ctx && window.colonia.sfx.ctx.state === 'running', null, { timeout: 15000 }).catch(() => {});
   const tapped = await tapPage.evaluate(() => ({ ctx: window.colonia.sfx.ctx && window.colonia.sfx.ctx.state, playing: window.colonia.music.playing, mood: window.colonia.music.mood, gate: !!document.querySelector('#title-gate:not(.leaving)'), modal: !!document.querySelector('.modal') }));
   check('phone: one tap on the title gate starts the menu music', tapped.playing && tapped.mood === 'menu' && !tapped.gate && !tapped.modal, JSON.stringify(tapped));
   await tapPage.close();
