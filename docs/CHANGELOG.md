@@ -2,6 +2,12 @@
 
 Every release, newest first: what changed and why, with what was measured. The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.16
+
+* **The Grand Palatium and the Imperial Palatium in 3D** (under WebGL), the two 4 x 4 homes and the top of the ladder, four looks each, after the House of the Faun at Pompeii: a long street front of shops and a great door with HAVE on its threshold, two atria (a Tuscan one and a tetrastyle one) and the tablinum with its mosaic floor between them, a first peristyle with a bronze faun and a second, larger one with a long pool, figs and cypresses, a loggia on the back range; the Imperial one as the governor's own house, with an Ionic porch and a forecourt of fountain and statues, marble peristyles, a belvedere tower, a summer dining pavilion and a garden gate. Every one of the twenty home levels is a model now.
+* **Two smoke checks made honest** (both failed on a loaded machine for reasons the code did not cause): the phone tap check waits for the audio context to resume instead of reading it 800 ms after the tap; the fire check reads the torched home's own message by its tile (v0.30.11's fix, carried).
+* 1452 unit tests
+
 ## v0.30.15
 
 * **The Insula, the Villa and the Garden Villa in 3D** (under WebGL), the three 2 x 2 homes, four looks each. The insula is the tenement's richer neighbour: three storeys of plastered rubble over a tufa footing with shops on the street, balconies on timber beams or an outside timber stair, a light well open to the sky with a well-head and washing, a tiled roof in several pitches with smoke vents. The villa is a well-off family's town house: a blank plastered street front with a studded door and a barred porter's window, two storeys round a peristyle of Tuscan columns with a cistern head, the roof falling inward to the compluvium, a kitchen garden behind with a fig. The garden villa makes much of its garden: the house along one side over a loggia, a walled garden of box-edged parterres with a fountain, a herm, a sundial, a vine pergola and cypresses, a gate that opens while the family is home. Each storey above the first shifts the plaster so the surface's red dado stays at the ground floor (the apartment house and the tenement still show it at 4 m). Eighteen of the twenty levels are models now.
