@@ -104,6 +104,9 @@ import { THERMAE_REACH } from '../data/monuments.js';
 import { K_STRIP, K_WALKER, K_FIRE, K_COLUMN, K_EXTRA, K_UNIT, K_PROJ, K_FLAG, K_GATE, spriteRect } from './items.js';
 import { CanvasBackend } from './canvasBackend.js';
 
+/** Where a chimney's smoke leaves its sprite: footprint (u, v) and a height in px (the kiln's vent, the forge's flue, the bloomery's stack). */
+const SMOKE_AT = { pottery_ws: [1.5875, 1.3625, 12], weapons_ws: [1.5875, 0.25, 27], iron_mine: [1.225, 1.575, 10] };
+
 /** A fort's or naval station's color: its rally standard and the ghost one while deploying. */
 function forceColor(b) {
   if (b.def.kind === 'station') return UNIT_TYPES.liburnian.color;
@@ -1853,9 +1856,11 @@ export class Renderer {
     if ((kind === 'warehouse' || kind === 'granary') && !model) {
       items.push({ d: front + 0.0005, kind: K_EXTRA, b, wx, wy, stock: true });
     }
-    if ((b.type === 'pottery_ws' || b.type === 'weapons_ws') && b.efficiency > 0 && b.progress > 0 && Math.random() < 0.03) {
-      const [u, v] = turnUV(0.99, 0.34, b.size, T); // the kiln's chimney (workshopArt), turned with it
-      this.effects.smoke(wx + (u - v) * HALF_W, wy + (u + v) * HALF_H - 32);
+    if ((b.type === 'pottery_ws' || b.type === 'weapons_ws' || b.type === 'iron_mine') && b.efficiency > 0 && b.progress > 0 && Math.random() < 0.03 && !(model && b.type === 'iron_mine')) {
+      // Where the smoke leaves: the kiln's vent, the forge's flue, the bloomery's stack (buildingArt.js industry art), turned with the building.
+      const at = SMOKE_AT[b.type];
+      const [u, v] = turnUV(at[0], at[1], b.size, T);
+      this.effects.smoke(wx + (u - v) * HALF_W, wy + (u + v) * HALF_H - at[2]);
     }
     // Hearth smoke from lived-in homes (only when zoomed in enough to see it).
     if (b.house && b.house.pop > 0 && b.house.tier >= 4 && b.house.tier <= 12 && this.camera.zoom >= 1 && Math.random() < 0.0015) {
@@ -1883,9 +1888,9 @@ export class Renderer {
       // (A temple drawn as a model burns its own fire on its altar: the sprite's flame would hang beside it.)
       if (!model) items.push({ d: front + 0.0004, kind: K_EXTRA, b, wx, wy, live: 'altar' });
     } else if (b.type === 'weapons_ws' && b.efficiency > 0 && b.progress > 0 && this.motionOn && Math.random() < 0.035) {
-      // The smith hammers: sparks fly out of the forge door (workshopArt door, left face).
-      const [u, v] = turnUV(0.6, 1.07, b.size, T);
-      this.effects.sparks(wx + (u - v) * HALF_W, wy + (u + v) * HALF_H - 4, 4 + Math.floor(Math.random() * 4));
+      // The smith hammers: sparks fly from the hearth's front edge, under its hood.
+      const [u, v] = turnUV(1.5875, 0.4125, b.size, T);
+      this.effects.sparks(wx + (u - v) * HALF_W, wy + (u + v) * HALF_H - 7, 4 + Math.floor(Math.random() * 4));
     }
   }
 

@@ -21,6 +21,8 @@
   reviewing changes, and as a side-by-side reference when making replacement
   sprites. Query params: scale=2 (pixel scale, default 2)  governor=1 (the governor's residences only)  tiers=1,2,3 (levels subset)  extras=1 (with tiers: the other sections too)  carts=1 (the carts only; scale=1 is the default zoom)
   water=1 (fishing and races only: shipyard, wharf, boats, the hippodrome, chariots)
+  industry=1 (the raw producers and the eight workshops only: staffed and empty, staffed with full stores, idle with half
+           stores, and the other three turns of the full one; snow=1 adds snow)
   cloth=1 (the cloth industry only: the flax farm as it grows and rests, the two workshops, the carts)
   navy=1 (the fleet only: the navalia and naval station on each side, liburnians and raider ships)
   monuments=1 (the monuments only: each at every stage, the Pharus on each water side, the five
@@ -33,7 +35,7 @@
 -->
 <div id="sheet"></div>
 <script type="module">
-  import { buildingSpec } from '../../src/render/buildingArt.js';
+  import { buildingSpec, industryArtState } from '../../src/render/buildingArt.js';
   import { HOUSE_TIERS } from '../../src/data/housing.js';
   import { drawWalker, drawChariot } from '../../src/render/walkerArt.js';
   import { drawUnit } from '../../src/render/militaryArt.js';
@@ -50,12 +52,13 @@
   // carts=1 shows only the carts (an empty tier list skips every home level)
   const water = !!q.get('water');
   const cloth = !!q.get('cloth');
+  const industry = !!q.get('industry');
   const navy = !!q.get('navy');
   const monuments = !!q.get('monuments');
   const bridges = !!q.get('bridges');
   const governor = !!q.get('governor');
   const turns = q.get('turns');
-  const only = q.get('carts') || water || cloth || navy || monuments || bridges || governor || turns ? [] : q.get('tiers') ? q.get('tiers').split(',').map(Number) : null;
+  const only = q.get('carts') || water || cloth || industry || navy || monuments || bridges || governor || turns ? [] : q.get('tiers') ? q.get('tiers').split(',').map(Number) : null;
   const sheet = document.getElementById('sheet');
 
   /** Draw one sprite spec into a new canvas at `scale`. */
@@ -93,6 +96,26 @@
     const cells = [];
     for (let v = 0; v < 8; v++) cells.push([`look ${v}`, buildingSpec('house', S, v, tier)]);
     section(`Level ${tier}: ${HOUSE_TIERS[tier].name} (${S}x${S})`, cells);
+  }
+  if (industry) {
+    // The raw producers and the workshops: each staffed and empty, staffed and full, idle with half stores, then turned.
+    const snow = Number(q.get('snow') || 0);
+    const keys = ['clay_pit', 'timber_yard', 'iron_mine', 'marble_quarry', 'pottery_ws', 'furniture_ws', 'oil_ws', 'wine_ws', 'weapons_ws', 'fletcher_ws', 'linen_ws', 'clothing_ws'];
+    const stocked = (key, amount, shut) => {
+      const stock = {};
+      for (const g of [BUILDINGS[key].produces, BUILDINGS[key].consumes, ...Object.keys(BUILDINGS[key].recipe || {})]) if (g) stock[g] = amount;
+      return industryArtState({ type: key, efficiency: shut ? 0 : 1, stock });
+    };
+    for (const key of keys) {
+      const S = BUILDINGS[key].size;
+      const one = (st, t = 0) => buildingSpec(key, S, 0, st, false, snow, false, t);
+      section(BUILDINGS[key].en, [
+        ['staffed, empty', one(0)],
+        ['staffed, full', one(stocked(key, 400, false))],
+        ['idle, half', one(stocked(key, 120, true))],
+        ...[1, 2, 3].map((t) => [`turn ${t}`, one(stocked(key, 400, false), t)]),
+      ]);
+    }
   }
   if (turns) {
     // Turned art (render/turn.js): every building and home level at the four

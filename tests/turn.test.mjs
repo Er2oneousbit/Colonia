@@ -18,7 +18,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildingSpec, flagsFor, drawWarehouseStock, drawGranaryStock } from '../src/render/buildingArt.js';
+import { buildingSpec, flagsFor, drawWarehouseStock, drawGranaryStock, industryArtState } from '../src/render/buildingArt.js';
 import { lightsOf } from '../src/render/lighting.js';
 import { recordingContext, box, door, P } from '../src/render/draw.js';
 import { turnUV, turnDir, drawTurned, turnCheck, sortUnits } from '../src/render/turn.js';
@@ -43,6 +43,11 @@ function allArt() {
       continue;
     }
     const states = k === 'hippodrome_part' ? [1, 2] : d.kind === 'farm' ? [0, 4, 7] : [0, 1];
+    // The raw producers and the workshops: also with every store full, staffed and idle (industryArtState).
+    if (industryArtState({ type: k, efficiency: 1, stock: {} }) !== undefined) {
+      const stock = Object.fromEntries([d.produces, d.consumes, ...Object.keys(d.recipe || {})].filter(Boolean).map((g) => [g, 400]));
+      states.push(industryArtState({ type: k, efficiency: 1, stock }), industryArtState({ type: k, efficiency: 0, stock }));
+    }
     // Waterside buildings out over the water: facing each side, with the
     // hull on the slip or the catch on the deck (sim/entities.js OVER_WATER_ART).
     if (d.placement === 'shore' || d.placement === 'fishingShore') {

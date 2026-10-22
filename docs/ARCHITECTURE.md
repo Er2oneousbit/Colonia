@@ -480,6 +480,13 @@ which also scales their funds.
   depth), or the track would paint over it.
   The charioteer and a chariot maker's team are drawn as a chariot and pair (`drawChariot()`).
   The shipyard's art state is its water side plus the hull on the slip (none, ribs, planked); the wharf's its water side plus baskets of fish while it holds a catch.
+* **The raw producers and the workshops** (Classic) are drawn as their 3D models are designed, in the models' metres (`indU`, `indV`, `IND_H` in `buildingArt.js`; the plan of `render3d/models/clayPit.js` and its siblings).
+  Their art state (`industryArtState()`) is bit 0 set when the building has no staff (shut: the lantern cold, a producer's tools leaning, a workshop boarded up and its fire out), then the stores as steps of 0 to 3 (none, a third, two thirds, full, as the models read them: `stockStep`).
+  A producer has one store (x2); a workshop has its raw material, a second raw material (the Fletcher's iron) and its product, two bits each, so a sprite key carries at most 128 looks and only the ones a city shows are ever drawn.
+  State 0 is staffed and empty, which is also the placement ghost's look.
+  The kiln's vent, the forge's flue and the bloomery's stack are where the renderer starts their smoke (`SMOKE_AT` in `renderer.js`).
+  A turned sprite sorts its units pairwise, and one tie that cycles can put a whole wall in front of everything inside it: so each fitting is one unit (`indUnit`), the shed's interior is one unit, the roof is boxed above the walls' tops, and long fences and lines are cut in pieces.
+  `tests/e2e/artsheet.html?industry=1` shows all twelve staffed and empty, staffed and full, idle, and turned.
 * **Walkers** are drawn live each frame (`walkerArt.js`), not cached, so they have no sprite keys.
   A walker type's `item` picks what it carries; the criminals have their own: a protester shakes a `placard`, a hooded thief carries a `sack`, a rioter waves a flickering `torch` (the raised arms bob
   with the clock, visual only).
