@@ -18,12 +18,12 @@
  *                  the fire burning in it and a figure on top.
  *   Mansio Magna   a walled road station round a courtyard: a gatehouse, the
  *                  inn along the back, stables, colonnades, mules and a cart.
- *   Thermae        a vaulted bath block on its furnaces: a domed hot hall,
- *                  two vaulted wings with great half-round windows, a pool
- *                  and an exercise court, smoke from the flues.
- *   Basilica       a long hall with a clerestory under a timber roof, a
- *                  columned front, an apse at its end and the magistrates'
- *                  tribunal before it.
+ *   Thermae        a Greek-style bath of stuccoed tufa under timber roofs: two
+ *                  round rooms under conical tiled roofs, a long tub hall under
+ *                  a gable, an open pool and a colonnaded exercise court,
+ *                  smoke from the terracotta flues.
+ *   Basilica       a long hall with a clerestory under a tiled timber roof and
+ *                  a columned front, no apse; stuccoed red and cream when done.
  *   Work camp      timber sheds, a brick kiln, stacks of bricks, timber and
  *                  marble, an ox pen and the crew's tents.
  *
@@ -121,7 +121,7 @@ function builtShare(stage, k) {
  * given as the art is written: turned, the box is turned with it (round
  * things, figures and posts drawn through their own points).
  */
-function solid(ctx, b, fn) {
+export function solid(ctx, b, fn) {
   if (TS.rec && !TS.rec.depth) {
     const [a, c, da, dc] = turnRectNow(b[0], b[2], b[1] - b[0], b[3] - b[2]);
     unit([a, a + da, c, c + dc, b[4], b[5]], fn);
@@ -311,7 +311,7 @@ function arcBounds(u, v, r, z0, z1, a0 = 0, a1 = TAU) {
 }
 
 /** revolveRaw as one piece of the drawing (see solid). */
-function revolve(ctx, u, v, prof, color, o = {}) {
+export function revolve(ctx, u, v, prof, color, o = {}) {
   const rmax = Math.max(...prof.map((p) => p[0]));
   const zs = prof.map((p) => p[1]);
   solid(ctx, arcBounds(u, v, rmax, Math.min(...zs), Math.max(...zs), o.a0, o.a1 ?? (o.a0 ?? 0) + TAU), () => revolveRaw(ctx, u, v, prof, color, o));
@@ -328,7 +328,7 @@ function facing(a) {
  * angles a0 + (k + 0.5) * TAU / n, each w tiles wide and h px tall from z,
  * arched at the top; only those facing the viewer are drawn.
  */
-function drumMarks(ctx, u, v, r, n, z, h, w, color, a0 = 0, arched = true) {
+export function drumMarks(ctx, u, v, r, n, z, h, w, color, a0 = 0, arched = true) {
   const rr = r + 0.004;
   const at = (a, zz) => P(u + Math.cos(a) * rr, v + Math.sin(a) * rr, zz);
   for (let k = 0; k < n; k++) {
@@ -365,7 +365,7 @@ function ringLine(ctx, u, v, r, z, color, lw = 0.8) {
 }
 
 /** A dome's outline: radius r tiles springing at z0, rising h px; `upTo` (0..1) of its rise built; `oculus` (0..1) leaves a hole that wide at the top. */
-function domeProf(r, z0, h, upTo = 1, oculus = 0, n = 7) {
+export function domeProf(r, z0, h, upTo = 1, oculus = 0, n = 7) {
   const top = oculus ? Math.acos(oculus) : Math.PI / 2;
   const end = Math.min(top, Math.asin(Math.min(1, upTo)));
   const out = [];
@@ -1705,37 +1705,16 @@ function mansioArt(ctx, S, variant, state, key) {
 // Thermae (5x5): the great baths
 // ---------------------------------------------------------------------------
 
-const BRICK_FACE = '#b47a54';
-
-/** A great half-round window in a vault's end (the thermal window), on the +v face of a block. */
-function thermalWindow(ctx, u0, u1, v, z, rise) {
-  decal(0, 1, () => {
-    const um = (u0 + u1) / 2;
-    const hw = (u1 - u0) / 2;
-    const pts = [];
-    for (let j = 0; j <= 12; j++) {
-      const a = (Math.PI * j) / 12;
-      pts.push(P(um + hw * Math.cos(a), v, z + rise * Math.sin(a)));
-    }
-    poly(ctx, pts, '#3d3a3a');
-    ctx.strokeStyle = '#e8dfcc';
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    for (const t of [-0.34, 0.34]) {
-      const a = P(um + hw * t, v, z);
-      const b = P(um + hw * t, v, z + rise * Math.sqrt(1 - t * t));
-      ctx.moveTo(a[0], a[1]);
-      ctx.lineTo(b[0], b[1]);
-    }
-    ctx.stroke();
-  });
-}
+const FLUE = '#b86a45'; // the terracotta flue pipes (fired brick is the Empire's)
+const TUFA = '#bdae88'; // the walls' tufa, the plinth and the rims
+const TILED = '#e0d3b4'; // plastered tufa columns
 
 /**
- * The Thermae: stage 0 the platform over the furnaces (the floor on its
- * brick stacks being laid); 1 the hot hall under its dome and the warm hall
- * before it; 2 the two vaulted cold-hall wings and the pool; 3 the exercise
- * court with its colonnades. Finished, smoke rises from the furnaces' flues.
+ * The Thermae as the 3D model draws it (a Greek-style bath of about 300 BC,
+ * stuccoed tufa, no vaults, no brick): stage 0 the footings on rubble; 1 the
+ * long tub hall under its gable; 2 the two round rooms (tholoi) under cones
+ * of tiles, and the pool; 3 the exercise court with its Tuscan colonnades.
+ * Finished, smoke rises from the furnaces' terracotta flues.
  */
 function thermaeArt(ctx, S, variant, state, key) {
   const { stage, n } = monumentStageOf(state, key);
@@ -1750,7 +1729,7 @@ function thermaeArt(ctx, S, variant, state, key) {
   // --- the flues at the back (2), smoking once lit
   if (f(2) === 1) {
     for (const a of [0.9, 3.95]) {
-      box(ctx, a, 0.18, 0.16, 0.14, 0, 40, BRICK_FACE);
+      box(ctx, a, 0.18, 0.16, 0.14, 0, 36, FLUE);
       if (done) smoke(ctx, a + 0.08, 0.25, 41, true);
     }
   }
@@ -1758,101 +1737,87 @@ function thermaeArt(ctx, S, variant, state, key) {
   // --- 0: the platform over the hypocaust
   if (f(0) === 0.5) {
     trenchRect(ctx, 0.35, 0.35, 4.65, 2.6, 0.18);
-    // the floor's brick stacks (pilae) going up in rows, the floor slabs laid over the first
+    // the rubble footings going up in rows, the floor slabs laid over the first
     quad(ctx, 0.53, 0.53, 3.2, 2.42, 0, '#8f7052');
     box(ctx, 0.53, 0.53, 0.72, 1.89, 0, 5.7, '#c9b9a0', { plain: true }); // the floor laid over the first stacks
     for (let a = 0; a < 8; a++) {
       for (let b = 0; b < 6; b++) {
         if (a > 5 && b < 3) continue; // (the last rows still going up)
-        box(ctx, 1.36 + a * 0.22, 0.62 + b * 0.3, 0.09, 0.09, 0, a > 5 ? 2.5 : 4.5, C.brick, { plain: true });
+        box(ctx, 1.36 + a * 0.22, 0.62 + b * 0.3, 0.13, 0.13, 0, a > 5 ? 2.5 : 4.5, '#a89a78', { plain: true });
       }
     }
     stakeOut(ctx, [[0.6, 2.9], [2.45, 2.9], [2.45, 4.6], [0.6, 4.6]]);
     worker(ctx, 2.0, 1.2, 0, 2);
     worker(ctx, 3.3, 2.2, 0, 0);
   } else if (f(0) === 1) {
-    box(ctx, 0.35, 0.35, 4.3, 2.25, 0, 5, BRICK_FACE);
-    arcade(ctx, 'left', 0.35, 0.35, 4.65, 2.6, 0, 5, 10, 'rgba(40,24,16,0.8)', { open: 0.35, spring: 0.4 });
+    box(ctx, 0.35, 0.35, 4.3, 2.25, 0, 5, TUFA); // the footings under the halls: rubble and tufa, no hypocaust
   }
 
-  // --- 2: the left wing (the cold hall), behind the hot hall from here
-  const wing = (u0, full) => {
-    const h = full ? 26 : 12;
-    if (!full) scaffold(ctx, u0, 0.45, 1.35, 2.15, 5, 5 + h + 8, 'back', u0 > 2 ? 'l' : 'r');
-    riseBox(ctx, u0, 0.45, 1.35, 2.15, 5, h, stucco, full ? 1 : 0.5);
-    if (full) {
-      windows(ctx, 'right', u0, 0.45, u0 + 1.35, 2.6, 5, 1, 3, C.glass, { z: 10, h: 9, w: 0.14 });
-      arcade(ctx, 'left', u0, 0.45, u0 + 1.35, 2.6, 5, 15, 3, 'rgba(58,46,36,0.75)', { open: 0.5 });
-      box(ctx, u0, 0.45, 1.35, 2.15, 31, 2, '#f2eadb', { plain: true });
-      gableRoof(ctx, u0, 0.45, 1.35, 2.15, 33, 12, C.terra, 'v', 0.04);
-      thermalWindow(ctx, u0 + 0.2, u0 + 1.15, 2.6, 33, 9);
-    } else {
-      scaffold(ctx, u0, 0.45, 1.35, 2.15, 5, 5 + h + 8, 'front', u0 > 2 ? 'l' : 'r');
+  // --- 2: the round rooms (the hip-bath room and the sweat room): a tholos each, stuccoed tufa red below, under a cone of tiles
+  const tholos = (cu, full) => {
+    const [cv, r] = [1.5, 0.62];
+    if (!full) {
+      solid(ctx, arcBounds(cu, cv, r + 0.15, 5, 36), () => {
+        ringScaffoldRaw(ctx, cu, cv, r, 5, 28, false);
+        hollowDrumRaw(ctx, cu, cv, r, 0.12, 5, 12, TUFA);
+        ringScaffoldRaw(ctx, cu, cv, r, 5, 28, true);
+      });
+      return;
     }
+    revolve(ctx, cu, cv, [[r, 5], [r, 11]], '#a4472f', { seg: 24 });
+    revolve(ctx, cu, cv, [[r, 11], [r, 31]], stucco, { seg: 24 });
+    revolve(ctx, cu, cv, [[r + 0.06, 31], [r + 0.06, 33]], TUFA, { seg: 24 });
+    revolve(ctx, cu, cv, [[r + 0.1, 33], [0.05, 50]], C.terra, { seg: 24, lines: true });
+    revolve(ctx, cu, cv, [[0.08, 49], [0.08, 53]], C.terraDark, { seg: 8 }); // the smoke hole's flue
+    if (done) smoke(ctx, cu, cv, 54);
   };
-  if (f(2) > 0) wing(0.35, f(2) === 1);
+  if (f(2) > 0) tholos(1.05, f(2) === 1);
 
-  // --- 1: the hot hall and its dome, the warm hall before it
+  // --- 1: the long tub hall between them, high plain windows under a tiled gable
   if (f(1) > 0) {
     const full = f(1) === 1;
-    // (A little narrower than the gap between the wings, their eaves clear of it.)
     if (!full) scaffold(ctx, 1.75, 0.4, 1.5, 1.6, 5, 30, 'back');
-    riseBox(ctx, 1.75, 0.4, 1.5, 1.6, 5, full ? 32 : 16, stucco, full ? 1 : 0.5);
+    if (full) box(ctx, 1.75, 0.4, 1.5, 1.6, 5, 6, '#a4472f', { plain: true, noTop: true });
+    riseBox(ctx, 1.75, 0.4, 1.5, 1.6, full ? 11 : 5, full ? 26 : 16, stucco, full ? 1 : 0.5);
     if (full) {
-      windows(ctx, 'right', 1.75, 0.4, 3.25, 2.0, 5, 1, 3, C.glass, { z: 22, h: 11, w: 0.12 });
-      box(ctx, 1.75, 0.4, 1.5, 1.6, 37, 2, '#f2eadb', { plain: true });
-      solid(ctx, arcBounds(2.5, 1.2, 0.72, 39, 72), () => {
-        revolveRaw(ctx, 2.5, 1.2, [[0.7, 39], [0.7, 47]], stucco, { seg: 28 });
-        drumMarks(ctx, 2.5, 1.2, 0.7, 10, 40.5, 4, 0.14, C.glass, 0.1);
-        revolveRaw(ctx, 2.5, 1.2, [[0.74, 47], [0.74, 48.5], [0.68, 48.5], ...domeProf(0.68, 48.5, 22, 1, 0.14, 6)], '#c9c2b4', { seg: 24, lines: true });
-        poly(ctx, circlePts(2.5, 1.2, 0.68 * 0.14, 48.5 + 22 * Math.sin(Math.acos(0.14)), 12), '#3a3230');
-      });
-      // the warm hall in front, lower, its vault's end facing the court
-      // (narrower again, its eaves clear of the wings' roofs)
-      box(ctx, 1.8, 2.0, 1.4, 0.6, 5, 20, stucco);
-      arcade(ctx, 'left', 1.8, 2.0, 3.2, 2.6, 5, 14, 3, 'rgba(58,46,36,0.75)', { open: 0.5 });
-      gableRoof(ctx, 1.8, 2.0, 1.4, 0.6, 25, 9, C.terra, 'v', 0.04);
-      thermalWindow(ctx, 1.95, 3.05, 2.64, 25, 7);
+      windows(ctx, 'right', 1.75, 0.4, 3.25, 2.0, 5, 1, 3, C.glass, { z: 22, h: 9, w: 0.12 });
+      windows(ctx, 'left', 1.75, 0.4, 3.25, 2.0, 5, 1, 4, C.glass, { z: 22, h: 9, w: 0.12 });
+      gableRoof(ctx, 1.7, 0.35, 1.6, 1.7, 37, 11, C.terra, 'u', 0.05);
     } else {
       scaffold(ctx, 1.75, 0.4, 1.5, 1.6, 5, 30, 'front');
       worker(ctx, 2.2, 2.09, 14, 1);
       worker(ctx, 3.39, 1.2, 23, 3);
     }
   }
-  if (f(2) > 0) wing(3.3, f(2) === 1);
+  if (f(2) > 0) tholos(3.95, f(2) === 1);
 
   // --- 2: the pool, front left
   if (f(2) === 0.5) {
     trenchRect(ctx, 0.55, 2.95, 2.45, 4.55, 0.22);
     quad(ctx, 0.77, 3.17, 2.23, 4.33, 0, '#7a5c40');
   } else if (f(2) === 1) {
-    box(ctx, 0.5, 2.92, 2.0, 1.68, 0, 3, C.marble, { plain: true });
+    box(ctx, 0.5, 2.92, 2.0, 1.68, 0, 3, TUFA, { plain: true });
     quad(ctx, 0.62, 3.04, 2.38, 4.48, 3.05, C.pool);
     quad(ctx, 0.62, 3.04, 2.38, 3.2, 3.06, 'rgba(255,255,255,0.22)');
     for (let k = 0; k < 4; k++) quad(ctx, 0.9 + k * 0.38, 3.5 + (k % 2) * 0.45, 1.1 + k * 0.38, 3.56 + (k % 2) * 0.45, 3.07, 'rgba(255,255,255,0.45)');
-    stairs(ctx, 0.62, 0.9, 3.04, 4.48, 0, 3, 2, C.marble);
-    if (done) {
-      giltFigure(ctx, 0.62, 4.75, 0, 1);
-      giltFigure(ctx, 2.38, 4.75, 0, 1);
-    }
+    stairs(ctx, 0.62, 0.9, 3.04, 4.48, 0, 3, 2, TUFA);
   }
 
   // --- 3: the exercise court, front right
   if (f(3) > 0) {
     const full = f(3) === 1;
     quad(ctx, 2.75, 2.9, 4.7, 4.75, 0, C.sand);
-    for (let k = 0; k < 4; k++) column(ctx, 2.9 + k * 0.42, 2.98, 0, full || k % 2 ? 14 : 5, C.marble, 1.5);
+    for (let k = 0; k < 4; k++) column(ctx, 2.9 + k * 0.42, 2.98, 0, full || k % 2 ? 14 : 5, TILED, 1.5);
     if (full) {
-      box(ctx, 2.78, 2.86, 1.62, 0.24, 14, 1.5, C.marble, { plain: true });
-      gableRoof(ctx, 2.78, 2.86, 1.62, 0.24, 15.5, 4, C.terraDark, 'u', 0.03);
+      box(ctx, 2.78, 2.86, 1.62, 0.24, 14, 1.5, TILED, { plain: true });
+      gableRoof(ctx, 2.78, 2.86, 1.62, 0.24, 15.5, 4, C.terra, 'u', 0.03);
     }
-    for (let k = 0; k < 5; k++) column(ctx, 4.58, 3.32 + k * 0.34, 0, full || k % 2 ? 14 : 5, C.marble, 1.5);
+    for (let k = 0; k < 5; k++) column(ctx, 4.58, 3.32 + k * 0.34, 0, full || k % 2 ? 14 : 5, TILED, 1.5);
     if (full) {
-      box(ctx, 4.46, 3.16, 0.24, 1.58, 14, 1.5, C.marble, { plain: true });
-      gableRoof(ctx, 4.46, 3.16, 0.24, 1.58, 15.5, 4, C.terraDark, 'v', 0.03);
+      box(ctx, 4.46, 3.16, 0.24, 1.58, 14, 1.5, TILED, { plain: true });
+      gableRoof(ctx, 4.46, 3.16, 0.24, 1.58, 15.5, 4, C.terra, 'v', 0.03);
     }
     if (done) {
-      giltFigure(ctx, 3.6, 3.85, 0, 1.3);
       worker(ctx, 3.2, 4.3, 0, 0);
       worker(ctx, 3.45, 4.45, 0, 1);
       worker(ctx, 4.1, 3.6, 0, 4);
@@ -1882,15 +1847,22 @@ const BAS = Object.freeze({ u0: 0.3, u1: 3.95, v0: 0.9, v1: 3.6, nv0: 1.6, nv1: 
 /**
  * The Basilica: stage 0 the platform and its steps; 1 the walls, the
  * nave's piers and the clerestory over them; 2 the great timber roof over
- * the nave and the aisles' roofs; 3 the magistrates' apse at the end with
- * its half dome, the tribunal before it, and the statues along the front.
+ * the nave and the aisles' roofs, tiled; 3 the stucco (red dado, cream
+ * above) over the tufa, under scaffolds on the front. As the 3D model's
+ * Republican hall: no apse, no marble, no vault.
  */
 function basilicaArt(ctx, S, variant, state, key) {
   const { stage, n } = monumentStageOf(state, key);
   const done = stage >= n;
   const f = (k) => builtShare(stage, k);
   const { u0, u1, v0, v1, nv0, nv1, base } = BAS;
-  const tr = '#e6dabd'; // travertine
+  const fin = f(3) === 1; // finished: stuccoed, a red dado below and cream above (the first Pompeian style)
+  const tr = '#bdae88'; // tufa ashlar, bare until the stucco goes on
+  const wallBox = (u0_, v0_, du, dv, z0, h, dado) => {
+    if (!fin) { box(ctx, u0_, v0_, du, dv, z0, h, tr); return; }
+    if (dado) box(ctx, u0_, v0_, du, dv, z0, dado, '#a4472f', { plain: true, noTop: true });
+    box(ctx, u0_, v0_, du, dv, z0 + dado, h - dado, '#ebe0c6');
+  };
   if (done) quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#d6ccb4');
   else siteGround(ctx, S, 13);
   const zw = base + BAS.wall; // the aisles' walls' top
@@ -1918,8 +1890,8 @@ function basilicaArt(ctx, S, variant, state, key) {
     if (!full) scaffold(ctx, u0, v0, u1 - u0, v1 - v0, base, base + 22, 'back');
     if (f(2) === 1) {
       // Roofed: the walls closed over by the aisles' roofs.
-      box(ctx, u0, v0, u1 - u0, v1 - v0, base, BAS.wall, tr);
-      gableRoof(ctx, u0, v0, u1 - u0, v1 - v0, zw, 8, C.terraDark, 'u', 0.05);
+      wallBox(u0, v0, u1 - u0, v1 - v0, base, BAS.wall, 8);
+      gableRoof(ctx, u0, v0, u1 - u0, v1 - v0, zw, 8, C.terra, 'u', 0.05);
     } else {
       // Open to the sky: the walls (half raised, or whole), the floor and the
       // nave's piers inside (whole, they carry the clerestory).
@@ -1930,7 +1902,7 @@ function basilicaArt(ctx, S, variant, state, key) {
     if (full) {
       windows(ctx, 'right', u0, v0, u1, v1, base, 1, 4, C.glass, { z: base + 12, h: 8, w: 0.13 });
       // the clerestory, its windows high over the aisles
-      box(ctx, u0, nv0, u1 - u0, nv1 - nv0, zc, ch, tr);
+      wallBox(u0, nv0, u1 - u0, nv1 - nv0, zc, ch, 0);
       windows(ctx, 'left', u0, nv0, u1, nv1, zc, 1, 8, C.glass, { z: zc + 5, h: 8, w: 0.17 });
       windows(ctx, 'right', u0, nv0, u1, nv1, zc, 1, 2, C.glass, { z: zc + 5, h: 8, w: 0.17 });
     }
@@ -1950,78 +1922,25 @@ function basilicaArt(ctx, S, variant, state, key) {
     }
   }
 
-  // --- 3: the apse at the end (a half drum under a half dome)
-  if (f(3) > 0) {
-    const [au, av, ar] = [u1, (v0 + v1) / 2, 0.72];
-    const full = f(3) === 1;
-    const h = full ? BAS.wall - 2 : 12;
-    if (!full) scaffold(ctx, u1, av - ar, ar, ar * 2, base, base + h + 8, 'back');
-    solid(ctx, arcBounds(au, av, ar + 0.05, base, base + h + 16, -Math.PI / 2, Math.PI / 2), () => {
-      if (!full) {
-        // the floor inside the half-raised wall
-        const floor = [];
-        for (let k = 0; k <= 14; k++) {
-          const a = -Math.PI / 2 + (Math.PI * k) / 14;
-          floor.push(P(au + Math.cos(a) * (ar - 0.14), av + Math.sin(a) * (ar - 0.14), base + 0.2));
-        }
-        poly(ctx, floor, '#7a6a54');
-      }
-      revolveRaw(ctx, au, av, [[ar, base], [ar, base + h]], tr, { seg: 14, a0: -Math.PI / 2, a1: Math.PI / 2 });
-      if (full) {
-        drumMarks(ctx, au, av, ar, 6, base + 9, 8, 0.14, C.glass, -Math.PI / 2 + Math.PI / 6 - TAU / 12);
-        revolveRaw(ctx, au, av, [[ar + 0.04, base + h], [ar + 0.04, base + h + 2], ...domeProf(ar, base + h + 2, 12, 1, 0, 5)], C.terraDark, { seg: 14, a0: -Math.PI / 2, a1: Math.PI / 2 });
-      } else {
-        revolveRaw(ctx, au, av, [[ar, base + h], [ar - 0.14, base + h]], tr, { seg: 14, a0: -Math.PI / 2, a1: Math.PI / 2 });
-      }
-    });
-    if (!full) {
-      scaffold(ctx, u1, av - ar, ar, ar * 2, base, base + h + 8, 'front');
-      worker(ctx, u1 + 0.82, av, base + 9, 3);
-    }
-  }
-
   // --- 1/2: the front: a colonnade under an entablature, the statues on it (3)
   if (f(1) > 0) {
     const full = f(1) === 1;
-    for (let k = 0; k < 10; k++) column(ctx, u0 + 0.12 + k * 0.38, v1 + 0.42, base, full || k % 3 === 0 ? 24 : 8, C.marble, 1.8);
+    for (let k = 0; k < 10; k++) column(ctx, u0 + 0.12 + k * 0.38, v1 + 0.42, base, full || k % 3 === 0 ? 24 : 8, C.stucco, 1.8);
     if (full) {
       // (its back clear of the aisle roof's eaves)
-      box(ctx, u0, v1 + 0.06, u1 - u0, 0.44, base + 24, 4, C.marble);
-      if (f(2) === 1) box(ctx, u0, v1 + 0.06, u1 - u0, 0.44, base + 28, 0.8, C.terraDark, { plain: true });
-      if (done) for (let k = 0; k < 6; k++) giltFigure(ctx, u0 + 0.3 + k * 0.62, v1 + 0.3, base + 28.8, 0.8);
+      box(ctx, u0, v1 + 0.06, u1 - u0, 0.44, base + 24, 4, fin ? C.stucco : tr);
+      if (f(2) === 1) box(ctx, u0, v1 + 0.06, u1 - u0, 0.44, base + 28, 0.8, C.terra, { plain: true });
     }
-    if (!full) scaffold(ctx, u0, v0, u1 - u0, v1 - v0, base, base + 22, 'front');
+    if (!full || stage === 3) scaffold(ctx, u0, v0, u1 - u0, v1 - v0, base, base + 22, 'front');
   }
   if (stage === 3) worker(ctx, 1.4, v1 + 0.62, base, 4);
 
-  // --- the tribunal before the apse (3): a dais, the curule chair, the fasces; or the yard
+  // --- the finished hall stands in its square; or the yard
   if (done) {
-    box(ctx, 4.15, 3.25, 0.62, 0.62, 0, 6, C.marble);
-    stairs(ctx, 4.25, 4.67, 3.87, 4.05, 0, 6, 3, C.marble);
-    piece(ctx, 4.46, 3.5, 6, 10, 0.1, (x, y) => {
-      // the curule chair: an ivory folding seat on crossed legs
-      ctx.strokeStyle = '#e8dcc0';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.moveTo(x - 3, y); ctx.lineTo(x + 3, y - 5); ctx.moveTo(x + 3, y); ctx.lineTo(x - 3, y - 5); ctx.stroke();
-      ctx.fillStyle = '#7a2848';
-      ctx.fillRect(x - 3.6, y - 6.2, 7.2, 1.6);
-    });
-    for (const [fu, fv] of [[4.2, 3.32], [4.72, 3.32]]) {
-      piece(ctx, fu, fv, 6, 14, 0.04, (x, y) => {
-        // the lictors' fasces: rods bound round an axe
-        ctx.fillStyle = '#9a7048';
-        ctx.fillRect(x - 1.2, y - 12, 2.4, 12);
-        ctx.strokeStyle = '#d9b26a';
-        ctx.lineWidth = 0.5;
-        for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(x - 1.2, y - 2 - k * 3); ctx.lineTo(x + 1.2, y - 3 - k * 3); ctx.stroke(); }
-        ctx.fillStyle = '#c9ccd0';
-        ctx.beginPath(); ctx.moveTo(x + 1.2, y - 12); ctx.lineTo(x + 3.6, y - 13); ctx.lineTo(x + 3.6, y - 9.6); ctx.lineTo(x + 1.2, y - 10.4); ctx.fill();
-      });
-    }
     cypress(ctx, 4.65, 0.45, 1);
     cypress(ctx, 4.7, 4.65, 0.9);
   } else {
-    if (stage === 3) marbleBlocks(ctx, 4.2, 3.6); else bricks(ctx, 4.3, 3.6);
+    if (stage === 3) planks(ctx, 4.2, 3.6); else marbleBlocks(ctx, 4.3, 3.6);
     logs(ctx, 4.25, 4.2, 0.55);
     planks(ctx, 4.25, 0.3);
     const top = [6, 26, 60, 32][stage];

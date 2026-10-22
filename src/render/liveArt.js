@@ -153,7 +153,7 @@ function crowdSeats(type, S, turn = 0) {
   } else {
     // Arena seating ring (see arenaArt): top at cy - h + 1, steps inward.
     const levels = type === 'colosseum' ? 3 : 2;
-    const f = type === 'colosseum' ? 0.92 : 0.9;
+    const f = type === 'colosseum' ? 0.78 : 0.9; // (the arena's own ellipse: colosseumArt)
     const cx = 0;
     const cy = S * HALF_H;
     const h = levels * 11;
