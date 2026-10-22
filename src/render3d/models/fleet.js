@@ -82,10 +82,10 @@ const ONE = new Vector3(1, 1, 1);
 const UP = new Vector3(0, 1, 0);
 
 /** The matrix that turns a model to face `side` (16 floats). */
-const SIDE_MATS = [0, 1, 2, 3].map((s) => new Matrix4().makeRotationY(sideAngle(s)).toArray(new Float32Array(16)));
+export const SIDE_MATS = [0, 1, 2, 3].map((s) => new Matrix4().makeRotationY(sideAngle(s)).toArray(new Float32Array(16)));
 
 /** Matrices of places [x, y, z, yaw] (the model's metres, facing +z) turned to face `side`, packed. */
-function placeMats(places, side) {
+export function placeMats(places, side) {
   const out = new Float32Array(16 * places.length);
   _m.makeRotationY(sideAngle(side));
   places.forEach(([x, y, z, yaw], i) => {
@@ -108,7 +108,7 @@ export function stockLoads(stock, good) {
 
 /** `more` lists made, by their signature (a few dozen in a city: kept, never rebuilt per frame). */
 const MORE = new Map();
-function cached(sig, make) {
+export function cached(sig, make) {
   let v = MORE.get(sig);
   if (!v) {
     if (MORE.size > 512) MORE.clear();
@@ -143,7 +143,7 @@ export function turnActors(list, side) {
 
 /** A fleet building's casts by type, side and state (a handful in a city: kept). */
 const CASTS = new Map();
-function castOf(sig, make) {
+export function castOf(sig, make) {
   let c = CASTS.get(sig);
   if (!c) {
     c = cast(make());
@@ -160,7 +160,7 @@ function castOf(sig, make) {
  * toward the water) faces that way turned with the building, so its glow
  * does not show through the roof from behind (the light map has no depth).
  */
-function lampsAt(points, side, faces = []) {
+export function lampsAt(points, side, faces = []) {
   const out = [];
   points.forEach((p, i) => {
     const [x, y, z] = turnPoint(p, side);
