@@ -200,7 +200,7 @@ export function pile(x, z, top, { r = 0.11, seed = 1, lod = 0 } = {}) {
  * `r0` out to `r1` (or a rectangle's outline grown by `r1` round
  * x0..x1, z0..z1), fading out by its vertex alpha. For the `foam` material.
  */
-export function pileFoam(x, z, r0, r1, seed = 1, lod = 0) {
+export function pileFoam(x, z, r0, r1, seed = 1, lod = 0, half = HARBOUR.half) {
   const seg = lod ? 10 : 18;
   const rnd = artRng(seed);
   const pos = [];
@@ -222,11 +222,11 @@ export function pileFoam(x, z, r0, r1, seed = 1, lod = 0) {
       idx.push(a, b, a + 1, a + 1, b, b + 1);
     }
   }
-  return flatRGBA(pos, col, idx);
+  return flatRGBA(pos, col, idx, half);
 }
 
 /** Foam along the foot of a rectangular pier (x0..x1, z0..z1) out to `out` metres. */
-export function pierFoam(x0, x1, z0, z1, out, seed = 1, lod = 0) {
+export function pierFoam(x0, x1, z0, z1, out, seed = 1, lod = 0, half = HARBOUR.half) {
   const rnd = artRng(seed);
   const pos = [];
   const col = [];
@@ -259,14 +259,14 @@ export function pierFoam(x0, x1, z0, z1, out, seed = 1, lod = 0) {
       idx.push(a, a + 1, b, a + 1, b + 1, b);
     }
   }
-  return flatRGBA(pos, col, idx);
+  return flatRGBA(pos, col, idx, half);
 }
 
 /** A flat geometry facing up from points, RGBA colours and an index (UVs in metres). */
-function flatRGBA(pos, col, idx) {
+function flatRGBA(pos, col, idx, half = HARBOUR.half) {
   // (Kept on the building's own footprint, the model's middle at the origin: foam spilling past a
   // mole's outer face would lie on a neighbour's water.)
-  const lim = HARBOUR.half - 0.01;
+  const lim = half - 0.01;
   for (let i = 0; i < pos.length; i += 3) {
     pos[i] = Math.max(-lim, Math.min(lim, pos[i]));
     pos[i + 2] = Math.max(-lim, Math.min(lim, pos[i + 2]));
@@ -397,7 +397,7 @@ export function quayMole(a0, a1, at, thick, top, { along = 'x', seed = 1, lod = 
  * It stands over x0..x1, z0..z1 with its deck's top at `top`. Returns
  * { wood, foam }: geometries for the timber and the water lapping the piles.
  */
-export function jetty(x0, x1, z0, z1, top, { seed = 1, lod = 0, bent = 1.5 } = {}) {
+export function jetty(x0, x1, z0, z1, top, { seed = 1, lod = 0, bent = 1.5, half = HARBOUR.half } = {}) {
   const out = { wood: [], foam: [] };
   const rnd = artRng(seed);
   const cx = (x0 + x1) / 2;
@@ -408,7 +408,7 @@ export function jetty(x0, x1, z0, z1, top, { seed = 1, lod = 0, bent = 1.5 } = {
     const z = z0 + 0.2 + ((z1 - z0 - 0.4) * i) / (nb - 1);
     for (const x of xs) {
       out.wood.push(pile(x, z, cap + 0.05, { r: 0.11, seed: seed + i * 7 + x * 3, lod }));
-      if (lod < 2) out.foam.push(pileFoam(x, z, 0.1, 0.5, seed + i + Math.round(x * 5), lod));
+      if (lod < 2) out.foam.push(pileFoam(x, z, 0.1, 0.5, seed + i + Math.round(x * 5), lod, half));
     }
     // The cap beam across the bent, on the piles' heads, its ends a little proud.
     out.wood.push(board(x1 - x0 + 0.06, 0.18, 0.2, { tone: 0.7 + rnd() * 0.1, grime: 0.2 }).translate(cx, cap, z));
@@ -859,4 +859,4 @@ function finishHull(out, lod, ts) {
 // A rower, seated, pulling an oar
 // ---------------------------------------------------------------------------
 
-export { merge, D };
+export { merge, D, gridSurface, mirrored };

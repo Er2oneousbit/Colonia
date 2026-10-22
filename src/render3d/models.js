@@ -69,6 +69,7 @@ import { SACRED_MODELS, SACRED_PARTS } from './models/sacredMonuments.js';
 import { HOUSE_MODELS } from './models/houses.js';
 
 import { INDUSTRY_MODELS } from './models/industry.js';
+import { WATERSIDE_MODELS } from './models/waterside.js';
 
 /** Metres in a game tile. */
 export const TILE_M = 4;
@@ -143,6 +144,8 @@ export const MODELS = Object.freeze({
   ...WATER_MODELS,
   // The four raw producers: clay pit, timber yard, iron mine and marble quarry (models/industry.js says how).
   ...INDUSTRY_MODELS,
+  // The Emporium, the Shipyard and the Fishing Wharf (models/waterside.js says how).
+  ...WATERSIDE_MODELS,
   // The market, the forum and the warehouse (models/commerce.js says how).
   ...COMMERCE_MODELS,
   // The prefecture and the engineer's post (models/services.js says how).
