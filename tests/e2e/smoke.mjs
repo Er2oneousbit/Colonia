@@ -2370,7 +2370,7 @@ try {
     const keep = c.unemploymentRate;
     c.unemploymentRate = 0.3;
     app.ui.hud.update();
-    const el = [...document.querySelectorAll('#hud-top .hud-stat')].find((e) => e.textContent.includes('⚒'));
+    const el = [...document.querySelectorAll('#hud-top .hud-stat')].find((e) => e.title.startsWith('Unemployment'));
     const out = { text: el && el.textContent, warn: !!el && el.classList.contains('warn'), title: el && el.title };
     c.unemploymentRate = keep;
     app.ui.hud.update();

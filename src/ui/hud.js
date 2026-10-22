@@ -8,6 +8,7 @@
  */
 
 import { h, fmt } from './dom.js';
+import { icon, setGlyph } from './glyphs.js';
 import { CONFIG } from '../config.js';
 import { OVERLAYS } from '../render/overlays.js';
 import { threatSummary } from '../sim/military.js';
@@ -15,9 +16,10 @@ import { SEASON_NAMES } from '../sim/time.js';
 import { WEATHER } from '../render/weather.js';
 import { viewDir } from '../render/view.js';
 
-const SEASON_ICONS = { winter: '❄️', spring: '🌱', summer: '☀️', autumn: '🍂' };
+// Glyph names (ui/glyphs.js): drawn, not emoji, so they look the same on every system and follow the theme.
+const SEASON_ICONS = { winter: 'winter', spring: 'spring', summer: 'summer', autumn: 'autumn' };
 
-const SPEED_LABELS = ['⏸', '▶', '▶▶', '▶▶▶', '⏩'];
+const SPEED_GLYPHS = ['pause', 'play1', 'play2', 'play3', 'play4'];
 const SPEED_TITLES = ['Pause (Space)', 'Normal speed', 'Fast', 'Faster', 'Fastest'].map((t, i) => (i ? `${t}, ${CONFIG.SPEEDS[i]}x (${i})` : t));
 
 /**
@@ -56,33 +58,33 @@ export class Hud {
   constructor(app, root) {
     this.app = app;
     this.el = h('div', { id: 'hud-top' });
-    this.menuBtn = h('button', { class: 'hud-btn', title: 'Game menu (Esc)', onclick: () => app.ui.openPauseMenu() }, '☰');
+    this.menuBtn = h('button', { class: 'hud-btn', title: 'Game menu (Esc)', onclick: () => app.ui.openPauseMenu() }, icon('menu', 18));
     this.title = h('span', { class: 'hud-title' }, 'Colonia');
-    this.money = this.stat('💰', 'Treasury', 'Treasury (denarii). Click for finances.', () => app.ui.openAdvisors('finance'));
-    this.pop = this.stat('👥', 'Population', 'Population. Click for details.', () => app.ui.openAdvisors('population'));
-    this.date = this.stat('📅', 'Date', 'Current date and season');
+    this.money = this.stat('coin', 'Treasury', 'Treasury (denarii). Click for finances.', () => app.ui.openAdvisors('finance'));
+    this.pop = this.stat('crowd', 'Population', 'Population. Click for details.', () => app.ui.openAdvisors('population'));
+    this.date = this.stat('summer', 'Date', 'Current date and season');
     this.date.el.classList.add('date');
     this.season = h('span', { class: 'lbl season' }, '');
     this.date.el.append(this.season);
-    this.mood = this.stat('🙂', 'Mood', 'City mood (sentiment). Low mood stops immigration.', () => app.ui.openAdvisors('overview'));
+    this.mood = this.stat('face-3', 'Mood', 'City mood (sentiment). Low mood stops immigration.', () => app.ui.openAdvisors('overview'));
     // Unemployment beside the mood it drives: past UNEMPLOYMENT_MOOD_FREE it costs mood, so it turns amber there.
-    this.work = this.stat('⚒', 'Unemployment', 'Unemployment. Click for labor.', () => app.ui.openAdvisors('labor'));
+    this.work = this.stat('pick', 'Unemployment', 'Unemployment. Click for labor.', () => app.ui.openAdvisors('labor'));
     // Raid alert: hidden in peace time, amber when scouts warn, red during an attack.
     this.threat = h('button', { class: 'hud-btn threat hidden', onclick: () => app.focusThreat() }, '');
-    this.speedBtns = SPEED_LABELS.map((lbl, i) => h('button', { class: 'hud-btn', title: SPEED_TITLES[i], onclick: () => (i === 0 ? app.togglePause() : app.setSpeed(i)) }, lbl));
+    this.speedBtns = SPEED_GLYPHS.map((g, i) => h('button', { class: 'hud-btn', title: SPEED_TITLES[i], onclick: () => (i === 0 ? app.togglePause() : app.setSpeed(i)), 'aria-label': SPEED_TITLES[i] }, icon(g, 18)));
     this.overlaySel = h('select', { class: 'hud-select', title: 'Information overlay (O)', onchange: (e) => { app.setOverlay(e.target.value); e.target.blur(); } },
-      OVERLAYS.map((o) => h('option', { value: o.key }, o.key === 'none' ? '🗺 Overlays' : o.name)));
+      OVERLAYS.map((o) => h('option', { value: o.key }, o.key === 'none' ? 'Overlays' : o.name)));
     // Turning the view (render/view.js): the city a quarter turn either way,
     // and a needle pointing north (a click turns back to the start, north up).
     this.northNeedle = h('span', { class: 'needle' }, '↑');
     this.viewBtns = h('div', { class: 'view-group' },
-      h('button', { class: 'hud-btn', id: 'hud-turn-left', title: 'Turn the view: the city a quarter turn anticlockwise (Shift+Q or [)', 'aria-label': 'Turn the view anticlockwise', onclick: () => app.turnView(-1) }, '⟲'),
+      h('button', { class: 'hud-btn', id: 'hud-turn-left', title: 'Turn the view: the city a quarter turn anticlockwise (Shift+Q or [)', 'aria-label': 'Turn the view anticlockwise', onclick: () => app.turnView(-1) }, icon('turn-left', 18)),
       h('button', { class: 'hud-btn north', id: 'hud-north', title: 'Where north lies. Click to turn the view back to the start', 'aria-label': 'North', onclick: () => app.turnView(-app.renderer.viewTurn) }, this.northNeedle),
-      h('button', { class: 'hud-btn', id: 'hud-turn-right', title: 'Turn the view: the city a quarter turn clockwise (Q or ])', 'aria-label': 'Turn the view clockwise', onclick: () => app.turnView(1) }, '⟳'));
+      h('button', { class: 'hud-btn', id: 'hud-turn-right', title: 'Turn the view: the city a quarter turn clockwise (Q or ])', 'aria-label': 'Turn the view clockwise', onclick: () => app.turnView(1) }, icon('turn-right', 18)));
     this.shownTurn = -1;
     // Fullscreen in and out (ui/fullscreen.js; F11-like, and the way back in after Esc left it).
     // Hidden where the page may not go fullscreen (a frame that forbids it).
-    this.fullBtn = h('button', { class: 'hud-btn', id: 'hud-fullscreen', 'aria-label': 'Fullscreen', onclick: () => app.toggleFullscreen() }, '⛶');
+    this.fullBtn = h('button', { class: 'hud-btn', id: 'hud-fullscreen', 'aria-label': 'Fullscreen', onclick: () => app.toggleFullscreen() }, icon('fullscreen', 18));
     this.fullBtn.classList.toggle('hidden', !app.canFullscreen);
     this.showFullscreen(false);
     this.el.append(
@@ -96,11 +98,11 @@ export class Hud {
       this.threat,
       h('div', { class: 'speed-group' }, this.speedBtns),
       h('span', { class: 'hud-spacer' }),
-      this.overlaySel,
+      h('span', { class: 'hud-select-wrap' }, icon('layers', 16), this.overlaySel),
       this.viewBtns,
-      h('button', { class: 'hud-btn', id: 'hud-empire', title: 'Empire map (E)', 'aria-label': 'Empire map', onclick: () => app.ui.openEmpire() }, '🧭'),
-      h('button', { class: 'hud-btn', title: 'Advisors (F2)', onclick: () => app.ui.openAdvisors() }, '📜', h('span', { class: 'btn-lbl' }, ' Advisors')),
-      h('button', { class: 'hud-btn msg-btn', title: 'Messages', onclick: () => app.ui.openAdvisors('messages') }, '✉'),
+      h('button', { class: 'hud-btn', id: 'hud-empire', title: 'Empire map (E)', 'aria-label': 'Empire map', onclick: () => app.ui.openEmpire() }, icon('compass', 18)),
+      h('button', { class: 'hud-btn', title: 'Advisors (F2)', onclick: () => app.ui.openAdvisors() }, icon('scroll', 18), h('span', { class: 'btn-lbl' }, ' Advisors')),
+      h('button', { class: 'hud-btn msg-btn', title: 'Messages', 'aria-label': 'Messages', onclick: () => app.ui.openAdvisors('messages') }, icon('mail', 18)),
       this.fullBtn,
       h('button', { class: 'hud-btn', title: 'Help (F1)', onclick: () => app.ui.openHelp() }, '?'),
     );
@@ -114,9 +116,9 @@ export class Hud {
     this.fitSig = null; // (the bar's room may have changed with the window)
   }
 
-  stat(icon, label, title, onclick) {
+  stat(glyph, label, title, onclick) {
     const val = h('span', { class: 'num' }, '-');
-    const el = h('div', { class: 'hud-stat', title, onclick, style: onclick ? { cursor: 'pointer' } : null }, h('span', {}, icon), val);
+    const el = h('div', { class: 'hud-stat', title, onclick, style: onclick ? { cursor: 'pointer' } : null }, h('span', { class: 'ico' }, icon(glyph, 18)), val);
     return { el, val };
   }
 
@@ -157,13 +159,13 @@ export class Hud {
     const season = g.time.season();
     const r = app.renderer;
     if (this.season.textContent !== SEASON_NAMES[season]) {
-      this.date.el.firstChild.textContent = SEASON_ICONS[season];
+      setGlyph(this.date.el.firstChild, SEASON_ICONS[season]);
       this.season.textContent = SEASON_NAMES[season];
     }
     const tip = `${g.time.label()}, ${SEASON_NAMES[season].toLowerCase()}${r.weatherOn ? `. Weather: ${WEATHER[r.weather.kind].label.toLowerCase()}` : ''}`;
     if (this.date.el.title !== tip) this.date.el.title = tip; // no DOM write when nothing changed
     const s = c.sentiment;
-    this.mood.el.firstChild.textContent = s >= 70 ? '😀' : s >= 50 ? '🙂' : s >= 30 ? '😐' : '😠';
+    setGlyph(this.mood.el.firstChild, s >= 70 ? 'face-4' : s >= 50 ? 'face-3' : s >= 30 ? 'face-2' : 'face-1');
     this.mood.val.textContent = `${s}`;
     const u = workLine(c);
     this.work.val.textContent = u.value;

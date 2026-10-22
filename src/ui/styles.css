@@ -720,3 +720,23 @@ canvas.trend { display: block; margin: 2px 0; }
   .empire-side { flex: none; }
   #console { right: 0; }
 }
+
+/* ---------- drawn icons (ui/glyphs.js) ---------------------------------------
+   One line style in the text colour of whatever holds them, so they follow the
+   theme and the hover, active and warning states of their button or chip. */
+.glyph { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+.glyph .s { fill: currentColor; stroke-width: 1.2; }
+.ico { display: inline-flex; align-items: center; color: var(--gold); }
+.hud-stat.neg .ico, .hud-stat.warn .ico { color: inherit; }
+.hud-btn { display: inline-flex; align-items: center; gap: 4px; }
+.cat-btn { color: var(--ink); }
+.cat-btn.active { color: #fff; }
+.btn .glyph { display: inline-block; vertical-align: -3px; }
+/* The overlay picker's drawn icon sits over the select's left padding, so it still shows when the bar is tight and the word is clipped. */
+.hud-select-wrap { position: relative; display: inline-flex; align-items: center; }
+.hud-select-wrap .glyph { position: absolute; left: 7px; pointer-events: none; color: var(--gold); }
+.hud-select-wrap .hud-select { padding-left: 28px; }
+#hud-top.tight .hud-select { max-width: 58px; }
+/* On the active (bronze) category button the line goes dark in the dark theme, where bronze is light. */
+:root[data-theme="dark"] .cat-btn.active { color: #1f1b16; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cat-btn.active { color: #1f1b16; } }
