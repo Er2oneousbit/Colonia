@@ -37,6 +37,7 @@ import { stockStep, lampPoints } from './industryKit.js';
 import { buildClayPit, buildClayStock, clayPitActors, CLAY_PIT } from './clayPit.js';
 import { buildTimberYard, buildTimberStock, timberYardActors, TIMBER_YARD } from './timberYard.js';
 import { buildIronMine, buildOreStock, ironMineActors, IRON_MINE } from './ironMine.js';
+import { WORKSHOP_MODELS } from './workshops.js';
 import { buildMarbleQuarry, buildQuarryStock, marbleQuarryActors, MARBLE_QUARRY } from './marbleQuarry.js';
 
 /** A raw producer's state: 'open' staffed, 'shut' not. */
@@ -99,4 +100,6 @@ export const INDUSTRY_MODELS = Object.freeze({
   timber_yard: producer({ type: 'timber_yard', good: 'timber', buildBody: buildTimberYard, buildStock: buildTimberStock, actors: timberYardActors, lamp: TIMBER_YARD.lamp }),
   iron_mine: producer({ type: 'iron_mine', good: 'iron', buildBody: buildIronMine, buildStock: buildOreStock, actors: ironMineActors, lamp: IRON_MINE.lamp, smoke: FURNACE_SMOKE }),
   marble_quarry: producer({ type: 'marble_quarry', good: 'marble', buildBody: buildMarbleQuarry, buildStock: buildQuarryStock, actors: marbleQuarryActors, lamp: [MARBLE_QUARRY.lamp[0], MARBLE_QUARRY.lamp[1] - 0.04, MARBLE_QUARRY.lamp[2]], ice: true }),
+  // The eight workshops (models/workshops.js).
+  ...WORKSHOP_MODELS,
 });
