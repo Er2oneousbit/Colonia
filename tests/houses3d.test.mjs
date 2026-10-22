@@ -28,6 +28,7 @@ import { MODELS, modelMatrix, modelLamps, partShows } from '../src/render3d/mode
 import { ModelPass } from '../src/render3d/modelPass.js';
 import { HOUSE_LEVELS, CELLS, variantOf, houseKind, buildHouse, houseKeys, peopleOf } from '../src/render3d/models/houses.js';
 import { VARIANTS } from '../src/render3d/models/houseKit.js';
+import { SURFACES } from '../src/render3d/surfaces.js';
 import { HOUSE_TIERS } from '../src/data/housing.js';
 
 const KINDS = Object.keys(HOUSE_LEVELS);
@@ -344,4 +345,14 @@ test('houses3d: a gabled ridge off the middle of its house carries its ridge rol
   assert.ok(a > 0.4 && b < 2.7, `the tablinum's ridge lies over its hall: z ${a} to ${b}`);
   const [c, d] = top('house:palatium:0', 8.3);
   assert.ok(c > 0.6 && d < 3.9, `the nave's ridge lies over the nave: z ${c} to ${d}`);
+});
+
+test('houses3d: the single-tile homes plaster with the low dado; the 2 x 2 and larger keep the full one', () => {
+  // A street of small homes read wine-red at mid zoom (audit item 10, v0.30.16): their walls take
+  // `plaster-low` (dado 0.9 m, lighter reds), everything else the monuments' `plaster`.
+  assert.ok(SURFACES['plaster-low'] && SURFACES.plaster, 'both surfaces exist');
+  const names = (key) => { const out = new Set(); buildHouse(key, 0).traverse((o) => { if (o.material) out.add(o.material.name); }); return out; };
+  assert.ok(names('house:hut:0').has('plaster-low') && !names('house:hut:0').has('plaster'), 'the hut plasters low');
+  assert.ok(names('house:cottage:0').has('plaster-low'), 'the cottage plasters low');
+  assert.ok(names('house:ten:0').has('plaster') && !names('house:ten:0').has('plaster-low'), 'the tenement keeps the full dado');
 });
