@@ -301,7 +301,7 @@ export class ModelPass {
       group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
       return out;
     });
-    if (!this.tops.has(key)) this.tops.set(key, kit.parts.map((p) => ({ when: p.when, y: topOf(p.geometry) })));
+    if (!this.tops.has(key)) this.tops.set(key, kit.parts.map((p) => ({ when: p.when, y: topOf(p.geometry), cover: p.cover })));
     const meshes = kit.parts.map((p) => this.instanced(p, FIRST_ROOM));
     k = { kit, meshes, seen: this.frame, id, key, lod, ms: performance.now() - t0 };
     this.kits.set(id, k);
@@ -311,14 +311,15 @@ export class ModelPass {
   /**
    * How high a look stands as drawn in `state`, in world px of art (renderer.js
    * keeps a cover that high for clicks), or undefined while no kit of it has
-   * been built. The highest of the parts that show: a model is one kit (its
+   * been built. The highest of the parts that show (but those that ask to be
+   * left out of the cover, TaggedParts `cover: false`): a model is one kit (its
    * `more` kits, a farm's trees or a granary's sacks, are left out).
    */
   coverPx(key, state, ice) {
     const parts = this.tops.get(key);
     if (!parts) return undefined;
     let y = 0;
-    for (const p of parts) if (partShows(p.when, state, ice) && p.y > y) y = p.y;
+    for (const p of parts) if (p.cover !== false && partShows(p.when, state, ice) && p.y > y) y = p.y;
     return y / TILE_M / ART_PX;
   }
 

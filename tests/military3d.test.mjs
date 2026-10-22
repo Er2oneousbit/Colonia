@@ -9,7 +9,11 @@
  *   - each level of detail is lighter than the one before, within budget
  *   - a soldier at rest in a fort's yard (data/units.js FORT_YARD) is not
  *     hidden by the model from any of the four corners the camera looks
- *     from: the walls, towers and buildings are kept low where the men stand
+ *     from: the palisades, platforms and buildings are kept low where the men
+ *     stand (each fort's palisade as high as its men's places allow)
+ *   - the forts are camps of earth and timber, not a small stone wall: a bank
+ *     1.2 m high, a palisade of stakes about 2.5 m (the legion's) and a gate
+ *     tower about 4.8 m, the tower out of the click cover
  *   - states from the sim's fields: a fort deployed or with men away is
  *     'out' (its standards gone with them), manned or staffed 'open', else
  *     'shut'; the barracks training a recruit 'out'; the academy with men
@@ -37,6 +41,7 @@ import {
 } from '../src/render3d/models/militaryModels.js';
 import { TANK_WATER, DRILL_AT } from '../src/render3d/models/castra.js';
 import { CAVALRY_FORT, troopersFor } from '../src/render3d/models/castraEquitum.js';
+import { CAMP } from '../src/render3d/models/castraPalisade.js';
 import { BARRACKS } from '../src/render3d/models/tirocinium.js';
 import { ACADEMY } from '../src/render3d/models/campus.js';
 import { poseAt } from '../src/render3d/people/clips.js';
@@ -167,6 +172,55 @@ test('military3d: no fort hides its men at rest in the yard, from any corner the
         assert.equal(hit.length, 0, `${type} lod ${lod}: the gateway blocked at ${y} m by ${hit.map((q) => q.object.name)}`);
       }
     }
+  }
+});
+
+/** The highest of the hits of rays straight down over x0..x1 at z (the model's parts called `names`, every state). */
+function topAlong(meshes, names, x0, x1, z) {
+  const rc = new Raycaster();
+  const only = meshes.filter((m) => names.includes(m.name));
+  let top = 0;
+  for (let x = x0; x <= x1; x += 0.03) {
+    rc.set(new Vector3(x, 8, z), new Vector3(0, -1, 0));
+    const hit = rc.intersectObjects(only, false)[0];
+    if (hit && hit.point.y > top) top = hit.point.y;
+  }
+  return top;
+}
+
+test('military3d: a fort is a camp of earth and timber: a bank of 1.2 m, a palisade, a gate tower under 5 m', () => {
+  // (The town wall's walk is at 3.6 m and its towers 7.4 m, townWall.js; the old fort was that curtain at a third of the height.)
+  for (const type of FORTS) {
+    const g = MODELS[type].build(type, 0);
+    g.updateMatrixWorld(true);
+    const meshes = [];
+    g.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    // The bank: its top, along the front's crest, is 1.2 m (the sentries' walk).
+    const bank = meshes.find((m) => m.name === 'bank');
+    const crest = topAlong(meshes, ['bank'], -4, -2, 5.0);
+    assert.ok(Math.abs(crest - CAMP.bank) < 0.01, `${type}: the bank's crest ${crest}`);
+    assert.ok(bank, `${type}: a bank`);
+    // The palisade along the front (left of the gate): its stakes' tops, a little over the stake height (the points).
+    const stakes = topAlong(meshes, ['wood'], -3.9, -1.8, CAMP.stakeZ);
+    const want = type === 'fort_legion' ? 2.5 : type === 'fort_archer' ? 1.9 : 2.5;
+    assert.ok(stakes > want - 0.1 && stakes < want + 0.2, `${type}: the front palisade reaches ${stakes}`);
+    // The gate tower: about 4.8 m, the highest thing in the fort, a different building from the 5 m wall's.
+    const tower = meshes.find((m) => m.name === 'tower');
+    assert.ok(tower, `${type}: a gate tower`);
+    const top = new Box3().setFromObject(g).max.y;
+    assert.ok(top > 4.5 && top < 5.0, `${type}: the fort stands ${top} m`);
+    assert.ok(new Box3().setFromObject(tower).max.y >= top - 0.01, `${type}: the gate tower is the highest part`);
+  }
+});
+
+test('military3d: the gate tower stays out of the click cover of a fort, so the men in the yard stay clickable', () => {
+  for (const type of FORTS) {
+    const kit = kitOf(MODELS[type].build(type, 2));
+    const out = kit.parts.filter((p) => p.cover === false);
+    assert.ok(out.length >= 1, `${type}: parts out of the cover`);
+    const top = (list) => Math.max(...list.map((p) => { p.geometry.computeBoundingBox(); return p.geometry.boundingBox.max.y; }));
+    assert.ok(top(kit.parts.filter((p) => p.cover !== false)) < 3.2, `${type}: the cover's height without the tower`);
+    assert.ok(top(out) > 4.5, `${type}: what is left out is the tower's`);
   }
 });
 
