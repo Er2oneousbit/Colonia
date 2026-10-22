@@ -218,7 +218,8 @@ const cocciopesto = {
  * streaks, rising damp at the foot, and patches where the plaster fell off
  * to show the opus incertum (rubble in mortar) behind it.
  */
-const plaster = {
+function plasterSurface({ dado, reds }) {
+  return {
   fields: {
     noise: { lossN: fbm(3, 5, 1), skin: fbm(30, 3, 4), stone: cells(22, 2, 0.95), grit: fbm(40, 2, 3) },
     glsl: `
@@ -243,8 +244,8 @@ const plaster = {
       // The painted zones, with brushy edges.
       float wob = ( wobN - 0.5 ) * 0.02;
       if ( y < 0.28 + wob ) col = ${rgb('#2c2623')};
-      else if ( y < 1.3 + wob ) col = mix( ${rgb('#8d3426')}, ${rgb('#a4473a')}, dadoN * 0.6 );
-      else if ( y < 1.36 + wob ) col = ${rgb('#3a2a22')};
+      else if ( y < ${dado.toFixed(2)} + wob ) col = mix( ${rgb(reds[0])}, ${rgb(reds[1])}, dadoN * 0.6 );
+      else if ( y < ${(dado + 0.06).toFixed(2)} + wob ) col = ${rgb('#3a2a22')};
       else col = mix( ${rgb('#d6c29c')}, ${rgb('#c7a26d')}, sstep( 0.35, 0.75, creamN ) * 0.6 );
       // Faded by sun: a soft wash of chalky pale over everything painted.
       col = mix( col, ${rgb('#e3d8c6')}, 0.08 + fadeN * 0.12 );
@@ -266,6 +267,18 @@ const plaster = {
   },
   normal: { depth: 0.02 / 4 },
 };
+}
+
+/** The monuments' and the villas' wall: the dado of a Pompeian red to 1.3 m. */
+const plaster = plasterSurface({ dado: 1.3, reds: ['#8d3426', '#a4473a'] });
+
+/**
+ * The single-tile homes' wall. Their walls are 2.3 to 3.6 m, so a 1.3 m dado
+ * is a third to a half of what the eye sees, and from a mid zoom (a few
+ * pixels a house) the street reads wine-red, not plastered. A lower dado, a
+ * terracotta red, keeps the band close up and gives the plaster its share.
+ */
+const plasterLow = plasterSurface({ dado: 0.9, reds: ['#a24a36', '#b95c46'] });
 
 /** Weathered oak: grain running along v (the length of a post or plank), annual rings bent by knots, open checks along the grain, sun-greyed. */
 const wood = {
@@ -550,6 +563,7 @@ export const SURFACES = Object.freeze({
   tufa: { metres: 1.0, size: 256, ...tufa },
   cocciopesto: { metres: 2.0, size: 512, ...cocciopesto },
   plaster: { metres: 4.0, size: 1024, ...plaster },
+  'plaster-low': { metres: 4.0, size: 1024, ...plasterLow },
   wood: { metres: 1.0, size: 512, ...wood },
   bronze: { metres: 0.3, size: 256, ...bronze },
   iron: { metres: 0.25, size: 128, ...iron },

@@ -96,6 +96,8 @@ export function houseMaterials() {
   const r = ruralMaterials();
   return {
     plaster: material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }),
+    // The single-tile homes' walls: the same plaster with a lower, lighter dado (surfaces.js plasterLow).
+    plasterLow: material('plaster-low', { surface: 'plaster-low', vertexColors: true, snow: 1 }),
     brick: material('brick', { surface: 'brick', vertexColors: true, snow: 1 }),
     stone: material('travertine', { surface: 'travertine', vertexColors: true, snow: 1 }),
     rubble: r.wall,
@@ -159,10 +161,16 @@ const MERGED = { stone: 'plaster', clay: 'tile', dark: 'plaster', paint: 'plaste
 const FLAT = { wood: 'plaster', woodOpen: 'plaster', rubble: 'plaster', rope: 'plaster', hide: 'plaster', wicker: 'plaster' };
 const DARK = [0.03, 0.026, 0.023];
 
+/** The Bag names of the single-tile homes (housesSmall, housesStone, housesTall: hut to apartment house). */
+const SMALL_HOME = /^(hut|cottage|stonecottage|merchant|domus|townhouse|apartment)\d+$/;
+
 /** A house's geometry gathered by part, built to a level of detail. */
 export class Bag {
   constructor(name, lod, seed) {
     this.name = name;
+    // A single-tile home (a hut to an apartment house) takes the low-dado plaster; the 2 x 2 and 3 x 3 homes,
+    // their plots and the workshops keep the full dado.
+    this.low = SMALL_HOME.test(name);
     this.lod = lod;
     this.seed = seed;
     this.rnd = artRng(seed);
@@ -202,7 +210,7 @@ export class Bag {
     const p = new TaggedParts(this.name);
     for (const [key, list] of Object.entries(this.o)) {
       const [name, mat, tags] = PART[key];
-      p.add(name, m[mat], list, tags);
+      p.add(name, m[mat === 'plaster' && this.low ? 'plasterLow' : mat], list, tags);
     }
     return p.build();
   }
