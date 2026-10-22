@@ -29,9 +29,33 @@
  * ----------------------------------------------------------------------------
  */
 
-import { Group, Mesh, PlaneGeometry, DataTexture, RGBAFormat, UnsignedByteType, NearestFilter, NoColorSpace, Vector3 } from 'three';
+import { Group, Mesh, PlaneGeometry, BufferGeometry, BufferAttribute, DataTexture, RGBAFormat, UnsignedByteType, NearestFilter, NoColorSpace, Vector3 } from 'three';
 import { GroundMap, CHUNK } from './groundMap.js';
 import { groundMaterial } from './groundMaterial.js';
+
+/**
+ * The apron's mesh: a frame of `a` tiles round a w x h map, four quads in one
+ * geometry (one draw call), in the map's tiles on the ground plane. It uses
+ * the ground's own material, which reads the type map clamped to the rim and
+ * fades the apron out (apron.js).
+ */
+export function apronGeometry(w, h, a) {
+  const quads = [[-a, -a, w + a, 0], [-a, h, w + a, h + a], [-a, 0, 0, h], [w, 0, w + a, h]];
+  const pos = new Float32Array(quads.length * 12);
+  const idx = [];
+  quads.forEach(([x0, z0, x1, z1], q) => {
+    pos.set([x0, 0, z0, x1, 0, z0, x0, 0, z1, x1, 0, z1], q * 12);
+    // (Up-facing, as PlaneGeometry rotated flat: counter-clockwise seen from above.)
+    idx.push(q * 4, q * 4 + 2, q * 4 + 1, q * 4 + 1, q * 4 + 2, q * 4 + 3);
+  });
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(pos, 3));
+  const nrm = new Float32Array(quads.length * 12);
+  for (let i = 1; i < nrm.length; i += 3) nrm[i] = 1;
+  g.setAttribute('normal', new BufferAttribute(nrm, 3));
+  g.setIndex(idx);
+  return g;
+}
 
 /**
  * The season's colour for living ground (linear rgb) at each of the 2D
@@ -84,9 +108,10 @@ export class Ground {
    *                            hooks: what stands where (groundMap.js GroundMap; groundSites.js
    *                            for a game), and live(): the tiles to refresh each update,
    *                            kindHook, waterHook (groundMap.js: the lab's own layout),
-   *                            ownOutput (groundMaterial.js: drawn into a texture) }
+   *                            ownOutput (groundMaterial.js: drawn into a texture),
+   *                            apron (tiles of land past the rim, apron.js; 0 none) }
    */
-  constructor(map, tex, { quality = 'high', scale = 1, hooks = {}, kindHook = null, waterHook = null, ownOutput = false } = {}) {
+  constructor(map, tex, { quality = 'high', scale = 1, hooks = {}, kindHook = null, waterHook = null, ownOutput = false, apron = 0 } = {}) {
     this.map = map;
     this.tex = tex;
     this.quality = quality;
@@ -128,6 +153,20 @@ export class Ground {
         this.inner.add(m);
         this.meshes.push(m);
       }
+    }
+    this.apron = apron;
+    this.apronMesh = null;
+    if (apron > 0) {
+      this.material.userData.ground.uGApron.value = apron;
+      const m = new Mesh(apronGeometry(map.w, map.h, apron), this.material);
+      m.name = 'ground-apron';
+      m.receiveShadow = true;
+      m.castShadow = false;
+      // (One frame round the map, always near the view when the map is: not worth a culling test.)
+      m.frustumCulled = false;
+      this.inner.add(m);
+      this.apronMesh = m;
+      this.meshes.push(m);
     }
     this.turn = -1;
     this.update();

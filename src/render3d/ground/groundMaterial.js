@@ -55,6 +55,7 @@ import { MeshStandardMaterial, Vector2, Vector3 } from 'three';
 import { LOOK } from '../materials.js';
 import { GROUND_LAYERS, LAYER } from './groundSurfaces.js';
 import { KIND, SITE } from './groundMap.js';
+import { HORIZON_RGB } from './apron.js';
 
 /** Per kind (KIND order): how much snow lies, how much the season tints it, how dark rain makes it, puddles. */
 const KIND_SNOW = [1.0, 1.0, 0.85, 0.75, 0.6, 0.7, 0.55, 0.95, 0.0];
@@ -137,6 +138,9 @@ uniform highp sampler2DArray uAlb;
 uniform highp sampler2DArray uNrm;
 uniform highp sampler2DArray uOrm;
 uniform vec2 uMapSize;
+// The apron (ground/apron.js): its width in tiles (0: none, the lab's) and the horizon colour it fades into (sRGB).
+uniform float uGApron;
+uniform vec3 uGHorizon;
 uniform float uScale[${GROUND_LAYERS.length}];
 uniform float uGTime;
 // Always 0: a loop bound the compiler cannot know, so it keeps the loop (see the header).
@@ -316,6 +320,9 @@ vec3 gAlbedo; float gRough; float gAO; vec3 gN; float gWater; float gSpecBoost; 
 
 void groundSurface() {
   vec2 p = vGroundPos;
+  // Outside the playable map (the apron): the type map is read clamped to the rim, so the rim tile's ground goes on,
+  // without what people made on it.
+  bool apron = uGApron > 0.0 && ( p.x < 0.0 || p.y < 0.0 || p.x >= uMapSize.x || p.y >= uMapSize.y );
   gDx = dFdx( p );
   gDy = dFdy( p );
   float px = length( gDx ) + length( gDy ); // tiles per pixel: details finer than this fade out
@@ -360,6 +367,7 @@ void groundSurface() {
   vec4 own = gType( ti );
   vec2 q = p - floor( p );
   vec4 st = gSite( ti );
+  if ( apron ) { own.g = 0.0; st = vec4( 0.0 ); }
   int site = int( st.r + 0.5 );
   int sa = int( st.a + 0.5 );
   int turn = sa >> 6;
@@ -383,6 +391,7 @@ void groundSurface() {
       if ( ( aa & 16 ) != 0 ) rubF += wr[a];
     }
   }
+  if ( apron ) { rubR = 0.0; rubB = 0.0; rubF = 0.0; }
   int RQ[10];
   vec2 RP[10];
   float RS[10];
@@ -922,8 +931,17 @@ const FRAG_FADE = /* glsl */ `
   vec2 fq = abs( vGroundW.xz - uLookFade.xy );
   gl_FragColor.rgb = mix( gl_FragColor.rgb, uLookFadeColor, smoothstep( uLookFade.z, uLookFade.w, max( fq.x, fq.y ) ) );
 }
+// The apron: how far (tiles) the point lies outside the playable map.
+float apronD = uGApron > 0.0 ? length( max( max( -vGroundPos, vGroundPos - uMapSize ), 0.0 ) ) : 0.0;
+if ( apronD > 0.0 ) {
+  // A shade darker than the map at the rim, easing to the ground's own colour, and a faint dark kerb of stones along the rim itself.
+  gl_FragColor.rgb *= 0.8 + 0.2 * smoothstep( 0.0, 2.5, apronD );
+  gl_FragColor.rgb *= 1.0 - 0.5 * smoothstep( 0.0, 0.02, apronD ) * ( 1.0 - smoothstep( 0.07, 0.12, apronD ) );
+}
 #ifdef GROUND_OWN_OUTPUT
 gl_FragColor.rgb = gSrgb( gAces( gl_FragColor.rgb ) );
+// (After the output curves: the horizon is the picture's clear colour, in bytes, so the faded edge meets the void unseen.)
+if ( apronD > 0.0 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uGHorizon, smoothstep( 0.2, 1.0, apronD / uGApron ) );
 #endif
 `;
 
@@ -962,6 +980,8 @@ export function groundMaterial(tex, types, quality = 'high', ownOutput = false, 
     uGSkyRefl: { value: 0.3 },
     uGSun: { value: 1 },
     uGSkyColor: { value: new Vector3(0.6, 0.75, 1.0) },
+    uGApron: { value: 0 },
+    uGHorizon: { value: new Vector3(HORIZON_RGB[0] / 255, HORIZON_RGB[1] / 255, HORIZON_RGB[2] / 255) },
   };
   mat.userData.ground = u;
   mat.defines = {};
