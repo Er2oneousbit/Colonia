@@ -426,7 +426,8 @@ function ridgeRoll(along, a, b, y, mid, r, lod) {
   const g = new CylinderGeometry(r, r, b - a, lod ? 6 : 10, 1);
   g.rotateZ(Math.PI / 2); // along x
   g.translate((a + b) / 2, y, 0);
-  if (along === 'z') { g.rotateY(Math.PI / 2); g.translate(mid, 0, 0); } else g.translate(0, 0, mid);
+  // (A quarter turn the other way round: x maps to z, so a ridge off the middle of its house lies where its roof does.)
+  if (along === 'z') { g.rotateY(-Math.PI / 2); g.translate(mid, 0, 0); } else g.translate(0, 0, mid);
   boxUV(g);
   return tintGeometry(g, () => 0.85);
 }
