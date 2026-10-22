@@ -2,6 +2,11 @@
 
 Every release, newest first: what changed and why, with what was measured. The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.12
+
+* **The raw producers in 3D** (under WebGL): the Clay Pit, the Timber Yard, the Iron Mine and the Marble Quarry, the first of the industry buildings to leave their sprites, each a working yard with its stock in three steps, its workers at their trade while it is staffed and its tools put away when not, a lantern at night. The clay pit is dug in steps with water in the bottom, a plank ramp, a pug bed and drying racks under a thatched shelter; the timber yard a felling yard with stumps, a limbed trunk, a saw pit with two sawyers, an ox-sledge and a shed of poles and thatch; the iron mine an earth-and-rock bank with a timber-framed adit, a windlass over a shaft, a spoil heap and a clay bloomery that smokes while the fire is in; the marble quarry a limestone hill under a grass cap with a worked face of fresh white stone cut in benches, wedges in a half-freed block, a shear-legs crane and a store of squared blocks. Frost ices the pit's pool and the quarry's trough.
+* 1446 unit tests
+
 ## v0.30.11
 
 * **The first homes in 3D** (under WebGL): the Tent, the Family Tent and the Lean-to, four looks each, so a new city is no longer a field of flat sprites among 3D buildings. A settler's tent of undyed wool or hide over a ridge pole on crossed poles, guy ropes to pegs, its flap tied back while the family is in and hanging shut when it is empty, a ring of stones for the cooking fire with a pot on a tripod; the family tent in two bays with a hide awning stretched out in front as a porch, a rush mat and a water jar under it, a washing line in one look; the lean-to of poles leant on a ridge beam over forked posts, roofed in reed or in sods, a wattle wall closing one end, a hide curtain in the doorway, a woodpile, a hearth, a pig in a wattle pen in one look. Eleven of the twenty levels are models now.
