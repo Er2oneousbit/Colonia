@@ -66,10 +66,11 @@ import {
   DoubleSide, Box2, Vector2,
 } from 'three';
 import { HALF_W, HALF_H, CONFIG } from '../config.js';
-import { K_STRIP, K_WALKER, K_UNIT, spriteRect } from '../render/items.js';
+import { K_STRIP, K_WALKER, K_UNIT, K_PROJ, spriteRect } from '../render/items.js';
 import { makeCanvas } from '../render/sprites.js';
 import { hasModel, MODELS, TILE_M, modelLamps } from './models.js';
 import { liveBox } from './liveBox.js';
+import { arrowCorners, firePotEllipses, stoneEllipse, paintShaft, SHAFT_W, SHAFT_H } from './projectileQuads.js';
 import { aimCamera, groundDepth, standDepth } from './projection.js';
 import { GroundPass } from './ground/groundPass.js';
 import { SunRig } from './sunRig.js';
@@ -702,6 +703,8 @@ export class WebGLBackend {
         // A ship or boat drawn in 3D (ships/pass.js): only its marks (the selected one's ring, a warship's health) as live art.
         const mk = this.ships.marks;
         if (mk) this.live(mk.draw, mk.box, it.d);
+      } else if (it.kind === K_PROJ) {
+        this.projectile(it, cam);
       } else {
         this.live((ctx) => r.drawLive(ctx, it), liveBox(it, cam), it.d);
       }
@@ -759,6 +762,47 @@ export class WebGLBackend {
     }
     const r = p.size * k;
     this.rect(this.discTexture(), sx - r, sy - r, sx + r, sy + r, 0, 0, 1, 1, FRONT, rgb, 0.5 * (1 - p.life / p.max));
+  }
+
+  /**
+   * An arrow, sling stone or fire pot in flight as tinted quads of shared
+   * textures (the shaft, the disc) at its depth in the painter's order:
+   * the picture of militaryArt.drawProjectile without a live-atlas cell
+   * each. The geometry is in projectileQuads.js.
+   */
+  projectile(it, cam) {
+    const k = cam.scale;
+    const sx = (it.wx - cam.x) * k;
+    const sy = (it.wy - cam.y) * k;
+    const kind = it.p.kind;
+    if (kind === 'firepot') {
+      const e = firePotEllipses(sx, sy, k, it.vel[0], it.vel[1]);
+      this.ellipse(e.flame, it.d, [1, 150 / 255, 40 / 255], 0.75);
+      this.ellipse(e.pot, it.d, [0x5a / 255, 0x3c / 255, 0x22 / 255], 1);
+    } else if (kind === 'stone') {
+      this.ellipse(stoneEllipse(sx, sy, k), it.d, [0x6f / 255, 0x67 / 255, 0x5c / 255], 1);
+    } else {
+      const c = arrowCorners(sx, sy, k, it.vel[0], it.vel[1]);
+      if (this.n + 6 > this.cap) this.grow(this.n + 6);
+      const s = this.slotFor(this.shaftTexture());
+      const v = (i, u, w) => this.vert(c[i][0], c[i][1], this.depthAt(c[i][1], it.d), u, w, WHITE, 1, s);
+      v(0, 0, 0); v(1, 1, 0); v(2, 0, 1);
+      v(1, 1, 0); v(3, 1, 1); v(2, 0, 1);
+    }
+  }
+
+  /** A tinted disc stretched to an ellipse { cx, cy, rx, ry } (device px). */
+  ellipse(e, d, rgb, a) {
+    this.rect(this.discTexture(), e.cx - e.rx, e.cy - e.ry, e.cx + e.rx, e.cy + e.ry, 0, 0, 1, 1, d, rgb, a);
+  }
+
+  /** The arrow's shaft and fletching (made once, 44 x 8 px). */
+  shaftTexture() {
+    if (this.shaftTex) return this.shaftTex;
+    const c = makeCanvas(SHAFT_W, SHAFT_H);
+    paintShaft(c.getContext('2d'));
+    this.shaftTex = liveTexture(c);
+    return this.shaftTex;
   }
 
   /** A white disc with an antialiased edge (made once): the smoke particle's shape. */
@@ -994,6 +1038,7 @@ export class WebGLBackend {
     if (this.atlasTex) this.atlasTex.dispose();
     this.white.dispose();
     if (this.puffTex) this.puffTex.dispose();
+    if (this.shaftTex) this.shaftTex.dispose();
     this.postPass.dispose();
     for (const m of this.materials) m.dispose();
     this.geometry.dispose();
