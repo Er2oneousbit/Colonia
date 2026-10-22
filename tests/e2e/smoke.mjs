@@ -4003,8 +4003,11 @@ try {
         if (found) app.renderer.camera.centerOnTile(found.x, found.y);
         return found;
       });
-      const shotFountain = async () => {
+      // `want`: the look tier expected; waited for (up to 15 s) rather than read after a fixed 700 ms, which CI's
+      // software GL missed once (v0.30.20): the renderer reads the desirability layer each frame, and a frame there is slow.
+      const shotFountain = async (want = null) => {
         await gp.waitForTimeout(700); // (the new building rises out of the ground for half a second)
+        if (want !== null) await gp.waitForFunction(([id, t]) => window.colonia.renderer.backend.models.tiers.get(id)?.t === t, [fnt.id, want], { timeout: 15000 }).catch(() => {});
         return gp.evaluate((f) => {
           const r = window.colonia.renderer;
           const be = r.backend;
@@ -4016,7 +4019,7 @@ try {
       let rich = null;
       if (fnt) {
         await gp.evaluate((f) => { const g = window.colonia.game; g.map.desirability[g.map.idx(f.x, f.y)] = 0; }, fnt);
-        fview = await shotFountain();
+        fview = await shotFountain(1);
         const p = await onPage(fnt.x + 0.5, fnt.y + 0.5);
         await gp.mouse.click(p.x, p.y);
         await gp.waitForTimeout(150);
@@ -4024,7 +4027,7 @@ try {
         await gp.evaluate(() => window.colonia.ui.info.close());
         // A rich quarter: the finest look (the sim is paused; the renderer reads the layer each frame).
         await gp.evaluate((f) => { const g = window.colonia.game; g.map.desirability[g.map.idx(f.x, f.y)] = 60; }, fnt);
-        rich = await shotFountain();
+        rich = await shotFountain(4);
         if (shots) await gp.screenshot({ path: path.join(shots, 'smoke-webgl-fountain.png') });
       }
       check('WebGL renderer: a fountain is a 3D model, a click picks it, and its look follows its neighbourhood',
