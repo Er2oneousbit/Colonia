@@ -185,6 +185,21 @@
     const wide = (spec) => ({ ...spec, w: spec.w + 70, h: spec.h + 34, ax: spec.ax + 35 });
     section('Shipyard: the water on each side; empty slip, ribs, planked hull', [0, 1, 2, 3].flatMap((side) => [0, 1, 2].map((stage) => [`side ${side}, hull ${stage}`, wide(onWater(buildingSpec('shipyard', 2, 0, side + 4 * stage), side, 2))])));
     section('Fishing wharf: the water on each side; catch waiting', [0, 1, 2, 3].flatMap((side) => [0, 1].map((fish) => [`side ${side}${fish ? ', catch' : ''}`, wide(onWater(buildingSpec('wharf', 2, 0, side + 4 * fish), side, 2))])));
+    // Out over the water (what the game builds): the water under the rows on it and a strip beyond,
+    // each side; the Emporium (state = side + 16), the shipyard and the wharf as above with + 16.
+    const onPier = (spec, side, S, rows) => ({ ...spec, draw(ctx) {
+      const rect = [[0, -0.9, S, rows], [S - rows, 0, S + 0.9, S], [0, S - rows, S, S + 0.9], [-0.9, 0, rows, S]][side];
+      const P = (u, v) => [(u - v) * 32, (u + v) * 16];
+      ctx.fillStyle = '#4a90c8';
+      ctx.beginPath();
+      for (const [u, v] of [[rect[0], rect[1]], [rect[2], rect[1]], [rect[2], rect[3]], [rect[0], rect[3]]]) ctx.lineTo(...P(u, v));
+      ctx.fill();
+      spec.draw(ctx);
+    } });
+    const wideP = (spec, extra = 70) => ({ ...spec, w: spec.w + extra, h: spec.h + 50, ax: spec.ax + extra / 2 });
+    section('Emporium out over the water: each side', [0, 1, 2, 3].map((side) => [`side ${side}`, wideP(onPier(buildingSpec('dock', 3, 0, side + 16), side, 3, 2), 110)]));
+    section('Shipyard out over the water: each side; empty slip, frames and strakes, planked hull', [0, 1, 2, 3].flatMap((side) => [0, 1, 2].map((stage) => [`side ${side}, hull ${stage}`, wideP(onPier(buildingSpec('shipyard', 2, 0, side + 4 * stage + 16), side, 2, 1))])));
+    section('Fishing wharf out over the water: each side; catch waiting', [0, 1, 2, 3].flatMap((side) => [0, 1].map((fish) => [`side ${side}${fish ? ', catch' : ''}`, wideP(onPier(buildingSpec('wharf', 2, 0, side + 4 * fish + 16), side, 2, 1))])));
     // The hippodrome: its three sections drawn in place, as one.
     const hip = [0, 1, 2].map((s) => buildingSpec(s ? 'hippodrome_part' : 'hippodrome', 5, 0, s));
     section('Hippodrome (three 5x5 sections) and the chariot maker', [

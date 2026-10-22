@@ -25,7 +25,7 @@ import { UNIT_TYPES } from '../data/units.js';
 import { GODS } from '../data/gods.js';
 import { P, poly, quad, ground, box, gableRoof, hipRoof, column, colonnade, windows, door, shade, mix, tree, bareTree, cypress, hash01, horse, setRoofSnow, roofSnowAmount, SNOW } from './draw.js';
 import { drawTurned, drawTurnedOver, withOrigin, turnUV, unit, decal, TS } from './turn.js';
-import { shipyardArt, wharfArt, turner, turnedRect, paint, overWater, pierDeck } from './waterArt.js';
+import { shipyardArt, wharfArt, turner, turnedRect, paint, overWater, pierDeck, post, waterLine, waterLantern, waterLoad } from './waterArt.js';
 import { navaliaArt, stationArt, portusArt } from './navyArt.js';
 import { OVER_WATER_ART } from '../sim/entities.js';
 import { monumentLook } from '../sim/monumentEffects.js';
@@ -3267,61 +3267,125 @@ function dockArt(ctx, S, variant, side = 1) {
   for (const it of items) it.draw();
 }
 
-/** Height (px) of a stone quay's top over the water, and of the shore row's platform beside it. */
+/** Height (px) of the quay's top over the water, and of the terrace on the shore row beside it. */
 const QUAY_Z = 5;
 
 /**
- * The Emporium out over the water: a stone quay on piers over its two rows
- * on the water, the water showing between the piers, with cargo on the
- * paving, bollards and two cranes at its edge reaching out over the
- * berth; on the shore row, raised to the quay's level, the store shed.
+ * The Emporium out over the water, as the 3D model designs it (models/
+ * tradeDock.js, from the trading harbours of about 300 BC): the shore row a
+ * terrace of tufa ashlar one step up (a stair at its back), a plastered
+ * shed on it open to the quay with the goods in its bays, and the quay out
+ * over its two rows on the water: on one side a mole of tufa with a
+ * shear-legs crane and its windlass, a kerb of cut stone along its edge; on
+ * the other a timber jetty on piles with bollards, loads waiting on its
+ * deck and a gangplank stowed; a customs table with its standard on the
+ * terrace and lanterns at the corners. The merchant ship ties up in front
+ * (the renderer draws it), so nothing stands past the front line.
  */
 function dockQuayArt(ctx, S, side) {
   const T = turner(S, side);
   const Q = (u, v, z = 0) => P(...T(u, v), z);
   const at = (u, v) => { const [a, b] = T(u, v); return a + b; };
   const { shore } = overWater(S);
-  // the shore row: a stone platform up to the quay's level
-  const land = turnedRect(T, 0.02, 0.02, shore - 0.02, S - 0.04);
-  box(ctx, land[0], land[1], land[2], land[3], 0, QUAY_Z, COL.stone, { plain: true });
-  pierDeck(ctx, T, shore, S - 0.02, 0.02, S - 0.02, { z: QUAY_Z, thick: 2.4, step: 0.62, pile: 0.2, pileColor: COL.stoneDark, deck: '#b9ad93', seams: 'rgba(90,80,62,0.35)', seamStep: 0.5 });
+  const Z = QUAY_Z;
+  const front = S - 0.04;
+  const MOLE = 1.05; // the mole takes designed v up to here, the jetty the rest
+  const flat = (cells) => Math.min(...cells.map(([u, v]) => at(u, v))) - 1; // a slab sorts before what stands on it
   const items = [];
-  const shed = turnedRect(T, 0.1, 0.22, 0.8, S - 0.44);
-  items.push({ d: shed[0] + shed[1], draw: () => {
-    box(ctx, shed[0], shed[1], shed[2], shed[3], QUAY_Z, 15, '#d8c9a8');
-    gableRoof(ctx, shed[0], shed[1], shed[2], shed[3], QUAY_Z + 15, 7, COL.terra, shed[2] >= shed[3] ? 'u' : 'v');
+  // two courses of ashlar, the upper a shade lighter
+  const ashlar = (r, z0, h) => {
+    box(ctx, r[0], r[1], r[2], r[3], z0, h / 2, shade(COL.tufa, -0.1), { plain: true });
+    box(ctx, r[0], r[1], r[2], r[3], z0 + h / 2, h / 2, COL.tufa, { plain: true });
+  };
+  // the terrace on the shore row, and the stair up to it from the back
+  items.push({ d: flat([[0.14, 0.02], [shore, S]]), draw: () => ashlar(turnedRect(T, 0.14, 0.02, shore - 0.14, S - 0.04), 0, Z) });
+  items.push({ d: flat([[0.02, 1.2], [0.14, 1.9]]) + 0.5, draw: () => {
+    const s1 = turnedRect(T, 0.02, 1.2, 0.07, 0.7);
+    box(ctx, s1[0], s1[1], s1[2], s1[3], 0, 1.7, shade(COL.tufa, -0.1), { plain: true });
+    const s2 = turnedRect(T, 0.09, 1.2, 0.06, 0.7);
+    box(ctx, s2[0], s2[1], s2[2], s2[3], 0, 3.4, COL.tufa, { plain: true });
   } });
-  for (const [cu, cv, color] of [[1.25, 0.45, '#8a5a33'], [1.25, 0.8, '#b8683c'], [1.6, 0.5, '#c9b13a'], [1.25, S - 0.7, '#7b1f3a'], [1.6, S - 0.55, '#8a5a33']]) {
-    const r = turnedRect(T, cu, cv, 0.26, 0.26);
-    items.push({ d: r[0] + r[1] + 0.3, draw: () => box(ctx, r[0], r[1], r[2], r[3], QUAY_Z, 6, color) });
-  }
-  // two cranes at the quay's edge, their jibs out over the berth
-  for (const cv of [0.85, S - 0.85]) {
-    items.push({ d: at(S - 0.4, cv), draw: () => {
-      const [x, y] = Q(S - 0.4, cv, QUAY_Z);
-      ctx.strokeStyle = COL.woodDark;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(x - 4, y); ctx.lineTo(x, y - 28); ctx.lineTo(x + 4, y);
-      const tip = Q(S + 0.35, cv, QUAY_Z + 34);
-      ctx.moveTo(x, y - 28); ctx.lineTo(tip[0], tip[1]);
-      ctx.stroke();
-      ctx.strokeStyle = '#3a3026';
-      ctx.lineWidth = 0.6;
-      ctx.beginPath(); ctx.moveTo(tip[0], tip[1]); ctx.lineTo(tip[0], tip[1] + 14); ctx.stroke();
-      ctx.fillStyle = '#c9a36b';
-      ctx.fillRect(tip[0] - 2.5, tip[1] + 14, 5, 4);
+  // the mole of tufa out over the water, its kerb of cut stone along the edge
+  items.push({ d: flat([[shore, 0.02], [front, MOLE]]), draw: () => {
+    ashlar(turnedRect(T, shore, 0.02, front - shore, MOLE - 0.02), 0, Z);
+    const k = turnedRect(T, front - 0.12, 0.02, 0.12, MOLE - 0.02);
+    box(ctx, k[0], k[1], k[2], k[3], Z, 1.3, shade(COL.tufa, 0.1), { plain: true });
+  } });
+  // the timber jetty on piles beside it
+  items.push({ d: flat([[shore, MOLE], [front, S]]), draw: () => pierDeck(ctx, T, shore, front, MOLE, S - 0.02, { z: Z, step: 0.5 }) });
+  // the shed of plastered rubble, open to the quay: a back wall, an end wall, posts under the roof
+  const roofZ = Z + 15;
+  const shed = [];
+  const wall = (u, v, du, dv) => {
+    const r = turnedRect(T, u, v, du, dv);
+    shed.push({ d: at(u + du / 2, v + dv / 2), draw: () => {
+      box(ctx, r[0], r[1], r[2], r[3], Z, 6, COL.dado, { plain: true, noTop: true });
+      box(ctx, r[0], r[1], r[2], r[3], Z + 6, 9, COL.plaster);
+    } });
+  };
+  wall(0.2, 0.18, 0.14, 1.72);
+  wall(0.2, 0.18, 0.75, 0.12);
+  for (const v of [0.7, 1.3, 1.84]) {
+    shed.push({ d: at(0.9, v), draw: () => {
+      const r = turnedRect(T, 0.87, v - 0.035, 0.07, 0.07);
+      box(ctx, r[0], r[1], r[2], r[3], Z, 15, COL.woodDark, { plain: true });
     } });
   }
-  for (const bv of [0.3, S / 2, S - 0.3]) {
-    items.push({ d: at(S - 0.12, bv), draw: () => {
-      const [x, y] = Q(S - 0.12, bv, QUAY_Z);
+  // the goods in its bays, loads of the warehouse's kinds
+  for (const [u, v, z, kind] of [[0.45, 0.42, 0, 'crate'], [0.45, 0.42, 5, 'crate'], [0.45, 0.68, 0, 'crate'], [0.62, 1.0, 0, 'sack'], [0.72, 1.2, 0, 'sack'], [0.5, 1.5, 0, 'amphora'], [0.7, 1.62, 0, 'amphora'], [0.45, 1.75, 0, 'bale']]) {
+    shed.push({ d: at(u, v) + 0.05, draw: () => waterLoad(ctx, T, Q, u, v, Z + z, kind) });
+  }
+  items.push({ d: at(0.57, 1.0) + 0.1, draw: () => {
+    paint(shed);
+    const r = turnedRect(T, 0.14, 0.12, 0.86, 1.84);
+    gableRoof(ctx, r[0], r[1], r[2], r[3], roofZ, 6, COL.terra, r[2] >= r[3] ? 'u' : 'v');
+  } });
+  // the goods in transit, on the quay before the shed and on the jetty's deck
+  for (const [u, v, z, kind] of [[1.2, 0.3, 0, 'crate'], [1.2, 0.3, 5, 'crate'], [1.2, 0.62, 0, 'crate'], [1.5, 0.3, 0, 'bale'], [1.25, 1.45, 0, 'sack'], [1.4, 1.62, 0, 'sack'], [1.15, 2.05, 0, 'amphora'], [1.3, 2.2, 0, 'amphora'], [1.55, 1.55, 0, 'crate']]) {
+    items.push({ d: at(u, v) + 0.05, draw: () => waterLoad(ctx, T, Q, u, v, Z + z, kind) });
+  }
+  // the crane: shear legs on the mole, lashed at the head, a back stay and the tackle off a windlass
+  items.push({ d: at(2.3, 0.55), draw: () => {
+    const head = Q(2.55, 0.55, Z + 30);
+    const wood = COL.woodDark;
+    for (const v of [0.4, 0.7]) waterLine(ctx, Q(2.2, v, Z), head, wood, 1.5);
+    waterLine(ctx, Q(1.55, 0.55, Z), head, '#3a3026', 0.7); // the back stay
+    waterLine(ctx, head, [head[0], head[1] + 15], '#3a3026', 0.6); // the fall
+    ctx.fillStyle = '#6b4a2a';
+    ctx.fillRect(head[0] - 1.5, head[1] + 15, 3, 2.5);
+    const w = turnedRect(T, 1.78, 0.42, 0.2, 0.26);
+    box(ctx, w[0], w[1], w[2], w[3], Z, 3.5, COL.wood, { plain: true });
+    const c = Q(1.88, 0.7, Z + 2);
+    waterLine(ctx, c, [c[0] + 2.5, c[1] - 3.5], wood, 1);
+    waterLine(ctx, Q(1.9, 0.55, Z + 3.5), head, '#3a3026', 0.5); // the rope from the drum to the head
+  } });
+  // the customs: a table with its toll and a standard on its pole
+  items.push({ d: at(0.58, 2.45), draw: () => {
+    const t = turnedRect(T, 0.45, 2.3, 0.34, 0.22);
+    box(ctx, t[0], t[1], t[2], t[3], Z, 4.5, COL.wood, { plain: true });
+    ctx.fillStyle = COL.cream;
+    const [x, y] = Q(0.6, 2.4, Z + 4.5);
+    ctx.fillRect(x - 2, y - 1, 4, 1.4);
+    const [px, py] = Q(0.45, 2.75, Z);
+    post(ctx, px, py, 18, 1.2, COL.woodDark);
+    poly(ctx, [[px, py - 18], [px + 6, py - 16], [px, py - 12]], COL.dado);
+  } });
+  // bollards along the jetty's edge, a gangplank stowed on its deck, lanterns at the corners
+  for (const v of [1.4, 2.0, 2.6]) {
+    items.push({ d: at(front - 0.08, v), draw: () => {
+      const [x, y] = Q(front - 0.08, v, Z);
       ctx.fillStyle = '#4a3a2a';
       ctx.fillRect(x - 1.3, y - 4, 2.6, 4);
       ctx.fillStyle = '#6b5640';
       ctx.fillRect(x - 1.8, y - 5, 3.6, 1.4);
     } });
   }
+  items.push({ d: at(1.9, 2.6), draw: () => {
+    const g = turnedRect(T, 1.7, 2.45, 0.7, 0.16);
+    box(ctx, g[0], g[1], g[2], g[3], Z, 0.9, '#b88a58', { plain: true });
+  } });
+  items.push({ d: at(front - 0.08, 0.2), draw: () => waterLantern(ctx, ...Q(front - 0.08, 0.2, Z), 10) });
+  items.push({ d: at(0.95, S - 0.1), draw: () => waterLantern(ctx, ...Q(0.95, S - 0.1, Z), 10) });
   paint(items);
 }
 
