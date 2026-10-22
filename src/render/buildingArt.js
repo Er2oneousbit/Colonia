@@ -357,10 +357,136 @@ function houseArt(ctx, S, variant, tier) {
     return;
   }
   if (native === 1) { smallHouse(ctx, variant, tier); return; }
+  if (tier === 11) { smallTenement(ctx, S, variant); return; }
   if (tier <= 12) { insulaArt(ctx, S, variant, tier === 12); return; }
   if (tier <= 18) { villaArt(ctx, S, variant, tier - 13); return; }
   palaceArt(ctx, S, variant, tier - 19);
 }
+
+// --- Helpers for the single-tile homes (tiers 1 to 11), named after the 3D models' details. ---
+
+/** A stroke between two (u, v, z) points. */
+function smallStroke(ctx, a, b, color, lw = 0.7) {
+  const p = P(...a);
+  const q = P(...b);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+}
+
+/** Two poles crossed above the tent's front, the ridge pole's end showing between them. */
+function smallTentPoles(ctx, u, v, top) {
+  smallStroke(ctx, [u, v - 0.2, 0], [u, v + 0.04, top], COL.woodDark, 0.9);
+  smallStroke(ctx, [u, v + 0.2, 0], [u, v - 0.04, top], COL.woodDark, 0.9);
+  smallStroke(ctx, [u - 0.06, v, top - 1.5], [u + 0.04, v, top - 1.5], COL.wood, 0.9);
+}
+
+/** Guy ropes from points on the cloth down to pegs in the ground. */
+function smallGuys(ctx, froms, pegs, z) {
+  for (let k = 0; k < froms.length; k++) {
+    smallStroke(ctx, [froms[k][0], froms[k][1], z], [pegs[k][0], pegs[k][1], 0.5], 'rgba(90,70,48,0.7)', 0.5);
+    const [x, y] = P(pegs[k][0], pegs[k][1]);
+    ctx.fillStyle = COL.woodDark;
+    ctx.fillRect(x - 0.5, y - 1.2, 1, 1.2);
+  }
+}
+
+/** A ring of stones round embers, with a pot hung on a tripod when `tripod`. */
+function smallFireRing(ctx, u, v, tripod) {
+  const [cx, cy] = P(u, v);
+  ctx.fillStyle = '#3a2a20';
+  ctx.beginPath(); ctx.ellipse(cx, cy - 0.6, 3.6, 1.7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#d9792b';
+  ctx.beginPath(); ctx.ellipse(cx, cy - 0.7, 1.7, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    ctx.fillStyle = k % 2 ? '#8a8173' : '#6b5f52';
+    ctx.fillRect(cx + Math.cos(a) * 3.9 - 0.9, cy - 0.7 + Math.sin(a) * 1.9 - 0.7, 1.8, 1.4);
+  }
+  if (!tripod) return;
+  for (const du of [-0.06, 0.06, 0]) smallStroke(ctx, [u + du, v + (du ? 0.03 : -0.05), 0], [u, v, 6], COL.woodDark, 0.6);
+  ctx.fillStyle = '#3d3630';
+  ctx.beginPath(); ctx.ellipse(cx, cy - 3.8, 1.9, 1.7, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+/** Stakes and weave on the +u face of a wattle wall (plane u, v0..v1, z0..z1). */
+function smallWattle(ctx, u, v0, v1, z0, z1) {
+  for (let k = 0; k <= 7; k++) {
+    const v = v0 + ((v1 - v0) * k) / 7;
+    smallStroke(ctx, [u, v, z0], [u, v, z1], 'rgba(90,60,34,0.7)', 0.6);
+  }
+  for (let r = 1; r <= 2; r++) smallStroke(ctx, [u, v0, z0 + ((z1 - z0) * r) / 3], [u, v1, z0 + ((z1 - z0) * r) / 3], 'rgba(120,88,52,0.8)', 0.7);
+}
+
+/**
+ * A timber balcony on beams standing out from a wall: the plane `c` of the 'left' face (+v) or 'right'
+ * face (+u), running a0..a1 along it at height z, `d` tiles deep, with a rail and slanting brackets under it.
+ */
+function smallBalcony(ctx, face, c, a0, a1, z, d) {
+  const pt = (t, dep, zz) => (face === 'right' ? [c + dep, t, zz] : [t, c + dep, zz]);
+  poly(ctx, [P(...pt(a0, 0, z)), P(...pt(a1, 0, z)), P(...pt(a1, d, z)), P(...pt(a0, d, z))], '#9b7446', '#5a3c22', 0.5);
+  for (let k = 0; k <= 4; k++) {
+    const t = a0 + ((a1 - a0) * k) / 4;
+    smallStroke(ctx, pt(t, 0, z - 4), pt(t, d, z), COL.woodDark, 0.8); // a beam under the floor
+  }
+  smallStroke(ctx, pt(a0, d, z + 3.6), pt(a1, d, z + 3.6), COL.woodDark, 0.8);
+  for (let k = 0; k <= 6; k++) {
+    const t = a0 + ((a1 - a0) * k) / 6;
+    smallStroke(ctx, pt(t, d, z), pt(t, d, z + 3.6), COL.wood, 0.5);
+  }
+}
+
+/**
+ * A shop's wide mouth on a 'left' (+v) face at v = c, from u a0 to a1, `h` px high: dark inside, the
+ * boards that shut it stacked beside the jamb, and with `counter` a masonry counter with wares on it.
+ */
+function smallTaberna(ctx, c, a0, a1, h, counter = false) {
+  poly(ctx, [P(a0, c, 0.6), P(a1, c, 0.6), P(a1, c, h), P(a0, c, h)], '#33261c');
+  for (let k = 0; k < 4; k++) { // the stacked boards
+    const z = 1 + k * 1.5;
+    poly(ctx, [P(a1 - 0.06, c, z), P(a1, c, z), P(a1, c, z + 1.2), P(a1 - 0.06, c, z + 1.2)], k % 2 ? '#9b7446' : '#8a6a44');
+  }
+  smallStroke(ctx, [a0, c, h], [a1, c, h], COL.woodDark, 1); // the lintel
+  if (!counter) return;
+  box(ctx, a0 + 0.02, c, a1 - a0 - 0.08, 0.06, 0, 4, COL.tufa, { plain: true });
+  const wares = ['#c7643e', '#d9a441', '#ece2c8', '#5d7fa3', '#8a5a33'];
+  for (let k = 0; k < 5; k++) { // jars, cloth and baskets along the counter's top
+    const [x, y] = P(a0 + 0.06 + k * ((a1 - a0 - 0.2) / 4), c + 0.03, 4);
+    ctx.fillStyle = wares[k];
+    ctx.fillRect(x - 1, y - (k % 2 ? 2 : 3), 2, k % 2 ? 2 : 3);
+  }
+}
+
+/**
+ * The atrium roof of a domus: four slopes tiled and falling inward from the outer eave (lo..hi at z + 4)
+ * to the opening (c0..c1 at z + 0.5), the compluvium, with the dark of the court and its basin's
+ * glint showing through. Back slopes first, then the opening, then the front slopes over its rim.
+ */
+function smallAtriumRoof(ctx, lo, hi, z, color, c0, c1) {
+  const zo = z + 4;
+  const zi = z + 0.5;
+  const sn = roofSnowAmount();
+  const tone = (k) => shade(sn > 0 ? mix(color, SNOW, Math.min(0.9, 0.3 + sn)) : color, k);
+  const edge = shade(color, -0.45);
+  poly(ctx, [P(lo, lo, zo), P(hi, lo, zo), P(c1, c0, zi), P(c0, c0, zi)], tone(-0.12), edge, 0.5);
+  poly(ctx, [P(lo, lo, zo), P(lo, hi, zo), P(c0, c1, zi), P(c0, c0, zi)], tone(-0.04), edge, 0.5);
+  poly(ctx, [P(c0, c0, zi), P(c1, c0, zi), P(c1, c1, zi), P(c0, c1, zi)], '#2b221b');
+  poly(ctx, [P(c0 + 0.06, c0 + 0.06, zi - 0.5), P(c1 - 0.06, c0 + 0.06, zi - 0.5), P(c1 - 0.06, c1 - 0.06, zi - 0.5), P(c0 + 0.06, c1 - 0.06, zi - 0.5)], '#4f7f93');
+  poly(ctx, [P(lo, hi, zo), P(hi, hi, zo), P(c1, c1, zi), P(c0, c1, zi)], tone(0.1), edge, 0.5);
+  poly(ctx, [P(hi, lo, zo), P(hi, hi, zo), P(c1, c1, zi), P(c1, c0, zi)], tone(0.0), edge, 0.5);
+  // tile courses on the two front slopes
+  ctx.strokeStyle = shade(color, -0.25);
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for (let k = 1; k < 4; k++) {
+    const t = k / 4;
+    const a = P(lo + (c0 - lo) * t, hi + (c1 - hi) * t, zo + (zi - zo) * t);
+    const b = P(hi + (c1 - hi) * t, hi + (c1 - hi) * t, zo + (zi - zo) * t);
+    ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+  }
+  ctx.stroke();
+}
+
 
 /** Awning colors for shop fronts. */
 const AWNINGS = ['#b8573a', '#5d7fa3', '#a38b3d', '#7a9c5a'];
@@ -389,61 +515,100 @@ function smallHouse(ctx, variant, tier) {
       return;
     }
     case 1: {
-      // Tent
+      // Tent: undyed wool or hide on a ridge pole and crossed front poles, guy ropes to pegs, a ring of
+      // stones with a pot on a tripod in front (the 3D model's design; the fire stays at 0.3, 0.8 for the night glow).
       quad(ctx, 0.1, 0.1, 0.9, 0.9, 0, '#a7925f');
       const cloth = ['#e9dcc0', '#d9c7a3', '#efe6d2', '#cdb894'][variant % 4];
+      if (variant % 2 === 0) gableRoof(ctx, 0.5, 0.62, 0.3, 0.26, 0, 8, shade(cloth, -0.08), 'v', 0);
       gableRoof(ctx, 0.18, 0.22, 0.58, 0.46, 0, 13, cloth, 'u', 0);
-      // entrance flap
+      // the flap, tied back and dark inside
       poly(ctx, [P(0.76, 0.35), P(0.76, 0.55), P(0.76, 0.45, 9)], '#4b3a28');
-      if (variant % 2 === 0) {
-        gableRoof(ctx, 0.5, 0.62, 0.3, 0.26, 0, 8, shade(cloth, -0.08), 'v', 0);
-      }
-      // campfire stones
-      const [fx, fy] = P(0.3, 0.8);
-      ctx.fillStyle = '#6b5f52';
-      ctx.fillRect(fx - 2, fy - 1, 4, 2);
+      if (alt) poly(ctx, [P(0.4, 0.68, 1), P(0.58, 0.68, 1), P(0.58, 0.68, 6), P(0.4, 0.68, 6)], shade(cloth, -0.2)); // a patch
+      smallTentPoles(ctx, 0.78, 0.45, 15);
+      smallGuys(ctx, [[0.18, 0.22], [0.76, 0.22], [0.76, 0.68], [0.18, 0.68]], [[0.1, 0.14], [0.84, 0.14], [0.86, 0.76], [0.1, 0.76]], 7);
+      smallFireRing(ctx, 0.3, 0.8, true);
       return;
     }
     case 2: {
-      // Family Tent: a big tent, a second one beside it, an awning over the
-      // cooking place and a water jar from the well.
+      // Family Tent: a tent in two bays on three poles, a hide awning on two poles as a porch over a rush
+      // mat, a water jar, a second fire, and in some looks washing on a line.
       quad(ctx, 0.07, 0.07, 0.93, 0.93, 0, '#a58f5c');
       const cloth = ['#e9dcc0', '#d9c7a3', '#efe6d2', '#cdb894'][variant % 4];
-      gableRoof(ctx, 0.12, 0.14, 0.54, 0.46, 0, 14, cloth, 'u', 0);
-      poly(ctx, [P(0.66, 0.26), P(0.66, 0.46), P(0.66, 0.36, 9)], '#4b3a28');
-      gableRoof(ctx, 0.6, 0.12, 0.3, 0.34, 0, 10, shade(cloth, -0.1), 'v', 0);
-      // awning: a sheet on two poles, sloping to the front
-      for (const u of [0.2, 0.58]) {
-        const [x, y] = P(u, 0.86);
-        ctx.fillStyle = COL.woodDark;
-        ctx.fillRect(x - 0.5, y - 7, 1, 7);
+      quad(ctx, 0.16, 0.6, 0.56, 0.86, 0, '#b79a52'); // the rush mat under the porch
+      gableRoof(ctx, 0.12, 0.14, 0.34, 0.44, 0, 14, cloth, 'u', 0);
+      gableRoof(ctx, 0.46, 0.14, 0.34, 0.44, 0, 12.5, shade(cloth, -0.1), 'u', 0);
+      for (const u of [0.46, 0.8]) { // the seam and the end pole of each bay
+        const a = P(u, 0.14, 0);
+        const b = P(u, 0.36, u < 0.5 ? 14 : 12.5);
+        ctx.strokeStyle = 'rgba(70,52,34,0.55)';
+        ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
       }
-      poly(ctx, [P(0.18, 0.64, 10), P(0.6, 0.64, 10), P(0.6, 0.88, 7), P(0.18, 0.88, 7)], shade(cloth, alt ? -0.18 : 0.04), shade(cloth, -0.4), 0.5);
-      const [fx, fy] = P(0.38, 0.78);
-      ctx.fillStyle = '#6b5f52';
-      ctx.fillRect(fx - 2, fy - 1, 4, 2);
-      ctx.fillStyle = '#3d3630';
-      ctx.fillRect(fx - 1.2, fy - 3.2, 2.4, 2.2); // cooking pot
-      jar(ctx, 0.84, 0.72, '#8a6a4a');
+      poly(ctx, [P(0.8, 0.28), P(0.8, 0.46), P(0.8, 0.37, 9)], '#4b3a28');
+      smallTentPoles(ctx, 0.82, 0.37, 14);
+      // the porch: a hide stretched from the tent's eave over two poles, sloping to the front
+      for (const u of [0.18, 0.52]) {
+        const [x, y] = P(u, 0.84);
+        ctx.fillStyle = COL.woodDark;
+        ctx.fillRect(x - 0.5, y - 8, 1, 8);
+      }
+      const hide = alt ? '#8c6c48' : '#a8845a';
+      poly(ctx, [P(0.14, 0.58, 10), P(0.56, 0.58, 10), P(0.56, 0.86, 7.5), P(0.14, 0.86, 7.5)], hide, shade(hide, -0.4), 0.5);
+      smallFireRing(ctx, 0.74, 0.76, false);
+      jar(ctx, 0.86, 0.9, '#8a6a4a');
+      if (alt) {
+        // washing on a line from a pole to a stake
+        const a = P(0.9, 0.2, 9);
+        const b = P(0.9, 0.58, 5);
+        ctx.strokeStyle = '#6b5a48';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+        ['#f2eee6', '#9a7a52', '#e8d7a0'].forEach((c, k) => {
+          const x = a[0] + (b[0] - a[0]) * (0.2 + k * 0.28);
+          const y = a[1] + (b[1] - a[1]) * (0.2 + k * 0.28);
+          ctx.fillStyle = c;
+          ctx.fillRect(x - 1.1, y, 2.2, 2.8);
+        });
+      }
       return;
     }
     case 3: {
-      // Lean-to
+      // Lean-to: poles leant on a ridge beam on two forked posts, roofed in reed (or sods), a wattle wall
+      // closing the end, a hide curtain in the doorway, a low footing of dry stone, a woodpile or a wattle pen.
       quad(ctx, 0.1, 0.1, 0.9, 0.9, 0, '#a08a5c');
-      box(ctx, 0.2, 0.22, 0.58, 0.5, 0, 9, alt ? '#7d5431' : COL.wood);
-      // mono-pitch plank roof
-      poly(ctx, [P(0.16, 0.18, 12), P(0.82, 0.18, 12), P(0.82, 0.76, 8), P(0.16, 0.76, 8)], alt ? '#8a6a44' : '#9b7446', '#5a3c22', 0.6);
+      box(ctx, 0.2, 0.22, 0.58, 0.5, 0, 2.5, COL.stone); // the dry-stone footing
+      box(ctx, 0.2, 0.22, 0.58, 0.5, 2.5, 6.5, '#a88e5e'); // wattle and daub walls
+      smallWattle(ctx, 0.78, 0.22, 0.72, 2.5, 9);
+      // forked posts at the back, the ridge beam between them
+      for (const v of [0.2, 0.74]) {
+        const [x, y] = P(0.14, v);
+        ctx.fillStyle = COL.woodDark;
+        ctx.fillRect(x - 0.6, y - 12.5, 1.2, 12.5);
+      }
+      const reed = alt ? COL.turf : '#bfa457';
+      poly(ctx, [P(0.12, 0.18, 12), P(0.84, 0.18, 12), P(0.84, 0.78, 8), P(0.12, 0.78, 8)], reed, '#5a3c22', 0.6);
+      ctx.strokeStyle = shade(reed, -0.25);
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let k = 1; k < 6; k++) {
+        const u = 0.12 + 0.72 * (k / 6);
+        const a = P(u, 0.18, 12);
+        const b = P(u, 0.78, 8);
+        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+      }
+      ctx.stroke();
+      poly(ctx, [P(0.12, 0.18, 12.4), P(0.84, 0.18, 12.4), P(0.84, 0.21, 12.2), P(0.12, 0.21, 12.2)], COL.woodDark); // the ridge beam
       const sn = roofSnowAmount();
       if (sn > 0) {
-        // Snow on the planks, from the high edge down (deeper snow reaches further).
         const f = Math.min(1, 0.2 + 0.95 * sn);
-        poly(ctx, [P(0.16, 0.18, 12), P(0.82, 0.18, 12), P(0.82, 0.18 + 0.58 * f, 12 - 4 * f), P(0.16, 0.18 + 0.58 * f, 12 - 4 * f)], SNOW);
+        poly(ctx, [P(0.12, 0.18, 12), P(0.84, 0.18, 12), P(0.84, 0.18 + 0.6 * f, 12 - 4 * f), P(0.12, 0.18 + 0.6 * f, 12 - 4 * f)], SNOW);
       }
-      door(ctx, 'left', 0.2, 0.22, 0.78, 0.72, 0, 0.35, '#3d2a1a', 0.14, 6);
+      // the doorway on the front, its hide curtain drawn half aside
+      door(ctx, 'left', 0.2, 0.22, 0.78, 0.72, 0, 0.35, '#2e2218', 0.16, 6);
+      poly(ctx, [P(0.31, 0.72, 0.5), P(0.37, 0.72, 0.5), P(0.37, 0.72, 6), P(0.31, 0.72, 6)], '#9a7a52');
       if (alt) {
-        fence(ctx, 0.35, 0.3, '#8a6a44');
+        fence(ctx, 0.35, 0.3, '#8a6a44'); // the wattle pen
       } else {
-        // wood pile
         const [wx, wy] = P(0.82, 0.84);
         ctx.fillStyle = '#6e4a2a';
         ctx.fillRect(wx - 3, wy - 3, 6, 3);
@@ -470,24 +635,31 @@ function smallHouse(ctx, variant, tier) {
     case 5: {
       // Cottage
       quad(ctx, 0.06, 0.06, 0.94, 0.94, 0, '#b3a27a');
-      box(ctx, 0.16, 0.16, 0.68, 0.66, 0, 12, wall);
+      plastered(ctx, 0.16, 0.16, 0.68, 0.66, 0, 12, { wall, dado: 3 }); // plaster over a red dado, as the 3D cottage
       gableRoof(ctx, 0.16, 0.16, 0.68, 0.66, 12, 9, ROOFS[pal], variant % 2 ? 'u' : 'v');
-      if (alt) box(ctx, 0.62, 0.3, 0.1, 0.1, 16, 8, COL.stoneDark); // chimney, rising out of the roof
+      if (alt) box(ctx, 0.6, 0.3, 0.07, 0.07, 17, 4, '#a0583a'); // a clay smoke pot on the ridge (no chimney: the smoke leaves by the roof)
       door(ctx, 'left', 0.16, 0.16, 0.84, 0.82, 0, 0.3, DOORS[pal]);
       windows(ctx, 'right', 0.16, 0.16, 0.84, 0.82, 0, 1, 2, '#4a3a2a', { z: 5, h: 3.5, shutters: alt ? SHUTTERS[pal] : null });
       if (!alt) jar(ctx, 0.9, 0.55, '#c7643e');
       return;
     }
     case 6: {
-      // Stone Cottage: dressed stone walls, a tiled roof, a chimney and a
-      // walled herb garden (or a fruit tree).
+      // Stone Cottage: plastered walls over a bare tufa footing, a tiled gable with terracotta antefixes
+      // along the eave, one shuttered window, and a herb plot or a fruit tree. No chimney: the smoke leaves by the roof.
       quad(ctx, 0.05, 0.05, 0.95, 0.95, 0, '#b5a77f');
-      const stone = alt ? '#b9ae98' : COL.stone;
-      box(ctx, 0.14, 0.14, 0.62, 0.6, 0, 14, stone);
-      gableRoof(ctx, 0.14, 0.14, 0.62, 0.6, 14, 9, ROOFS[pal], variant % 2 ? 'v' : 'u');
-      box(ctx, 0.56, 0.24, 0.1, 0.1, 18, 9, COL.stoneDark);
+      box(ctx, 0.14, 0.14, 0.62, 0.6, 0, 4.5, COL.tufa);
+      box(ctx, 0.14, 0.14, 0.62, 0.6, 4.5, 9.5, alt ? '#efe4cb' : COL.plaster);
+      const ridgeU = variant % 2 === 0;
+      gableRoof(ctx, 0.14, 0.14, 0.62, 0.6, 14, 9, ROOFS[pal], ridgeU ? 'u' : 'v');
+      // antefixes: little terracotta ends along the eave facing the street
+      for (let k = 0; k < 5; k++) {
+        const t = 0.1 + k * 0.2;
+        const [x, y] = ridgeU ? P(0.14 + 0.62 * t, 0.8, 13.6) : P(0.82, 0.14 + 0.6 * t, 13.6);
+        ctx.fillStyle = '#c0603c';
+        ctx.fillRect(x - 0.7, y - 1, 1.4, 1.6);
+      }
       door(ctx, 'left', 0.14, 0.14, 0.76, 0.74, 0, 0.3, DOORS[pal]);
-      windows(ctx, 'right', 0.14, 0.14, 0.76, 0.74, 0, 1, 2, '#4a3a2a', { z: 5, h: 4, shutters: SHUTTERS[(pal + alt) % 4] });
+      windows(ctx, 'right', 0.14, 0.14, 0.76, 0.74, 0, 1, 1, '#4a3a2a', { z: 6, h: 4, shutters: SHUTTERS[(pal + alt) % 4] });
       if (alt) {
         box(ctx, 0.8, 0.14, 0.06, 0.72, 0, 3, COL.stoneDark, { plain: true });
         for (let k = 0; k < 3; k++) { const [x, y] = P(0.88, 0.3 + k * 0.2); ctx.fillStyle = '#5f9a48'; ctx.fillRect(x - 1.2, y - 2, 2.4, 2); }
@@ -497,68 +669,143 @@ function smallHouse(ctx, variant, tier) {
       return;
     }
     case 7: {
-      // Townhouse
+      // Townhouse: plastered over a red dado, a shop open to the street across a wide mouth, a stair
+      // door, the family above with a timber balcony or shuttered windows.
       quad(ctx, 0.05, 0.05, 0.95, 0.95, 0, COL.paving);
-      box(ctx, 0.12, 0.12, 0.76, 0.74, 0, 21, wall);
+      plastered(ctx, 0.12, 0.12, 0.76, 0.74, 0, 21, { wall, dado: 4 });
       hipRoof(ctx, 0.12, 0.12, 0.76, 0.74, 21, 9, ROOFS[alt ? (pal + 2) % 4 : 0]);
-      windows(ctx, 'left', 0.12, 0.12, 0.88, 0.86, 0, 2, 3, '#4a3a2a', { z: 5, h: 4, gap: 9, flowers: alt === 1 });
-      windows(ctx, 'right', 0.12, 0.12, 0.88, 0.86, 0, 2, 2, '#4a3a2a', { z: 5, h: 4, gap: 9, shutters: alt ? null : SHUTTERS[pal] });
+      smallTaberna(ctx, 0.86, 0.2, 0.58, 10);
+      door(ctx, 'left', 0.12, 0.12, 0.88, 0.86, 0, 0.82, DOORS[pal], 0.12, 9);
+      windows(ctx, 'left', 0.12, 0.12, 0.88, 0.86, 0, 1, 3, '#4a3a2a', { z: 13, h: 4.5, flowers: alt === 1, shutters: alt ? SHUTTERS[pal] : null });
+      windows(ctx, 'right', 0.12, 0.12, 0.88, 0.86, 0, 1, 2, '#4a3a2a', { z: 13, h: 4.5, shutters: alt ? SHUTTERS[pal] : null });
+      if (!alt) smallBalcony(ctx, 'right', 0.88, 0.2, 0.78, 10, 0.1);
       return;
     }
     case 8: {
-      // Merchant House: a shop on the ground floor, the family above.
+      // Merchant House: a wide shop mouth with a counter and wares under a timber balcony or a pergola,
+      // a red dado on plastered walls, the family above.
       quad(ctx, 0.04, 0.04, 0.96, 0.96, 0, COL.paving);
-      box(ctx, 0.1, 0.1, 0.78, 0.74, 0, 24, wall);
+      plastered(ctx, 0.1, 0.1, 0.78, 0.74, 0, 24, { wall, dado: 4 });
       hipRoof(ctx, 0.1, 0.1, 0.78, 0.74, 24, 9, ROOFS[(pal + 1) % 4]);
-      windows(ctx, 'left', 0.1, 0.1, 0.88, 0.84, 0, 1, 3, '#4a3a2a', { z: 14, h: 4, flowers: alt === 0 });
-      windows(ctx, 'right', 0.1, 0.1, 0.88, 0.84, 0, 1, 2, '#4a3a2a', { z: 14, h: 4, shutters: alt ? SHUTTERS[pal] : null });
-      poly(ctx, [P(0.2, 0.84, 1), P(0.72, 0.84, 1), P(0.72, 0.84, 9), P(0.2, 0.84, 9)], '#3a2c20');
-      poly(ctx, [P(0.16, 0.84, 11), P(0.76, 0.84, 11), P(0.76, 0.98, 7.5), P(0.16, 0.98, 7.5)], AWNINGS[pal], shade(AWNINGS[pal], -0.4), 0.5);
-      door(ctx, 'right', 0.1, 0.1, 0.88, 0.84, 0, 0.62, DOORS[pal], 0.14, 8);
-      jar(ctx, 0.84, 0.93, '#c7643e');
-      if (alt) jar(ctx, 0.12, 0.92, '#b8683f');
+      windows(ctx, 'left', 0.1, 0.1, 0.88, 0.84, 0, 1, 3, '#4a3a2a', { z: 15, h: 4.5, shutters: alt ? SHUTTERS[pal] : null, flowers: alt === 0 });
+      windows(ctx, 'right', 0.1, 0.1, 0.88, 0.84, 0, 1, 2, '#4a3a2a', { z: 15, h: 4.5, shutters: alt ? SHUTTERS[pal] : null });
+      smallTaberna(ctx, 0.84, 0.16, 0.66, 11, true);
+      door(ctx, 'left', 0.1, 0.1, 0.88, 0.84, 0, 0.9, DOORS[pal], 0.1, 9);
+      if (alt) {
+        // a pergola: posts at the mouth's corners, slats overhead
+        for (const u of [0.16, 0.66]) {
+          const [x, y] = P(u, 0.96);
+          ctx.fillStyle = COL.woodDark;
+          ctx.fillRect(x - 0.6, y - 12, 1.2, 12);
+        }
+        ctx.strokeStyle = COL.wood;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        for (let k = 0; k <= 5; k++) {
+          const u = 0.16 + k * 0.1;
+          const a = P(u, 0.84, 12);
+          const b = P(u, 0.96, 12);
+          ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+        }
+        ctx.stroke();
+      } else {
+        smallBalcony(ctx, 'left', 0.84, 0.14, 0.72, 12, 0.1);
+      }
+      jar(ctx, 0.78, 0.96, '#c7643e');
       return;
     }
     case 9: {
-      // Domus: L-shaped house around a tiny courtyard
+      // Domus: a tall blank front with a narrow door (the fauces) between two small shops (or two high
+      // slit windows), and an atrium roof whose four slopes fall inward to the open compluvium.
       quad(ctx, 0.04, 0.04, 0.96, 0.96, 0, COL.paving);
-      box(ctx, 0.08, 0.08, 0.84, 0.36, 0, 17, wall);
-      gableRoof(ctx, 0.08, 0.08, 0.84, 0.36, 17, 8, ROOFS[pal], 'u');
-      if (alt) cypress(ctx, 0.3, 0.72, 0.6);
-      else tree(ctx, 0.32, 0.72, 0.55, '#4f8a3c', '#6b4a2a', variant);
-      box(ctx, 0.58, 0.44, 0.34, 0.48, 0, 14, shade(wall, -0.04));
-      gableRoof(ctx, 0.58, 0.44, 0.34, 0.48, 14, 7, ROOFS[(pal + 1) % 4], 'v');
-      windows(ctx, 'right', 0.58, 0.44, 0.92, 0.92, 0, 1, 2, '#4a3a2a', { z: 5, h: 4, shutters: alt ? SHUTTERS[pal] : null, flowers: !alt });
-      door(ctx, 'left', 0.58, 0.44, 0.92, 0.92, 0, 0.5, DOORS[pal]);
-      if (alt) jar(ctx, 0.5, 0.9, '#b8683f');
+      plastered(ctx, 0.1, 0.1, 0.8, 0.8, 0, 19, { wall: alt ? '#e6dcc3' : wall, dado: 5 });
+      smallAtriumRoof(ctx, 0.1, 0.9, 19, ROOFS[pal], 0.34, 0.66);
+      if (alt) {
+        windows(ctx, 'left', 0.1, 0.1, 0.9, 0.9, 0, 1, 2, '#3a2c20', { z: 11, h: 5, w: 0.05 });
+        windows(ctx, 'right', 0.1, 0.1, 0.9, 0.9, 0, 1, 2, '#3a2c20', { z: 11, h: 5, w: 0.05 });
+      } else {
+        smallTaberna(ctx, 0.9, 0.14, 0.34, 9);
+        smallTaberna(ctx, 0.9, 0.66, 0.86, 9);
+      }
+      door(ctx, 'left', 0.1, 0.1, 0.9, 0.9, 0, 0.5, DOORS[pal], 0.11, 10);
+      poly(ctx, [P(0.47, 0.9, 12.5), P(0.53, 0.9, 12.5), P(0.53, 0.9, 15.5), P(0.47, 0.9, 15.5)], '#c0603c'); // the painted plaque over the door
       return;
     }
     default: {
-      // Apartment House: a narrow three-storey block with a shop below.
+      // Apartment House: a tufa (or plastered) ground floor with a shop and a stair door, plastered storeys
+      // above with a string course, shuttered windows, a balcony on timber beams and a low tiled roof.
       const a = 0.1;
       const b = 0.9;
-      const ochre = ['#d6ac6b', '#dcb77e', '#cfa262', '#e0bf88'][pal];
       quad(ctx, 0.03, 0.03, 0.97, 0.97, 0, COL.paving);
-      box(ctx, a, a, b - a, b - a, 0, 32, ochre);
-      hipRoof(ctx, a, a, b - a, b - a, 32, 7, COL.terra, 0.05);
+      if (alt) plastered(ctx, a, a, b - a, b - a, 0, 11, { wall, dado: 4 });
+      else box(ctx, a, a, b - a, b - a, 0, 11, COL.tufa);
+      box(ctx, a, a, b - a, b - a, 11, 21, wall);
+      box(ctx, a - 0.015, a - 0.015, b - a + 0.03, b - a + 0.03, 20, 1.6, shade(wall, -0.16), { plain: true }); // the string course
+      hipRoof(ctx, a, a, b - a, b - a, 32, 7, ROOFS[pal], 0.05);
       windows(ctx, 'left', a, a, b, b, 0, 2, 2, '#3f3126', { z: 13, h: 4.5, gap: 10, shutters: alt ? SHUTTERS[pal] : null });
       windows(ctx, 'right', a, a, b, b, 0, 2, 2, '#3f3126', { z: 13, h: 4.5, gap: 10, flowers: !alt });
-      poly(ctx, [P(0.22, b, 2), P(0.62, b, 2), P(0.62, b, 8), P(0.22, b, 8)], '#3a2c20');
-      poly(ctx, [P(0.2, b, 10), P(0.64, b, 10), P(0.64, b + 0.12, 7), P(0.2, b + 0.12, 7)], AWNINGS[(pal + 1) % 4]);
-      door(ctx, 'right', a, a, b, b, 0, 0.5, DOORS[pal], 0.14, 7);
-      if (alt) {
-        // a wooden balcony along the right face
-        ctx.strokeStyle = COL.woodDark;
-        ctx.lineWidth = 0.8;
-        const p = P(b + 0.06, a + 0.1, 21);
-        const q = P(b + 0.06, b - 0.1, 21);
-        ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-      }
+      smallTaberna(ctx, b, 0.16, 0.5, 9);
+      poly(ctx, [P(0.14, b, 10.5), P(0.52, b, 10.5), P(0.52, b + 0.1, 8), P(0.14, b + 0.1, 8)], AWNINGS[(pal + 1) % 4], shade(AWNINGS[(pal + 1) % 4], -0.4), 0.5);
+      door(ctx, 'left', a, a, b, b, 0, 0.78, DOORS[pal], 0.12, 8);
+      smallBalcony(ctx, 'right', b, 0.2, 0.8, 22, 0.1);
     }
   }
 }
 
-/** Tenement (4 floors, balconies) and Insula (5 floors, pink, roof garden). */
+/**
+ * Tenement (tier 11): an insula of four plastered storeys round a small light court, shops along the
+ * street front, balconies on timber beams, windows in rows, a tiled roof that slopes outward from the
+ * court's rim (the 3D model's design). No bare brick and no chimney.
+ */
+function smallTenement(ctx, S, variant) {
+  const wall = ['#e8d6b2', '#eadcbc', '#e2cfa8', '#ecdfc4'][variant % 4];
+  const alt = (variant >> 2) & 1;
+  const h = 42;
+  const a = 0.12;
+  const b = S - 0.12;
+  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, COL.paving);
+  plastered(ctx, a, a, b - a, b - a, 0, h, { wall, dado: 5 });
+  // the roof: its outer eave low, rising to the rim of the light court in the middle
+  const c0 = S / 2 - 0.34;
+  const c1 = S / 2 + 0.34;
+  const sn = roofSnowAmount();
+  const tone = (k) => shade(sn > 0 ? mix(COL.terra, SNOW, Math.min(0.9, 0.3 + sn)) : COL.terra, k);
+  const edge = shade(COL.terra, -0.45);
+  const zo = h + 1;
+  const zi = h + 7;
+  poly(ctx, [P(a - 0.04, a - 0.04, zo), P(b + 0.04, a - 0.04, zo), P(c1, c0, zi), P(c0, c0, zi)], tone(0.04), edge, 0.5);
+  poly(ctx, [P(a - 0.04, a - 0.04, zo), P(a - 0.04, b + 0.04, zo), P(c0, c1, zi), P(c0, c0, zi)], tone(0.1), edge, 0.5);
+  poly(ctx, [P(c0, c0, zi), P(c1, c0, zi), P(c1, c1, zi), P(c0, c1, zi)], '#2b221b'); // the light court
+  poly(ctx, [P(a - 0.04, b + 0.04, zo), P(b + 0.04, b + 0.04, zo), P(c1, c1, zi), P(c0, c1, zi)], tone(-0.04), edge, 0.5);
+  poly(ctx, [P(b + 0.04, a - 0.04, zo), P(b + 0.04, b + 0.04, zo), P(c1, c1, zi), P(c1, c0, zi)], tone(-0.14), edge, 0.5);
+  const cols = Math.round(S * 3);
+  windows(ctx, 'left', a, a, b, b, 0, 3, cols, '#3f3126', { z: 13, h: 4.5, gap: 10, shutters: alt ? SHUTTERS[variant % 4] : null });
+  windows(ctx, 'right', a, a, b, b, 0, 3, cols, '#3f3126', { z: 13, h: 4.5, gap: 10, flowers: alt === 0 });
+  // ground floor shops along the street, each with its awning
+  for (let k = 0; k < cols; k++) {
+    const u0 = a + ((b - a) * (k + 0.15)) / cols;
+    const u1 = a + ((b - a) * (k + 0.85)) / cols;
+    poly(ctx, [P(u0, b, 1), P(u1, b, 1), P(u1, b, 8.5), P(u0, b, 8.5)], '#33261c');
+    poly(ctx, [P(u0, b, 10.5), P(u1, b, 10.5), P(u1, b + 0.1, 8), P(u0, b + 0.1, 8)], AWNINGS[(k + variant) % 4], shade(AWNINGS[(k + variant) % 4], -0.4), 0.5);
+  }
+  for (let f = 1; f < 3; f++) smallBalcony(ctx, 'right', b, a + 0.2, b - 0.2, 10 * f + 10, 0.1);
+  if (alt) {
+    // washing hung out on a line across the right face
+    const p = [b + 0.08, a + 0.2, 10 * 3 + 6];
+    const q = [b + 0.08, b - 0.2, 10 * 3 + 6];
+    smallStroke(ctx, p, q, '#6b5a48', 0.5);
+    const cloth = ['#f2eee6', '#b8573a', '#5d7fa3', '#e8d7a0'];
+    for (let k = 0; k < 4; k++) {
+      const t = 0.18 + k * 0.2;
+      const [x, y] = P(p[0], p[1] + (q[1] - p[1]) * t, p[2]);
+      ctx.fillStyle = cloth[(k + variant) % 4];
+      ctx.fillRect(x - 1.2, y, 2.4, 2.6 + (k % 2));
+    }
+  }
+}
+
+
+/** The Insula (tier 12: 5 floors, pink, roof garden; the tenement of tier 11 is smallTenement above). */
 function insulaArt(ctx, S, variant, grand) {
   const floors = grand ? 5 : 4;
   const colors = grand ? ['#e2b9a1', '#e8c4a8', '#dcae96', '#e9cdb4'] : ['#d6ac6b', '#dcb77e', '#cfa262', '#e0bf88'];
