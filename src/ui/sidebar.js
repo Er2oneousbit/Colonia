@@ -10,6 +10,7 @@
 import { h, mount, fmt } from './dom.js';
 import { CATEGORIES, BUILDINGS, TOOLS, LABOR_CATEGORIES, buildingsInCategory, fullName } from '../data/buildings.js';
 import { iconCanvas } from './icons.js';
+import { icon } from './glyphs.js';
 import { Minimap } from '../render/minimap.js';
 import { planNoRoadWarning, turnRule, marbleShort } from '../sim/construction.js';
 import { archesToBuild } from '../sim/battle.js';
@@ -34,15 +35,15 @@ export class Sidebar {
     this.catsEl = h('div', { id: 'categories' });
     this.listEl = h('div', { id: 'build-list' });
     this.infoEl = h('div', { id: 'tool-info' });
-    this.undoBtn = h('button', { class: 'btn small', title: 'Undo last construction (Ctrl+Z)', onclick: () => app.undo() }, '↶ Undo');
-    this.cancelBtn = h('button', { class: 'btn small', title: 'Stop building (right click)', onclick: () => app.ui.selectTool(null) }, '✋ Inspect');
+    this.undoBtn = h('button', { class: 'btn small', title: 'Undo last construction (Ctrl+Z)', onclick: () => app.undo() }, icon('undo', 16), ' Undo');
+    this.cancelBtn = h('button', { class: 'btn small', title: 'Stop building (right click)', onclick: () => app.ui.selectTool(null) }, icon('hand', 16), ' Inspect');
     this.el.append(
       h('div', { id: 'minimap-wrap' }, mmCanvas),
       this.catsEl,
       this.listEl,
       this.infoEl,
       h('div', { id: 'tool-actions' },
-        h('button', { class: 'btn small', title: 'Clear land / demolish (X)', onclick: () => app.ui.selectTool('clear') }, '⛏ Clear'),
+        h('button', { class: 'btn small', title: 'Clear land / demolish (X)', onclick: () => app.ui.selectTool('clear') }, icon('pick', 16), ' Clear'),
         this.undoBtn,
         this.cancelBtn),
     );
@@ -80,7 +81,7 @@ export class Sidebar {
         if (same) this.listEl.classList.toggle('collapsed');
         else this.listEl.classList.remove('collapsed');
       },
-    }, c.icon)));
+    }, icon(c.icon, 22))));
   }
 
   renderList() {

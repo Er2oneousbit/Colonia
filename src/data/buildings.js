@@ -85,23 +85,23 @@
 
 import { MONUMENT_TYPES, FANUM_GODS, SITE_DES } from './monuments.js';
 
-/** Build menu categories, in display order. */
+/** Build menu categories, in display order. `icon` names a drawn glyph (ui/glyphs.js). */
 export const CATEGORIES = Object.freeze([
-  { key: 'housing', name: 'Housing', icon: '🏠', hotkey: 'H' },
-  { key: 'roads', name: 'Roads', icon: '🛣', hotkey: 'R' },
-  { key: 'water', name: 'Water', icon: '💧' },
-  { key: 'health', name: 'Health', icon: '⚕' },
-  { key: 'religion', name: 'Temples', icon: '🏛' },
-  { key: 'education', name: 'Education', icon: '📜' },
-  { key: 'entertainment', name: 'Entertainment', icon: '🎭' },
-  { key: 'government', name: 'Government & Decor', icon: '⚖' },
-  { key: 'engineering', name: 'Engineering', icon: '🔨' },
-  { key: 'security', name: 'Security', icon: '🔥' },
-  { key: 'farms', name: 'Farms', icon: '🌾' },
-  { key: 'industry', name: 'Industry', icon: '⚒' },
-  { key: 'commerce', name: 'Storage & Markets', icon: '📦' },
-  { key: 'military', name: 'Military', icon: '⚔' },
-  { key: 'monuments', name: 'Monuments', icon: '🏗' },
+  { key: 'housing', name: 'Housing', icon: 'house', hotkey: 'H' },
+  { key: 'roads', name: 'Roads', icon: 'road', hotkey: 'R' },
+  { key: 'water', name: 'Water', icon: 'drop' },
+  { key: 'health', name: 'Health', icon: 'health' },
+  { key: 'religion', name: 'Temples', icon: 'temple' },
+  { key: 'education', name: 'Education', icon: 'scroll' },
+  { key: 'entertainment', name: 'Entertainment', icon: 'mask' },
+  { key: 'government', name: 'Government & Decor', icon: 'scales' },
+  { key: 'engineering', name: 'Engineering', icon: 'hammer' },
+  { key: 'security', name: 'Security', icon: 'flame' },
+  { key: 'farms', name: 'Farms', icon: 'wheat' },
+  { key: 'industry', name: 'Industry', icon: 'pick' },
+  { key: 'commerce', name: 'Storage & Markets', icon: 'crate' },
+  { key: 'military', name: 'Military', icon: 'swords' },
+  { key: 'monuments', name: 'Monuments', icon: 'tower' },
 ]);
 
 /** Labor categories (used by the labor advisor and priorities). */
