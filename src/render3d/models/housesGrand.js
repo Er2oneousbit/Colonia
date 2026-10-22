@@ -63,15 +63,15 @@ import { atriumRoof } from './housesStone.js';
 /** Half the footprint less the eaves' overhang: walls stand at this plane (the footprint is 12 m). */
 const W = 5.65;
 /** Ground level inside: the floor slabs' top. */
-const FL = 0.06;
+export const FL = 0.06;
 /** The wall thickness the kit's shell uses here. */
-const T = 0.3;
-const MARBLE = lin(0xeeeae0);
-const COLUMN = lin(0xe6dcc0);
-const WATER = lin(0x4d7a8a, 0.9);
-const TERRACOTTA = lin(0xb8683f, 0.95);
-const PALE = lin(0xe9ddbd);
-const OAK = lin(WOODS.oak);
+export const T = 0.3;
+export const MARBLE = lin(0xeeeae0);
+export const COLUMN = lin(0xe6dcc0);
+export const WATER = lin(0x4d7a8a, 0.9);
+export const TERRACOTTA = lin(0xb8683f, 0.95);
+export const PALE = lin(0xe9ddbd);
+export const OAK = lin(WOODS.oak);
 
 /** The measures the tests, the lab and the people read (metres). */
 export const GRAND = Object.freeze({
@@ -83,14 +83,14 @@ export const GRAND = Object.freeze({
 });
 
 /** The four looks every level shares: the plaster's wash, the dado, the shutters, what grows in the garden. */
-const LOOKS = [
+export const LOOKS = [
   { wall: WASH.cream, dado: WASH.red, shut: WOODS.olive, flora: 'fig' },
   { wall: WASH.ochre, dado: WASH.red, shut: WOODS.oak, flora: 'cypress' },
   { wall: WASH.white, dado: WASH.mud, shut: WOODS.brown, flora: 'arbor' },
   { wall: WASH.pink, dado: WASH.red, shut: WOODS.olive, flora: 'laurel' },
 ];
 /** The side a look puts its tower, statue and shops' variety on. */
-const SIDE = [1, -1, -1, 1];
+export const SIDE = [1, -1, -1, 1];
 
 // ---------------------------------------------------------------------------
 // The bag: the kit's, with a marble part of its own
@@ -100,7 +100,7 @@ const SIDE = [1, -1, -1, 1];
 const marbleMaterial = () => material('marble', { surface: 'marble', vertexColors: true, snow: 1 });
 
 /** A kit bag with one more part, 'marble' (plaster from the far level out, where its colour alone is left). */
-class GrandBag extends Bag {
+export class GrandBag extends Bag {
   add(key, ...g) {
     if (key !== 'marble') return super.add(key, ...g);
     if (this.lod >= 2) return super.add('plaster', ...g);
@@ -133,7 +133,7 @@ class GrandBag extends Bag {
 // ---------------------------------------------------------------------------
 
 /** A Tuscan column: plinth, tapering shaft, echinus, abacus; or (ionic) a cushion capital with two volutes. */
-function column(bag, x, z, h, r, c, key = 'plaster', { ionic = false, y0 = FL } = {}) {
+export function column(bag, x, z, h, r, c, key = 'plaster', { ionic = false, y0 = FL } = {}) {
   const lod = bag.lod;
   if (lod === 2) {
     bag.add(key, cyl(r * 0.9, r, h, 5, x, y0, z, c));
@@ -162,10 +162,10 @@ function column(bag, x, z, h, r, c, key = 'plaster', { ionic = false, y0 = FL } 
 }
 
 /** n evenly spaced values from a to b, both included. */
-const spread = (a, b, n) => Array.from({ length: n }, (_, i) => a + ((b - a) * i) / (n - 1));
+export const spread = (a, b, n) => Array.from({ length: n }, (_, i) => a + ((b - a) * i) / (n - 1));
 
 /** A lean-to roof: eave at coordinate e (across) and the top edge at t, along a0..a1; `side` is the direction the eave faces. */
-function shed(bag, side, { a0, a1, e, t, yE, yT, over = 0.12 }) {
+export function shed(bag, side, { a0, a1, e, t, yE, yT, over = 0.12 }) {
   const slope = (yT - yE) / Math.abs(t - e);
   const eo = e + Math.sign(e - t) * over;
   const yo = yE - slope * over;
@@ -211,7 +211,7 @@ function peristyle(bag, P) {
 }
 
 /** A basin on the ground with its water; marble or stone; a jet in its middle when asked. */
-function basin(bag, x, z, w, d, { marble = false, jet = false, h = 0.5 } = {}) {
+export function basin(bag, x, z, w, d, { marble = false, jet = false, h = 0.5 } = {}) {
   const key = marble ? 'marble' : 'stone';
   const rim = marble ? MARBLE : lin(0xcfc8b6, 0.92);
   const t = 0.16;
@@ -225,7 +225,7 @@ function basin(bag, x, z, w, d, { marble = false, jet = false, h = 0.5 } = {}) {
 }
 
 /** A marble statue on a base: a draped figure, a head, an arm; `h` to the head's top. */
-function statue(bag, x, z, { h = 1.8, ry = 0, base = 0.8 } = {}) {
+export function statue(bag, x, z, { h = 1.8, ry = 0, base = 0.8 } = {}) {
   if (bag.lod === 2) {
     bag.add('marble', box(0.6, base + h, 0.6, x, FL, z, MARBLE));
     return;
@@ -246,19 +246,19 @@ function statue(bag, x, z, { h = 1.8, ry = 0, base = 0.8 } = {}) {
 }
 
 /** A cypress in the garden (its trunk with the wood, its foliage with the leaves). */
-function cyp(bag, x, z, h, seed) {
+export function cyp(bag, x, z, h, seed) {
   const c = cypress(x, z, h, { lod: bag.lod, seed: bag.seed + seed });
   bag.add('leaf', c.leaf);
   bag.add('wood', c.wood);
 }
 
 /** A flat bed of lawn (low) over x0..x1, z0..z1. */
-function lawn(bag, x0, x1, z0, z1) {
+export function lawn(bag, x0, x1, z0, z1) {
   bag.add('leaf', box(x1 - x0, 0.1, z1 - z0, (x0 + x1) / 2, FL, (z0 + z1) / 2, [0.05, 0.11, 0.03]));
 }
 
 /** A row of painted terracotta plaques along a wall's eave, in the wall's frame at height y. */
-function plaques(bag, put, x0, x1, y, step) {
+export function plaques(bag, put, x0, x1, y, step) {
   if (bag.lod > 1) return;
   const n = Math.max(2, Math.round((x1 - x0) / step));
   for (let k = 0; k < n; k++) {
@@ -269,7 +269,7 @@ function plaques(bag, put, x0, x1, y, step) {
 }
 
 /** The runs of x0..x1 not covered by the (lo, hi) holes. */
-function gaps(x0, x1, holes) {
+export function gaps(x0, x1, holes) {
   const out = [];
   let at = x0;
   for (const [a, b] of [...holes].sort((p, q) => p[0] - q[0])) {
@@ -281,7 +281,7 @@ function gaps(x0, x1, holes) {
 }
 
 /** A marble doorframe: two jambs, a lintel and a threshold step. */
-function marbleFrame(bag, put, { x, w, h }) {
+export function marbleFrame(bag, put, { x, w, h }) {
   if (bag.lod === 2) return;
   for (const s of [-1, 1]) bag.add('marble', put(box(0.2, h + 0.1, 0.2, x + s * (w / 2 + 0.08), 0, 0.07, MARBLE)));
   bag.add('marble', put(box(w + 0.6, 0.2, 0.22, x, h, 0.07, MARBLE)));
@@ -289,7 +289,7 @@ function marbleFrame(bag, put, { x, w, h }) {
 }
 
 /** The studded door of the fauces: a leaf swung in when lived in, with its nail heads shut. */
-function fauces(bag, put, x, w, h, marble) {
+export function fauces(bag, put, x, w, h, marble) {
   if (marble) marbleFrame(bag, put, { x, w, h });
   else doorFrame(bag, put, { x, w, h });
   doorLeaf(bag, put, { x, w, h, col: lin(WOODS.oak), open: true });
