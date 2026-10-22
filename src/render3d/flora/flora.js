@@ -119,16 +119,27 @@ export class Flora {
     this.setFacing(0);
   }
 
-  /** A new map (a new or loaded game): everything laid out again. `ctx`: species.js climateOf. */
-  setMap(map, ctx) {
+  /**
+   * A new map (a new or loaded game): everything laid out again. `ctx`: species.js climateOf.
+   * `apron`: trees standing past the map's rim (ground/apron.js apronTrees), as one more chunk
+   * after the map's own (index `apronChunk`, never laid out again: the map's shape is fixed).
+   */
+  setMap(map, ctx, apron = null) {
     this.map = map;
     this.ctx = ctx;
     this.cw = Math.ceil(map.w / CHUNK);
     this.ch = Math.ceil(map.h / CHUNK);
     this.chunks = Array.from({ length: this.cw * this.ch }, () => ({ recs: [], dirty: true }));
+    this.apronChunk = -1;
+    if (apron && apron.length) {
+      const recs = apron.map((p) => ({ b: this.baseOf(treeBase(p.sp, p.v), true, p.sp, p.v), i: -1, x: p.x, z: p.z, yaw: p.yaw, s: p.s }));
+      this.apronChunk = this.chunks.length;
+      this.chunks.push({ recs, dirty: false });
+    }
     this.state = new Uint8Array(map.size).fill(255);
     this.rev = -1;
     for (const b of this.bases) b.total = 0;
+    if (this.apronChunk >= 0) for (const r of this.chunks[this.apronChunk].recs) this.bases[r.b].total++;
     this.sig = '';
     this.sync();
   }

@@ -37,6 +37,7 @@ import { painterFor } from '../paint/painter.js';
 import { toView } from '../../render/view.js';
 import { HALF_W, HALF_H, CONFIG } from '../../config.js';
 import { SITES, siteIdOf } from '../../data/sites.js';
+import { apronTrees } from '../ground/apron.js';
 
 /** Milliseconds a frame may spend building kits once the flora draws (a look or a level of detail being prepared). */
 const BUILD_MS = 6;
@@ -104,7 +105,9 @@ export class FloraPass {
     if (!game || !game.map) return (this.ready = false);
     if (game.map !== this.map) {
       this.map = game.map;
-      this.flora.setMap(game.map, provinceOf(game));
+      // (The trees past the rim too, laid out once: apron.js.)
+      const province = provinceOf(game);
+      this.flora.setMap(game.map, province, apronTrees(game.map, province));
     } else {
       this.flora.sync();
     }
@@ -177,6 +180,8 @@ export class FloraPass {
         out.push(cy * f.cw + cx);
       }
     }
+    // The apron's trees are one chunk round the whole map: always in, their own culling by tree.
+    if (f.apronChunk >= 0) out.push(f.apronChunk);
     return out;
   }
 

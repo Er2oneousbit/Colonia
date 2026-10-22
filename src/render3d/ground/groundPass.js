@@ -60,7 +60,7 @@
 
 import {
   Scene, Group, Vector3, WebGLRenderTarget, UnsignedByteType, NoColorSpace, Mesh, PlaneGeometry,
-  RawShaderMaterial, GLSL3, OrthographicCamera, NearestFilter, LinearFilter, LessEqualDepth,
+  RawShaderMaterial, GLSL3, OrthographicCamera, NearestFilter, LinearFilter, LessEqualDepth, Color,
 } from 'three';
 import { MONTH_LOOK } from '../../render/weather.js';
 import { CONFIG } from '../../config.js';
@@ -68,6 +68,7 @@ import { groundTextures } from './groundTextures.js';
 import { GameMap } from '../../world/map.js';
 import { Ground, groundSnow } from './ground.js';
 import { gameSiteHooks } from './groundSites.js';
+import { apronWidth, HORIZON_RGB } from './apron.js';
 import { SunRig } from '../sunRig.js';
 
 /**
@@ -90,6 +91,9 @@ export function seasonPos(month, dayFrac = 0) {
  * its full size cost a desktop GPU 17 ms a frame against about 10 here.
  */
 export const LOW_SCALE = 0.75;
+
+/** apron.js HORIZON_RGB as a clear colour that is written as it is (no colour space to convert from). */
+const HORIZON_CLEAR = new Color().setRGB(HORIZON_RGB[0] / 255, HORIZON_RGB[1] / 255, HORIZON_RGB[2] / 255, NoColorSpace);
 
 export class GroundPass {
   /**
@@ -222,7 +226,7 @@ export class GroundPass {
       this.dropGround();
       const map = game.map;
       // (What the buildings and fires make of the ground: groundSites.js.)
-      this.ground = new Ground(map, this.tex, { quality: this.quality, hooks: gameSiteHooks(game), ownOutput: true });
+      this.ground = new Ground(map, this.tex, { quality: this.quality, hooks: gameSiteHooks(game), ownOutput: true, apron: apronWidth(map) });
       // (No depth: see the header.)
       this.ground.material.depthWrite = false;
       this.ground.material.depthTest = false;
@@ -384,8 +388,13 @@ export class GroundPass {
       const prev = gl.getRenderTarget();
       const ac = gl.autoClear;
       gl.setRenderTarget(this.cache);
-      gl.setClearColor(0x2a241c, 1);
+      // The horizon's colour in bytes (raw, as the shader writes: the picture is not colour managed), so the apron's
+      // faded edge and the empty space beyond it are one colour (apron.js).
+      const clear = gl.getClearColor(new Color());
+      const clearAlpha = gl.getClearAlpha();
+      gl.setClearColor(HORIZON_CLEAR, 1);
       gl.clear(true, false, false);
+      gl.setClearColor(clear, clearAlpha);
       gl.autoClear = false;
       const t0 = this.redraws ? 0 : performance.now();
       this.withoutModels(() => gl.render(this.scene, camera));
