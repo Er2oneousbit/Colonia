@@ -30,5 +30,7 @@ for (const page of ['index.html', 'tests/e2e/render.html']) {
     // (A fresh clone or an agent worktree without node_modules: the map is still checked, the file is not.)
     if (fs.existsSync(path.join(ROOT, "node_modules", "three"))) assert.ok(fs.existsSync(path.join(ROOT, three)), `${three} exists`);
     assert.ok(html.indexOf('<script type="importmap">') < html.indexOf('<script type="module"'), 'the map comes before the module script');
+    // (three/examples/... imports, as the look lab's, need the directory mapped too: v0.30.19.)
+    assert.equal(map.imports['three/'], '/node_modules/three/', 'the three/ directory is mapped');
   });
 }
