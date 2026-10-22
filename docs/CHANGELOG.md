@@ -3,6 +3,11 @@
 Every release, newest first: what changed and why, with what was measured.
 The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.20
+
+* **One more smoke check made honest.** The WebGL fountain check read the fountain's look tier 700 ms after raising its neighbourhood's desirability; the renderer reads that layer once a frame, and on CI's software GL a frame can take longer than that, so a re-run of v0.30.13's build failed on it while the same code passed in every other run. The check now waits for the tier it expects (up to 15 s). No game code changed.
+* 1479 unit tests
+
 ## v0.30.19
 
 * **Classic catches up with the models.** The 2D sprites of the senate house, the warehouse, the baths, the Hall of Justice (every stage), the Great Baths (every stage), the Great Arena, the three forts, the prefecture and the engineer's post are redrawn to the designs their 3D models took in v0.30.9 to v0.30.18: the Tuscan-porch hall, the court storehouse on its tufa plinth, the tholos under a cone, the ashlar basilica without an apse, the two tholoi and the tub hall, the earth-bank arena with its outer stairs, the palisade camps, plaster over tufa. The homes' and industry's sprites stay as drawn: they are the originals the models were fresh designs of, and Classic is slated to retire.
