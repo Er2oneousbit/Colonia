@@ -2,9 +2,13 @@
  * models/houses.js
  * ----------------------------------------------------------------------------
  * The homes the WebGL renderer draws as 3D models (render3d/models.js MODELS
- * takes HOUSE_MODELS as it is): the levels where a city's homes most
- * often settle. Every other level keeps its 2D sprite.
+ * takes HOUSE_MODELS as it is): the eleven levels where a city's homes most
+ * often settle, and where a new city starts. Every other level keeps its 2D
+ * sprite.
  *
+ *   level 1   Tent             1 x 1   models/housesTents.js
+ *   level 2   Family Tent      1 x 1   models/housesTents.js
+ *   level 3   Lean-to          1 x 1   models/housesTents.js
  *   level 4   Hut              1 x 1   models/housesSmall.js
  *   level 5   Cottage          1 x 1   models/housesSmall.js
  *   level 6   Stone Cottage    1 x 1   models/housesStone.js
@@ -38,10 +42,14 @@ import { cyl } from './castra.js';
 import { lin } from './rural.js';
 import { buildHut, buildCottage, HUT, COTTAGE, HUT_LAMPS, COTTAGE_LAMPS } from './housesSmall.js';
 import { STONE_BUILDERS, stonePeople, stoneLamps } from './housesStone.js';
+import { buildTent, buildFamilyTent, buildLeanTo, TENT_LOOKS, FTENT_LOOKS, LEAN_LOOKS, LEAN_HEARTH, TENT_LAMPS, FTENT_LAMPS, LEAN_LAMPS } from './housesTents.js';
 import { buildTownhouse, buildApartment, buildTenement, buildTenementRoof, TOWNHOUSE, APARTMENT, TENEMENT, townLamps, apartmentLamps, tenementLamps } from './housesTall.js';
 
 /** The housing level (data/housing.js) each model draws, by its kind. */
 export const HOUSE_LEVELS = Object.freeze({
+  tent: 1,
+  ftent: 2,
+  lean: 3,
   hut: 4,
   cottage: 5,
   stone: 6,
@@ -94,7 +102,7 @@ function buildPlot(lod) {
   return bag.build();
 }
 
-const BUILDERS = { hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement, tenroof: (v, lod) => buildTenementRoof(lod) };
+const BUILDERS = { tent: buildTent, ftent: buildFamilyTent, lean: buildLeanTo, hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement, tenroof: (v, lod) => buildTenementRoof(lod) };
 
 // The stone cottage, the merchant house and the domus (housesStone.js).
 Object.assign(BUILDERS, STONE_BUILDERS);
@@ -134,6 +142,35 @@ export function peopleOf(kind, v) {
   const s = 400 + v * 7;
   if (STONE_BUILDERS[kind]) return stonePeople(kind, v);
   switch (kind) {
+    case 'tent': {
+      // By the fire: a woman at the pot (or by it, where it is only stones), a man or a child on a log or about.
+      const L = TENT_LOOKS[v];
+      const [fx, fz] = L.fire;
+      const stir = L.pot && v !== 3;
+      return [
+        stir ? woman('palla', { clip: 'stir', props: { R: 'pestle' }, at: [fx, 0.03, fz + 0.36], ry: Math.PI, seed: s, colours: { tunic: DYES.oatmeal } })
+          : woman('palla', { clip: 'idle', at: [fx + L.sg * 0.7, 0.03, fz + 0.3], ry: -L.sg * 1.2, seed: s, colours: { tunic: DYES.fawn } }),
+        v % 2 ? { body: 'c', dress: ['tunic:short'], hair: 'crop', clip: 'idle', at: [fx - L.sg * 0.6, 0.03, fz + 0.4], ry: L.sg * 1.4, seed: s + 2, scale: 0.78 }
+          : man({ clip: 'sit', at: [fx - L.sg * 0.85, 0.03, fz + 0.12], ry: L.sg * Math.PI / 2, seed: s + 1, colours: { tunic: DYES.brownWool } }),
+      ];
+    }
+    case 'ftent': {
+      const L = FTENT_LOOKS[v];
+      const [fx, fz] = L.fire;
+      return [
+        woman('palla', { clip: v % 2 ? 'spin' : 'idle', at: [fx - L.sg * 0.3, 0.03, fz + 0.45], ry: L.sg * 0.5, seed: s, colours: { tunic: v % 2 ? DYES.undyed : DYES.fawn } }),
+        man({ clip: 'sit', at: [fx - L.sg * 0.8, 0.03, fz + 0.1], ry: L.sg * Math.PI / 2, seed: s + 1, colours: { tunic: DYES.walnut } }),
+        { body: 'c', dress: ['tunic:short'], hair: 'curls', clip: 'idle', at: [-L.sg * 0.2, 0.03, 1.3], ry: 0.3, seed: s + 2, scale: 0.78 },
+      ];
+    }
+    case 'lean': {
+      const [hx, hz] = LEAN_HEARTH;
+      return [
+        woman('palla', { clip: 'spin', at: [1.15, 0.03, 1.2], ry: 0.2, seed: s, colours: { tunic: DYES.oatmeal } }),
+        man({ clip: 'sit', at: [hx + 0.75, 0.03, hz + 0.04], ry: -Math.PI / 2, seed: s + 1, colours: { tunic: DYES.brownWool } }),
+        { body: 'c', dress: ['tunic:short'], hair: 'crop', clip: 'idle', at: [v === 3 ? -0.25 : -1.1, 0.03, 1.62], ry: -0.5, seed: s + 2, scale: 0.78 },
+      ];
+    }
     case 'hut': {
       const dx = HUT.doorX[v];
       const list = [v % 2 ? woman('palla', { clip: 'sweep', props: { R: 'broom' }, at: [dx - 0.1, 0.03, HUT.z1 + 0.55], ry: 0.5, seed: s, colours: { tunic: DYES.undyed } })
@@ -209,6 +246,9 @@ function castOf(kind, vs, mask) {
 function windowsOf(kind, v) {
   if (STONE_BUILDERS[kind]) return stoneLamps(kind, v);
   switch (kind) {
+    case 'tent': return [TENT_LAMPS[v]];
+    case 'ftent': return [FTENT_LAMPS[v]];
+    case 'lean': return [LEAN_LAMPS[v]];
     case 'hut': return [HUT_LAMPS[v]];
     case 'cottage': return [COTTAGE_LAMPS[v]];
     case 'town': return townLamps(v);
@@ -289,7 +329,7 @@ function lookOf(b, near) {
 export const HOUSE_MODELS = Object.freeze({
   house: Object.freeze({
     // (One of each level: they share their programs; the lot for the ghost.)
-    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:stone:0', 'house:town:0', 'house:merch:0', 'house:domus:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0'],
+    warm: ['house:lot', 'house:plot', 'house:tent:0', 'house:ftent:0', 'house:lean:0', 'house:hut:0', 'house:cottage:0', 'house:stone:0', 'house:town:0', 'house:merch:0', 'house:domus:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0'],
     fits: (b) => !!houseKind(b),
     variant: (b, place, ctx) => lookOf(b, !!(ctx && ctx.peopleOn && ctx.people && ctx.people.lod <= 1)),
     build: (key, lod) => buildHouse(key, lod),

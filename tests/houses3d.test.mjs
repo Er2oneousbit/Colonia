@@ -1,5 +1,5 @@
 /**
- * houses3d.test.mjs - the 3D homes: hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement (node:test)
+ * houses3d.test.mjs - the 3D homes: tent, family tent, lean-to, hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement (node:test)
  * ----------------------------------------------------------------------------
  * Run:  npm test
  *
@@ -38,15 +38,15 @@ const triOf = (g) => {
 };
 const NEAR = { peopleOn: true, people: { lod: 0 } };
 
-test('houses3d: five levels have a model; the others keep their sprite', () => {
+test('houses3d: eleven levels have a model; the others keep their sprite', () => {
   const drawn = [];
   for (let tier = 0; tier < HOUSE_TIERS.length; tier++) {
     const b = home(tier);
     if (MODELS.house.fits(b)) drawn.push(tier);
   }
-  assert.deepEqual(drawn, [4, 5, 6, 7, 8, 9, 10, 11], 'hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement');
-  assert.deepEqual(Object.values(HOUSE_LEVELS), [4, 5, 6, 7, 8, 9, 10, 11]);
-  assert.deepEqual(KINDS.map((k) => HOUSE_TIERS[HOUSE_LEVELS[k]].name), ['Hut', 'Cottage', 'Stone Cottage', 'Townhouse', 'Merchant House', 'Domus', 'Apartment House', 'Tenement']);
+  assert.deepEqual(drawn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 'tent, family tent, lean-to, hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement');
+  assert.deepEqual(Object.values(HOUSE_LEVELS), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.deepEqual(KINDS.map((k) => HOUSE_TIERS[HOUSE_LEVELS[k]].name), ['Tent', 'Family Tent', 'Lean-to', 'Hut', 'Cottage', 'Stone Cottage', 'Townhouse', 'Merchant House', 'Domus', 'Apartment House', 'Tenement']);
   assert.equal(HOUSE_TIERS[11].size, 2);
   // A joined block of four single-tile homes is still drawn (as four); a lone tenement must be 2 x 2.
   assert.ok(MODELS.house.fits(home(5, { size: 2 })));
@@ -55,7 +55,7 @@ test('houses3d: five levels have a model; the others keep their sprite', () => {
 });
 
 test('houses3d: a home\'s look is a stable hash of its id, all looks used, each level and cell its own', () => {
-  const level = [4, 5, 6, 7, 8, 9, 10, 11];
+  const level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const seen = level.map(() => new Array(VARIANTS).fill(0));
   for (let id = 1; id <= 400; id++) {
     level.forEach((t, i) => {
@@ -150,7 +150,7 @@ test('houses3d: occupied or empty from the sim, a block as a plot of four homes,
 });
 
 test('houses3d: shutters, doors and shop boards swap with the state; every tagged part shows somewhere', () => {
-  for (const key of houseKeys().filter((k) => /:(hut|cottage|stone|town|merch|domus|apt|ten):/.test(k))) {
+  for (const key of houseKeys().filter((k) => /:(tent|ftent|lean|hut|cottage|stone|town|merch|domus|apt|ten):/.test(k))) {
     const g = buildHouse(key, 0);
     const whens = new Set();
     g.traverse((o) => { if (o.isMesh) whens.add(o.userData.when); });
@@ -171,7 +171,7 @@ test('houses3d: shutters, doors and shop boards swap with the state; every tagge
 
 test('houses3d: a few people only near, only while lived in, inside the footprint', () => {
   const v = (b, ctx) => MODELS.house.variant(b, { snow: 0 }, ctx);
-  for (const tier of [4, 5, 6, 7, 8, 9, 10, 11]) {
+  for (const tier of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
     const b = home(tier);
     assert.equal(v(b, null).actors, undefined, `${tier}: no people for a ghost or a test`);
     assert.equal(v(b, { peopleOn: true, people: { lod: 2 } }).actors, undefined, `${tier}: none from far`);
