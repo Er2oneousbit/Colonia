@@ -2,12 +2,15 @@
  * models/houses.js
  * ----------------------------------------------------------------------------
  * The homes the WebGL renderer draws as 3D models (render3d/models.js MODELS
- * takes HOUSE_MODELS as it is): the five levels where a city's homes most
+ * takes HOUSE_MODELS as it is): the levels where a city's homes most
  * often settle. Every other level keeps its 2D sprite.
  *
  *   level 4   Hut              1 x 1   models/housesSmall.js
  *   level 5   Cottage          1 x 1   models/housesSmall.js
+ *   level 6   Stone Cottage    1 x 1   models/housesStone.js
  *   level 7   Townhouse        1 x 1   models/housesTall.js
+ *   level 8   Merchant House   1 x 1   models/housesStone.js
+ *   level 9   Domus            1 x 1   models/housesStone.js
  *   level 10  Apartment House  1 x 1   models/housesTall.js
  *   level 11  Tenement         2 x 2   models/housesTall.js
  *
@@ -34,10 +37,20 @@ import { Bag, box, VARIANTS, WOODS } from './houseKit.js';
 import { cyl } from './castra.js';
 import { lin } from './rural.js';
 import { buildHut, buildCottage, HUT, COTTAGE, HUT_LAMPS, COTTAGE_LAMPS } from './housesSmall.js';
+import { STONE_BUILDERS, stonePeople, stoneLamps } from './housesStone.js';
 import { buildTownhouse, buildApartment, buildTenement, buildTenementRoof, TOWNHOUSE, APARTMENT, TENEMENT, townLamps, apartmentLamps, tenementLamps } from './housesTall.js';
 
 /** The housing level (data/housing.js) each model draws, by its kind. */
-export const HOUSE_LEVELS = Object.freeze({ hut: 4, cottage: 5, town: 7, apt: 10, ten: 11 });
+export const HOUSE_LEVELS = Object.freeze({
+  hut: 4,
+  cottage: 5,
+  stone: 6,
+  town: 7,
+  merch: 8,
+  domus: 9,
+  apt: 10,
+  ten: 11,
+});
 const KIND_OF = Object.freeze(Object.fromEntries(Object.entries(HOUSE_LEVELS).map(([k, t]) => [t, k])));
 
 /** The four cells of a 2 x 2 block of single-tile homes: their middles (metres) from the block's. */
@@ -83,6 +96,9 @@ function buildPlot(lod) {
 
 const BUILDERS = { hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement, tenroof: (v, lod) => buildTenementRoof(lod) };
 
+// The stone cottage, the merchant house and the domus (housesStone.js).
+Object.assign(BUILDERS, STONE_BUILDERS);
+
 /** The tenement's roof, shared by its four looks: one more kit in the look's `more`. */
 const TEN_ROOF = Object.freeze([Object.freeze({ key: 'house:tenroof:0', n: 1, mats: new Float32Array(new Matrix4().toArray()), state: 'always' })]);
 
@@ -116,6 +132,7 @@ function moved(list, ox, oz) {
 /** A home's people in its own metres, by kind and look (state 'open' only). */
 export function peopleOf(kind, v) {
   const s = 400 + v * 7;
+  if (STONE_BUILDERS[kind]) return stonePeople(kind, v);
   switch (kind) {
     case 'hut': {
       const dx = HUT.doorX[v];
@@ -190,6 +207,7 @@ function castOf(kind, vs, mask) {
 
 /** The windows a home may light, by kind and look: [x, y, z, s] each (models.js modelLamps). */
 function windowsOf(kind, v) {
+  if (STONE_BUILDERS[kind]) return stoneLamps(kind, v);
   switch (kind) {
     case 'hut': return [HUT_LAMPS[v]];
     case 'cottage': return [COTTAGE_LAMPS[v]];
@@ -271,7 +289,7 @@ function lookOf(b, near) {
 export const HOUSE_MODELS = Object.freeze({
   house: Object.freeze({
     // (One of each level: they share their programs; the lot for the ghost.)
-    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:town:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0'],
+    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:stone:0', 'house:town:0', 'house:merch:0', 'house:domus:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0'],
     fits: (b) => !!houseKind(b),
     variant: (b, place, ctx) => lookOf(b, !!(ctx && ctx.peopleOn && ctx.people && ctx.people.lod <= 1)),
     build: (key, lod) => buildHouse(key, lod),

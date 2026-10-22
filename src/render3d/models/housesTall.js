@@ -45,7 +45,7 @@ import {
 } from './houseKit.js';
 
 /** Mirror a look left to right on odd variants: the stair door and the shop swap sides. */
-const RIGHT = [1, -1, 1, -1];
+export const RIGHT = [1, -1, 1, -1];
 
 /** The townhouse's measures (metres): the tests, the lab and the people read them. */
 export const TOWNHOUSE = Object.freeze({
@@ -80,7 +80,7 @@ const OAK = lin(WOODS.oak);
 const sum = (a) => a.reduce((s, v) => s + v, 0);
 
 /** A shop's mouth boarded up: boards across in the wall's depth (shown only 'shut'; open, they stand stacked inside). */
-function boards(bag, put, x, w, h) {
+export function boards(bag, put, x, w, h) {
   const n = bag.lod === 2 ? 1 : Math.round(w / 0.25);
   for (let k = 0; k < n; k++) {
     const bw = w / n;
@@ -90,7 +90,7 @@ function boards(bag, put, x, w, h) {
 }
 
 /** A shop's masonry counter in its frame at local z, and its wares: kind 'amph', 'fruit', 'cloth', 'bread'. */
-function counter(bag, put, x, w, z, kind, floorY) {
+export function counter(bag, put, x, w, z, kind, floorY) {
   const lod = bag.lod;
   const cw = Math.min(w - 0.3, 1.6);
   bag.add('plaster', put(box(cw, 0.9, 0.45, x, floorY, z, lin(WASH.lime, 0.9))));
@@ -115,7 +115,7 @@ function counter(bag, put, x, w, z, kind, floorY) {
 }
 
 /** A line of laundry across x0..x1 at y, on the wall's frame at local z: a rope and cloths hanging from it. */
-function laundry(bag, put, x0, x1, y, z, seed) {
+export function laundry(bag, put, x0, x1, y, z, seed) {
   if (bag.lod === 2) return;
   const rnd = artRng(seed);
   bag.add('wood', put(box(x1 - x0, 0.02, 0.02, (x0 + x1) / 2, y, z, lin(0x8a7a5a, 0.8))));
@@ -132,7 +132,7 @@ function laundry(bag, put, x0, x1, y, z, seed) {
 }
 
 /** Pots of herbs on a sill (a window box): `n` along the sill at x, y. */
-function sillPots(bag, put, x, y, w, seed) {
+export function sillPots(bag, put, x, y, w, seed) {
   if (bag.lod === 2) return;
   bag.add('wood', put(box(w, 0.14, 0.2, x, y - 0.01, 0.14, lin(WOODS.oak, 0.8))));
   bag.add('leaf', put(box(w - 0.04, 0.12, 0.14, x, y + 0.13, 0.14, [0.05, 0.12, 0.03])));
@@ -140,7 +140,7 @@ function sillPots(bag, put, x, y, w, seed) {
 }
 
 /** A hanging shop sign: a bracket out of the wall at (x, y) and a painted board from it. */
-function sign(bag, put, x, y, c) {
+export function sign(bag, put, x, y, c) {
   if (bag.lod === 2) return;
   bag.add('wood', put(box(0.04, 0.04, 0.4, x, y, 0.2, lin(WOODS.oak, 0.7))));
   bag.add('paint', put(box(0.04, 0.4, 0.3, x, y - 0.44, 0.22, lin(c))));
@@ -148,7 +148,7 @@ function sign(bag, put, x, y, c) {
 }
 
 /** A string course of stucco: a band across a wall at y, `w` wide (x from the frame's origin), a little proud. */
-function band(bag, put, x, w, y, h = 0.08) {
+export function band(bag, put, x, w, y, h = 0.08) {
   if (bag.lod === 2) return;
   bag.add('plaster', put(box(w, h, 0.06, x, y, 0.0, lin(WASH.white, 0.97))));
 }
