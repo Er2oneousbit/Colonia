@@ -28,6 +28,7 @@ import { wallWithOpenings, TaggedParts } from './masonry.js';
 import { roofSlope, bush } from './learning.js';
 import { lin, ruralMaterials, paint } from './rural.js';
 import { artRng } from '../texgen.js';
+import { clothBothSides } from './castra.js';
 
 /** The faces of a box: [normal, four corners (signs) counter-clockwise seen from outside]. */
 const FACES = [
@@ -106,6 +107,11 @@ export function houseMaterials() {
     clay: r.clay,
     leaf: r.leaf,
     earth: r.earth,
+    // The tents' wool and hide, seen from both sides (castra.js: the forts' tents share it).
+    cloth: clothBothSides(),
+    rope: r.rope,
+    hide: r.hide,
+    wicker: r.wicker,
     flags: material('fort-flags', { surface: 'limestone', color: 0xb8ab94, vertexColors: true, snow: 0.8 }),
   };
 }
@@ -129,6 +135,15 @@ const PART = {
   leaf: ['leaves', 'leaf', { cast: false }],
   earth: ['yard', 'earth', { cast: false }],
   flags: ['flags', 'flags', { cast: false }],
+  // The tents and the lean-to (housesTents.js): wool and hide that is tied back while lived in and hangs across when empty,
+  // cord, wattle, the pig's coat, and the coals of a lit fire.
+  cloth: ['cloth', 'cloth'],
+  clothOpen: ['cloth', 'cloth', { when: 'open' }],
+  clothShut: ['cloth', 'cloth', { when: 'shut' }],
+  rope: ['rope', 'rope', { cast: false }],
+  hide: ['hide', 'hide', { cast: false }],
+  wicker: ['wicker', 'wicker'],
+  emberOpen: ['coals', 'paint', { when: 'open', cast: false }],
 };
 
 /** Keys that share another's material at every level of detail (see Bag.add). */
@@ -140,7 +155,8 @@ const MERGED = { stone: 'plaster', clay: 'tile', dark: 'plaster', paint: 'plaste
  * shutters swung back and the doors open are all that is kept of the state; what shuts them (the shop's
  * boards, closed leaves) shows close up only.
  */
-const FLAT = { wood: 'plaster', woodOpen: 'plaster', rubble: 'plaster' };
+// (The tents' cloth keeps its own two-sided part: its slopes are single sheets, culled if they were plaster.)
+const FLAT = { wood: 'plaster', woodOpen: 'plaster', rubble: 'plaster', rope: 'plaster', hide: 'plaster', wicker: 'plaster' };
 const DARK = [0.03, 0.026, 0.023];
 
 /** A house's geometry gathered by part, built to a level of detail. */
@@ -164,7 +180,7 @@ export class Bag {
     if (key === 'dark') for (const x of list) tintGeometry(x, () => DARK);
     let to = MERGED[key] || key;
     if (this.lod >= 1) {
-      if (key === 'woodShut') return this;
+      if (key === 'woodShut' || key === 'clothShut' || key === 'emberOpen') return this;
       to = FLAT[to] || to;
       if (this.lod === 2 && to === 'brick') to = 'plaster';
     }

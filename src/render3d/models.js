@@ -171,7 +171,7 @@ export const MODELS = Object.freeze({
   ...MONUMENT_MODELS,
   // The Great Sanctuaries, the Pantheon and the Lighthouse at every stage (models/sacredMonuments.js says how).
   ...SACRED_MODELS,
-  // The homes at levels 4, 5, 7, 10 and 11: hut, cottage, townhouse, apartment house, tenement (models/houses.js says how).
+  // The homes at levels 1 to 5, 7, 10 and 11: tent, family tent, lean-to, hut, cottage, townhouse, apartment house, tenement (models/houses.js says how).
   ...HOUSE_MODELS,
 });
 

@@ -1,8 +1,8 @@
 /**
  * labHouses.js
  * ----------------------------------------------------------------------------
- * The look lab's Houses scene (Shift+K): the five homes drawn as 3D models
- * (render3d/models/houses.js: the hut, the cottage, the townhouse, the
+ * The look lab's Houses scene (Shift+K): the eight homes drawn as 3D models
+ * (render3d/models/houses.js: the tent, the family tent, the lean-to, the hut, the cottage, the townhouse, the
  * apartment house and the tenement), every level in each of its four looks
  * lived in, and the first look of each empty (shutters closed, the shop
  * boarded up), labelled, as the game draws them (the kits by partShows, the
@@ -23,6 +23,9 @@ import { VARIANTS } from '../render3d/models/houseKit.js';
 import { labCrowd } from './labPeople.js';
 
 const LEVELS = [
+  { kind: 'tent', name: 'Tent', z: 48, y: 2.4, note: 'wool or hide on forked poles, a fire ring and a pot' },
+  { kind: 'ftent', name: 'Family Tent', z: 40, y: 2.6, note: 'two bays, a hide awning on poles, a rush mat' },
+  { kind: 'lean', name: 'Lean-to', z: 32, y: 2.6, note: 'poles on a ridge beam, brush and turf, a wattle wall' },
   { kind: 'hut', name: 'Hut', z: 24, y: 3.4, note: 'rubble and mud brick, thatch, a smoke pot' },
   { kind: 'cottage', name: 'Cottage', z: 16, y: 4, note: 'plastered, tiled, a yard with a fig and a well-head' },
   { kind: 'town', name: 'Townhouse', z: 8, y: 7.2, note: 'a shop below, rooms above, a balcony' },
@@ -42,8 +45,9 @@ const BLOCK = { x: 28, z: 24, vs: [0, 1, 2, 3], kind: 'cottage' };
 
 const INFO = `<button class="close" type="button" aria-label="Close">Close</button>
 <h2>The homes</h2>
-<p>The five levels where a city's homes most often settle, each in four looks picked by the building's number (a street of the same
-level is not one pattern): the <b>hut</b> of rubble or mud brick on a stone footing, thatched or roofed in crude tiles, its smoke pot on
+<p>The eight levels where a new city's homes start and most often settle, each in four looks picked by the building's number (a street of the same
+level is not one pattern): the <b>tent</b> of wool or hide on forked poles with its fire ring and pot, the <b>family tent</b> in two bays with a hide
+awning, and the <b>lean-to</b> of poles, brush and turf on a ridge beam with a wattle end; then the <b>hut</b> of rubble or mud brick on a stone footing, thatched or roofed in crude tiles, its smoke pot on
 the ridge, a bench and a jar by the door; the <b>cottage</b>, plastered over a red dado with a shuttered window, a tiled roof, a little
 walled yard with a fig, a trellis or an arbor and a well-head; the <b>townhouse</b>, a narrow house with a shop (<i>taberna</i>) open
 to the street under its wooden boards and a balcony (<i>maenianum</i>) above, as at Herculaneum and Pompeii; the
@@ -64,7 +68,7 @@ function ground() {
   const earth = new PlaneGeometry(240, 200, 1, 1).rotateX(-Math.PI / 2);
   g.add(new Mesh(tintGeometry(boxUV(earth)), material('earth', { surface: 'earth', vertexColors: true, snow: 1 })));
   // A street along the front of each row (the homes face +z) at the tiles' edge.
-  for (const [z, w, cx] of [[28, 70, 0], [20, 56, -6], [12, 56, -6], [4, 56, -6], [-6, 56, -6]]) {
+  for (const [z, w, cx] of [[52, 70, 0], [44, 70, 0], [36, 70, 0], [28, 70, 0], [20, 56, -6], [12, 56, -6], [4, 56, -6], [-6, 56, -6]]) {
     const p = new PlaneGeometry(w, 3, 1, 1).rotateX(-Math.PI / 2).translate(cx, 0.004, z);
     g.add(new Mesh(tintGeometry(boxUV(p)), material('basalt', { surface: 'basalt', vertexColors: true, snow: 0.6, normal: 1 })));
   }
@@ -125,7 +129,7 @@ export function buildHousesScene() {
     info: INFO,
     group,
     labels,
-    fade: [-1, 1, 44, 56],
+    fade: [-1, 1, 52, 64],
     lamp: [0, 3, 6],
     shadowBox: 40,
     noAO: [crowd.batch.group],
