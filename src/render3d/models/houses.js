@@ -2,14 +2,18 @@
  * models/houses.js
  * ----------------------------------------------------------------------------
  * The homes the WebGL renderer draws as 3D models (render3d/models.js MODELS
- * takes HOUSE_MODELS as it is): the five levels where a city's homes most
- * often settle. Every other level keeps its 2D sprite.
+ * takes HOUSE_MODELS as it is): the levels listed below, where a city's homes
+ * most often settle and the richest 2 x 2 ones. Every other level keeps its
+ * 2D sprite.
  *
  *   level 4   Hut              1 x 1   models/housesSmall.js
  *   level 5   Cottage          1 x 1   models/housesSmall.js
  *   level 7   Townhouse        1 x 1   models/housesTall.js
  *   level 10  Apartment House  1 x 1   models/housesTall.js
  *   level 11  Tenement         2 x 2   models/housesTall.js
+ *   level 12  Insula           2 x 2   models/housesVillas.js
+ *   level 13  Villa            2 x 2   models/housesVillas.js
+ *   level 14  Garden Villa     2 x 2   models/housesVillas.js
  *
  * Each has VARIANTS looks, picked by a stable hash of the building's id (the
  * same home looks the same after a reload; a street of the same level is not
@@ -34,10 +38,16 @@ import { Bag, box, VARIANTS, WOODS } from './houseKit.js';
 import { cyl } from './castra.js';
 import { lin } from './rural.js';
 import { buildHut, buildCottage, HUT, COTTAGE, HUT_LAMPS, COTTAGE_LAMPS } from './housesSmall.js';
+import { VILLA_BUILDERS, VILLA_PEOPLE, VILLA_LAMPS } from './housesVillas.js';
 import { buildTownhouse, buildApartment, buildTenement, buildTenementRoof, TOWNHOUSE, APARTMENT, TENEMENT, townLamps, apartmentLamps, tenementLamps } from './housesTall.js';
 
 /** The housing level (data/housing.js) each model draws, by its kind. */
-export const HOUSE_LEVELS = Object.freeze({ hut: 4, cottage: 5, town: 7, apt: 10, ten: 11 });
+export const HOUSE_LEVELS = Object.freeze({
+  hut: 4, cottage: 5, town: 7, apt: 10, ten: 11,
+  ins: 12,
+  villa: 13,
+  gvilla: 14,
+});
 const KIND_OF = Object.freeze(Object.fromEntries(Object.entries(HOUSE_LEVELS).map(([k, t]) => [t, k])));
 
 /** The four cells of a 2 x 2 block of single-tile homes: their middles (metres) from the block's. */
@@ -49,13 +59,16 @@ export function variantOf(id, level, cell = 0) {
   return Math.min(VARIANTS - 1, Math.floor(hash01(id, level, cell) * VARIANTS));
 }
 
+/** The kinds that are one 2 x 2 home (the tenement's, the insula's and the villas'), never a block of four. */
+const isBig = (kind) => kind === 'ten' || kind in VILLA_BUILDERS;
+
 /** Which model kind a building shows, or null (it keeps its sprite). */
 export function houseKind(b) {
   if (!b.house) return null;
   const kind = KIND_OF[b.house.tier];
   if (!kind) return null;
   // A tenement is one 2 x 2 home; the lower levels are one tile, or a joined block of four.
-  if (kind === 'ten') return b.size === 2 ? kind : null;
+  if (isBig(kind)) return b.size === 2 ? kind : null;
   return b.size === 1 || b.size === 2 ? kind : null;
 }
 
@@ -81,7 +94,7 @@ function buildPlot(lod) {
   return bag.build();
 }
 
-const BUILDERS = { hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement, tenroof: (v, lod) => buildTenementRoof(lod) };
+const BUILDERS = { hut: buildHut, cottage: buildCottage, town: buildTownhouse, apt: buildApartment, ten: buildTenement, tenroof: (v, lod) => buildTenementRoof(lod), ...VILLA_BUILDERS };
 
 /** The tenement's roof, shared by its four looks: one more kit in the look's `more`. */
 const TEN_ROOF = Object.freeze([Object.freeze({ key: 'house:tenroof:0', n: 1, mats: new Float32Array(new Matrix4().toArray()), state: 'always' })]);
@@ -116,6 +129,7 @@ function moved(list, ox, oz) {
 /** A home's people in its own metres, by kind and look (state 'open' only). */
 export function peopleOf(kind, v) {
   const s = 400 + v * 7;
+  if (VILLA_PEOPLE[kind]) return VILLA_PEOPLE[kind](v, s);
   switch (kind) {
     case 'hut': {
       const dx = HUT.doorX[v];
@@ -190,6 +204,7 @@ function castOf(kind, vs, mask) {
 
 /** The windows a home may light, by kind and look: [x, y, z, s] each (models.js modelLamps). */
 function windowsOf(kind, v) {
+  if (VILLA_LAMPS[kind]) return VILLA_LAMPS[kind](v);
   switch (kind) {
     case 'hut': return [HUT_LAMPS[v]];
     case 'cottage': return [COTTAGE_LAMPS[v]];
@@ -202,13 +217,13 @@ function windowsOf(kind, v) {
 /** The lit ones of a home or block: each window by the hash of the building's id, its place and its number. */
 function lampsOf(b, kind) {
   const out = [];
-  const block = b.size === 2 && kind !== 'ten';
+  const block = b.size === 2 && !isBig(kind);
   const homes = block ? 4 : 1;
   for (let i = 0; i < homes; i++) {
     const v = variantOf(b.id, HOUSE_LEVELS[kind], block ? i : 0);
     const [ox, oz] = block ? CELLS[i] : [0, 0];
     windowsOf(kind, v).forEach((w, n) => {
-      if (hash01(b.id, i, n, 71) > (kind === 'ten' ? 0.22 : 0.42)) return;
+      if (hash01(b.id, i, n, 71) > (isBig(kind) ? 0.22 : 0.42)) return;
       out.push([w[0] + ox, w[1], w[2] + oz, w[3] ?? 1]);
     });
   }
@@ -233,7 +248,7 @@ function lookOf(b, near) {
   if (!kind) return { key: 'house:lot', state: 'always', ice: false };
   const state = b.house.pop > 0 ? 'open' : 'shut';
   const level = HOUSE_LEVELS[kind];
-  const block = b.size === 2 && kind !== 'ten';
+  const block = b.size === 2 && !isBig(kind);
   const vs = block ? CELLS.map((_, i) => variantOf(b.id, level, i)) : [variantOf(b.id, level)];
   const id = `${kind}:${vs.join('')}:${state}`;
   let look = LOOKS.get(id);
@@ -271,7 +286,11 @@ function lookOf(b, near) {
 export const HOUSE_MODELS = Object.freeze({
   house: Object.freeze({
     // (One of each level: they share their programs; the lot for the ghost.)
-    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:town:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0'],
+    warm: ['house:lot', 'house:plot', 'house:hut:0', 'house:cottage:0', 'house:town:0', 'house:apt:0', 'house:ten:0', 'house:tenroof:0',
+      'house:ins:0',
+      'house:villa:0',
+      'house:gvilla:0',
+    ],
     fits: (b) => !!houseKind(b),
     variant: (b, place, ctx) => lookOf(b, !!(ctx && ctx.peopleOn && ctx.people && ctx.people.lod <= 1)),
     build: (key, lod) => buildHouse(key, lod),

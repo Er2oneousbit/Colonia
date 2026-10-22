@@ -1,5 +1,6 @@
 /**
- * houses3d.test.mjs - the 3D homes: hut, cottage, townhouse, apartment house, tenement (node:test)
+ * houses3d.test.mjs - the 3D homes: hut, cottage, townhouse, apartment house, tenement,
+ * insula, villa, garden villa (node:test)
  * ----------------------------------------------------------------------------
  * Run:  npm test
  *
@@ -36,27 +37,34 @@ const triOf = (g) => {
   g.traverse((o) => { if (o.isMesh) n += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3; });
   return n;
 };
+/** The 2 x 2 homes: the tenement, the insula and the two villas. */
+const BIG = ['ten', 'ins', 'villa', 'gvilla'];
 const NEAR = { peopleOn: true, people: { lod: 0 } };
 
-test('houses3d: five levels have a model; the others keep their sprite', () => {
+test('houses3d: eight levels have a model; the others keep their sprite', () => {
   const drawn = [];
   for (let tier = 0; tier < HOUSE_TIERS.length; tier++) {
     const b = home(tier);
     if (MODELS.house.fits(b)) drawn.push(tier);
   }
-  assert.deepEqual(drawn, [4, 5, 7, 10, 11], 'hut, cottage, townhouse, apartment house, tenement');
-  assert.deepEqual(Object.values(HOUSE_LEVELS), [4, 5, 7, 10, 11]);
-  assert.deepEqual(KINDS.map((k) => HOUSE_TIERS[HOUSE_LEVELS[k]].name), ['Hut', 'Cottage', 'Townhouse', 'Apartment House', 'Tenement']);
+  assert.deepEqual(drawn, [4, 5, 7, 10, 11, 12, 13, 14], 'hut, cottage, townhouse, apartment house, tenement, insula, villa, garden villa');
+  assert.deepEqual(Object.values(HOUSE_LEVELS), [4, 5, 7, 10, 11, 12, 13, 14]);
+  assert.deepEqual(KINDS.map((k) => HOUSE_TIERS[HOUSE_LEVELS[k]].name), ['Hut', 'Cottage', 'Townhouse', 'Apartment House', 'Tenement', 'Insula', 'Villa', 'Garden Villa']);
   assert.equal(HOUSE_TIERS[11].size, 2);
   // A joined block of four single-tile homes is still drawn (as four); a lone tenement must be 2 x 2.
   assert.ok(MODELS.house.fits(home(5, { size: 2 })));
   assert.ok(!MODELS.house.fits(home(11, { size: 1 })));
+  // The insula and the two villas are 2 x 2 homes too, never a block of four singles.
+  for (const t of [12, 13, 14]) {
+    assert.equal(HOUSE_TIERS[t].size, 2);
+    assert.ok(MODELS.house.fits(home(t)) && !MODELS.house.fits(home(t, { size: 1 })), `tier ${t}`);
+  }
   assert.ok(!MODELS.house.fits({ id: 1, type: 'house', size: 1 }), 'a building with no home record keeps its sprite');
 });
 
 test('houses3d: a home\'s look is a stable hash of its id, all looks used, each level and cell its own', () => {
-  const seen = Array.from({ length: 5 }, () => new Array(VARIANTS).fill(0));
-  const level = [4, 5, 7, 10, 11];
+  const seen = Array.from({ length: 8 }, () => new Array(VARIANTS).fill(0));
+  const level = [4, 5, 7, 10, 11, 12, 13, 14];
   for (let id = 1; id <= 400; id++) {
     level.forEach((t, i) => {
       const v = variantOf(id, t);
@@ -83,7 +91,7 @@ test('houses3d: every look fits its footprint at every turn and level of detail,
   const e = 1e-6;
   for (const key of houseKeys()) {
     const [, kind] = key.split(':');
-    const S = kind === 'ten' || kind === 'tenroof' || kind === 'plot' ? 2 : 1;
+    const S = BIG.includes(kind) || kind === 'tenroof' || kind === 'plot' ? 2 : 1;
     for (let lod = 0; lod < 3; lod++) {
       const g = buildHouse(key, lod);
       g.updateMatrixWorld(true);
@@ -91,7 +99,7 @@ test('houses3d: every look fits its footprint at every turn and level of detail,
       for (let T = 0; T < 4; T++) {
         const b = local.clone().applyMatrix4(modelMatrix(20, 9, S, T, 0));
         assert.ok(b.min.x >= 20 - e && b.max.x <= 20 + S + e && b.min.z >= 9 - e && b.max.z <= 9 + S + e, `${key} lod ${lod} turn ${T}: ${JSON.stringify(b)}`);
-        assert.ok(b.min.y > -0.003 && b.max.y < (kind === 'ten' ? 3.5 : 3.0), `${key} lod ${lod}: ${b.min.y} to ${b.max.y} tiles high`);
+        assert.ok(b.min.y > -0.003 && b.max.y < (BIG.includes(kind) ? 3.5 : 3.0), `${key} lod ${lod}: ${b.min.y} to ${b.max.y} tiles high`);
       }
     }
   }
@@ -113,12 +121,13 @@ test('houses3d: each level of detail is lighter than the one before; the far one
     // (The lot and the plot are a few boxes at every level.)
     if (/lot|plot/.test(key)) assert.ok(t[2] <= t[0] && t[0] <= 260, `${key}: ${t}`);
     else assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
-    assert.ok(t[2] <= (kind === 'ten' ? 560 : 320), `${key}: ${t[2]} triangles far out`);
-    assert.ok(t[0] < (kind === 'ten' ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
+    // (The tenement's roof is a kit of its own; the insula and the villas carry theirs, a little over the tenement's walls.)
+    assert.ok(t[2] <= (kind === 'ten' ? 560 : BIG.includes(kind) ? 700 : 320), `${key}: ${t[2]} triangles far out`);
+    assert.ok(t[0] < (BIG.includes(kind) ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
   }
   // Each level is clearly richer than the one below at the middle level of detail (more to see in the facade).
   const mid = (kind) => [0, 1, 2, 3].reduce((s, v) => s + triOf(buildHouse(`house:${kind}:${v}`, 1)), 0) / 4;
-  assert.ok(mid('hut') < mid('cottage') + 1 && mid('cottage') < mid('town') && mid('town') < mid('apt') && mid('apt') < mid('ten'), 'richer up the ladder');
+  assert.ok(mid('hut') < mid('cottage') + 1 && mid('cottage') < mid('town') && mid('town') < mid('apt') && mid('apt') < mid('ten') && mid('ten') < mid('ins'), 'richer up the ladder');
 });
 
 test('houses3d: occupied or empty from the sim, a block as a plot of four homes, the ghost a vacant lot', () => {
@@ -148,7 +157,7 @@ test('houses3d: occupied or empty from the sim, a block as a plot of four homes,
 });
 
 test('houses3d: shutters, doors and shop boards swap with the state; every tagged part shows somewhere', () => {
-  for (const key of houseKeys().filter((k) => /:(hut|cottage|town|apt|ten):/.test(k))) {
+  for (const key of houseKeys().filter((k) => /:(hut|cottage|town|apt|ten|ins|villa|gvilla):/.test(k))) {
     const g = buildHouse(key, 0);
     const whens = new Set();
     g.traverse((o) => { if (o.isMesh) whens.add(o.userData.when); });
@@ -169,7 +178,7 @@ test('houses3d: shutters, doors and shop boards swap with the state; every tagge
 
 test('houses3d: a few people only near, only while lived in, inside the footprint', () => {
   const v = (b, ctx) => MODELS.house.variant(b, { snow: 0 }, ctx);
-  for (const tier of [4, 5, 7, 10, 11]) {
+  for (const tier of [4, 5, 7, 10, 11, 12, 13, 14]) {
     const b = home(tier);
     assert.equal(v(b, null).actors, undefined, `${tier}: no people for a ghost or a test`);
     assert.equal(v(b, { peopleOn: true, people: { lod: 2 } }).actors, undefined, `${tier}: none from far`);
@@ -185,7 +194,7 @@ test('houses3d: a few people only near, only while lived in, inside the footprin
   // A block: each of its four homes has its people, in its own cell.
   assert.ok(v(home(5, { size: 2, id: 3 }), NEAR).actors.actors.length >= 2);
   for (const kind of KINDS) {
-    const S = kind === 'ten' ? 4 : 2;
+    const S = BIG.includes(kind) ? 4 : 2;
     for (let var1 = 0; var1 < VARIANTS; var1++) {
       for (const a of peopleOf(kind, var1)) {
         assert.ok(Math.abs(a.at[0]) < S + 0.05 && Math.abs(a.at[2]) < S + 0.05, `${kind} ${var1}: a person at ${a.at}`);
@@ -212,7 +221,7 @@ test('houses3d: lamps only in a lived-in home, a window here and there by hash, 
   }
   assert.ok(some > 20 && some < 60 && all / 60 < 4, `a window here and there: ${some} of 60 homes, ${all / 60} each`);
   // Tenement and block lamps stay inside the footprint.
-  for (const b of [home(11, { id: 5 }), home(4, { id: 6, size: 2 })]) for (const T of [0, 1, 2, 3]) for (const [u, v] of modelLamps(b, T)) assert.ok(u >= 0 && u <= 2 && v >= 0 && v <= 2, `${b.size}: ${u}, ${v}`);
+  for (const b of [home(11, { id: 5 }), home(12, { id: 5 }), home(13, { id: 5 }), home(14, { id: 5 }), home(14, { id: 8 }), home(4, { id: 6, size: 2 })]) for (const T of [0, 1, 2, 3]) for (const [u, v] of modelLamps(b, T)) assert.ok(u >= 0 && u <= 2 && v >= 0 && v <= 2, `${b.size}: ${u}, ${v}`);
 });
 
 test('houses3d: a street of one level costs a few instanced draws, not one a house', () => {
