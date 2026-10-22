@@ -31,7 +31,7 @@ export function withColourManagement(fn) {
   }
 }
 
-/** Flatten a built model into its parts: { parts: [{ geometry, material, when, cast }], triangles }. */
+/** Flatten a built model into its parts: { parts: [{ geometry, material, when, cast, cover }], triangles }. */
 export function kitOf(group) {
   group.updateMatrixWorld(true);
   const byKey = new Map();
@@ -40,10 +40,11 @@ export function kitOf(group) {
     const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
     const colour = g.attributes.color ? g.attributes.color.itemSize : 0;
     const when = o.userData.when || 'always';
-    const key = `${o.material.uuid}|${when}|${o.castShadow ? 1 : 0}|${colour}`;
+    const cover = o.userData.cover !== false;
+    const key = `${o.material.uuid}|${when}|${o.castShadow ? 1 : 0}|${colour}|${cover ? 1 : 0}`;
     let p = byKey.get(key);
     if (!p) {
-      p = { material: o.material, when, cast: o.castShadow, list: [] };
+      p = { material: o.material, when, cast: o.castShadow, cover, list: [] };
       byKey.set(key, p);
     }
     p.list.push(g);
@@ -55,7 +56,7 @@ export function kitOf(group) {
     if (p.list.length > 1) for (const g of p.list) g.dispose();
     geometry.computeBoundingSphere();
     tris += triangles(geometry);
-    parts.push({ geometry, material: p.material, when: p.when, cast: p.cast });
+    parts.push({ geometry, material: p.material, when: p.when, cast: p.cast, cover: p.cover });
   }
   // Opaque parts first (three draws them first anyway); among the see-through, in the model's own order.
   parts.sort((a, b) => (a.material.transparent ? 1 : 0) - (b.material.transparent ? 1 : 0));

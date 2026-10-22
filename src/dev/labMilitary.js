@@ -61,7 +61,7 @@ Vindolanda keep it: a rampart round a "playing card", a tower at each corner and
 (<i>contubernia</i>), ovens and water tanks along the rampart. Here each is shrunk onto 12 m, low where the men stand: the game draws its
 soldiers at rest in the yard, and from the game's camera a wall hides ground 1.7 times its height behind it.</p>
 <p><b>The legion fort</b>: a curtain of dressed sandstone with a crenellated parapet over a walk carried by an earth bank, square corner
-towers roofed with tiles, the gate's arch between two towers, LEG II AVG over it (the Second Legion, the Wall's builders); the
+towers roofed with tiles, the gate's arch between two towers, LEGIO I over it (the first legion; the Wall's builders); the
 headquarters with its portico, and before it the eagle (<i>aquila</i>), the signa with their silvered discs, the red vexillum and the
 emperor's portrait. Deployed, the standards are out with the men. <b>The archer fort</b> (an auxiliary cohort of archers, as the Hamian
 archers at Carvoran): a turf rampart with a timber breastwork, timber towers on posts, leather tents, straw butts. <b>The cavalry

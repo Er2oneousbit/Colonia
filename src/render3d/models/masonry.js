@@ -399,12 +399,16 @@ export class TaggedParts {
     this.by = new Map();
   }
 
-  /** Add geometries (arrays nest, nulls are skipped) to the part `name` in `when`. */
-  add(name, mat, geos, { when = 'always', cast = true } = {}) {
+  /**
+   * Add geometries (arrays nest, nulls are skipped) to the part `name` in `when`.
+   * `cover: false` keeps the part out of the building's click cover (a slim tower
+   * standing high over a low yard would hide the men in it, modelPass.js coverPx).
+   */
+  add(name, mat, geos, { when = 'always', cast = true, cover = true } = {}) {
     const key = `${name}|${when}`;
     let e = this.by.get(key);
     if (!e) {
-      e = { name, mat, when, cast, list: [] };
+      e = { name, mat, when, cast, cover, list: [] };
       this.by.set(key, e);
     } else if (e.mat !== mat) {
       throw new Error(`${this.name}: part ${name} in ${when} given two materials`);
@@ -428,6 +432,7 @@ export class TaggedParts {
       m.castShadow = e.cast;
       m.receiveShadow = true;
       m.userData.when = e.when;
+      if (!e.cover) m.userData.cover = false;
       group.add(m);
       meshes.push(m);
       tris += geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;

@@ -11,10 +11,11 @@
  *     beside them; so here a stable-barrack along the left of the yard,
  *     its stalls open to the yard under a lean-to of tiles, a manger and a
  *     hay rack in each, the decurion's house at its end
- *   - the curtain rendered and limewashed (as many forts' walls were),
- *     dressed quoins at the towers, red-tiled tower roofs, the gate's arch
- *     high enough for a rider, ALA PETRIANA over it (the Wall's biggest
- *     cavalry regiment, at Stanwix)
+ *   - the camp's rampart as castraPalisade.js builds it (bank, palisade,
+ *     platforms at the corners, a timber gate tower high enough for a
+ *     rider under it), EQVITES I on the board over the gate (the horse of the first legion rather than an Imperial ala; the Wall's
+ *     biggest cavalry regiment, at Stanwix); the palisade is lower on the
+ *     right and at the back, where the troopers stand near it
  *   - the horse yard of beaten earth, a stone trough, a hay rick; the
  *     troopers' four-horned saddles (the kind found at Vindolanda, rebuilt
  *     from their leather covers) on a rack
@@ -25,8 +26,8 @@
  * The horses in the stalls are drawn as the farms' horses (`more`, one for
  * each trooper of the ala at home: models/militaryModels.js STALLS), so only the
  * building is here. States as the legion fort's: 'open', 'out', 'shut';
- * 'home' and 'staffed' tags. Manned (cavalryActors): sentries pace the walk
- * over the gate and the front walk; troopers see to their horses, one for
+ * 'home' and 'staffed' tags. Manned (cavalryActors): sentries pace the deck
+ * of the gate tower and the front bank; troopers see to their horses, one for
  * every few in the stalls (the same count the stalls show), one carrying
  * fodder along the stalls' fronts.
  *
@@ -39,9 +40,10 @@ import { revolve, profileOf, boxUV, tintGeometry } from '../shapes.js';
 import { slab } from './masonry.js';
 import { gableRoof, leanTo, lin, D } from './rural.js';
 import {
-  CASTRA, fortBag, pour, assemble, TANK_WATER, onSide, stoneRun, stoneTower, stoneGate, box, staff, tank,
-  vexillum, draco, imago, standardBase, inscribe, oven, limewash, soldier, wallSentry,
+  CASTRA, fortBag, assemble, TANK_WATER, box, staff, tank,
+  vexillum, draco, imago, standardBase, oven, soldier, wallSentry,
 } from './castra.js';
+import { CAMP, campRampart } from './castraPalisade.js';
 
 /** The cavalry fort's measures (metres): the tests, the lab and the game read them. */
 export const CAVALRY_FORT = Object.freeze({
@@ -51,7 +53,13 @@ export const CAVALRY_FORT = Object.freeze({
   stalls: 8,
   /** The decurion's house at its end: x0, x1, z0, z1. */
   house: Object.freeze([-4.72, -2.65, 2.42, 4.25]),
-  lamps: Object.freeze([Object.freeze([-1.08, 1.62, 5.62]), Object.freeze([1.08, 1.62, 5.62])]),
+  /**
+   * The palisade's height over the ground on the front, the right, the back and the left: the
+   * troopers stand in the yard's right half, within 1.5 m of the right side's palisade, which
+   * hides a man there more than the test allows above 1.5 m, and the back's rows stand 1.7 m from the men at the back; those two are lower.
+   */
+  stake: Object.freeze([2.5, 1.5, 1.85, 2.5]),
+  lamps: Object.freeze([Object.freeze([-1.0, 1.62, 5.0]), Object.freeze([1.0, 1.62, 5.0])]),
 });
 
 const Q = CAVALRY_FORT;
@@ -178,44 +186,19 @@ function rick(x, z, r, h, lod, out) {
 }
 
 /** Build the cavalry fort: { group, meshes, triangles }; meshes tagged in userData.when. */
-export function buildCavalryFort({ lod = 0, seed = 151 } = {}) {
+export function buildCavalryFort({ lod = 0, seed = 151, stake = Q.stake } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const out = fortBag();
   const std = { wood: [], gilt: [], silver: [], cloth: [], iron: [], bronze: [], rope: [] };
-  const O = CASTRA.O;
-  // (Smaller, lower corner towers than the legion's: the troopers' spots in the yard run nearer the corners.)
-  const side = 1.3;
-  const a = O - side;
-  const g = CASTRA.gateHalf + CASTRA.gateTower;
-  const wall = { facing: 'plaster', plain: true };
-  // The rampart: limewashed walls, the front either side of the gate, the sides and back turned on.
-  stoneRun(-a, -g, { lod, seed: seed + 1, out, ...wall });
-  stoneRun(g, a, { lod, seed: seed + 2, out, ...wall });
-  for (const k of [1, 2, 3]) {
-    const run = fortBag();
-    // (The left side's bank stops at the stable, built against the wall.)
-    stoneRun(-a, a, { lod, seed: seed + 10 + k, out: run, ...wall, bankFoot: k === 3 ? O - 0.62 : 4.75 });
-    pour(run, out, (l) => onSide(l, k));
-  }
-  for (let k = 0; k < 4; k++) {
-    const t = fortBag();
-    stoneTower({ lod, seed: seed + 30 + k, out: t, side, h: 2.0, door: k % 2 ? 'z' : 'x', roof: true, ...wall });
-    pour(t, out, (l) => onSide(l, k));
-  }
-  stoneGate({ lod, seed: seed + 40, out, h: 2.15, merlon: 2.8, walk: 2.4, spring: 1.4, rise: 0.72, innerPar: 0.14, ...wall });
-  const z = O + 0.09;
-  out.marble.push(box(1.36, 0.24, 0.04, 0, 2.2, z - 0.02, 0.95));
-  if (lod === 0) out.letters.push(...inscribe('ALA·PETRIANA', 2.245, z + 0.003, 0.13));
-  else if (lod === 1) out.letters.push(box(1.0, 0.11, 0.006, 0, 2.26, z + 0.002));
-  // (Everything of the rampart and the gate limewashed, its painted zones' red and black left below.)
-  for (const gg of out.plaster) limewash(gg);
+  // (Smaller corner platforms than the legion's: the stable and the house stand close to the left corners.)
+  campRampart({ lod, seed, out, stake, side: 0.95, label: 'EQVITES·I' });
   // The horse yard: beaten earth.
   out.earth.push(box(2 * 4.75, CASTRA.floorY, 2 * 4.75, 0, 0, 0, (x, y, zz) => 0.82 + 0.18 * Math.cos(x * 0.5 + 1) * Math.cos(zz * 0.4)));
   stable(lod, seed + 50, out);
   house(lod, seed + 60, out);
   // The trough in the yard, the rick at the back, the saddles on their rack by the house.
   tank(1.2, 0.25, 1.5, 0.5, 0.5, lod, out, seed + 70);
-  rick(4.0, -4.1, 0.55, 1.45, lod, out);
+  rick(3.7, -3.95, 0.55, 1.45, lod, out);
   const rx = -2.05;
   for (const s of [-1, 1]) out.wood.push(box(0.07, 0.85, 0.07, rx, 0, 3.2 + s * 0.6, 0.8));
   out.wood.push(box(0.1, 0.08, 1.4, rx, 0.85, 3.2, 0.8));
@@ -229,7 +212,7 @@ export function buildCavalryFort({ lod = 0, seed = 151 } = {}) {
     out.cloth.push(...sad.cloth);
     out.leather.push(...sad.leather);
   }
-  oven(3.9, 3.95, lod, out, { r: 0.4 });
+  oven(3.5, 3.85, lod, out, { r: 0.4 });
   // The standards by the gate: the dragon, the vexillum, the portrait.
   const sz = 3.95;
   standardBase(-1.95, -1.05, sz, lod, out, 3);
@@ -258,7 +241,7 @@ export function troopersFor(horses) {
 /**
  * The cavalry fort's people (people/actors.js specs, its metres) while its
  * men are home ('open'), for `horses` in the stalls: a sentry pacing the
- * walk over the gate (2.4 m up) and one on the front walk right of the
+ * deck of the gate tower and one on the front bank right of the
  * gate, standing guard at the ends; a trooper in his tunic carrying a sack
  * of fodder up and down before the stalls (the horse yard's edge, clear of
  * the men's places), and one by the quarters of each horse of
@@ -270,8 +253,8 @@ export function troopersFor(horses) {
 export function cavalryActors(state, horses = 0) {
   if (state !== 'open') return [];
   const list = [
-    wallSentry('cavalry', -0.95, 0.95, 2.4, CASTRA.gateIn + 0.46, 31),
-    wallSentry('cavalry', 2.5, 4.2, 1.0, CASTRA.O - 0.7, 32),
+    wallSentry('cavalry', -0.95, 0.95, CAMP.gate.deck, (CAMP.gate.z0 + CAMP.gate.z1) / 2, 31),
+    wallSentry('cavalry', 2.5, 3.6, CAMP.walkY, CAMP.walkZ, 32),
   ];
   const n = troopersFor(horses);
   if (!n) return list;

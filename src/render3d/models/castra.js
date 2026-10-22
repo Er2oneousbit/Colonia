@@ -2,37 +2,31 @@
  * models/castra.js
  * ----------------------------------------------------------------------------
  * What the three forts of the 3D look share (castraLegion.js, castraArcher.js,
- * castraEquitum.js): the plan of a Roman fort shrunk onto a 3 x 3 footprint
- * (12 m), its rampart and towers, its gate, its standards and the soldiers'
- * blocks, from the excavated forts rather than the 2D sprite.
+ * castraEquitum.js): the plan of a Roman camp shrunk onto a 3 x 3 footprint
+ * (12 m), its gate's frame (castraPalisade.js builds the earth bank, ditch,
+ * palisade, platforms and gate tower), its standards and the soldiers' blocks.
  *
- * The record. Polybius (book 6) and the treatise on camps that goes under
- * Hyginus's name lay a camp out round two streets crossing before the
- * headquarters; the permanent forts of the frontiers keep that plan in
- * miniature (Housesteads and Chesters on Hadrian's Wall, the Saalburg on the
- * German limes, Vindolanda): a rampart round a "playing card" with a tower
- * at each corner and towers either side of each gate; inside, the
- * headquarters (principia) facing the main gate across the yard, with the
- * shrine of the standards (aedes) in its middle at the back; barrack blocks
- * of eight-man rooms (contubernia); ovens and water tanks along the rampart.
- * The milecastles of Hadrian's Wall are the same thing at the size of a
- * hamlet: a walled yard 15 by 18 m, a gate, one or two small blocks.
+ * The record. Polybius (book 6, 27 to 32) and the treatise on camps that goes
+ * under Hyginus's name lay a camp out round two streets crossing before the
+ * headquarters; the headquarters (principia) faces the main gate across the
+ * yard, with the shrine of the standards (aedes) in its middle at the back;
+ * the men lie in eight-man tents or, in a camp that stays, barrack blocks of
+ * eight-man rooms (contubernia); ovens and water tanks stand along the bank.
+ * The Republic's camps are earth and timber (Renieblas and the other siege
+ * camps round Numantia, 2nd century BC), so the rampart is the bank and
+ * palisade of castraPalisade.js, nothing like the town wall (townWall.js).
  *
  * The game's own constraint. The soldiers at rest stand in the yard
  * (sim/forts.js yardSpot, data/units.js FORT_YARD), drawn by the game over
  * the model, and the camera looks down at 30 degrees from any of the four
  * corners: a thing of height h hides the ground up to 1.7 h behind it. So
- * the forts are built low where the men stand: the wall-walk at 1 m behind
- * a parapet a little over 1.4 m (merlons 1.75), corner towers and gate towers
- * near 3 m, the headquarters pushed against the back rampart, the blocks
- * along the sides; every yard spot is checked from every side
- * (tests/military3d.test.mjs yardHidden). The rampart is a stone curtain
- * with an earth bank behind it, as the stone forts had (the bank carried the
- * walk, and its slope hides less of the yard than a wall would).
+ * the yard is kept clear: the headquarters pushed against the back bank,
+ * the blocks along the sides, the corner platforms' rails low; every yard
+ * spot is checked from every side (tests/military3d.test.mjs yardHidden).
  *
  * Everything here is in metres in the frame of the front side (along x, the
  * outside toward +z) and turned onto the other sides by quarter turns
- * (onSide): the rampart is four runs of one design, the gate on the front.
+ * (onSide).
  * ----------------------------------------------------------------------------
  */
 
@@ -40,23 +34,14 @@ import { BoxGeometry, CylinderGeometry, SphereGeometry, BufferGeometry, Float32B
 import { revolve, profileOf, boxUV, tintGeometry, tube } from '../shapes.js';
 import { material, DoubleSide, waterMaterial } from '../materials.js';
 import { artRng } from '../texgen.js';
-import { slab, paving, GLYPHS, tiledRoof, TaggedParts, lantern, lanternPane } from './masonry.js';
+import { slab, GLYPHS, TaggedParts, lantern, lanternPane } from './masonry.js';
 import { beam, lin, D, gableRoof } from './rural.js';
 
-/** The fort's plan (metres from the middle; the gate's side, +z, is the front). */
+/** The fort's plan (metres from the middle; the gate's side, +z, is the front). The bank, the ditch and the gate tower's measures are castraPalisade.js CAMP. */
 export const CASTRA = Object.freeze({
-  /** The rampart's outer face. */
-  O: 5.85,
-  /** A corner tower's side (its outer faces flush with the rampart's). */
-  tower: 1.6,
   /** Half the gate's passage: FORT_GATEWAY's 0.64 tile, the opening the men walk through. */
   gateHalf: 1.28,
-  /**
-   * A gate tower's width (along the front) and its inner face (toward the
-   * yard): slim and set out at the front, so a man standing near the gate
-   * inside is not hidden behind its towers from either front corner.
-   */
-  gateTower: 1.0,
+  /** Where the gate tower's yard side stands: the paved street from the headquarters ends here. */
   gateIn: 5.0,
   /** The yard's floor: trodden gravel just over the ground. */
   floorY: 0.03,
@@ -98,44 +83,6 @@ export function onSide(geos, k) {
   return geos;
 }
 
-/** A face stone w x h, `depth` deep, its face toward +z at z = 0 (going back to -depth), centred on x and y: a bevel framing the face. */
-export function faceStone(w, h, depth, seed, k = 0.06) {
-  const g = slab(w, depth, h, { bevel: Math.min(0.025, w * 0.12, h * 0.12), seed, wobble: 0.004, tone: k, grime: 0 });
-  // (slab's chamfered top turned to face +z.)
-  g.rotateX(Math.PI / 2);
-  g.translate(0, 0, -depth);
-  return g;
-}
-
-/**
- * Courses of face stones over the rectangle x0..x1, y0..y1 of a face at
- * z (facing +z), `course` high, of seeded lengths about `len`, each course
- * offset from the one below (the joints broken, as a mason lays them).
- */
-export function ashlar(x0, x1, y0, y1, z, { course = 0.28, len = 0.52, seed = 1, depth = 0.08, tone = 0.07 } = {}) {
-  const rnd = artRng(seed);
-  const out = [];
-  const rows = Math.max(1, Math.round((y1 - y0) / course));
-  const ch = (y1 - y0) / rows;
-  const gap = 0.012;
-  for (let r = 0; r < rows; r++) {
-    let x = x0;
-    // (Half a stone's offset every other course.)
-    if (r % 2) x = Math.min(x1, x0 + len * (0.35 + rnd() * 0.3));
-    const yc = y0 + (r + 0.5) * ch;
-    if (x > x0 + 0.02) {
-      out.push(faceStone(x - x0 - gap, ch - gap, depth, seed + r * 97, tone).translate((x0 + x) / 2, yc, z));
-    }
-    while (x < x1 - 0.02) {
-      let xb = Math.min(x1, x + len * (0.75 + rnd() * 0.5));
-      if (x1 - xb < len * 0.4) xb = x1;
-      out.push(faceStone(xb - x - gap, ch - gap * (0.8 + rnd() * 0.4), depth, seed + r * 97 + Math.round(x * 31), tone).translate((x + xb) / 2, yc, z));
-      x = xb;
-    }
-  }
-  return out;
-}
-
 /**
  * A prism along x from a0 to a1 whose cross-section is the polygon `sec`
  * ([[z, y], ...], counter-clockwise seen from +x), closed at both ends: a
@@ -164,24 +111,6 @@ export function prism(a0, a1, sec, f = null) {
   g.computeVertexNormals();
   boxUV(g);
   return tintGeometry(g, f);
-}
-
-/**
- * Lift a geometry's UVs by `dv` metres up the plaster's painted zones
- * (surfaces.js plaster: a dark socle and a red dado in its lowest 1.36 m
- * of every 4): a limewashed wall shows the cream above them.
- */
-export function limewash(g, dv = 1.45) {
-  if (g.userData.limewashed) return g;
-  g.userData.limewashed = true;
-  const uv = g.attributes.uv;
-  const n = g.attributes.normal;
-  for (let i = 0; i < uv.count; i++) {
-    // (A top's v runs along the ground, through every zone: kept in the cream.)
-    if (Math.abs(n.getY(i)) > 0.7) uv.setY(i, 1.6 + (((uv.getY(i) % 2) + 2) % 2));
-    else uv.setY(i, uv.getY(i) + dv);
-  }
-  return g;
 }
 
 /** Turn a geometry's faces the other way (its inside out). */
@@ -305,264 +234,6 @@ export function castraMaterials() {
     dark: material('room-dark', { color: 0x0e0b09, roughness: 1, snow: 0, wet: 0 }),
     water: null, // (the look's water: taken by the model that has a tank)
   };
-}
-
-// ---------------------------------------------------------------------------
-// The rampart
-// ---------------------------------------------------------------------------
-
-/**
- * A stone rampart's run on the front side, from x a0 to a1: the curtain
- * (its outer face at O, `wallT` thick, up to the walk), the parapet on its
- * outer edge with merlons, the earth bank behind it sloping down to the
- * yard, a walk of flags on top. `skip` [x0, x1]: no merlons there (a gate's
- * towers). `out` gets lists by material key: ashlar, core, turf, stone.
- */
-export function stoneRun(a0, a1, { lod, seed, out, walk = 1.0, par = 1.45, merlon = 1.75, wallT = 0.55, parT = 0.24, bankFoot = 4.75, facing = 'ashlar', plain = false, skip = null } = {}) {
-  const O = C.O;
-  const zi = O - wallT;
-  const zp = O - parT;
-  // The core: the wall up to the walk, the parapet over its outer edge (the mortar a shade behind the facing).
-  out.core.push(box(a1 - a0, walk, wallT - 0.04, (a0 + a1) / 2, 0, O - wallT / 2 - 0.02, 0.7));
-  out.core.push(box(a1 - a0, par - walk, parT - 0.05, (a0 + a1) / 2, walk, O - parT / 2 - 0.025, 0.75));
-  if (lod === 0 && !plain) {
-    // Face stones on the outside, coursed; the parapet's inside, which the far side shows.
-    out[facing].push(...ashlar(a0, a1, 0, par, O, { seed, course: 0.29, len: 0.55 }));
-    const inner = ashlar(a0, a1, walk, par, 0, { seed: seed + 5, course: 0.225, len: 0.5 });
-    for (const g of inner) g.rotateY(Math.PI).translate(a0 + a1, 0, zp);
-    out[facing].push(...inner);
-    // A plinth course at the foot, stepping out (the offset footing of the Wall).
-    out.stone.push(box(a1 - a0, 0.16, 0.12, (a0 + a1) / 2, 0, O + 0.0, 0.8));
-  } else {
-    // (Rendered and limewashed, or too far out for its stones: one face, darker at its foot.)
-    const wash = plain ? limewash : (g) => g;
-    out[facing].push(wash(box(a1 - a0, par, 0.04, (a0 + a1) / 2, 0, O - 0.02, (x, y) => 0.8 + 0.2 * Math.min(1, y / 0.5))));
-    if (plain && lod < 2) out.stone.push(box(a1 - a0, 0.22, 0.08, (a0 + a1) / 2, 0, O + 0.0, 0.75));
-    out[facing].push(wash(box(a1 - a0, par - walk, 0.04, (a0 + a1) / 2, walk, zp + 0.02, 0.9)));
-  }
-  // The coping on the parapet.
-  out.stone.push(slab(a1 - a0, 0.06, parT + 0.04, { bevel: 0.012, seed: seed + 2, wobble: 0, tone: 0, grime: 0 }).translate((a0 + a1) / 2, par, O - parT / 2));
-  // The merlons: one every 0.8 m, 0.42 wide, capped.
-  const n = Math.round((a1 - a0) / 0.8);
-  const step = (a1 - a0) / n;
-  for (let k = 0; k < n; k++) {
-    const x = a0 + (k + 0.5) * step;
-    if (skip && x > skip[0] && x < skip[1]) continue;
-    const h = merlon - par - 0.06;
-    if (lod === 2) out[facing].push(box(0.42, h, parT, x, par + 0.06, O - parT / 2, 0.95));
-    else {
-      out[facing].push(slab(0.42, h - 0.05, parT, { bevel: 0.01, seed: seed + 30 + k, wobble: 0.003, tone: 0.06, grime: 0 }).translate(x, par + 0.06, O - parT / 2));
-      out.stone.push(slab(0.46, 0.05, parT + 0.04, { bevel: 0.01, seed: seed + 60 + k, wobble: 0.002, tone: 0, grime: 0 }).translate(x, merlon - 0.05, O - parT / 2));
-    }
-  }
-  // The bank: turves from the yard up to the walk's inner edge, the walk's flags on top.
-  const tint = (x, y) => 0.78 + 0.22 * Math.min(1, y / walk) + (lod ? 0 : 0.05 * Math.sin(x * 7.3 + y * 11));
-  out.turf.push(prism(a0, a1, [[bankFoot, 0], [zi, 0], [zi, walk - 0.04], [bankFoot + 0.18, walk - 0.04]], tint));
-  if (lod < 2) {
-    const flags = paving(a0, a1, zi - 0.62, zp, 0.05, seed + 9, { rowW: (zp - zi + 0.62) / 2, minL: 0.4, maxL: 0.75, lod });
-    for (const g of flags) g.translate(0, walk - 0.05, 0);
-    out.flags.push(...flags);
-  } else {
-    out.flags.push(box(a1 - a0, 0.05, zp - zi + 0.62, (a0 + a1) / 2, walk - 0.05, (zi - 0.62 + zp) / 2, 0.9));
-  }
-}
-
-/**
- * A square stone tower at the front-right corner (x and z from O - side to
- * O), its platform at `h`, a parapet round it and merlons up to `merlon`, a door at the
- * yard's level on its inner side, slit windows on its outer faces, a
- * platform of flags. Built on the front-right; onSide turns it to the
- * others.
- */
-export function stoneTower({ lod, seed, out, side = C.tower, h = 2.6, merlon = 2.9, x0 = C.O - side, x1 = C.O, z0 = C.O - side, z1 = C.O, door = 'x', roof = false, facing = 'ashlar', plain = false }) {
-  const w = x1 - x0;
-  const d = z1 - z0;
-  const cx = (x0 + x1) / 2;
-  const cz = (z0 + z1) / 2;
-  out.core.push(box(w - 0.04, h, d - 0.04, cx, 0, cz, 0.7));
-  if (lod === 0 && !plain) {
-    // Ashlar on the four faces (each is seen at one view turn or another), a string course under the parapet.
-    const faces = [[x0, x1, z1, 0], [z0, z1, x1, 1], [x0, x1, z0, 2], [z0, z1, x0, 3]];
-    for (const [a, b, at, k] of faces) {
-      const len = b - a;
-      const st = ashlar(-len / 2, len / 2, 0, h, 0, { seed: seed + k * 13, course: 0.3, len: 0.5 });
-      for (const g of st) {
-        g.rotateY((k * Math.PI) / 2);
-        if (k === 0) g.translate(cx, 0, at);
-        else if (k === 1) g.translate(at, 0, cz);
-        else if (k === 2) g.translate(cx, 0, at);
-        else g.translate(at, 0, cz);
-      }
-      out[facing].push(...st);
-    }
-    out.stone.push(slab(w + 0.12, 0.08, d + 0.12, { bevel: 0.015, seed: seed + 3, wobble: 0, tone: 0, grime: 0 }).translate(cx, h - 0.42, cz));
-  } else {
-    out[facing].push(plain ? limewash(box(w, h, d, cx, 0, cz, (x, y) => 0.82 + 0.18 * Math.min(1, y / 0.5))) : box(w, h, d, cx, 0, cz, (x, y) => 0.82 + 0.18 * Math.min(1, y / 0.5)));
-    if (plain && lod < 2) {
-      // Dressed quoins up the outer corner, a string course under the parapet.
-      for (let y = 0, k = 0; y < h - 0.3; y += 0.3, k++) {
-        const lx = k % 2 ? 0.34 : 0.22;
-        out.ashlar.push(box(lx, 0.28, 0.04, x1 - lx / 2, y + 0.01, z1 + 0.012, 0.95), box(0.04, 0.28, k % 2 ? 0.22 : 0.34, x1 + 0.012, y + 0.01, z1 - (k % 2 ? 0.11 : 0.17), 0.95));
-      }
-      out.stone.push(slab(w + 0.1, 0.07, d + 0.1, { bevel: 0.012, seed: seed + 3, wobble: 0, tone: 0, grime: 0 }).translate(cx, h - 0.4, cz));
-    }
-  }
-  // The platform's parapet: four runs round the top, merlons on them.
-  const t = 0.2;
-  const ph = 0.38;
-  const ring = [[x0, x1, z1 - t / 2, 'x'], [x0, x1, z0 + t / 2, 'x'], [z0 + t, z1 - t, x0 + t / 2, 'z'], [z0 + t, z1 - t, x1 - t / 2, 'z']];
-  for (const [a, b, at, ax] of ring) {
-    const g = ax === 'x' ? box(b - a, ph, t, (a + b) / 2, h, at, 0.92) : box(t, ph, b - a, at, h, (a + b) / 2, 0.92);
-    out[facing].push(g);
-    // Merlons: two on each side, at its thirds.
-    if (!roof) {
-      for (const f of [0.25, 0.75]) {
-        const m = a + (b - a) * f;
-        const mh = Math.max(0.12, merlon - h - ph);
-        out[facing].push(ax === 'x' ? box(0.38, mh, t, m, h + ph, at, 0.95) : box(t, mh, 0.38, at, h + ph, m, 0.95));
-      }
-    }
-  }
-  // The platform's floor of flags inside the parapet.
-  out.stone.push(box(w - 2 * t, 0.05, d - 2 * t, cx, h - 0.05, cz, 0.85));
-  if (lod < 2) {
-    // Slit windows on the outer faces, and the door from the yard.
-    for (const [x, z, ax] of [[cx, z1 + 0.005, 'x'], [x1 + 0.005, cz, 'z']]) {
-      out.dark.push(ax === 'x' ? box(0.09, 0.42, 0.02, x, 1.35, z) : box(0.02, 0.42, 0.09, x, 1.35, z));
-    }
-    if (door === 'x') out.dark.push(box(0.02, 1.15, 0.55, x0 - 0.005, 0, cz));
-    else out.dark.push(box(0.55, 1.15, 0.02, cx, 0, z0 - 0.005));
-    out.stone.push(door === 'x' ? box(0.08, 0.12, 0.75, x0 - 0.02, 1.15, cz, 0.9) : box(0.75, 0.12, 0.08, cx, 1.15, z0 - 0.02, 0.9));
-  }
-  if (roof) {
-    // A pyramid of tiles on the platform, eaves over the parapet.
-    const top = h + ph;
-    const rise = 0.75;
-    const o = 0.09;
-    const corners = [[x0 - o, z0 - o], [x1 + o, z0 - o], [x1 + o, z1 + o], [x0 - o, z1 + o]];
-    const apex = [cx, top + rise, cz];
-    // Four tiled faces (masonry.js tiledRoof: courses, imbrices clipped to the hips), each a triangle.
-    for (let i = 0; i < 4; i++) {
-      const [ax, az] = corners[i];
-      const [bx, bz] = corners[(i + 1) % 4];
-      const r = tiledRoof([[bx, top, bz], [ax, top, az], apex, apex], { pitch: 0.36, lod, seed: seed + 70 + i, antefix: false, imbrexR: 0.055 });
-      out.tile.push(...r.tiles);
-    }
-    if (lod === 0) {
-      // Ridges of imbrices down the hips and a finial.
-      for (const [ax, az] of corners) out.tile.push(tube([[ax, top + 0.02, az], [apex[0], apex[1] + 0.02, apex[2]]], 0.045, { radial: 5, segments: 2, around: 0.2 }));
-      out.clay.push(cyl(0.03, 0.06, 0.16, 8, cx, top + rise - 0.02, cz, 0.9));
-    }
-  }
-}
-
-/**
- * The gate on the front side: two towers (x from gateHalf to gateHalf +
- * gateTower either side, z from gateIn to O + 0.05), an arch over the
- * passage between them springing at `spring`, the walk over it with its
- * parapets inside and out, the doors (open: swung back against the
- * passage's sides; shut: across it), flags through the passage. `out` lists
- * as stoneRun's, plus doorOpen, doorShut, studs (when lod 0).
- */
-export function stoneGate({ lod, seed, out, h = 2.75, merlon = 3.05, spring = 1.45, rise = 0.85, walk = 2.6, roof = false, facing = 'ashlar', plain = false, innerPar = 0.38 }) {
-  const gh = C.gateHalf;
-  const gw = C.gateTower;
-  const z0 = C.gateIn;
-  const z1 = C.O + 0.05;
-  for (const s of [-1, 1]) {
-    const x0 = s < 0 ? -gh - gw : gh;
-    stoneTower({ lod, seed: seed + 10 + s, out, x0, x1: x0 + gw, z0, z1, h, merlon, door: 'z', roof, facing, plain });
-  }
-  // The arch: voussoirs round a flattened half circle over the passage (rise high, as a gate's arch
-  // for carts and riders, kept low so the gate hides little of the yard); the soffit under it.
-  const r = gh;
-  const ky = rise / r;
-  const n = lod === 0 ? 9 : lod === 1 ? 7 : 5;
-  const ring = 0.3;
-  const depth = z1 - z0;
-  for (let k = 0; k < n; k++) {
-    const a0 = Math.PI - (k / n) * Math.PI;
-    const a1 = Math.PI - ((k + 1) / n) * Math.PI;
-    // A wedge from radius r to r + ring between angles a0 and a1, through the gate's depth.
-    const pts = [[r, a0], [r + ring, a0], [r + ring, a1], [r, a1]].map(([rr, a]) => [Math.cos(a) * rr, spring + Math.sin(a) * (rr === r ? rise : rise + ring)]);
-    const sh = new Shape();
-    sh.moveTo(pts[0][0], pts[0][1]);
-    for (const p of pts.slice(1)) sh.lineTo(p[0], p[1]);
-    sh.closePath();
-    const g = new ExtrudeGeometry(sh, { depth: depth - 0.02, bevelEnabled: lod === 0, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 1 });
-    g.deleteAttribute('uv');
-    g.translate(0, 0, z0 + 0.01);
-    g.computeVertexNormals();
-    out.ashlar.push(tintGeometry(boxUV(g), () => 0.92 + ((k * 0.37) % 1) * 0.12));
-  }
-  // The spandrels and the walk over the arch: masonry from the arch's back to the walk, on both faces.
-  const sp = new Shape();
-  sp.moveTo(-gh, spring);
-  for (let k = 0; k <= 12; k++) {
-    const a = Math.PI - (k / 12) * Math.PI;
-    sp.lineTo(Math.cos(a) * (r + ring), spring + Math.sin(a) * (rise + ring));
-  }
-  sp.lineTo(gh, walk);
-  sp.lineTo(-gh, walk);
-  sp.closePath();
-  const spand = new ExtrudeGeometry(sp, { depth: depth - 0.04, bevelEnabled: false, curveSegments: 6 });
-  spand.deleteAttribute('uv');
-  spand.translate(0, 0, z0 + 0.02);
-  spand.computeVertexNormals();
-  out.core.push(tintGeometry(boxUV(spand), () => 0.8));
-  // The soffit: the passage's ceiling under the arch.
-  const vault = new CylinderGeometry(r - 0.005, r - 0.005, depth, lod === 0 ? 16 : 8, 1, true, -Math.PI / 2, Math.PI);
-  // (A half cylinder along z over the passage, seen from inside: its faces turned in.)
-  vault.rotateX(Math.PI / 2);
-  vault.rotateZ(Math.PI);
-  vault.scale(1, ky, 1);
-  vault.translate(0, spring, (z0 + z1) / 2);
-  out.core.push(tintGeometry(boxUV(flipFaces(vault)), () => 0.45));
-  // The walk's parapets over the gate, outside and in, crenellated outside.
-  out[facing].push(box(2 * gh, 0.45, 0.2, 0, walk, z1 - 0.1, 0.92));
-  out[facing].push(box(2 * gh, innerPar, 0.18, 0, walk, z0 + 0.09, 0.9));
-  out.stone.push(box(2 * gh, 0.05, depth - 0.38, 0, walk - 0.05, (z0 + z1) / 2, 0.85));
-  for (const f of [-0.6, 0, 0.6]) out[facing].push(box(0.4, Math.max(0.15, merlon - walk - 0.45), 0.2, f * gh, walk + 0.45, z1 - 0.1, 0.95));
-  // The passage's floor: big flags, worn.
-  out.flags.push(...paving(-gh, gh, z0, z1, 0.05, seed + 40, { rowW: 0.7, minL: 0.55, maxL: 0.95, lod }));
-  // The doors: two leaves of planks (their tops cut to the arch), hinged at the passage's sides.
-  // (Near the outer face: open, a leaf reaches back no further than the gate's inner face.)
-  const zd = z1 - 0.16;
-  for (const s of [-1, 1]) {
-    const leaf = new Shape();
-    // (Drawn for the right leaf, s = 1: from the passage's middle out to its side; the left is mirrored.)
-    const N = 8;
-    leaf.moveTo(0, 0.05);
-    leaf.lineTo(gh - 0.02, 0.05);
-    leaf.lineTo(gh - 0.02, spring);
-    for (let k = 1; k <= N; k++) {
-      const a = (k / N) * (Math.PI / 2);
-      leaf.lineTo(Math.cos(a) * (gh - 0.02), spring + Math.sin(a) * (rise - 0.03));
-    }
-    leaf.closePath();
-    for (const open of [false, true]) {
-      const g = new ExtrudeGeometry(leaf, { depth: 0.08, bevelEnabled: false, curveSegments: 4 });
-      g.deleteAttribute('uv');
-      g.translate(-(gh - 0.02), 0, -0.04);
-      if (s < 0) mirrorX([g]);
-      // Hinged at its outer edge (x = s * gh): open, it swings back toward the yard against the side.
-      if (open) g.rotateY(-s * D(88));
-      g.translate(s * (gh - 0.02), 0, zd);
-      g.computeVertexNormals();
-      tintGeometry(boxUV(g), (x, y) => 0.75 + 0.25 * Math.min(1, y / 0.5));
-      (open ? out.doorOpen : out.doorShut).push(g);
-      if (lod === 0) {
-        // Iron bands across the leaf.
-        for (const yy of [0.35, 1.0, 1.65]) {
-          const band = box(gh - 0.08, 0.06, 0.02, -(gh - 0.02) / 2, yy, 0.045, 0.8);
-          if (s < 0) mirrorX([band]);
-          if (open) band.rotateY(-s * D(88));
-          band.translate(s * (gh - 0.02), 0, zd);
-          (open ? out.studsOpen : out.studsShut).push(band);
-        }
-      }
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -872,7 +543,7 @@ export function draco(x, z, h, lod, out, colour) {
   out.cloth.push(sock);
 }
 
-/** The emperor's portrait (imago) on its pole: a bust in a gilt roundel. */
+/** A portrait shield (imago) on its pole: a bust in a gilt roundel; the Republic carried its founders' and gods' faces, not an emperor's. */
 export function imago(x, z, h, lod, out) {
   standardPole(x, z, h, lod, out);
   const y = h - 0.05;
@@ -1042,7 +713,7 @@ export const TANK_WATER = 'tank-water';
 /** The lists a fort is built into, by material key (and the gate's doors by state). */
 export function fortBag() {
   const keys = ['gravel', 'flags', 'ashlar', 'core', 'stone', 'turf', 'tile', 'clay', 'thatch', 'wood', 'plaster', 'red', 'dark', 'iron', 'bronze', 'marble',
-    'letters', 'water', 'leather', 'rope', 'straw', 'hay', 'paint', 'cloth', 'earth', 'doorOpen', 'doorShut', 'studsOpen', 'studsShut'];
+    'letters', 'water', 'leather', 'rope', 'straw', 'hay', 'paint', 'cloth', 'earth', 'doorOpen', 'doorShut', 'studsOpen', 'studsShut', 'tower', 'towerPaint', 'towerLetters'];
   return Object.fromEntries(keys.map((k) => [k, []]));
 }
 
@@ -1062,7 +733,7 @@ export function assemble(name, out, std, lod, lamps, { facing = 'ashlar' } = {})
   const mats = castraMaterials();
   // Far out, small fittings are under a pixel and each a draw call for every fort in view.
   if (lod === 2) {
-    out.iron = out.bronze = out.letters = out.rope = [];
+    out.iron = out.bronze = out.letters = out.towerLetters = out.rope = [];
     std.rope = [];
   }
   // Fewer materials, fewer draw calls (each part is one for every fort in view, and one more in the
@@ -1086,6 +757,10 @@ export function assemble(name, out, std, lod, lamps, { facing = 'ashlar' } = {})
   p.add('roof', mats.tile, out.tile);
   p.add('thatch', mats.thatch, out.thatch);
   p.add('wood', mats.wood, out.wood);
+  // The gate tower stands high over the rest: out of the click cover, or the men in the yard would be hidden behind it.
+  p.add('tower', mats.wood, out.tower, { cover: false });
+  p.add('tower-board', mats.paint, out.towerPaint, { cast: false, cover: false });
+  p.add('tower-letters', mats.letters, out.towerLetters, { cast: false, cover: false });
   p.add('walls', mats.plaster, out.plaster);
   p.add('dado', mats.red, out.red, small);
   p.add('inside', mats.dark, out.dark, small);
