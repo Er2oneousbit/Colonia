@@ -285,7 +285,7 @@ const DOMUS_LOOKS = [
 const SLIT_X = [-1.0, 1.0];
 
 /** The atrium roof: four slopes falling inward from the eaves to the compluvium's rim; returns nothing. */
-function atriumRoof(bag, { x0, x1, z0, z1, eaveY, zc, hx, hz, drop }, over = 0.15) {
+export function atriumRoof(bag, { x0, x1, z0, z1, eaveY, zc, hx, hz, drop }, over = 0.15) {
   const slopeOf = (run) => drop / run;
   // (The tiles ride 0.3 m above the wall tops (the slope falls 0.2 m across a wall's thickness), so the walls' flat tops do not show as a rim round the roof.)
   eaveY += 0.3;

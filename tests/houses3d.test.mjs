@@ -1,5 +1,5 @@
 /**
- * houses3d.test.mjs - the 3D homes: tent, family tent, lean-to, hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement (node:test)
+ * houses3d.test.mjs - the 3D homes: tent, family tent, lean-to, hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement, the four 3 x 3 villas (node:test)
  * ----------------------------------------------------------------------------
  * Run:  npm test
  *
@@ -30,6 +30,11 @@ import { VARIANTS } from '../src/render3d/models/houseKit.js';
 import { HOUSE_TIERS } from '../src/data/housing.js';
 
 const KINDS = Object.keys(HOUSE_LEVELS);
+/** The four 3 x 3 villas (housesGrand.js) and their levels. */
+const GRAND = ['villa', 'vmarble', 'mansion', 'palatium'];
+const GRAND_TIERS = [15, 16, 17, 18];
+/** A kit's footprint in tiles: the villas 3, the tenement and its roof and the plot 2, the rest 1. */
+const tilesOf = (kind) => (GRAND.includes(kind) ? 3 : kind === 'ten' || kind === 'tenroof' || kind === 'plot' ? 2 : 1);
 const home = (tier, extra = {}) => ({ id: 7, type: 'house', size: HOUSE_TIERS[tier].size, house: { tier, pop: 5 }, ...extra });
 const triOf = (g) => {
   let n = 0;
@@ -44,18 +49,24 @@ test('houses3d: eleven levels have a model; the others keep their sprite', () =>
     const b = home(tier);
     if (MODELS.house.fits(b)) drawn.push(tier);
   }
-  assert.deepEqual(drawn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 'tent, family tent, lean-to, hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement');
-  assert.deepEqual(Object.values(HOUSE_LEVELS), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-  assert.deepEqual(KINDS.map((k) => HOUSE_TIERS[HOUSE_LEVELS[k]].name), ['Tent', 'Family Tent', 'Lean-to', 'Hut', 'Cottage', 'Stone Cottage', 'Townhouse', 'Merchant House', 'Domus', 'Apartment House', 'Tenement']);
+  assert.deepEqual(drawn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18], 'tent, family tent, lean-to, hut, cottage, stone cottage, townhouse, merchant house, domus, apartment house, tenement, the four villas');
+  assert.deepEqual(Object.values(HOUSE_LEVELS), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18]);
+  assert.deepEqual(KINDS.map((k) => HOUSE_TIERS[HOUSE_LEVELS[k]].name), ['Tent', 'Family Tent', 'Lean-to', 'Hut', 'Cottage', 'Stone Cottage', 'Townhouse', 'Merchant House', 'Domus', 'Apartment House', 'Tenement', 'Peristyle Villa', 'Marble Villa', 'Mansion', 'Palatium']);
   assert.equal(HOUSE_TIERS[11].size, 2);
   // A joined block of four single-tile homes is still drawn (as four); a lone tenement must be 2 x 2.
   assert.ok(MODELS.house.fits(home(5, { size: 2 })));
   assert.ok(!MODELS.house.fits(home(11, { size: 1 })));
+  // The villas are 3 x 3 and nothing else: a smaller footprint (a villa that has not grown) keeps its sprite.
+  for (const t of GRAND_TIERS) {
+    assert.equal(HOUSE_TIERS[t].size, 3);
+    assert.ok(MODELS.house.fits(home(t)));
+    assert.ok(!MODELS.house.fits(home(t, { size: 2 })) && !MODELS.house.fits(home(t, { size: 4 })), `tier ${t}`);
+  }
   assert.ok(!MODELS.house.fits({ id: 1, type: 'house', size: 1 }), 'a building with no home record keeps its sprite');
 });
 
 test('houses3d: a home\'s look is a stable hash of its id, all looks used, each level and cell its own', () => {
-  const level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const level = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ...GRAND_TIERS];
   const seen = level.map(() => new Array(VARIANTS).fill(0));
   for (let id = 1; id <= 400; id++) {
     level.forEach((t, i) => {
@@ -83,7 +94,7 @@ test('houses3d: every look fits its footprint at every turn and level of detail,
   const e = 1e-6;
   for (const key of houseKeys()) {
     const [, kind] = key.split(':');
-    const S = kind === 'ten' || kind === 'tenroof' || kind === 'plot' ? 2 : 1;
+    const S = tilesOf(kind);
     for (let lod = 0; lod < 3; lod++) {
       const g = buildHouse(key, lod);
       g.updateMatrixWorld(true);
@@ -92,6 +103,8 @@ test('houses3d: every look fits its footprint at every turn and level of detail,
         const b = local.clone().applyMatrix4(modelMatrix(20, 9, S, T, 0));
         assert.ok(b.min.x >= 20 - e && b.max.x <= 20 + S + e && b.min.z >= 9 - e && b.max.z <= 9 + S + e, `${key} lod ${lod} turn ${T}: ${JSON.stringify(b)}`);
         assert.ok(b.min.y > -0.003 && b.max.y < (kind === 'ten' ? 3.5 : 3.0), `${key} lod ${lod}: ${b.min.y} to ${b.max.y} tiles high`);
+        // (A villa's highest roof stands 7 to 9 m: 1.75 to 2.25 tiles.)
+        if (GRAND.includes(kind) && lod === 0) assert.ok(b.max.y >= 1.74 && b.max.y <= 2.27, `${key}: ${b.max.y * 4} m to the highest roof`);
       }
     }
   }
@@ -113,13 +126,17 @@ test('houses3d: each level of detail is lighter than the one before; the far one
     // (The lot and the plot are a few boxes at every level.)
     if (/lot|plot/.test(key)) assert.ok(t[2] <= t[0] && t[0] <= 260, `${key}: ${t}`);
     else assert.ok(t[0] > t[1] && t[1] > t[2], `${key}: ${t}`);
-    assert.ok(t[2] <= (kind === 'ten' ? 560 : 320), `${key}: ${t[2]} triangles far out`);
-    assert.ok(t[0] < (kind === 'ten' ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
+    assert.ok(t[2] <= (kind === 'ten' ? 560 : GRAND.includes(kind) ? 1700 : 320), `${key}: ${t[2]} triangles far out`);
+    // (A villa is 12 m of tiled roofs: the tenement's allowance and a half. A few stand in a city, not hundreds.)
+    assert.ok(t[0] < (kind === 'ten' ? 30000 : GRAND.includes(kind) ? 30000 : 12000), `${key}: ${t[0]} triangles close up`);
   }
   // Each level is clearly richer than the one below at the middle level of detail (more to see in the facade).
   const mid = (kind) => [0, 1, 2, 3].reduce((s, v) => s + triOf(buildHouse(`house:${kind}:${v}`, 1)), 0) / 4;
   // (The cottage's yard walls and fig make it richer than the plain stone cottage, so the new kinds are checked among themselves.)
   assert.ok(mid('stone') < mid('domus') && mid('domus') < mid('merch'), 'the stone cottage, the domus and the merchant house climb');
+  // The four villas climb: the marble villa has the peristyle villa's plan and more, the mansion and the palatium more again.
+  assert.ok(mid('villa') < mid('vmarble') && mid('vmarble') < mid('mansion'), 'the villas climb');
+  assert.ok(mid('villa') < mid('palatium') && mid('ten') < mid('villa'), 'the palatium is richer than the first villa, which is richer than the tenement');
   assert.ok(mid('hut') < mid('cottage') + 1 && mid('cottage') < mid('town') && mid('town') < mid('apt') && mid('apt') < mid('ten'), 'richer up the ladder');
 });
 
@@ -150,7 +167,7 @@ test('houses3d: occupied or empty from the sim, a block as a plot of four homes,
 });
 
 test('houses3d: shutters, doors and shop boards swap with the state; every tagged part shows somewhere', () => {
-  for (const key of houseKeys().filter((k) => /:(tent|ftent|lean|hut|cottage|stone|town|merch|domus|apt|ten):/.test(k))) {
+  for (const key of houseKeys().filter((k) => /:(tent|ftent|lean|hut|cottage|stone|town|merch|domus|apt|ten|villa|vmarble|mansion|palatium):/.test(k))) {
     const g = buildHouse(key, 0);
     const whens = new Set();
     g.traverse((o) => { if (o.isMesh) whens.add(o.userData.when); });
@@ -171,14 +188,14 @@ test('houses3d: shutters, doors and shop boards swap with the state; every tagge
 
 test('houses3d: a few people only near, only while lived in, inside the footprint', () => {
   const v = (b, ctx) => MODELS.house.variant(b, { snow: 0 }, ctx);
-  for (const tier of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
+  for (const tier of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ...GRAND_TIERS]) {
     const b = home(tier);
     assert.equal(v(b, null).actors, undefined, `${tier}: no people for a ghost or a test`);
     assert.equal(v(b, { peopleOn: true, people: { lod: 2 } }).actors, undefined, `${tier}: none from far`);
     assert.equal(v(b, { peopleOn: false, people: { lod: 0 } }).actors, undefined);
     assert.equal(v({ ...b, house: { tier, pop: 0 } }, NEAR).actors, undefined, `${tier}: nobody in an empty home`);
     const near = v(b, NEAR).actors;
-    assert.ok(near && near.actors.length >= 1 && near.actors.length <= 4, `${tier}: a few people (${near && near.actors.length})`);
+    assert.ok(near && near.actors.length >= 1 && near.actors.length <= (GRAND_TIERS.includes(tier) ? 5 : 4), `${tier}: a few people (${near && near.actors.length})`);
     assert.equal(v(b, { peopleOn: true, people: { lod: 1 } }).actors, near, 'the same cast, packed once');
     // About half of a home's people are out, a different few by its id: not the same two at every door.
     const sizes = new Set([...Array(30).keys()].map((i) => v(home(tier, { id: i + 1 }), NEAR).actors.actors.length));
@@ -187,7 +204,7 @@ test('houses3d: a few people only near, only while lived in, inside the footprin
   // A block: each of its four homes has its people, in its own cell.
   assert.ok(v(home(5, { size: 2, id: 3 }), NEAR).actors.actors.length >= 2);
   for (const kind of KINDS) {
-    const S = kind === 'ten' ? 4 : 2;
+    const S = 2 * tilesOf(kind);
     for (let var1 = 0; var1 < VARIANTS; var1++) {
       for (const a of peopleOf(kind, var1)) {
         assert.ok(Math.abs(a.at[0]) < S + 0.05 && Math.abs(a.at[2]) < S + 0.05, `${kind} ${var1}: a person at ${a.at}`);
@@ -223,6 +240,18 @@ test('houses3d: lamps only in a lived-in home, a window here and there by hash, 
       for (const [x, y, z] of l) assert.ok(Math.abs(x) < 2 && y > 0.5 && y < 5 && z > 0.8 && z < 2, `${tier}: ${x}, ${y}, ${z}`);
     }
     assert.ok(lit > 0, `tier ${tier} lights some windows`);
+    assert.deepEqual(MODELS.house.lamps(home(tier, { house: { tier, pop: 0 } })), []);
+  }
+  // The villas light the door, a shop or a window of the front, inside their 12 m, only while lived in.
+  for (const tier of GRAND_TIERS) {
+    let n = 0;
+    for (let id = 1; id <= 40; id++) {
+      const l = lit_(tier, id);
+      n += l.length;
+      for (const [x, y, z] of l) assert.ok(Math.abs(x) < 6 && y > 0.8 && y < 8 && z > 3 && z < 6, `${tier}: ${x}, ${y}, ${z}`);
+      for (const T of [0, 1, 2, 3]) for (const [u, v] of modelLamps(home(tier, { id }), T)) assert.ok(u >= 0 && u <= 3 && v >= 0 && v <= 3, `${tier}: ${u}, ${v}`);
+    }
+    assert.ok(n > 0, `tier ${tier} lights some windows`);
     assert.deepEqual(MODELS.house.lamps(home(tier, { house: { tier, pop: 0 } })), []);
   }
   // Tenement and block lamps stay inside the footprint.
@@ -264,4 +293,21 @@ test('houses3d: no home shows bare brick or a chimney (the games are set in the 
     g.traverse((o) => { if (o.isMesh) names.push(o.material?.name || ''); });
     assert.ok(!names.includes('brick'), `${key} uses the brick material`);
   }
+});
+
+test('houses3d: a gabled ridge off the middle of its house carries its ridge roll with it', () => {
+  // (houseKit.js ridgeRoll once mirrored a ridge along z about z = 0: the villa's tablinum, on z 0.6 to 2.4, grew a roll on z -2.4 to -0.6 floating in the air.)
+  const top = (key, above) => {
+    const zs = [];
+    buildHouse(key, 0).traverse((o) => {
+      if (!o.isMesh || o.name !== 'roof') return;
+      const p = o.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) if (p.getY(i) > above) zs.push(p.getZ(i));
+    });
+    return [Math.min(...zs), Math.max(...zs)];
+  };
+  const [a, b] = top('house:villa:0', 6.6);
+  assert.ok(a > 0.4 && b < 2.7, `the tablinum's ridge lies over its hall: z ${a} to ${b}`);
+  const [c, d] = top('house:palatium:0', 8.3);
+  assert.ok(c > 0.6 && d < 3.9, `the nave's ridge lies over the nave: z ${c} to ${d}`);
 });

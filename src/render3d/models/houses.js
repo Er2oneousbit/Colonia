@@ -17,6 +17,10 @@
  *   level 9   Domus            1 x 1   models/housesStone.js
  *   level 10  Apartment House  1 x 1   models/housesTall.js
  *   level 11  Tenement         2 x 2   models/housesTall.js
+ *   level 15  Peristyle Villa  3 x 3   models/housesGrand.js
+ *   level 16  Marble Villa     3 x 3   models/housesGrand.js
+ *   level 17  Mansion          3 x 3   models/housesGrand.js
+ *   level 18  Palatium         3 x 3   models/housesGrand.js
  *
  * Each has VARIANTS looks, picked by a stable hash of the building's id (the
  * same home looks the same after a reload; a street of the same level is not
@@ -44,6 +48,7 @@ import { buildHut, buildCottage, HUT, COTTAGE, HUT_LAMPS, COTTAGE_LAMPS } from '
 import { STONE_BUILDERS, stonePeople, stoneLamps } from './housesStone.js';
 import { buildTent, buildFamilyTent, buildLeanTo, TENT_LOOKS, FTENT_LOOKS, LEAN_LOOKS, LEAN_HEARTH, TENT_LAMPS, FTENT_LAMPS, LEAN_LAMPS } from './housesTents.js';
 import { buildTownhouse, buildApartment, buildTenement, buildTenementRoof, TOWNHOUSE, APARTMENT, TENEMENT, townLamps, apartmentLamps, tenementLamps } from './housesTall.js';
+import { GRAND_BUILDERS, grandPeople, grandLamps } from './housesGrand.js';
 
 /** The housing level (data/housing.js) each model draws, by its kind. */
 export const HOUSE_LEVELS = Object.freeze({
@@ -58,6 +63,10 @@ export const HOUSE_LEVELS = Object.freeze({
   domus: 9,
   apt: 10,
   ten: 11,
+  villa: 15,
+  vmarble: 16,
+  mansion: 17,
+  palatium: 18,
 });
 const KIND_OF = Object.freeze(Object.fromEntries(Object.entries(HOUSE_LEVELS).map(([k, t]) => [t, k])));
 
@@ -75,6 +84,8 @@ export function houseKind(b) {
   if (!b.house) return null;
   const kind = KIND_OF[b.house.tier];
   if (!kind) return null;
+  // The four great villas are 3 x 3.
+  if (GRAND_BUILDERS[kind]) return b.size === 3 ? kind : null;
   // A tenement is one 2 x 2 home; the lower levels are one tile, or a joined block of four.
   if (kind === 'ten') return b.size === 2 ? kind : null;
   return b.size === 1 || b.size === 2 ? kind : null;
@@ -106,6 +117,9 @@ const BUILDERS = { tent: buildTent, ftent: buildFamilyTent, lean: buildLeanTo, h
 
 // The stone cottage, the merchant house and the domus (housesStone.js).
 Object.assign(BUILDERS, STONE_BUILDERS);
+
+// The peristyle and marble villas, the mansion and the palatium (housesGrand.js).
+Object.assign(BUILDERS, GRAND_BUILDERS);
 
 /** The tenement's roof, shared by its four looks: one more kit in the look's `more`. */
 const TEN_ROOF = Object.freeze([Object.freeze({ key: 'house:tenroof:0', n: 1, mats: new Float32Array(new Matrix4().toArray()), state: 'always' })]);
@@ -141,6 +155,7 @@ function moved(list, ox, oz) {
 export function peopleOf(kind, v) {
   const s = 400 + v * 7;
   if (STONE_BUILDERS[kind]) return stonePeople(kind, v);
+  if (GRAND_BUILDERS[kind]) return grandPeople(kind, v);
   switch (kind) {
     case 'tent': {
       // By the fire: a woman at the pot (or by it, where it is only stones), a man or a child on a log or about.
@@ -245,6 +260,7 @@ function castOf(kind, vs, mask) {
 /** The windows a home may light, by kind and look: [x, y, z, s] each (models.js modelLamps). */
 function windowsOf(kind, v) {
   if (STONE_BUILDERS[kind]) return stoneLamps(kind, v);
+  if (GRAND_BUILDERS[kind]) return grandLamps(kind, v);
   switch (kind) {
     case 'tent': return [TENT_LAMPS[v]];
     case 'ftent': return [FTENT_LAMPS[v]];
@@ -340,3 +356,6 @@ export const HOUSE_MODELS = Object.freeze({
     },
   }),
 });
+
+// The great villas warm with the rest (one look each: they share their programs).
+HOUSE_MODELS.house.warm.push('house:villa:0', 'house:vmarble:0', 'house:mansion:0', 'house:palatium:0');
