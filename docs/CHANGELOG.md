@@ -2,6 +2,11 @@
 
 Every release, newest first: what changed and why, with what was measured. The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.17
+
+* **The last sprites among the models** (under WebGL): the trade dock, the shipyard and the fishing wharf are 3D, so every building the player can build is a model. The Emporium is a terrace of tufa ashlar with a plastered shed open to the quay holding the goods in transit as loads, a stone quay and a timber jetty on piles where the merchant ship ties up, a shear-legs crane, a customs table with a clerk, dockers carrying, lanterns at night; the shipyard a small slip with the fishing boat lofted from the game's own hull in four stages, its timber as loads, a pitch kettle smoking, a mast and oars seasoning on trestles; the wharf a timber deck on piles with the catch in baskets, a gutting table, net frames, a smoke house and a man mending a net. Arrows, sling stones and fire pots in flight are quads of shared textures rather than a Canvas2D cell each. The prefecture is plastered rubble over a tufa footing with a red dado and a cut tufa tablet, and the engineer's post stacks sun-dried mudbricks: nothing in the city says fired brick any more.
+* 1470 unit tests
+
 ## v0.30.16
 
 * **The Grand Palatium and the Imperial Palatium in 3D** (under WebGL), the two 4 x 4 homes and the top of the ladder, four looks each, after the House of the Faun at Pompeii: a long street front of shops and a great door with HAVE on its threshold, two atria (a Tuscan one and a tetrastyle one) and the tablinum with its mosaic floor between them, a first peristyle with a bronze faun and a second, larger one with a long pool, figs and cypresses, a loggia on the back range; the Imperial one as the governor's own house, with an Ionic porch and a forecourt of fountain and statues, marble peristyles, a belvedere tower, a summer dining pavilion and a garden gate. Every one of the twenty home levels is a model now.
