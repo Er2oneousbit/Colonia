@@ -31,6 +31,7 @@ import { OVER_WATER_ART } from '../sim/entities.js';
 import { monumentLook } from '../sim/monumentEffects.js';
 import { hippodromeArt, chariotMakerArt } from './hippodromeArt.js';
 import { nativeHutArt, nativeMeetingArt, nativeCropsArt, missionPostArt } from './nativeArt.js';
+import { grandHomeArt } from './grandHomeArt.js';
 import { MONUMENT_ART, MONUMENT_HEIGHT, MONUMENT_SHADOW, revolve } from './monumentArt.js';
 
 const TH = CONFIG.TILE_H;
@@ -339,7 +340,7 @@ function fence(ctx, u0, v0, color = COL.wood) {
 
 /**
  * A home: `tier` is its level (0 = vacant lot). Levels 1-10 are single-tile
- * homes (a 2x2 block of them is drawn as four), 11-12 insulae, 13-18 villas
+ * homes (a 2x2 block of them is drawn as four), 11 a tenement, 12 an insula, 13-18 villas
  * (2x2, then 3x3) and 19-20 palaces (4x4).
  */
 function houseArt(ctx, S, variant, tier) {
@@ -358,9 +359,8 @@ function houseArt(ctx, S, variant, tier) {
   }
   if (native === 1) { smallHouse(ctx, variant, tier); return; }
   if (tier === 11) { smallTenement(ctx, S, variant); return; }
-  if (tier <= 12) { insulaArt(ctx, S, variant, tier === 12); return; }
-  if (tier <= 18) { villaArt(ctx, S, variant, tier - 13); return; }
-  palaceArt(ctx, S, variant, tier - 19);
+  if (tier >= 12) { grandHomeArt(ctx, S, variant, tier); return; } // the insula and the great homes: grandHomeArt.js
+  insulaArt(ctx, S, variant, false);
 }
 
 // --- Helpers for the single-tile homes (tiers 1 to 11), named after the 3D models' details. ---
@@ -863,156 +863,6 @@ function insulaArt(ctx, S, variant, grand) {
       ctx.fillStyle = k % 2 ? '#4f8a3c' : '#5f9a48';
       ctx.beginPath(); ctx.arc(x, y - 2, 3, 0, Math.PI * 2); ctx.fill();
     }
-  }
-}
-
-/**
- * Villas around a courtyard with a pool. `grade` 0-1 are the 2x2 Villa and
- * Garden Villa, 2-5 the 3x3 Peristyle Villa, Marble Villa, Mansion and
- * Palatium: marble walls from grade 3, taller halls, more columns, gold
- * accents from grade 4 and a dome on the Palatium.
- */
-function villaArt(ctx, S, variant, grade) {
-  const small = S < 3;
-  const marble = grade >= 3;
-  const wall = marble ? COL.marble : houseWall(variant);
-  const roof = grade >= 4 ? '#a8513a' : ROOFS[variant % 2 ? 2 : 0];
-  const alt = (variant >> 2) & 1;
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#7fa956');
-  // garden path
-  quad(ctx, S * 0.52, S * 0.52, S * 0.6, S - 0.1, 0, COL.paving);
-  // back wing
-  const d = small ? 0.7 : 0.85;
-  const wingH = small ? (grade >= 1 ? 17 : 14) : grade >= 3 ? 24 : 16;
-  box(ctx, 0.12, 0.12, S - 0.24, d, 0, wingH, wall);
-  gableRoof(ctx, 0.12, 0.12, S - 0.24, d, wingH, small ? 7 : 9, roof, 'u');
-  // side wing
-  const sideH = small ? 12 : 16;
-  box(ctx, 0.12, 0.12 + d, d, S - 0.45 - d, 0, sideH, shade(wall, -0.03));
-  gableRoof(ctx, 0.12, 0.12 + d, d, S - 0.45 - d, sideH, small ? 6 : 8, shade(roof, -0.05), 'v');
-  // courtyard pool
-  const pool = small ? 0.36 : grade >= 3 ? 0.7 : 0.5;
-  const pu = S * 0.62;
-  const pv = S * 0.5 + (small ? 0.25 : 0.2);
-  quad(ctx, pu - pool / 2, pv - pool / 2, pu + pool / 2, pv + pool / 2, 0, '#e4dccb');
-  quad(ctx, pu - pool / 2 + 0.06, pv - pool / 2 + 0.06, pu + pool / 2 - 0.06, pv + pool / 2 - 0.06, 0.5, COL.water);
-  // peristyle columns along the courtyard edge
-  const cu = 0.12 + d + 0.08;
-  const cv = 0.12 + d + 0.05;
-  colonnade(ctx, cu, cv, S - 0.15, cv, small ? 3 : grade >= 3 ? 6 : 4, 0, small ? 11 : 14, COL.marble, small ? 1.3 : 1.6);
-  if (grade === 1) {
-    // Garden Villa: flower beds and a fruit tree in the court
-    quad(ctx, S - 0.55, 1.0, S - 0.15, 1.3, 0, '#5d8a3e');
-    for (let k = 0; k < 3; k++) { const [x, y] = P(S - 0.5 + k * 0.14, 1.18); ctx.fillStyle = k % 2 ? '#d9534f' : '#f0c24a'; ctx.fillRect(x - 0.8, y - 1.6, 1.6, 1.4); }
-    tree(ctx, S - 0.35, S - 0.75, 0.5, '#4f8a3c', '#6b4a2a', variant + 3);
-  }
-  if (alt) {
-    // clipped hedges along the front and a statue in the garden
-    box(ctx, 1.05, S - 0.2, S - 1.2, 0.12, 0, 4, '#4f7a3a', { top: '#5f8f46' });
-    const [sx, sy] = P(S - 0.5, S - 0.55);
-    ctx.fillStyle = COL.stone;
-    ctx.fillRect(sx - 2.5, sy - 3, 5, 3);
-    ctx.fillStyle = '#ece6d8';
-    ctx.fillRect(sx - 1.2, sy - 10, 2.4, 7);
-    ctx.beginPath(); ctx.arc(sx, sy - 11, 1.6, 0, Math.PI * 2); ctx.fill();
-    cypress(ctx, 1.2, S - 0.35, small ? 0.6 : 0.75);
-  } else {
-    cypress(ctx, S - 0.3, S - 0.35, small ? 0.65 : 0.8);
-    tree(ctx, 1.25, S - 0.3, small ? 0.55 : 0.7, '#4f8a3c', '#6b4a2a', variant);
-  }
-  if (grade === 4) {
-    // Mansion: gilded finials on the gable ends of the hall
-    for (const u of [0.1, S - 0.14]) {
-      const [x, y] = P(u, 0.12 + d / 2, wingH + 9);
-      ctx.fillStyle = COL.gold;
-      ctx.fillRect(x - 1, y - 4, 2, 4);
-    }
-  }
-  if (grade >= 5) {
-    // Palatium: a dome and golden accents on the main wing
-    const [x, y] = P(S * 0.5, 0.55, wingH + 8);
-    ctx.fillStyle = '#e9e4d8';
-    ctx.beginPath(); ctx.ellipse(x, y, 13, 7, 0, Math.PI, 0); ctx.fill();
-    ctx.fillStyle = '#d6cfbf';
-    ctx.beginPath(); ctx.ellipse(x, y, 13, 3, 0, 0, Math.PI); ctx.fill();
-    ctx.fillStyle = COL.gold;
-    ctx.fillRect(x - 1, y - 11, 2, 4);
-  }
-  if (grade >= 4) colonnade(ctx, 0.2, cv, 0.9, cv, 4, 0, 18, COL.marble, 1.6);
-}
-
-/**
- * Palaces (4x4): a domed hall across the back, a long wing on the left, a
- * paved court with colonnades, a fountain pool and statues. `grade` 1 (the
- * Imperial Palatium) adds gilding, a larger dome and a second fountain.
- */
-function palaceArt(ctx, S, variant, grade) {
-  const alt = (variant >> 2) & 1;
-  const wall = COL.marble;
-  const roof = grade ? '#9c4a36' : '#a8513a';
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#7fa956');
-  quad(ctx, 1.15, 1.25, S - 0.2, S - 0.2, 0, COL.paving);
-  // hall across the back
-  const hd = 1.0;
-  const hallH = grade ? 34 : 30;
-  box(ctx, 0.12, 0.12, S - 0.24, hd, 0, hallH, wall);
-  gableRoof(ctx, 0.12, 0.12, S - 0.24, hd, hallH, 11, roof, 'u');
-  windows(ctx, 'right', 0.12, 0.12, S - 0.12, 0.12 + hd, 0, 2, 2, '#4a3a2a', { z: 8, h: 6, gap: 12 });
-  // long wing on the left
-  const wingH = grade ? 24 : 22;
-  box(ctx, 0.12, 0.12 + hd, 0.9, S - 0.45 - hd, 0, wingH, shade(wall, -0.03));
-  gableRoof(ctx, 0.12, 0.12 + hd, 0.9, S - 0.45 - hd, wingH, 9, shade(roof, -0.05), 'v');
-  windows(ctx, 'left', 0.12, 0.12 + hd, 1.02, S - 0.33, 0, 1, 2, '#4a3a2a', { z: 8, h: 6 });
-  // dome on the hall
-  const [x, y] = P(S * 0.52, 0.62, hallH + 10);
-  const r = grade ? 18 : 15;
-  ctx.fillStyle = '#ece7db';
-  ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.55, 0, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = '#d6cfbf';
-  ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.22, 0, 0, Math.PI); ctx.fill();
-  ctx.fillStyle = COL.gold;
-  ctx.fillRect(x - 1.2, y - r * 0.55 - 5, 2.4, 5);
-  if (grade) {
-    ctx.fillStyle = shade(COL.gold, -0.1);
-    ctx.fillRect(x - r, y - 1, r * 2, 1.6); // gilded ring at the dome's foot
-  }
-  // colonnades facing the court
-  colonnade(ctx, 1.2, 1.2, S - 0.2, 1.2, 8, 0, 18, COL.marble, 1.7);
-  colonnade(ctx, 1.1, 1.45, 1.1, S - 0.4, 5, 0, 16, COL.marble, 1.6);
-  // fountain pool in the court
-  const pu = S * 0.62;
-  const pv = S * 0.62;
-  const pool = grade ? 1.0 : 0.85;
-  quad(ctx, pu - pool / 2, pv - pool / 2, pu + pool / 2, pv + pool / 2, 0, '#e4dccb');
-  quad(ctx, pu - pool / 2 + 0.07, pv - pool / 2 + 0.07, pu + pool / 2 - 0.07, pv + pool / 2 - 0.07, 0.5, COL.water);
-  // garden beds either side of the pool
-  for (const [u0, v0, u1, v1] of [[1.45, pv - 0.3, pu - pool / 2 - 0.15, pv + 0.3], [pu - 0.3, 1.5, pu + 0.3, pv - pool / 2 - 0.15]]) {
-    quad(ctx, u0, v0, u1, v1, 0, '#5d8a3e');
-    for (let k = 0; k < 3; k++) {
-      const [bx, by] = P(u0 + ((u1 - u0) * (k + 0.5)) / 3, v0 + ((v1 - v0) * (k + 0.5)) / 3);
-      ctx.fillStyle = (k + variant) % 3 ? '#4f7a3a' : '#d9534f';
-      ctx.beginPath(); ctx.arc(bx, by - 1.6, 1.8, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-  const [fx, fy] = P(pu, pv, 1);
-  ctx.fillStyle = COL.marble;
-  ctx.fillRect(fx - 1.5, fy - 7, 3, 7);
-  ctx.fillStyle = grade ? COL.gold : '#d6cfbf';
-  ctx.fillRect(fx - 3, fy - 8, 6, 1.6);
-  // statues on the court corners and cypresses along the front
-  for (const [u, v] of [[S - 0.45, 1.55], [1.5, S - 0.45]]) {
-    const [sx, sy] = P(u, v);
-    ctx.fillStyle = COL.stone;
-    ctx.fillRect(sx - 2.5, sy - 3, 5, 3);
-    ctx.fillStyle = grade ? COL.gold : '#ece6d8';
-    ctx.fillRect(sx - 1.2, sy - 10, 2.4, 7);
-    ctx.beginPath(); ctx.arc(sx, sy - 11, 1.6, 0, Math.PI * 2); ctx.fill();
-  }
-  if (alt) {
-    box(ctx, 1.3, S - 0.18, S - 1.5, 0.1, 0, 4, '#4f7a3a', { top: '#5f8f46' });
-  } else {
-    cypress(ctx, S - 0.3, S - 0.3, 0.85);
-    cypress(ctx, 0.35, S - 0.3, 0.8);
   }
 }
 
