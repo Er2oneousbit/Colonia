@@ -23,7 +23,7 @@ import { GOODS } from '../data/goods.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { UNIT_TYPES } from '../data/units.js';
 import { GODS } from '../data/gods.js';
-import { P, poly, quad, ground, box, gableRoof, hipRoof, colonnade, windows, door, shade, mix, tree, bareTree, cypress, hash01, horse, setRoofSnow, roofSnowAmount, SNOW } from './draw.js';
+import { P, poly, quad, ground, box, gableRoof, hipRoof, column, colonnade, windows, door, shade, mix, tree, bareTree, cypress, hash01, horse, setRoofSnow, roofSnowAmount, SNOW } from './draw.js';
 import { drawTurned, drawTurnedOver, withOrigin, turnUV, unit, decal, TS } from './turn.js';
 import { shipyardArt, wharfArt, turner, turnedRect, paint, overWater, pierDeck } from './waterArt.js';
 import { navaliaArt, stationArt, portusArt } from './navyArt.js';
@@ -31,7 +31,7 @@ import { OVER_WATER_ART } from '../sim/entities.js';
 import { monumentLook } from '../sim/monumentEffects.js';
 import { hippodromeArt, chariotMakerArt } from './hippodromeArt.js';
 import { nativeHutArt, nativeMeetingArt, nativeCropsArt, missionPostArt } from './nativeArt.js';
-import { MONUMENT_ART, MONUMENT_HEIGHT, MONUMENT_SHADOW } from './monumentArt.js';
+import { MONUMENT_ART, MONUMENT_HEIGHT, MONUMENT_SHADOW, revolve } from './monumentArt.js';
 
 const TH = CONFIG.TILE_H;
 
@@ -59,6 +59,14 @@ export const COL = Object.freeze({
   iron: '#6f7680',
   slate: '#6d7480',
   sand: '#dcc58e',
+  // The Republic's building stone and finish (the period 3D models): grey-yellow tufa, white-cream
+  // plaster over it, the red dado painted along its foot, sun-dried mudbrick and turf.
+  tufa: '#bdae88',
+  tufaDark: '#9a8b68',
+  plaster: '#ebe0c6',
+  dado: '#a4472f',
+  mudbrick: '#b38d5c',
+  turf: '#6d8a47',
 });
 
 /** The care step (sim/gardens.js) from which a garden or statue looks untended: 60% of its bonus or less. */
@@ -87,9 +95,9 @@ const HEIGHT = {
 const SHADOW = {
   well: 0.15, fountain: 0.2, reservoir: 0.25, garden: 0.15, plaza: 0, market: 0.3, horse_ranch: 0.25,
   clay_pit: 0.08, iron_mine: 0.45, marble_quarry: 0.35, dock: 0.35, statue_small: 0.35, statue_medium: 0.6,
-  statue_large: 0.9, triumphal_arch: 0.9, tower: 1.15, senate: 1.1, colosseum: 1.05, amphitheater: 0.7, theater: 0.55, granary: 0.8,
-  warehouse: 0.4, barracks: 0.55, fort_legion: 0.5, fort_archer: 0.5, fort_cavalry: 0.5, engineer_post: 0.45, gardener_yard: 0.3,
-  prefecture: 0.45, shipyard: 0.3, wharf: 0.25, hippodrome: 0.35, hippodrome_part: 0.35, chariot_maker: 0.45,
+  statue_large: 0.9, triumphal_arch: 0.9, tower: 1.15, senate: 0.75, colosseum: 0.8, amphitheater: 0.7, theater: 0.55, granary: 0.8,
+  warehouse: 0.4, barracks: 0.55, fort_legion: 0.35, fort_archer: 0.35, fort_cavalry: 0.35, engineer_post: 0.45, gardener_yard: 0.3,
+  prefecture: 0.4, shipyard: 0.3, wharf: 0.25, hippodrome: 0.35, hippodrome_part: 0.35, chariot_maker: 0.45,
   navalia: 0.4, naval_station: 0.55, portus: 0.3, military_academy: 0.5, governor_house: 0.55, governor_villa: 0.75, governor_palace: 1.0,
   native_crops: 0.05, native_hut: 0.5, native_meeting: 0.4,
   ...MONUMENT_SHADOW,
@@ -210,11 +218,9 @@ let liveFlags = false;
 const FLAG_SPECS = {
   prefecture: () => [{ u: 0.86, v: 0.3, z: 16, h: 12, w: 6, ch: 5, color: '#c0392b' }],
   forum: () => [{ u: 1.35, v: 1.3, z: 4, h: 12, w: 5.5, ch: 4, color: '#a8322b' }],
-  senate: (S) => [
-    { u: 0.4, v: S - 0.4, z: 36, h: 14, w: 6.5, ch: 4.5, color: '#6b3fa0' },
-    { u: S - 0.4, v: 0.4, z: 36, h: 14, w: 6.5, ch: 4.5, color: '#6b3fa0' },
-  ],
-  colosseum: (S) => [-40, 0, 40].map((dx) => ({ x: dx, y: (S * TH) / 2 - 74, h: 12, w: 6.5, ch: 4, color: '#a8322b' })),
+  senate: (S) => [{ u: S / 2, v: 0.75, z: 49, h: 14, w: 6.5, ch: 4.5, color: '#6b3fa0' }], // on the ridge's back end
+  // on the awning's masts at the rim of the top tier (colosseumArt: crest 33 px over the middle)
+  colosseum: (S) => [[-62, 0.79], [0, 0], [62, 0.79]].map(([dx, k]) => ({ x: dx, y: (S * TH) / 2 - 33 - 0.92 * S * 14 * 0.78 * k, h: 12, w: 6.5, ch: 4, color: '#a8322b' })),
   // The governor's banners (GOV.banner): at his gate, on his roof, on every wing of the palace.
   governor_house: (S) => [S * 0.42 - 0.12, S * 0.42 + 1.02].map((u) => ({ u, v: S - 0.32, z: 7, h: 13, w: 5.5, ch: 7, color: GOV.banner })),
   governor_villa: (S) => [1.1, S - 0.3].map((u) => ({ u, v: 0.85, z: 36, h: 14, w: 6.5, ch: 4.5, color: GOV.banner, swallow: true })),
@@ -875,33 +881,55 @@ function clinicArt(ctx) {
   }
 }
 
-/** `filled`: piped water reaches it (the pool lies dry and cracked without). */
+/**
+ * A cone of tiles on a round room (revolve, so it turns with the building),
+ * the snow lying on it from the apex down as far as the depth reaches.
+ */
+function coneRoof(ctx, u, v, r, z0, h, color = COL.terra) {
+  revolve(ctx, u, v, [[r, z0], [0.04, z0 + h]], color, { seg: 20, lines: true });
+  if (roofSnowAmount() > 0) {
+    const f = Math.min(1, 0.2 + roofSnowAmount() * 0.95);
+    revolve(ctx, u, v, [[0.04 + (r - 0.04) * f, z0 + h - h * f], [0.04, z0 + h]], '#e2e9ef', { seg: 20 });
+  }
+}
+
+/**
+ * `filled`: piped water reaches it (the pool lies dry and cracked without).
+ * The baths as the 3D model draws them: a Greek bathhouse of about 300 BC.
+ * At the back a round room, a tholos of stuccoed tufa under a conical tiled
+ * roof, and beside it the warm room under a tiled gable, both red below and
+ * cream above; before them a Tuscan portico under a lean-to roof, and in
+ * front the open plunge pool in its tufa rim. No dome, no vault.
+ */
 function bathsArt(ctx, S, v, filled) {
+  const [cu, cv, r] = [0.55, 0.56, 0.42];
   quad(ctx, 0.04, 0.04, S - 0.04, S - 0.04, 0, COL.paving);
-  box(ctx, 0.12, 0.12, S - 0.24, 1.0, 0, 20, COL.cream);
-  // dome
-  const [x, y] = P(S / 2, 0.62, 20);
-  ctx.fillStyle = '#e6dfd0';
-  ctx.beginPath(); ctx.ellipse(x, y, 17, 10, 0, Math.PI, 0); ctx.fill();
-  ctx.strokeStyle = '#b9b0a0';
-  ctx.lineWidth = 0.7;
-  ctx.beginPath(); ctx.ellipse(x, y, 17, 10, 0, Math.PI, 0); ctx.stroke();
-  ctx.fillStyle = '#cfc6b4';
-  ctx.beginPath(); ctx.ellipse(x, y, 17, 4, 0, 0, Math.PI); ctx.fill();
-  // outdoor pool
-  quad(ctx, 0.25, 1.25, S - 0.25, S - 0.2, 0, '#dcd3c2');
-  quad(ctx, 0.35, 1.32, S - 0.35, S - 0.28, 0.5, filled ? COL.water : '#8a7d68');
+  // the tholos: a drum red to the shoulder and cream above, its cone of tiles with a flue at the apex
+  revolve(ctx, cu, cv, [[r, 0], [r, 6]], COL.dado, { seg: 20 });
+  revolve(ctx, cu, cv, [[r, 6], [r, 18]], COL.plaster, { seg: 20 });
+  revolve(ctx, cu, cv, [[r + 0.07, 18], [r + 0.07, 19.5]], COL.tufa, { seg: 20 }); // the eave's course of tufa
+  coneRoof(ctx, cu, cv, r + 0.1, 19.5, 11);
+  revolve(ctx, cu, cv, [[0.07, 30.5], [0.07, 34]], COL.terraDark, { seg: 8 });
+  // the warm room beside it, a high plain window under a tiled gable
+  plastered(ctx, 1.0, 0.12, 0.85, 0.85, 0, 15, { dado: 5 });
+  windows(ctx, 'right', 1.0, 0.12, 1.85, 0.97, 0, 1, 1, '#3a2f28', { z: 9, h: 4, w: 0.16 });
+  gableRoof(ctx, 1.0, 0.12, 0.85, 0.85, 15, 8, COL.terra, 'v', 0.05);
+  // the portico: plain Tuscan columns under a lean-to of tiles
+  leanRoof(ctx, 0.15, 0.97, 1.85, 1.2, 'v0', 13, 10.5);
+  colonnade(ctx, 0.25, 1.12, 1.75, 1.12, 5, 0, 9.5, '#dccaa4', 1.3);
+  // the cold pool in its tufa rim
+  quad(ctx, 0.3, 1.38, 1.7, 1.92, 0, COL.tufa);
+  quad(ctx, 0.38, 1.45, 1.62, 1.85, 0.5, filled ? COL.water : '#8a7d68');
   if (!filled) {
     // a dry basin: cracks across its floor
     ctx.strokeStyle = 'rgba(70,58,44,0.6)';
     ctx.lineWidth = 0.6;
-    for (const [a, b, c, d] of [[0.6, 1.5, 1.2, 1.9], [1.1, 1.45, 0.9, 2.1], [S - 0.7, 1.6, S - 1.1, 2.0]]) {
+    for (const [a, b, c, d] of [[0.6, 1.55, 1.0, 1.75], [1.0, 1.5, 0.9, 1.8], [1.3, 1.6, 1.5, 1.8]]) {
       const [x1, y1] = P(a, b, 0.5);
       const [x2, y2] = P(c, d, 0.5);
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     }
   }
-  colonnade(ctx, 0.2, 1.15, S - 0.2, 1.15, 5, 0, 13, COL.marble, 1.5);
 }
 
 function hospitalArt(ctx, S) {
@@ -1303,9 +1331,135 @@ function arenaArt(ctx, S, levels, rxF, ryF) {
 // its half-axes): at 0.9 and 0.92 the arenas spilled past their square
 // (playtest). 0.78 leaves a rim of ground inside it.
 function amphitheaterArt(ctx, S) { arenaArt(ctx, S, 2, 0.78, 0.78); }
+/**
+ * The Great Arena as the 3D model draws it: the earliest amphitheatre, an
+ * earth bank round a pit (Pompeii's, about 70 BC), with no arcades. The bank
+ * is held outside by a low rubble wall with a row of blind arches at its
+ * foot and tufa buttresses; two double staircases climb the outside to the
+ * top (two flights meeting at a landing); the top tier is timber seats
+ * behind a rail, with the masts of the awning round the rim; the arena's
+ * sand lies in the middle, a portal at each end. Drawn about its middle
+ * (round, the same from every side), seated in the ring the crowd fills
+ * (liveArt.js crowdSeats).
+ */
 function colosseumArt(ctx, S, variant, state, key) {
-  arenaArt(ctx, S, 3, 0.78, 0.78);
-  flagPoles(ctx, key, S); // flags on top
+  quad(ctx, 0.02, 0.02, S - 0.02, S - 0.02, 0, '#cbbf9f');
+  const [cx, cy] = P(S / 2, S / 2);
+  const rx = S * 28 * 0.78;
+  const ry = S * 14 * 0.78;
+  const wallH = 15; // the retaining wall, about 3 m
+  const h = 33; // the crest of the bank, where the timber seats begin
+  const rubble = '#b3a382';
+  const ell = (y, f, fill) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.ellipse(cx, y, rx * f, ry * f, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  // the wall's coping ledge, then the bank of turfed earth sloping up to its crest
+  ell(cy - wallH, 1, COL.tufa);
+  ell(cy - wallH, 0.975, '#8f8c58');
+  ell(cy - h, 0.93, '#8f8c58');
+  // the slope's faint rain-washed streaks, facing the viewer
+  ctx.strokeStyle = 'rgba(70,64,34,0.35)';
+  ctx.lineWidth = 0.7;
+  for (let k = 1; k < 18; k++) {
+    const a = (Math.PI * k) / 18;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * rx * 0.96, cy - wallH + Math.sin(a) * ry * 0.96);
+    ctx.lineTo(cx + Math.cos(a) * rx * 0.93, cy - h + Math.sin(a) * ry * 0.93);
+    ctx.stroke();
+  }
+  // the retaining wall's front: rubble between tufa buttresses, the blind arches at its foot, the portals at the ends
+  ctx.fillStyle = rubble;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - wallH, rx, ry, 0, 0, Math.PI);
+  ctx.lineTo(cx - rx, cy);
+  ctx.ellipse(cx, cy, rx, ry, 0, Math.PI, 0, true);
+  ctx.closePath();
+  ctx.fill();
+  const bays = Math.round(10 * S / 3);
+  for (let k = 1; k < bays; k++) {
+    const a = Math.PI * (k / bays);
+    const ax = cx + Math.cos(a) * rx * 0.985;
+    const ay = cy + Math.sin(a) * ry * 0.985;
+    if (k % 3 === 0) {
+      // a buttress of tufa the full height of the wall
+      ctx.fillStyle = COL.tufa;
+      ctx.fillRect(ax - 1.8, ay - wallH, 3.6, wallH);
+    } else {
+      ctx.fillStyle = 'rgba(50,40,30,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(ax - 2, ay - 1);
+      ctx.lineTo(ax - 2, ay - 5);
+      ctx.arc(ax, ay - 5, 2, Math.PI, 0);
+      ctx.lineTo(ax + 2, ay - 1);
+      ctx.fill();
+    }
+  }
+  for (const sx of [-1, 1]) {
+    // a portal at each end of the long axis, between wing walls that step down
+    const px = cx + sx * rx * 0.99;
+    ctx.fillStyle = COL.tufa;
+    ctx.fillRect(px - 6, cy - 12, 12, 12);
+    ctx.fillStyle = 'rgba(40,30,22,0.85)';
+    ctx.beginPath();
+    ctx.moveTo(px - 3.5, cy);
+    ctx.lineTo(px - 3.5, cy - 7);
+    ctx.arc(px, cy - 7, 3.5, Math.PI, 0);
+    ctx.lineTo(px + 3.5, cy);
+    ctx.fill();
+  }
+  // the two double staircases up the outside: two flights meet at a landing on the wall's top, one flight goes on to the crest
+  for (const a of [Math.PI * 0.3, Math.PI * 0.7]) {
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    const bx = cx + c * (rx + 5);
+    const by = cy + s * (ry + 2.5);
+    const lx = cx + c * rx * 0.99;
+    const ly = cy - wallH + s * ry * 0.99;
+    const tx = cx + c * rx * 0.93;
+    const ty = cy - h + s * ry * 0.93;
+    const flight = (pts) => {
+      ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+      ctx.fillStyle = '#cdbf9d'; ctx.fill();
+      ctx.strokeStyle = 'rgba(110,96,70,0.7)'; ctx.lineWidth = 0.5; ctx.stroke();
+    };
+    flight([[bx - 15, by], [bx - 9, by], [lx - 1.5, ly], [lx - 5, ly]]); // the two lower flights
+    flight([[bx + 9, by], [bx + 15, by], [lx + 5, ly], [lx + 1.5, ly]]);
+    flight([[lx - 4, ly], [lx + 4, ly], [tx + 3, ty], [tx - 3, ty]]); // the upper one
+    ctx.strokeStyle = 'rgba(110,96,70,0.6)';
+    ctx.lineWidth = 0.5;
+    for (let k = 1; k < 6; k++) {
+      const t = k / 6;
+      const yy = ly + (ty - ly) * t;
+      const xx = lx + (tx - lx) * t;
+      ctx.beginPath(); ctx.moveTo(xx - 4 + t, yy); ctx.lineTo(xx + 4 - t, yy); ctx.stroke();
+    }
+  }
+  // the top tier: timber seats in rows stepping down toward the sand, under snow white
+  const snowy = roofSnowAmount() > 0.3;
+  for (let k = 0; k < 5; k++) {
+    ctx.fillStyle = snowy ? (k % 2 ? '#dfe6ea' : '#eaeff2') : k % 2 ? '#a58154' : '#b08c5c';
+    ctx.beginPath(); ctx.ellipse(cx, cy - h + 1 + k * 2, rx * (0.9 - k * 0.08), ry * (0.9 - k * 0.08), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(70,48,26,0.55)';
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  }
+  // the sand, its podium wall painted in panels
+  ell(cy - 2, 0.5, '#c9b88a');
+  ell(cy - 2, 0.46, COL.sand);
+  // the rail along the rim's front, and the masts of the awning round it
+  ctx.strokeStyle = COL.woodDark;
+  ctx.lineWidth = 0.8;
+  const masts = 14;
+  for (let k = 0; k < masts; k++) {
+    const a = (Math.PI * 2 * (k + 0.5)) / masts;
+    const mx = cx + Math.cos(a) * rx * 0.92;
+    const my = cy - h + Math.sin(a) * ry * 0.92;
+    ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx, my - 12); ctx.stroke();
+  }
+  ctx.strokeStyle = '#6e4a28';
+  ctx.beginPath(); ctx.ellipse(cx, cy - h - 3, rx * 0.92, ry * 0.92, 0, 0.05, Math.PI - 0.05); ctx.stroke();
+  flagPoles(ctx, key, S); // flags on the masts
 }
 
 function actorTroupeArt(ctx, S) {
@@ -1383,25 +1537,104 @@ function forumArt(ctx, S) {
   flagPoles(ctx, 'forum', S);
 }
 
+/**
+ * A wall of plastered tufa in the Republic's first style: a red dado below,
+ * cream plaster above (the stucco of Pompeii's oldest houses, and the
+ * council halls and bath rooms the 3D models copy). Both parts are one
+ * footprint, so a turned drawing keeps them together. o: dado (px, default
+ * 30% of the wall), wall (the plaster's colour).
+ */
+function plastered(ctx, u0, v0, du, dv, z0, h, o = {}) {
+  const dado = o.dado ?? Math.min(7, h * 0.3);
+  // (no top on the dado: the plaster stands on it, and a top drawn late would show over the plaster)
+  box(ctx, u0, v0, du, dv, z0, dado, COL.dado, { plain: true, noTop: true });
+  box(ctx, u0, v0, du, dv, z0 + dado, h - dado, o.wall ?? COL.plaster);
+}
+
+/**
+ * A tiled roof that falls one way (a lean-to): the rectangle u0..u1 x v0..v1
+ * rising to height zHigh along its `high` edge ('u0', 'u1', 'v0' or 'v1')
+ * and falling to zLow along the opposite one, with rows of tiles and the
+ * snow that settles on it. Painted as one polygon, so the turned drawing
+ * sorts it like any wall.
+ */
+function leanRoof(ctx, u0, v0, u1, v1, high, zHigh, zLow, color = COL.terra) {
+  const z = (u, v) => {
+    // 0 at the high edge, 1 at the low one
+    const t = high === 'u0' ? (u - u0) / (u1 - u0) : high === 'u1' ? (u1 - u) / (u1 - u0) : high === 'v0' ? (v - v0) / (v1 - v0) : (v1 - v) / (v1 - v0);
+    return zHigh + (zLow - zHigh) * t;
+  };
+  const corners = [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+  poly(ctx, corners.map(([u, v]) => P(u, v, z(u, v))), color, shade(color, -0.5), 0.6);
+  // rows of tiles running along the high edge, in a darker tone of the roof
+  const rows = 4;
+  const along = high === 'u0' || high === 'u1';
+  ctx.strokeStyle = shade(color, -0.22);
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for (let k = 1; k < rows; k++) {
+    const t = k / rows;
+    const a = along ? [high === 'u0' ? u0 + (u1 - u0) * t : u1 - (u1 - u0) * t, v0] : [u0, high === 'v0' ? v0 + (v1 - v0) * t : v1 - (v1 - v0) * t];
+    const b = along ? [a[0], v1] : [u1, a[1]];
+    const p = P(a[0], a[1], z(a[0], a[1]));
+    const q = P(b[0], b[1], z(b[0], b[1]));
+    ctx.moveTo(p[0], p[1]);
+    ctx.lineTo(q[0], q[1]);
+  }
+  ctx.stroke();
+  if (roofSnowAmount() > 0) {
+    // snow from the high edge down, as far as the depth reaches
+    const f = Math.min(1, 0.2 + roofSnowAmount() * 0.95);
+    const cut = (u, v, t) => {
+      // the point at fraction t down from the high edge, on the polygon's side
+      const uu = along ? (high === 'u0' ? u0 + (u1 - u0) * t : u1 - (u1 - u0) * t) : u;
+      const vv = along ? v : (high === 'v0' ? v0 + (v1 - v0) * t : v1 - (v1 - v0) * t);
+      return P(uu, vv, z(uu, vv));
+    };
+    const hi = along ? [[high === 'u0' ? u0 : u1, v0], [high === 'u0' ? u0 : u1, v1]] : [[u0, high === 'v0' ? v0 : v1], [u1, high === 'v0' ? v0 : v1]];
+    poly(ctx, [P(hi[0][0], hi[0][1], zHigh), P(hi[1][0], hi[1][1], zHigh), cut(hi[1][0], hi[1][1], f), cut(hi[0][0], hi[0][1], f)], '#e2e9ef');
+  }
+}
+
+/**
+ * The curia as a colony of about 300 BC built one (the 3D model's design): a
+ * low hall of plastered tufa on a tufa podium, red below and cream above,
+ * with a porch of four plain Tuscan columns under the hall's one low gable
+ * of tiles, a timber architrave in terracotta red, a disc acroterion at the
+ * ridge, and steps up to it. No dome, no marble, no brick.
+ */
 function senateArt(ctx, S) {
-  quad(ctx, 0.02, 0.02, S - 0.02, S - 0.02, 0, '#ddd4c2');
-  box(ctx, 0.2, 0.2, S - 0.4, S - 0.4, 0, 6, COL.stone);
-  box(ctx, 0.45, 0.35, S - 0.9, S - 1.25, 6, 32, COL.marble);
-  colonnade(ctx, 0.4, S - 0.45, S - 0.4, S - 0.45, 8, 6, 30, COL.marble, 1.9);
-  colonnade(ctx, S - 0.4, 0.4, S - 0.4, S - 0.7, 6, 6, 30, COL.marble, 1.9);
-  gableRoof(ctx, 0.35, 0.3, S - 0.7, S - 0.65, 36, 10, COL.terra, 'v', 0.05);
-  // dome
-  const [x, y] = P(S * 0.45, S * 0.4, 44);
-  ctx.fillStyle = '#e9e4d8';
-  ctx.beginPath(); ctx.ellipse(x, y, 22, 14, 0, Math.PI, 0); ctx.fill();
-  ctx.strokeStyle = '#bdb4a3';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.ellipse(x, y, 22, 14, 0, Math.PI, 0); ctx.stroke();
-  ctx.fillStyle = COL.gold;
-  ctx.fillRect(x - 1.5, y - 20, 3, 6);
-  // steps
-  box(ctx, 0.9, S - 0.3, S - 1.8, 0.22, 0, 3, shade(COL.stone, 0.15));
-  flagPoles(ctx, 'senate', S); // imperial purple on the roof corners
+  const col = '#dfd1b1'; // the columns' plastered tufa
+  quad(ctx, 0.02, 0.02, S - 0.02, S - 0.02, 0, '#d3c8aa');
+  // the podium of tufa, its three steps at the front
+  box(ctx, 0.35, 0.35, S - 0.7, S - 0.95, 0, 6, COL.tufa);
+  box(ctx, 1.1, S - 0.6, S - 2.2, 0.15, 0, 4.2, COL.tufa, { plain: true });
+  box(ctx, 1.1, S - 0.45, S - 2.2, 0.15, 0, 2.8, COL.tufa, { plain: true });
+  box(ctx, 1.1, S - 0.3, S - 2.2, 0.15, 0, 1.4, COL.tufa, { plain: true });
+  // the hall: plastered, no windows (a hall took its light from its door and its roof), bare tufa quoins at the front corners
+  plastered(ctx, 0.8, 0.55, S - 1.6, 2.05, 6, 30, { dado: 7 });
+  box(ctx, 0.78, 2.5, 0.14, 0.12, 6, 30, COL.tufa, { plain: true });
+  box(ctx, S - 0.92, 2.5, 0.14, 0.12, 6, 30, COL.tufa, { plain: true });
+  door(ctx, 'left', 0.8, 0.55, S - 0.8, 2.6, 6, 0.5, '#4a3222', 0.3, 17);
+  // the porch: four Tuscan columns under a timber architrave painted with terracotta plaques
+  colonnade(ctx, 1.1, S - 0.75, S - 1.1, S - 0.75, 4, 6, 25, col, 2.5);
+  box(ctx, 0.95, S - 0.88, S - 1.9, 0.26, 31, 5, '#9a4a32', { plain: true });
+  // the one low gable over hall and porch, its front a pediment of plaster
+  const z = 36;
+  const rh = 13;
+  gableRoof(ctx, 0.6, 0.4, S - 1.2, S - 1.0, z, rh, COL.terra, 'v', 0.05);
+  const d = S - 0.55; // the roof's front edge, v
+  poly(ctx, [P(0.6 - 0.05 + 0.1, d, z + 0.6), P(S - 0.6 + 0.05 - 0.1, d, z + 0.6), P(S / 2, d, z + rh - 1.4)], COL.plaster);
+  // the disc acroterion at the ridge's front end
+  const [ax, ay] = P(S / 2, d - 0.06, z + rh);
+  ctx.fillStyle = COL.dado;
+  ctx.fillRect(ax - 0.6, ay - 4, 1.2, 4);
+  ctx.fillStyle = '#c9744c';
+  ctx.beginPath(); ctx.arc(ax, ay - 5.4, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = COL.dado;
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  flagPoles(ctx, 'senate', S); // the purple of the council on the ridge's back end
 }
 
 // ---------------------------------------------------------------------------
@@ -1962,14 +2195,32 @@ function ironMineArt(ctx, S) {
 // Engineering & security
 // ---------------------------------------------------------------------------
 
+/**
+ * The engineers' yard as the 3D model draws it: a workshop of the fabri
+ * in opus craticium (a timber frame filled with rubble and plastered, red
+ * at its foot) on a tufa socle under tiles, the shear legs of the hoist
+ * beside it, and a stack of sun-dried mudbricks in crossed courses (fired
+ * brick is the Empire's).
+ */
 function engineerArt(ctx) {
   quad(ctx, 0.05, 0.05, 0.95, 0.95, 0, '#bca77f');
-  box(ctx, 0.14, 0.14, 0.55, 0.6, 0, 14, COL.cream);
+  box(ctx, 0.12, 0.12, 0.59, 0.64, 0, 3, COL.tufa, { plain: true });
+  plastered(ctx, 0.14, 0.14, 0.55, 0.6, 3, 11, { dado: 4 });
+  // the timber frame showing in the plaster of the front wall, and its wall plate
+  for (const u of [0.17, 0.29, 0.54, 0.66]) {
+    poly(ctx, [P(u - 0.015, 0.74, 7), P(u + 0.015, 0.74, 7), P(u + 0.015, 0.74, 14), P(u - 0.015, 0.74, 14)], COL.woodDark);
+  }
+  poly(ctx, [P(0.14, 0.74, 12.6), P(0.69, 0.74, 12.6), P(0.69, 0.74, 14), P(0.14, 0.74, 14)], COL.woodDark);
   // Its door on the front (+v) face, the side it turns toward a road: with
   // none, the post turned but never looked as if it faced the street (playtest).
-  door(ctx, 'left', 0.14, 0.14, 0.69, 0.74, 0, 0.5, '#4a3222', 0.17, 8);
+  door(ctx, 'left', 0.14, 0.14, 0.69, 0.74, 3, 0.5, '#4a3222', 0.17, 8);
   gableRoof(ctx, 0.14, 0.14, 0.55, 0.6, 14, 7, COL.terra, 'v');
-  // wooden crane
+  // the mudbricks, laid in crossed courses
+  for (let k = 0; k < 4; k++) {
+    if (k % 2) box(ctx, 0.6, 0.8, 0.14, 0.2, k * 2.2, 2.2, COL.mudbrick, { plain: true, stroke: shade(COL.mudbrick, -0.5) });
+    else box(ctx, 0.52, 0.82, 0.3, 0.12, k * 2.2, 2.2, COL.mudbrick, { plain: true, stroke: shade(COL.mudbrick, -0.5) });
+  }
+  // the shear legs: two timbers lashed at the top, a block hanging from it
   const [x, y] = P(0.82, 0.55);
   ctx.strokeStyle = COL.woodDark;
   ctx.lineWidth = 1.4;
@@ -1980,7 +2231,7 @@ function engineerArt(ctx) {
   ctx.strokeStyle = '#3a3026';
   ctx.lineWidth = 0.6;
   ctx.beginPath(); ctx.moveTo(x - 12, y - 18); ctx.lineTo(x - 12, y - 9); ctx.stroke();
-  ctx.fillStyle = COL.stone;
+  ctx.fillStyle = COL.tufa;
   ctx.fillRect(x - 14, y - 9, 4, 3);
 }
 
@@ -2022,11 +2273,19 @@ function gardenerYardArt(ctx, S, variant) {
   cypress(ctx, 0.66, 0.62, 0.45);
 }
 
+/**
+ * The watch house as the 3D model draws it: rubble plastered white over a
+ * tufa socle with a red dado, under a tiled gable, its door framed in
+ * tufa, a red banner and the pump's water tank (fired brick is Imperial).
+ */
 function prefectureArt(ctx) {
   quad(ctx, 0.05, 0.05, 0.95, 0.95, 0, COL.paving);
-  box(ctx, 0.14, 0.14, 0.72, 0.62, 0, 16, COL.white);
-  gableRoof(ctx, 0.14, 0.14, 0.72, 0.62, 16, 8, '#a8322b', 'u');
-  door(ctx, 'left', 0.14, 0.14, 0.86, 0.76, 0, 0.5, '#5a2a1f', 0.2, 8);
+  box(ctx, 0.12, 0.12, 0.76, 0.66, 0, 3, COL.tufa, { plain: true });
+  plastered(ctx, 0.14, 0.14, 0.72, 0.62, 3, 13, { dado: 4, wall: '#f1e9d6' });
+  gableRoof(ctx, 0.14, 0.14, 0.72, 0.62, 16, 8, COL.terra, 'u');
+  // the door and its frame of tufa posts
+  for (const u of [0.38, 0.57]) box(ctx, u, 0.76, 0.05, 0.05, 3, 9, COL.tufa, { plain: true });
+  door(ctx, 'left', 0.14, 0.14, 0.86, 0.76, 3, 0.5, '#5a3a2a', 0.14, 8);
   // red banner + water barrel
   flagPoles(ctx, 'prefecture', 1);
   const [bx, by] = P(0.3, 0.9);
@@ -2534,27 +2793,64 @@ function granaryArt(ctx, S) {
   poly(ctx, [P(1.2, 1.7, 5), P(1.8, 1.7, 5), P(1.8, 2.2, 0), P(1.2, 2.2, 0)], '#a08a5c');
 }
 
+/**
+ * The Horreum as the 3D model draws it: a Republican storehouse of four
+ * low ranges round a court, their roofs of tiles falling into the court so
+ * the goods show over the walls. The street walls are tufa (a darker
+ * plinth of ashlar, paler blocks above), the court walls rubble plastered
+ * with a red dado; the one gate, in the front range, stands between two
+ * tufa piers that rise over the wall, with a timber lintel, a small tiled
+ * hood over the doors and a terracotta plaque of the owners' names above.
+ * No fired brick (that is the Empire's), and no office: the ranges are the
+ * store.
+ */
 function warehouseArt(ctx, S) {
+  const w = 0.56; // the ranges' depth: the court is the 3 x 3 grid of bays in what is left
+  const hi = 17; // the street walls' height (the roofs rise to it)
+  const lo = 12; // the court walls' height (where the roofs end)
+  const edge = S - 0.1; // the front wall's outer face (the hood reaches to the footprint's edge)
   quad(ctx, 0.02, 0.02, S - 0.02, S - 0.02, 0, '#b9a987');
-  // office in the back corner
-  box(ctx, 0.1, 0.1, 1.0, 0.9, 0, 18, COL.cream);
-  gableRoof(ctx, 0.1, 0.1, 1.0, 0.9, 18, 8, COL.terra, 'v');
-  // low wall around the yard
-  box(ctx, 1.12, 0.08, S - 1.2, 0.1, 0, 7, COL.stone);
-  box(ctx, 0.08, 1.02, 0.1, S - 1.1, 0, 7, COL.stone);
-  // bay markings
+  quad(ctx, w, w, S - w, S - w, 0, '#c2b391'); // the court's beaten floor
+  // bay markings: the boards the goods stand on
   ctx.strokeStyle = 'rgba(90,70,40,0.35)';
   ctx.lineWidth = 0.7;
   for (const [u0, v0] of WAREHOUSE_BAYS) {
     const pts = [P(u0, v0), P(u0 + 0.6, v0), P(u0 + 0.6, v0 + 0.6), P(u0, v0 + 0.6)];
     ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.stroke();
   }
+  // the back and left ranges: court walls plastered, roofs falling toward the court
+  plastered(ctx, 0.04, 0.04, S - 0.08, w - 0.04, 0, lo, { dado: 4 });
+  leanRoof(ctx, 0.02, 0.02, S - 0.02, w + 0.04, 'v0', hi, lo - 0.5);
+  plastered(ctx, 0.04, w, w - 0.04, S - 2 * w, 0, lo, { dado: 4 });
+  leanRoof(ctx, 0.02, w, w + 0.04, S - w, 'u0', hi, lo - 0.5);
+  // the right range: its street wall to the +u side, tufa
+  box(ctx, S - w, w, w - 0.04, S - 2 * w, 0, 6, COL.tufaDark, { plain: true, noTop: true });
+  box(ctx, S - w, w, w - 0.04, S - 2 * w, 6, hi - 6, COL.tufa);
+  leanRoof(ctx, S - w - 0.04, w, S - 0.02, S - w, 'u1', hi, lo - 0.5);
+  // the front range with its gate between two piers
+  const g0 = S / 2 - 0.25;
+  const g1 = S / 2 + 0.25;
+  const front = (u0, u1) => {
+    box(ctx, u0, S - w - 0.04, u1 - u0, edge - (S - w - 0.04), 0, 6, COL.tufaDark, { plain: true, noTop: true });
+    box(ctx, u0, S - w - 0.04, u1 - u0, edge - (S - w - 0.04), 6, hi - 6, COL.tufa);
+  };
+  front(0.04, g0 - 0.15);
+  front(g1 + 0.15, S - 0.04);
+  leanRoof(ctx, 0.02, S - w - 0.04, S - 0.02, edge, 'v1', hi, lo - 0.5);
+  // the piers rise over the wall; the lintel and the gate's leaves between them
+  for (const u of [g0 - 0.15, g1]) box(ctx, u, S - w - 0.04, 0.15, edge - (S - w - 0.04), 0, hi + 4, COL.tufa);
+  box(ctx, g0, edge - 0.14, g1 - g0, 0.14, 11, 6, COL.wood, { plain: true });
+  door(ctx, 'left', g0, S - w - 0.04, g1, edge, 0, 0.5, COL.woodDark, g1 - g0 - 0.04, 11);
+  // the small tiled hood on its brackets over the doors, and the plaque above it
+  leanRoof(ctx, g0 - 0.05, edge, g1 + 0.05, edge + 0.09, 'v0', 14, 11.5);
+  poly(ctx, [P(g0 + 0.04, edge, 17.5), P(g1 - 0.04, edge, 17.5), P(g1 - 0.04, edge, 21.5), P(g0 + 0.04, edge, 21.5)], '#b8573a', '#f1e6c8', 0.8);
 }
 
-/** Where goods stacks go in a warehouse yard (u0, v0 of each 0.6 tile bay). */
+/** Where goods stacks go in a warehouse court (u0, v0 of each 0.6 tile bay): a 3 x 3 grid less the middle of the front row, the way in from the gate; the far bays fill first. */
 export const WAREHOUSE_BAYS = [
-  [1.25, 0.3], [2.05, 0.3], [1.25, 1.1], [2.05, 1.1], [0.3, 1.25], [0.3, 2.05], [1.25, 2.05], [2.05, 2.05],
+  [0.6, 0.6], [1.2, 0.6], [0.6, 1.2], [1.8, 0.6], [1.2, 1.2], [0.6, 1.8], [1.8, 1.2], [1.8, 1.8],
 ];
+
 
 /**
  * Draw goods stacks (dynamic, every frame) inside a warehouse sprite's local
@@ -2709,32 +3005,70 @@ function militaryAcademyArt(ctx, S) {
 }
 
 /**
- * Walled camp (castra): corner towers, a gate facing the viewer, and inside
- * tents (legion, archers) or a stable (cavalry). Flies its soldiers' color.
+ * A run of sharpened stakes (a palisade) standing on the plane `along` ('u':
+ * the run goes along u at v = c, 'v': along v at u = c) from a0 to a1, from
+ * height z0 up h px, their tops cut to uneven heights. Each stake is a
+ * polygon of its own, so the outline between them shows and a turned
+ * drawing sorts them with the rest.
+ */
+function stakeRun(ctx, along, c, a0, a1, z0, h) {
+  const n = Math.max(2, Math.round((a1 - a0) / 0.09));
+  const w = (a1 - a0) / n / 2;
+  const at = (a, z) => (along === 'u' ? P(a, c, z) : P(c, a, z));
+  for (let k = 0; k < n; k++) {
+    const m = a0 + (k * 2 + 1) * w;
+    const top = z0 + h - 1 + ((k * 7) % 3) * 1.4;
+    poly(ctx, [at(m - w, z0), at(m + w, z0), at(m + w, top), at(m, top + 3), at(m - w, top)], k % 2 ? '#a07f4f' : '#8d6d42', '#4d3820', 0.4);
+  }
+}
+
+/** A watch platform at a fort's corner: a deck of boards on four posts (no roof), 2 m up. */
+function watchPlatform(ctx, u, v) {
+  const s = 0.36;
+  for (const [pu, pv] of [[u + 0.03, v + 0.03], [u + s - 0.03, v + 0.03], [u + 0.03, v + s - 0.03], [u + s - 0.03, v + s - 0.03]]) {
+    column(ctx, pu, pv, 0, 11, COL.wood, 0.8);
+  }
+  box(ctx, u, v, s, s, 11, 1.4, '#a98a5c', { plain: true });
+}
+
+/**
+ * A fort as the 3D model draws it: a camp of the Republic of earth and
+ * timber, with no stone curtain. A ditch round it, the earth thrown up
+ * inside into a turf-faced bank (1.2 m), and on the bank a palisade of
+ * sharpened stakes (about 2.5 m above the ground); a watch platform on
+ * posts at each corner, and over the gate a timber tower (about 4.85 m)
+ * with a deck, a roof of boards and a painted board in its soldiers' colour.
+ * Inside tents (legion, archers) or a stable (cavalry). Flies its
+ * soldiers' color.
  */
 function fortArt(ctx, S, variant, state, key) {
   const unit = BUILDINGS[key]?.unit;
   const color = UNIT_TYPES[unit]?.color || '#a8322b';
-  const wall = '#b9ad92';
-  const T = 0.12; // wall thickness
-  const H = 11; // wall height
-  const TW = 0.44; // tower size
-  const TH2 = 21; // tower height
-  quad(ctx, 0.02, 0.02, S - 0.02, S - 0.02, 0, '#a99a74');
-  const tower = (u, v) => {
-    box(ctx, u, v, TW, TW, 0, TH2, shade(wall, -0.04));
-    box(ctx, u - 0.04, v - 0.04, TW + 0.08, TW + 0.08, TH2, 3, shade(wall, 0.08));
-  };
-  // back towers and walls (drawn first: they are behind everything)
-  tower(0.02, 0.02);
-  box(ctx, TW, 0.1, S - 2 * TW, T, 0, H, wall);
-  box(ctx, 0.1, TW, T, S - 2 * TW, 0, H, wall);
-  tower(S - TW - 0.02, 0.02);
-  tower(0.02, S - TW - 0.02);
+  const dirt = '#a99a74';
+  const bank = 7; // the bank's height (1.2 m)
+  const stakes = 9; // what the stakes add above the bank (to about 2.5 m)
+  const g0 = S / 2 - 0.34; // the passage (FORT_GATEWAY's 0.64 tile)
+  const g1 = S / 2 + 0.34;
+  quad(ctx, 0.02, 0.02, S - 0.02, S - 0.02, 0, dirt);
+  // the ditch outside the bank: a dark channel on every side, broken by the causeway at the gate
+  const ditch = '#5f5035';
+  quad(ctx, 0.02, 0.02, S - 0.02, 0.14, 0, ditch);
+  quad(ctx, 0.02, 0.14, 0.14, S - 0.14, 0, ditch);
+  quad(ctx, S - 0.14, 0.14, S - 0.02, S - 0.14, 0, ditch);
+  quad(ctx, 0.02, S - 0.14, g0 - 0.05, S - 0.02, 0, ditch);
+  quad(ctx, g1 + 0.05, S - 0.14, S - 0.02, S - 0.02, 0, ditch);
+  // the back and left banks with their stakes, and the platforms on the back corners
+  box(ctx, 0.14, 0.14, S - 0.28, 0.26, 0, bank, COL.turf, { plain: true });
+  box(ctx, 0.14, 0.4, 0.26, S - 0.8, 0, bank, COL.turf, { plain: true });
+  stakeRun(ctx, 'u', 0.2, 0.17, S - 0.17, bank, stakes);
+  stakeRun(ctx, 'v', 0.2, 0.17, S - 0.17, bank, stakes);
+  watchPlatform(ctx, 0.17, 0.17);
+  watchPlatform(ctx, S - 0.53, 0.17);
+  watchPlatform(ctx, 0.17, S - 0.53);
   // interior
   if (key === 'fort_cavalry') {
-    box(ctx, 0.5, 0.55, 0.5, S - 1.1, 0, 9, COL.wood);
-    gableRoof(ctx, 0.5, 0.55, 0.5, S - 1.1, 9, 5, '#7a5a3a', 'v');
+    box(ctx, 0.55, 0.6, 0.5, S - 1.2, 0, 9, COL.wood);
+    gableRoof(ctx, 0.55, 0.6, 0.5, S - 1.2, 9, 5, '#7a5a3a', 'v');
     const [hx, hy] = P(1.7, 1.2);
     horse(ctx, hx, hy, 0.9, '#8a5a3c', 1);
     const [gx, gy] = P(2.0, 1.75);
@@ -2757,25 +3091,25 @@ function fortArt(ctx, S, variant, state, key) {
     }
   }
   flagPoles(ctx, key, S); // the fort's standard in its soldiers' color
-  // front walls: right face (+u), then the front-left face (+v) with the gate
-  box(ctx, S - 0.1 - T, TW, T, S - 2 * TW, 0, H, wall);
-  const g0 = S / 2 - 0.32;
-  const g1 = S / 2 + 0.32;
-  const fv = S - 0.1 - T;
-  box(ctx, TW, fv, g0 - TW, T, 0, H, wall);
-  box(ctx, g1, fv, S - TW - g1, T, 0, H, wall);
-  box(ctx, g0 - 0.12, fv - 0.04, 0.14, T + 0.08, 0, H + 6, shade(wall, -0.08));
-  box(ctx, g1 - 0.02, fv - 0.04, 0.14, T + 0.08, 0, H + 6, shade(wall, -0.08));
-  box(ctx, g0 - 0.12, fv - 0.02, g1 - g0 + 0.24, T + 0.04, H + 6, 3, shade(wall, 0.05));
-  // shields hung on the front wall in the unit color
-  for (const u of [TW + 0.25, S - TW - 0.25]) {
-    const [x, y] = P(u, S - 0.1, 6);
-    ctx.fillStyle = color;
-    ctx.fillRect(x - 2, y - 3, 4, 5);
-    ctx.fillStyle = COL.gold;
-    ctx.fillRect(x - 0.6, y - 1, 1.2, 1.2);
-  }
-  tower(S - TW - 0.02, S - TW - 0.02);
+  // the right and front banks with their stakes (the front's broken at the gate)
+  box(ctx, S - 0.4, 0.4, 0.26, S - 0.8, 0, bank, COL.turf, { plain: true });
+  box(ctx, 0.14, S - 0.4, g0 - 0.14, 0.26, 0, bank, COL.turf, { plain: true });
+  box(ctx, g1, S - 0.4, S - 0.14 - g1, 0.26, 0, bank, COL.turf, { plain: true });
+  stakeRun(ctx, 'v', S - 0.2, 0.17, S - 0.17, bank, stakes);
+  stakeRun(ctx, 'u', S - 0.2, 0.17, g0, bank, stakes);
+  stakeRun(ctx, 'u', S - 0.2, g1, S - 0.17, bank, stakes);
+  watchPlatform(ctx, S - 0.53, S - 0.53);
+  // the gate tower: four posts, a deck at 2.75 m, a roof of boards, the painted board over the passage
+  const tu0 = S / 2 - 0.42;
+  const tu1 = S / 2 + 0.42;
+  const tv0 = S - 0.42;
+  const tv1 = S - 0.16;
+  for (const [pu, pv] of [[tu0, tv0], [tu1, tv0], [tu0, tv1], [tu1, tv1]]) column(ctx, pu, pv, 0, 25, COL.woodDark, 1.1);
+  box(ctx, tu0 - 0.05, tv0 - 0.04, tu1 - tu0 + 0.1, tv1 - tv0 + 0.08, 15, 1.6, '#a98a5c', { plain: true });
+  gableRoof(ctx, tu0 - 0.04, tv0 - 0.06, tu1 - tu0 + 0.08, tv1 - tv0 + 0.12, 25.5, 5, '#7a5a3a', 'v', 0.03);
+  const fy = tv1 + 0.02;
+  poly(ctx, [P(tu0 + 0.1, fy, 17.4), P(tu1 - 0.1, fy, 17.4), P(tu1 - 0.1, fy, 22.4), P(tu0 + 0.1, fy, 22.4)], '#d9cfa8', '#4d3820', 0.5);
+  poly(ctx, [P(tu0 + 0.14, fy, 18.2), P(tu1 - 0.14, fy, 18.2), P(tu1 - 0.14, fy, 19.4), P(tu0 + 0.14, fy, 19.4)], color);
 }
 
 /** Stone watchtower with a crenellated top and an archer on watch. */
