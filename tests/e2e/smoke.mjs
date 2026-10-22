@@ -1653,6 +1653,9 @@ try {
    * spreading (no pause, by design) could reach the home before its own
    * fire breaks out, and the check would wait on the wrong fire.
    */
+  // The fire message is looked up by the torched home's tile, not as the newest 'Fire!' message: a fire that
+  // spreads from it gets a 'Fire!' text with no kind by design (risk.js), and on a slow machine the spread
+  // fire's message can be the newest by the time the check reads it (v0.30.11).
   const lightAHome = (pick) => page.evaluate((k) => {
     const g = window.colonia.game;
     g.fires.clear();
@@ -1684,7 +1687,7 @@ try {
     const app = window.colonia;
     const note = document.querySelector('.toast.pause');
     const days = app.game.time.totalDays;
-    return { paused: app.paused, note: note ? note.textContent : null, kind: app.game.messages.find((m) => /^Fire!/.test(m.text))?.kind, days };
+    return { paused: app.paused, note: note ? note.textContent : null, kind: app.game.messages.find((m) => /^Fire!/.test(m.text) && m.x === window.__torch.x && m.y === window.__torch.y)?.kind, days };
   });
   await page.waitForTimeout(300);
   const stillDays = await page.evaluate(() => window.colonia.game.time.totalDays);
@@ -1714,7 +1717,7 @@ try {
   await page.evaluate(() => { const s = window.colonia.settings; s.autoPause = { ...s.autoPause, fire: false }; window.colonia.applySettings(); });
   const torch2 = await lightAHome(2);
   const lit2 = torch2 ? await burnt() : false;
-  const offState = await page.evaluate(() => ({ paused: window.colonia.paused, kind: window.colonia.game.messages.find((m) => /^Fire!/.test(m.text))?.kind, notes: document.querySelectorAll('.toast.pause:not(.fade)').length }));
+  const offState = await page.evaluate(() => ({ paused: window.colonia.paused, kind: window.colonia.game.messages.find((m) => /^Fire!/.test(m.text) && m.x === window.__torch.x && m.y === window.__torch.y)?.kind, notes: document.querySelectorAll('.toast.pause:not(.fade)').length }));
   check('with the switch off a fire does not pause the game',
     lit2 && !offState.paused && offState.kind === 'fire' && offState.notes === 0, JSON.stringify({ torch2, lit2, offState }));
   await page.evaluate((was) => {
