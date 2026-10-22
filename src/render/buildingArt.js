@@ -2123,74 +2123,6 @@ function triumphalArchArt(ctx, S, variant, axis) {
   ctx.fillRect(cx - 1.6, cy - 16.2, 3.2, 0.9); // his laurel
 }
 
-/**
- * The iron mine: a rocky hillside with a timber-framed entrance, a winding
- * frame over the shaft, rails, an ore cart, and a heap of red iron ore.
- */
-function ironMineArt(ctx, S) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#8d8373');
-  quad(ctx, 0.25, 1.1, S - 0.15, S - 0.1, 0, '#75685a'); // trodden ground in front
-  // the hillside, rising to the back
-  const R = S - 0.15;
-  // (Its far sides too, for a turned mine: as written they stay hidden behind the rest.)
-  decal(-1, 0, () => poly(ctx, [P(0.1, 0.1, 0), P(0.1, 0.1, 26), P(0.1, 0.55, 22), P(0.1, 1.2, 0)], '#7d7466', '#5d564b', 0.6));
-  decal(0, -1, () => poly(ctx, [P(0.1, 0.1, 0), P(R, 0.1, 0), P(R, 0.1, 18), P(0.1, 0.1, 26)], '#958b78', '#5d564b', 0.6));
-  poly(ctx, [P(0.1, 0.1, 26), P(R, 0.1, 18), P(R, 0.45, 16), P(0.1, 0.55, 22)], '#a39985', '#5d564b', 0.6); // top
-  decal(0, 1, () => poly(ctx, [P(0.1, 0.55, 22), P(R, 0.45, 16), P(R, 0.9, 0), P(0.1, 1.2, 0)], '#8c8272', '#5d564b', 0.6)); // front face
-  decal(1, 0, () => poly(ctx, [P(R, 0.1, 18), P(R, 0.45, 16), P(R, 0.9, 0), P(R, 0.1, 0)], '#6d6457', '#5d564b', 0.6)); // side
-  // cracks and ledges in the rock
-  ctx.strokeStyle = 'rgba(60,54,46,0.6)';
-  ctx.lineWidth = 0.6;
-  for (const [a, b] of [[[1.0, 0.95, 5], [1.3, 0.85, 10]], [[0.3, 1.05, 12], [0.5, 0.98, 16]], [[1.5, 0.8, 3], [1.7, 0.6, 9]]]) {
-    const p = P(...a);
-    const q = P(...b);
-    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-  }
-  // the entrance, framed in timber
-  poly(ctx, [P(0.46, 1.13, 0), P(0.74, 1.08, 0), P(0.74, 1.08, 9), P(0.46, 1.13, 9)], '#1e1a16');
-  box(ctx, 0.42, 1.1, 0.05, 0.05, 0, 11, COL.wood);
-  box(ctx, 0.74, 1.05, 0.05, 0.05, 0, 11, COL.wood);
-  box(ctx, 0.4, 1.06, 0.42, 0.08, 11, 1.6, COL.woodDark);
-  // rails out of the entrance to the ore heap
-  ctx.strokeStyle = '#4a4540';
-  ctx.lineWidth = 0.7;
-  for (const off of [-0.05, 0.05]) {
-    const p = P(0.6 + off, 1.15);
-    const q = P(1.25 + off, 1.75);
-    ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-  }
-  // the winding frame over the shaft, at the back right
-  const [wx, wy] = P(1.55, 1.05);
-  ctx.strokeStyle = COL.woodDark;
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.moveTo(wx - 7, wy); ctx.lineTo(wx, wy - 26); ctx.lineTo(wx + 7, wy);
-  ctx.moveTo(wx - 4.5, wy - 9); ctx.lineTo(wx + 4.5, wy - 9);
-  ctx.stroke();
-  ctx.strokeStyle = COL.wood;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(wx, wy - 24, 4, 0, Math.PI * 2); ctx.moveTo(wx - 4, wy - 24); ctx.lineTo(wx + 4, wy - 24); ctx.moveTo(wx, wy - 28); ctx.lineTo(wx, wy - 20); ctx.stroke();
-  ctx.strokeStyle = '#3a3530';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.moveTo(wx + 4, wy - 24); ctx.lineTo(wx + 4, wy - 4); ctx.stroke();
-  // the ore heap: red-brown iron ore with dark lumps
-  const [hx, hy] = P(1.45, 1.7);
-  ctx.fillStyle = '#7a4a36';
-  ctx.beginPath(); ctx.ellipse(hx, hy - 2, 9, 4.5, 0, Math.PI, 0); ctx.lineTo(hx + 9, hy); ctx.lineTo(hx - 9, hy); ctx.fill();
-  ctx.fillStyle = '#5a3326';
-  for (const [dx, dy] of [[-4, -3], [1, -5], [4, -2], [-1, -1.5]]) { ctx.beginPath(); ctx.arc(hx + dx, hy + dy, 1.3, 0, Math.PI * 2); ctx.fill(); }
-  ctx.fillStyle = '#9aa0a6';
-  ctx.fillRect(hx + 2, hy - 4.5, 1, 1);
-  // an ore cart on the rails
-  const [cx, cy] = P(1.0, 1.5);
-  ctx.fillStyle = '#6b4a2a';
-  ctx.fillRect(cx - 4, cy - 6, 8, 4);
-  ctx.fillStyle = '#7a4a36';
-  ctx.beginPath(); ctx.ellipse(cx, cy - 6, 3.6, 1.5, 0, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = '#3a3a3a';
-  ctx.beginPath(); ctx.arc(cx - 2.5, cy - 1.5, 1.4, 0, Math.PI * 2); ctx.arc(cx + 2.5, cy - 1.5, 1.4, 0, Math.PI * 2); ctx.fill();
-}
-
 // ---------------------------------------------------------------------------
 // Engineering & security
 // ---------------------------------------------------------------------------
@@ -2457,300 +2389,1213 @@ function farmArt(ctx, S, variant, stage, key) {
   ctx.fillRect(hx - 5, hy - 4, 10, 4);
 }
 
-function clayPitArt(ctx, S) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#a07a52');
-  quad(ctx, 0.35, 0.35, S - 0.3, S - 0.3, 0, '#6a4428');
-  quad(ctx, 0.5, 0.5, S - 0.45, S - 0.45, 0, '#58361f');
-  // ladder
-  const p = P(0.6, 0.45, 0);
-  ctx.strokeStyle = COL.wood;
-  ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.moveTo(p[0] - 2, p[1]); ctx.lineTo(p[0] - 2, p[1] - 10); ctx.moveTo(p[0] + 2, p[1]); ctx.lineTo(p[0] + 2, p[1] - 10); ctx.stroke();
-  // clay piles
-  for (const [u, v] of [[0.3, S - 0.3], [S - 0.3, 0.3]]) {
-    const [x, y] = P(u, v);
-    ctx.fillStyle = '#b8683c';
-    ctx.beginPath(); ctx.ellipse(x, y - 2, 6, 5, 0, Math.PI, 0); ctx.fill();
-  }
-}
-
-function timberYardArt(ctx, S) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#9c8a62');
-  box(ctx, 0.1, 0.1, 0.9, 0.7, 0, 14, COL.wood);
-  gableRoof(ctx, 0.1, 0.1, 0.9, 0.7, 14, 6, '#7a5a3a', 'u');
-  // log piles
-  for (const [u, v] of [[1.1, 1.2], [0.5, 1.4], [1.5, 0.6]]) {
-    for (let k = 0; k < 3; k++) {
-      const [x, y] = P(u, v, k * 3);
-      ctx.fillStyle = k % 2 ? '#8b5a2b' : '#7a4c24';
-      ctx.fillRect(x - 8, y - 3, 16, 3);
-      ctx.fillStyle = '#c9a36b';
-      ctx.beginPath(); ctx.arc(x + 8, y - 1.5, 1.6, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-}
-
-function mineArt(ctx, S, variant, state, key) {
-  const marble = key === 'marble_quarry';
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, marble ? '#c9c2b2' : '#8c8274');
-  if (marble) {
-    box(ctx, 0.15, 0.15, 1.0, 0.8, 0, 16, '#e9e5dc');
-    box(ctx, 0.15, 0.95, 0.6, 0.5, 0, 8, '#dedad0');
-    for (const [u, v] of [[1.4, 1.3], [1.5, 0.5]]) box(ctx, u, v, 0.3, 0.3, 0, 5, '#f2efe8');
-    const [x, y] = P(1.5, 1.0);
-    ctx.strokeStyle = COL.woodDark;
-    ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 2, y - 24); ctx.lineTo(x - 12, y - 16); ctx.stroke();
-  } else {
-    ironMineArt(ctx, S);
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Workshops
+// Industry: the four raw producers and the eight workshops
+//
+// Each is drawn as the 3D model of the same building is designed (render3d/models/clayPit.js and
+// its siblings): the plan is the model's, in the model's metres (the footprint's middle at the
+// origin, x and z within +-4, the street toward +z), mapped onto the footprint's tiles by indU
+// and indV and onto pixels of height by IND_H. The art state carries what the model shows: bit 0
+// is shut (no staff; 0 staffed, which is also the placement ghost's look) and the rest is the
+// stores as steps of 0..3 (industryArtState).
 // ---------------------------------------------------------------------------
 
-function workshopArt(ctx, S, variant, state, key) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#b9a57c');
-  const wall = key === 'wine_ws' ? '#dcc7a3' : key === 'weapons_ws' ? '#bdb2a0' : key === 'fletcher_ws' ? '#d8c9a8' : COL.cream;
-  box(ctx, 0.12, 0.12, 1.2, 0.95, 0, 18, wall);
-  gableRoof(ctx, 0.12, 0.12, 1.2, 0.95, 18, 8, key === 'weapons_ws' ? COL.slate : COL.terra, 'u');
-  door(ctx, 'left', 0.12, 0.12, 1.32, 1.07, 0, 0.4, '#3d2a1a', 0.2, 9);
-  // chimney
-  if (key === 'pottery_ws' || key === 'weapons_ws') {
-    box(ctx, 0.9, 0.25, 0.18, 0.18, 18, 12, COL.stoneDark);
-  }
-  // product displays in the yard
-  const yard = [[1.55, 0.5], [1.6, 1.2], [0.6, 1.55], [1.2, 1.65]];
-  for (const [u, v] of yard) {
-    const [x, y] = P(u, v);
-    switch (key) {
-      case 'pottery_ws':
-        ctx.fillStyle = '#c7643e';
-        ctx.beginPath(); ctx.ellipse(x, y - 4, 3, 4, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(x - 1.5, y - 9, 3, 2);
-        break;
-      case 'furniture_ws':
-        ctx.fillStyle = '#8a5a33';
-        ctx.fillRect(x - 4, y - 5, 8, 1.6);
-        ctx.fillRect(x - 3.5, y - 5, 1.2, 5);
-        ctx.fillRect(x + 2.3, y - 5, 1.2, 5);
-        break;
-      case 'oil_ws':
-      case 'wine_ws':
-        ctx.fillStyle = key === 'oil_ws' ? '#c9b13a' : '#7b1f3a';
-        ctx.beginPath(); ctx.ellipse(x, y - 4, 2.6, 4.5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#a0703c';
-        ctx.fillRect(x - 1, y - 10, 2, 2);
-        break;
-      case 'weapons_ws':
-        ctx.fillStyle = '#3a3a3a';
-        ctx.fillRect(x - 3, y - 4, 6, 3);
-        ctx.fillStyle = '#b8bec6';
-        ctx.fillRect(x - 0.6, y - 12, 1.2, 8);
-        break;
-      case 'fletcher_ws':
-        // a sheaf of arrows (iron tips, white fletching) and a strung bow
-        ctx.strokeStyle = '#b89a64';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        for (let a = -2; a <= 2; a++) { ctx.moveTo(x + a * 0.6, y); ctx.lineTo(x + a * 1.3, y - 11); }
-        ctx.stroke();
-        ctx.fillStyle = '#f2eee6';
-        for (let a = -2; a <= 2; a++) ctx.fillRect(x + a * 0.6 - 0.6, y - 3, 1.2, 2);
-        ctx.fillStyle = '#6f7680';
-        for (let a = -2; a <= 2; a++) ctx.fillRect(x + a * 1.3 - 0.5, y - 12.5, 1, 1.6);
-        ctx.strokeStyle = '#6b4a2a';
-        ctx.lineWidth = 1.1;
-        ctx.beginPath(); ctx.arc(x + 6, y - 7, 5, -Math.PI / 2 - 0.9, -Math.PI / 2 + 0.9); ctx.stroke();
-        break;
-      default:
-        break;
-    }
-  }
-  if (key === 'oil_ws') {
-    // press beam
-    const [x, y] = P(1.6, 1.6);
-    ctx.fillStyle = COL.woodDark;
-    ctx.fillRect(x - 12, y - 12, 18, 2);
-    ctx.fillRect(x + 4, y - 12, 2, 12);
-  }
+/** Pixels of height per metre, and the model's metres as footprint tiles (a tile is 4 m). */
+const IND_H = 7;
+const indU = (x) => (x + 4) / 4;
+const indV = (z) => (z + 4) / 4;
+/** The point at model metres (x across, y up, z toward the street). */
+const indPt = (x, y, z) => P(indU(x), indV(z), y * IND_H);
+
+/** A store as a step of 0..3 (none, a third, two thirds, full: any stock shows at least a third), as the models read it. */
+function indStep(amount, cap) {
+  const n = Math.max(0, amount || 0);
+  return n <= 0 ? 0 : Math.max(1, Math.min(3, Math.ceil((n / cap) * 3 - 1e-9)));
 }
 
-// ---------------------------------------------------------------------------
-// Cloth (not in the original): the Linen Maker and the Clothing Maker
-// ---------------------------------------------------------------------------
+/** What each producer holds, and each workshop: [raw, second raw, product]. */
+const IND_RAW = { clay_pit: 'clay', timber_yard: 'timber', iron_mine: 'iron', marble_quarry: 'marble' };
+const IND_WS = {
+  pottery_ws: ['clay', null, 'pottery'], furniture_ws: ['timber', null, 'furniture'], oil_ws: ['olives', null, 'oil'],
+  wine_ws: ['grapes', null, 'wine'], weapons_ws: ['iron', null, 'weapons'], fletcher_ws: ['timber', 'iron', 'arrows'],
+  linen_ws: ['flax', null, 'linen'], clothing_ws: ['linen', null, 'clothing'],
+};
 
-/** Natural linen and its shadow side. */
-const LINEN = '#efe9d6';
-const LINEN_SHADE = '#cfc6ab';
-
-/** A bundle of retted flax standing on end (a stook), tied at the waist. */
-function flaxStook(ctx, u, v) {
-  const [x, y] = P(u, v);
-  // A sheaf: splayed foot, tied waist, the seed heads fanning out on top.
-  ctx.fillStyle = '#b9a76a';
-  ctx.beginPath();
-  ctx.moveTo(x - 3.6, y);
-  ctx.lineTo(x - 1.4, y - 4.5);
-  ctx.lineTo(x - 3.2, y - 9);
-  ctx.lineTo(x + 3.2, y - 9);
-  ctx.lineTo(x + 1.4, y - 4.5);
-  ctx.lineTo(x + 3.6, y);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#d6c690'; // the lit side
-  ctx.fillRect(x - 1.6, y - 8.5, 1.2, 8);
-  ctx.fillStyle = '#8c7a46'; // seed heads
-  for (const dx of [-2.4, -0.8, 0.8, 2.4]) { ctx.beginPath(); ctx.arc(x + dx, y - 9.3, 0.9, 0, Math.PI * 2); ctx.fill(); }
-  ctx.fillStyle = '#6b4a2a';
-  ctx.fillRect(x - 1.8, y - 5, 3.6, 1.1);
+/**
+ * The art state of a producer or a workshop: bit 0 set when it has no staff (shut up, the lantern
+ * cold), then its stores as steps: a producer's one (x2), a workshop's raw, second raw and product
+ * (2 bits each, from bit 1). 0 is staffed and empty. Undefined for any other building.
+ */
+export function industryArtState(b) {
+  const shut = b.efficiency > 0 ? 0 : 1;
+  const st = b.stock || {};
+  if (IND_RAW[b.type]) return shut + 2 * indStep(st[IND_RAW[b.type]], CONFIG.PRODUCER_MAX_STOCK);
+  const ws = IND_WS[b.type];
+  if (!ws) return undefined;
+  const a = indStep(st[ws[0]], CONFIG.WORKSHOP_RAW_CAP);
+  const c = ws[1] ? indStep(st[ws[1]], CONFIG.WORKSHOP_RAW_CAP) : 0;
+  const o = indStep(st[ws[2]], CONFIG.CART_CAPACITY * 2);
+  return shut + 2 * (a + 4 * (c + 4 * o));
 }
 
-/** A bolt of linen lying on its side: a pale roll with its end toward the viewer. */
-function linenBolt(ctx, u, v, z = 0) {
-  const [x, y] = P(u, v, z);
-  ctx.fillStyle = LINEN_SHADE;
-  ctx.fillRect(x - 5, y - 3, 8, 3);
-  ctx.fillStyle = LINEN;
-  ctx.fillRect(x - 5, y - 3.4, 8, 1.6);
-  ctx.beginPath(); ctx.ellipse(x + 3, y - 1.7, 1.3, 1.7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = LINEN_SHADE;
-  ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.arc(x + 3, y - 1.7, 0.7, 0, Math.PI * 1.6); ctx.stroke();
+/** A producer's look from its state: [shut, step]. */
+const indRawLook = (state) => [state & 1, state >> 1];
+/** A workshop's look: [shut, raw step, second raw step, product step]. */
+const indWsLook = (state) => [state & 1, (state >> 1) & 3, (state >> 3) & 3, (state >> 5) & 3];
+
+/** Palette of the yards (beaten earth, dug clay, timber, rock, thatch). */
+const IND = Object.freeze({
+  earth: '#b9aa88', dust: '#d8cba8', clay: '#c8a46a', clayDry: '#d9bc8a', timber: '#9a6c3e', timberPale: '#c9a36b', bark: '#7a4f2c',
+  barkLight: '#9a7044', rock: '#a39682', rockDark: '#7d7262', grass: '#6f8c43', ore: '#7a4a34', oreDark: '#563022', white: '#ece1c6',
+  whiteLit: '#f5ecd5', thatch: '#c9a75b', iron: '#6a707a', lampOn: '#ffd98a', lampOff: '#5b4630', tile: '#b8573a', leather: '#8a6a45',
+});
+
+/** An axis-aligned box in model metres: x0..x1 across, z0..z1 toward the street, y0..y1 up. Plain (no wall flecks) unless asked. */
+function indBox(ctx, x0, x1, z0, z1, y0, y1, color, o = {}) {
+  box(ctx, indU(x0), indV(z0), (x1 - x0) / 4, (z1 - z0) / 4, y0 * IND_H, (y1 - y0) * IND_H, color, { plain: true, ...o });
+}
+
+/** A square-sectioned post standing at (x, z) from y0 to y1, w metres across. */
+function indPost(ctx, x, z, y0, y1, color = COL.woodDark, w = 0.12) {
+  indBox(ctx, x - w / 2, x + w / 2, z - w / 2, z + w / 2, y0, y1, color, { stroke: null });
+}
+
+/** A flat shape on the level y over the rectangle x0..x1 by z0..z1. */
+function indQuad(ctx, x0, x1, z0, z1, y, fill, stroke = null) {
+  poly(ctx, [indPt(x0, y, z0), indPt(x1, y, z0), indPt(x1, y, z1), indPt(x0, y, z1)], fill, stroke, 0.5);
+}
+
+/** A flat ellipse on the level y, rx and rz metres, as a polygon (so it turns with the building). */
+function indDisc(ctx, x, y, z, rx, rz, fill, stroke = null) {
+  const pts = [];
+  for (let k = 0; k < 18; k++) pts.push(indPt(x + Math.cos((k / 18) * Math.PI * 2) * rx, y, z + Math.sin((k / 18) * Math.PI * 2) * rz));
+  poly(ctx, pts, fill, stroke, 0.5);
 }
 
 /**
- * Linen Maker: a weaving shed, and in its yard an upright loom of the
- * Roman kind: two posts and a beam, the woven cloth hanging from the beam
- * and the pale warp below it held taut by a row of clay weights. Stooks of
- * flax wait by the shed, and bolts of finished linen lie on a bench.
+ * Run `fn` (direct canvas calls, which know no bounds of their own) as one unit of a turned drawing,
+ * boxed by the model metres x0..x1, z0..z1 and heights y0..y1, so the turn sorts it behind and in
+ * front of the walls and boxes as it should. Call P (indPt) inside `fn` only.
  */
-function linenMakerArt(ctx, S) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#b9a57c');
-  box(ctx, 0.12, 0.12, 1.25, 0.85, 0, 16, '#e4d8bc');
-  gableRoof(ctx, 0.12, 0.12, 1.25, 0.85, 16, 8, COL.terra, 'u');
-  door(ctx, 'left', 0.12, 0.12, 1.37, 0.97, 0, 0.3, '#3d2a1a', 0.2, 9);
-  windows(ctx, 'right', 0.12, 0.12, 1.37, 0.97, 0, 1, 2, '#4a3a2a', { z: 7, h: 4 });
-  // Flax waiting to be spun, along the shed's side.
-  for (const [u, v] of [[1.6, 0.28], [1.82, 0.4], [1.62, 0.56]]) flaxStook(ctx, u, v);
-  // Bolts of linen stacked on a low bench: two below, one on top.
-  box(ctx, 1.48, 0.78, 0.4, 0.42, 0, 3, COL.wood);
-  linenBolt(ctx, 1.6, 0.88, 3);
-  linenBolt(ctx, 1.62, 1.08, 3);
-  linenBolt(ctx, 1.61, 0.98, 6);
-  // The loom, square to the shed's front: posts, beam, cloth, warp, weights.
-  const top = 21;
-  const [ax, ay] = P(0.42, 1.55);
-  const [bx, by] = P(1.3, 1.55);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(bx + 4, by + 2); ctx.lineTo(ax + 4, ay + 2); ctx.closePath(); ctx.fill();
-  const at = (t, z) => [ax + (bx - ax) * t, ay + (by - ay) * t - z];
-  // The woven cloth, hanging from the beam (weaving runs downward).
-  poly(ctx, [at(0.08, top - 1), at(0.92, top - 1), at(0.92, top - 9), at(0.08, top - 9)], LINEN, LINEN_SHADE, 0.5);
-  ctx.strokeStyle = 'rgba(160,140,100,0.55)';
-  ctx.lineWidth = 0.4;
-  for (const z of [top - 4, top - 7]) {
-    const [p, q] = [at(0.08, z), at(0.92, z)];
+function indUnit(x0, x1, z0, z1, y0, y1, fn) {
+  if (!TS.rec) return fn();
+  const [ua, va] = turnUV(indU(x0) + TS.ou, indV(z0) + TS.ov, TS.S, TS.t);
+  const [ub, vb] = turnUV(indU(x1) + TS.ou, indV(z1) + TS.ov, TS.S, TS.t);
+  return unit([Math.min(ua, ub), Math.max(ua, ub), Math.min(va, vb), Math.max(va, vb), y0 * IND_H, y1 * IND_H], fn);
+}
+
+/** The unit of something standing at (x, z) from y up h metres, r metres each way. */
+function indStand(x, y, z, r, h, fn) {
+  indUnit(x - r, x + r, z - r, z + r, y, y + h, fn);
+}
+
+/** A straight line between two model points ([x, y, z]), for ropes, poles and tool handles. */
+function indLine(ctx, a, b, color, w = 0.8) {
+  // (A long one is drawn in pieces of a metre or two, so a turn can sort each against what stands round it.)
+  const n = Math.ceil(Math.hypot(b[0] - a[0], b[2] - a[2]) / 1.4);
+  if (n > 1) {
+    for (let k = 0; k < n; k++) {
+      indLine(ctx, a.map((v, i) => v + ((b[i] - v) * k) / n), a.map((v, i) => v + ((b[i] - v) * (k + 1)) / n), color, w);
+    }
+    return;
+  }
+  indUnit(Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[2], b[2]), Math.max(a[2], b[2]), Math.min(a[1], b[1]), Math.max(a[1], b[1]) + 0.05, () => {
+    const p = indPt(...a);
+    const q = indPt(...b);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-  }
-  // The warp below the cloth, down to the weights.
-  ctx.strokeStyle = '#f4efe0';
-  ctx.lineWidth = 0.45;
-  ctx.beginPath();
-  for (let k = 0; k <= 10; k++) {
-    const [px, py] = at(0.1 + k * 0.08, top - 9);
-    const [qx, qy] = at(0.1 + k * 0.08, 4);
-    ctx.moveTo(px, py); ctx.lineTo(qx, qy);
-  }
-  ctx.stroke();
-  ctx.fillStyle = '#9a5a36';
-  for (let k = 0; k <= 10; k += 2) {
-    const [x, y] = at(0.1 + k * 0.08, 3.5);
-    ctx.beginPath(); ctx.arc(x, y, 1.1, 0, Math.PI * 2); ctx.fill();
-  }
-  // Posts and beam last, in front.
-  ctx.fillStyle = COL.woodDark;
-  for (const t of [0.02, 0.98]) {
-    const [x, y] = at(t, 0);
-    ctx.fillRect(x - 0.9, y - top - 2, 1.8, top + 2);
-  }
-  const [p, q] = [at(0, top), at(1, top)];
-  ctx.strokeStyle = COL.wood;
-  ctx.lineWidth = 1.8;
-  ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-  // A basket of spun thread at the loom's foot.
-  const [tx, ty] = P(1.65, 1.75);
-  ctx.fillStyle = '#b08850';
-  ctx.fillRect(tx - 2.5, ty - 3, 5, 3);
-  ctx.fillStyle = LINEN;
-  for (const dx of [-1.2, 1.2]) { ctx.beginPath(); ctx.arc(tx + dx, ty - 3.4, 1.2, 0, Math.PI * 2); ctx.fill(); }
+  });
 }
 
-/** Tunic colors: woad blue, madder red, saffron, undyed linen and a sea green. */
-const TUNICS = ['#4a6fa5', '#b0413e', '#d9a441', LINEN, '#4f8a7a'];
+/** A log from a to b ([x, y, z] of its axis), r metres in radius, its cut end (at b) pale. */
+function indLog(ctx, a, b, r, bark = IND.bark, cut = IND.timberPale) {
+  const w = Math.max(1.4, 2 * r * IND_H);
+  indUnit(Math.min(a[0], b[0]) - r, Math.max(a[0], b[0]) + r, Math.min(a[2], b[2]) - r, Math.max(a[2], b[2]) + r, Math.min(a[1], b[1]) - r, Math.max(a[1], b[1]) + r, () => {
+    const p = indPt(...a);
+    const q = indPt(...b);
+    ctx.strokeStyle = shade(bark, -0.3);
+    ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1] + 0.4); ctx.lineTo(q[0], q[1] + 0.4); ctx.stroke();
+    ctx.strokeStyle = bark;
+    ctx.lineWidth = w * 0.72;
+    ctx.beginPath(); ctx.moveTo(p[0], p[1] - 0.3); ctx.lineTo(q[0], q[1] - 0.3); ctx.stroke();
+    ctx.fillStyle = cut;
+    ctx.beginPath(); ctx.ellipse(q[0], q[1], Math.max(0.9, w * 0.3), w * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+  });
+}
 
-/** A tunic hanging by its shoulders at (x, y): body, short sleeves, a neck. */
-function tunic(ctx, x, y, color, s = 1) {
+/** An upright round vessel (a tub, a vat, a kiln's base, a stump): foot at (x, y, z), r metres wide, h metres tall. */
+function indCyl(ctx, x, y, z, r, h, body, top = shade(body, 0.2)) {
+  indStand(x, y, z, r, h, () => {
+    const [cx, cy] = indPt(x, y, z);
+    const rx = r * 11.3;
+    const ry = r * 5.65;
+    const hh = h * IND_H;
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(cx - rx, cy); ctx.lineTo(cx - rx, cy - hh); ctx.lineTo(cx + rx, cy - hh); ctx.lineTo(cx + rx, cy);
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.17)'; // the side away from the light
+    ctx.beginPath();
+    ctx.moveTo(cx + rx * 0.3, cy + ry * 0.95); ctx.lineTo(cx + rx * 0.3, cy - hh); ctx.lineTo(cx + rx, cy - hh); ctx.lineTo(cx + rx, cy);
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 0.4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = top;
+    ctx.beginPath(); ctx.ellipse(cx, cy - hh, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+/** A heap (spoil, ore, clay, charcoal): a dome r metres across and h metres high at (x, z). */
+function indHeap(ctx, x, y, z, r, h, color, lumpColor = shade(color, -0.3), seed = 0) {
+  indStand(x, y, z, r, h, () => indHeapRaw(ctx, x, y, z, r, h, color, lumpColor, seed));
+}
+
+function indHeapRaw(ctx, x, y, z, r, h, color, lumpColor, seed) {
+  const [cx, cy] = indPt(x, y, z);
+  const rx = r * 11.3;
+  const ry = r * 5.65;
+  const hh = h * IND_H;
+  ctx.fillStyle = shade(color, -0.2);
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = color;
-  ctx.fillRect(x - 2.2 * s, y, 4.4 * s, 6.5 * s);
-  ctx.fillRect(x - 3.6 * s, y, 7.2 * s, 2 * s);
-  ctx.fillStyle = 'rgba(0,0,0,0.16)';
-  ctx.fillRect(x + 0.9 * s, y + 2 * s, 1.3 * s, 4.5 * s); // the fold in shadow
-  ctx.fillStyle = 'rgba(60,40,20,0.55)';
-  ctx.fillRect(x - 0.7 * s, y, 1.4 * s, 0.8 * s); // the neck opening
+  ctx.beginPath(); ctx.moveTo(cx - rx, cy); ctx.ellipse(cx, cy, rx, hh + ry * 0.2, 0, Math.PI, Math.PI * 2); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(color, 0.16); // the lit shoulder
+  ctx.beginPath(); ctx.ellipse(cx - rx * 0.25, cy - hh * 0.45, rx * 0.4, hh * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = lumpColor;
+  const n = Math.round(4 + r * 4);
+  for (let k = 0; k < n; k++) {
+    const a = hash01(seed, k, 1) * Math.PI * 2;
+    const d = Math.sqrt(hash01(seed, k, 2)) * 0.8;
+    const lx = cx + Math.cos(a) * rx * d;
+    const ly = cy - Math.max(0, hh * (1 - d * d) * 0.7) + Math.sin(a) * ry * d * 0.5;
+    ctx.beginPath(); ctx.arc(lx, ly, 0.7 + hash01(seed, k, 3) * 0.7, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+/** A man at (x, y, z) in a tunic of that colour, an arm out to `reach` (a point [x, y, z]) when he works. About 10 px tall. */
+function indMan(ctx, x, y, z, tunic, reach = null, skin = '#d6ab82') {
+  indStand(x, y, z, 0.3, 1.6, () => indManRaw(ctx, x, y, z, tunic, reach, skin));
+}
+
+function indManRaw(ctx, x, y, z, tunic, reach, skin) {
+  const [px, py] = indPt(x, y, z);
+  ctx.fillStyle = '#6a5640';
+  ctx.fillRect(px - 1.5, py - 3.2, 1.2, 3.2);
+  ctx.fillRect(px + 0.3, py - 3.2, 1.2, 3.2);
+  ctx.fillStyle = tunic;
+  ctx.fillRect(px - 2, py - 8, 4, 5.2);
+  ctx.fillStyle = shade(tunic, -0.22);
+  ctx.fillRect(px + 0.8, py - 8, 1.2, 5.2);
+  ctx.fillStyle = skin;
+  ctx.beginPath(); ctx.arc(px, py - 9.6, 1.6, 0, Math.PI * 2); ctx.fill();
+  if (reach) {
+    const [rx, ry] = indPt(...reach);
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px, py - 7); ctx.lineTo(rx, ry); ctx.stroke();
+  }
+}
+
+/** Snow lying on the yard (the roofs have their own), as on the fields. */
+function indSnow(ctx, S) {
+  const sn = roofSnowAmount();
+  if (sn <= 0) return;
+  ctx.globalAlpha = 0.3 + 0.5 * sn;
+  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, SNOW);
+  ctx.globalAlpha = 1;
+}
+
+/** The yard's beaten earth over the whole footprint. */
+function indGround(ctx, S, color) {
+  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, color);
+  indSnow(ctx, S);
+}
+
+/** The lantern on a bracket at (x, y, z): lit while staffed. */
+function indLamp(ctx, x, y, z, shut) {
+  indStand(x, y - 0.1, z, 0.12, 0.6, () => {
+    const [px, py] = indPt(x, y, z);
+    ctx.fillStyle = COL.woodDark;
+    ctx.fillRect(px - 0.8, py - 1.2, 1.6, 1.2);
+    ctx.fillStyle = shut ? IND.lampOff : IND.lampOn;
+    ctx.fillRect(px - 1.1, py - 3.6, 2.2, 2.6);
+  });
+}
+
+/** A thatched gable over posts (a shelter's or a shed's roof): x0..x1 by z0..z1 from the eave y0 to the ridge y1, the ridge along `axis`. */
+function indThatch(ctx, x0, x1, z0, z1, y0, y1, axis) {
+  gableRoof(ctx, indU(x0), indV(z0), (x1 - x0) / 4, (z1 - z0) / 4, y0 * IND_H, (y1 - y0) * IND_H, IND.thatch, axis, 0.07);
+}
+
+// --- The clay pit -----------------------------------------------------------
+
+/**
+ * The clay pit, as the 3D model draws it: a pit dug in three steps of clay
+ * down each side to a floor with water standing in it, a plank ramp with
+ * cleats coming down into it; the pug bed in a frame of boards; a shelter
+ * on posts under thatch over a pallet where the dug clay is stacked in
+ * lumps (the stock); two racks of bricks drying, a hand barrow and baskets
+ * of clay. Staffed: the lantern lit, the barrow loaded, diggers in the pit
+ * and a man treading the bed. Idle: the mattocks leaning on a post, nobody.
+ */
+function clayPitArt(ctx, S, variant, state) {
+  const [shut, step] = indRawLook(state);
+  indGround(ctx, S, '#c3b493');
+  // the pit: the floor and its pool, then three steps of clay, each a ring a third of a metre wide
+  const t = 0.36;
+  const rim = { x0: -3.8, x1: 0.9, z0: -3.8, z1: 0.2 };
+  const fl = t * 3;
+  indQuad(ctx, rim.x0 + fl, rim.x1 - fl, rim.z0 + fl, rim.z1 - fl, 0, '#6f5234');
+  indDisc(ctx, -2.0, 0.1, -2.1, 0.62, 0.42, '#5f8f95', '#3f6a70');
+  indDisc(ctx, -2.1, 0.12, -2.2, 0.28, 0.16, '#8ab6b8');
+  [0.55, 0.36, 0.18].forEach((top, k) => {
+    const o = { x0: rim.x0 + t * k, x1: rim.x1 - t * k, z0: rim.z0 + t * k, z1: rim.z1 - t * k };
+    const c = shade(IND.clay, -0.17 * k);
+    const st = shade(c, -0.35);
+    indBox(ctx, o.x0, o.x1, o.z0, o.z0 + t, 0, top, c, { stroke: st });
+    indBox(ctx, o.x0, o.x0 + t, o.z0 + t, o.z1 - t, 0, top, c, { stroke: st });
+    indBox(ctx, o.x1 - t, o.x1, o.z0 + t, o.z1 - t, 0, top, c, { stroke: st });
+    indBox(ctx, o.x0, o.x1, o.z1 - t, o.z1, 0, top, c, { stroke: st });
+  });
+  // the ramp of planks with cleats down to the floor, from the front rim
+  const yAt = (z) => 0.66 + (z - 0.2) * 0.3;
+  const rx = -1.55;
+  poly(ctx, [indPt(rx - 0.36, yAt(0.5), 0.5), indPt(rx + 0.36, yAt(0.5), 0.5), indPt(rx + 0.36, yAt(-1.75), -1.75), indPt(rx - 0.36, yAt(-1.75), -1.75)], '#b08850', '#6a4a28', 0.6);
+  for (let k = 1; k < 6; k++) {
+    const z = -1.75 + k * 0.38;
+    indLine(ctx, [rx - 0.34, yAt(z) + 0.03, z], [rx + 0.34, yAt(z) + 0.03, z], '#6e4c2a', 0.7);
+  }
+  for (const s of [-1, 1]) indLine(ctx, [rx + s * 0.38, yAt(0.5) + 0.06, 0.5], [rx + s * 0.38, yAt(-1.75) + 0.06, -1.75], '#7a5632', 1);
+  // the pug bed: a frame of boards with the clay trodden to slurry in it, stakes at the corners
+  indBox(ctx, -3.7, -1.7, 1.0, 2.4, 0, 0.17, '#a98250', { stroke: '#5e4226' });
+  indQuad(ctx, -3.64, -1.76, 1.06, 2.34, 0.15, '#9b7a4c');
+  indQuad(ctx, -3.3, -2.4, 1.3, 1.9, 0.151, '#a8875a');
+  for (const [x, z] of [[-3.72, 0.98], [-1.68, 0.98], [-3.72, 2.42], [-1.68, 2.42]]) indPost(ctx, x, z, 0, 0.3, COL.wood, 0.08);
+  // the shelter: six posts, the pallet with the stock of clay lumps on it, then the thatch over all
+  const s = { x0: 1.65, x1: 3.5, z0: -3.5, z1: -0.8, eave: 1.7, ridge: 2.65 };
+  for (const x of [s.x0, s.x1]) for (const z of [s.z0, (s.z0 + s.z1) / 2, s.z1]) indPost(ctx, x, z, 0, s.eave, COL.woodDark, 0.17);
+  indBox(ctx, 1.85, 3.25, -3.2, -1.0, 0, 0.14, '#8d6a40', { stroke: null });
+  const layers = [[3, 4], [3, 4], [3, 3], [2, 3], [2, 2]].slice(0, [0, 1, 3, 5][step]);
+  layers.forEach(([nx, nz], k) => {
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      const cx = 2.55 + (i - (nx - 1) / 2) * 0.45 + (hash01(k, i, j) - 0.5) * 0.06;
+      const cz = -2.1 + (j - (nz - 1) / 2) * 0.52;
+      indBox(ctx, cx - 0.21, cx + 0.21, cz - 0.25, cz + 0.25, 0.14 + k * 0.24, 0.14 + (k + 1) * 0.24, shade(IND.clay, -0.1 + hash01(i, j, k) * 0.2), { stroke: shade(IND.clay, -0.4) });
+    }
+  });
+  indThatch(ctx, s.x0, s.x1, s.z0, s.z1, s.eave, s.ridge, 'v');
+  indLamp(ctx, 1.79, 1.38, -0.5, shut);
+  if (shut) for (const k of [0, 1, 2]) indLine(ctx, [3.0 + k * 0.1, 0, -0.5], [3.38 + k * 0.03, 1.35, -0.76], COL.wood, 0.9); // the mattocks against a post
+  // two baskets of clay at the shelter's front
+  for (const [x, z, r] of [[1.15, 0.55, 0.27], [1.62, 0.95, 0.24]]) {
+    indCyl(ctx, x, 0, z, r, 0.3, '#a8814a', IND.clay);
+  }
+  // two racks of unfired bricks drying, two shelves each
+  for (const [cz, cx] of [[1.55, -0.05], [2.45, 0.3]]) {
+    const L = 1.9;
+    const D = 0.5;
+    for (const sx of [-1, 1]) indPost(ctx, cx + sx * (L / 2 - 0.05), cz - D / 2 + 0.05, 0, 1.05, COL.wood, 0.07);
+    for (const sh of [0.38, 0.78]) {
+      indBox(ctx, cx - L / 2, cx + L / 2, cz - D / 2, cz + D / 2, sh, sh + 0.05, '#a9824f', { stroke: null });
+      for (let k = 0; k < 7; k++) indBox(ctx, cx - L / 2 + 0.12 + k * 0.25, cx - L / 2 + 0.32 + k * 0.25, cz - 0.03, cz + 0.03, sh + 0.05, sh + 0.25, shade(IND.clayDry, hash01(k, sh * 9, 4) * 0.18 - 0.1), { stroke: shade(IND.clayDry, -0.35) });
+    }
+    for (const sx of [-1, 1]) indPost(ctx, cx + sx * (L / 2 - 0.05), cz + D / 2 - 0.05, 0, 1.05, COL.wood, 0.07);
+  }
+  // the hand barrow: a board bed on two long handles, loaded while the pit works
+  for (const sx of [-1, 1]) indBox(ctx, 2.2 + sx * 0.33 - 0.03, 2.2 + sx * 0.33 + 0.03, 1.4, 3.5, 0.2, 0.26, COL.wood, { stroke: null });
+  indBox(ctx, 1.85, 2.55, 1.98, 2.92, 0.26, 0.3, '#a98250', { stroke: null });
+  if (!shut) for (const dz of [-0.2, 0.2, 0]) indBox(ctx, 2.0, 2.4, 2.45 + dz - 0.15, 2.45 + dz + 0.15, 0.3, 0.46 + (dz ? 0 : 0.06), shade(IND.clay, dz * 0.4), { stroke: shade(IND.clay, -0.4) });
+  if (!shut) {
+    indMan(ctx, -0.95, 0.04, -2.0, '#8a7a5a', [-0.7, 0.4, -1.7]);
+    indMan(ctx, -0.55, 0.04, -1.4, '#a8977a', [-0.2, 0.5, -1.4]);
+    indMan(ctx, -2.7, 0.04, 2.95, '#6e604f', [-2.7, 0.3, 2.4]);
+  }
+}
+
+// --- The timber yard --------------------------------------------------------
+
+/**
+ * The timber yard, as the 3D model draws it: a felling yard with stumps, a
+ * limbed trunk, a saw pit (the log on trestles, a sawyer above and one
+ * below at the long saw), an ox-sledge and the wheels of a timber cart, a
+ * shed of poles under thatch with a bench and a chopping block, and the
+ * store: logs between stakes and planks on stickers (the stock).
+ * Staffed: the saw in its kerf, the lantern lit, the feller and the two
+ * sawyers at work. Idle: the saw leaning on the trestle, nobody.
+ */
+function timberYardArt(ctx, S, variant, state) {
+  const [shut, step] = indRawLook(state);
+  indGround(ctx, S, '#d3c5a4');
+  // the shed of poles under thatch at the back left: bench, planks, the chopping block with its axes
+  const sh = { x0: -3.5, x1: -0.7, z0: -3.4, z1: -1.9, eave: 1.8, ridge: 2.75 };
+  indBox(ctx, -3.55, -2.05, -3.22, -2.78, 0, 0.78, '#a9824f', { stroke: null });
+  indBox(ctx, -3.6, -2.0, -3.25, -2.75, 0.74, 0.82, '#b9915a');
+  for (let k = 0; k < 5; k++) indBox(ctx, -2.05, -0.85, -3.13, -2.67, 0.08 + k * 0.09, 0.13 + k * 0.09, shade('#c9a36b', -0.12 * (k % 3)), { stroke: shade(IND.timber, -0.3) });
+  indCyl(ctx, -3.15, 0, -2.35, 0.29, 0.5, IND.bark, IND.timberPale);
+  for (const a of [0.5, 2.3, 4.0]) indLine(ctx, [-3.15 + Math.cos(a) * 0.18, 0.55, -2.35 + Math.sin(a) * 0.18], [-3.15 + Math.cos(a) * 0.5, 1.15, -2.35 + Math.sin(a) * 0.5], COL.wood, 0.9);
+  for (const x of [sh.x0 + 0.05, (sh.x0 + sh.x1) / 2, sh.x1 - 0.05]) for (const z of [sh.z0 + 0.05, sh.z1 - 0.05]) indPost(ctx, x, z, 0, sh.eave, COL.woodDark, 0.15);
+  indThatch(ctx, sh.x0 - 0.1, sh.x1 + 0.1, sh.z0 - 0.1, sh.z1 + 0.1, sh.eave, sh.ridge, 'u');
+  indLamp(ctx, -0.55, 1.5, -1.65, shut);
+  // the store at the back right: logs between stakes and planks on stickers (the stock)
+  for (const x of [0.35, 3.65]) for (const z of [-3.75, -1.71]) indPost(ctx, x, z, 0, 1.0, COL.wood, 0.1);
+  const rows = [[5], [5, 4], [5, 4, 3, 2]][Math.max(1, step) - 1];
+  if (step > 0) {
+    rows.forEach((n, k) => {
+      for (let i = 0; i < n; i++) {
+        const z = -3.5 + (i + (5 - n) / 2) * 0.385;
+        const y = 0.04 + 0.19 + k * 0.385 * 0.866;
+        indLog(ctx, [0.4, y, z], [3.5, y, z], 0.19, shade(IND.bark, ((i + k) % 3) * 0.1 - 0.1));
+      }
+    });
+  }
+  for (const dx of [-1.2, 0, 1.2]) indBox(ctx, 2.0 + dx - 0.06, 2.0 + dx + 0.06, -1.6, -0.9, 0, 0.1, COL.wood, { stroke: null });
+  const courses = [0, 3, 7, 11][step];
+  if (courses) {
+    indBox(ctx, 0.5, 3.5, -1.55, -0.95, 0.1, 0.1 + courses * 0.09, '#cfae77', { stroke: shade(IND.timber, -0.2) });
+    indUnit(0.5, 3.5, -0.95, -0.95, 0.1, 0.1 + courses * 0.09, () => {
+      ctx.strokeStyle = 'rgba(110,76,40,0.55)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let c = 1; c < courses; c++) {
+        const a = indPt(0.5, 0.1 + c * 0.09, -0.95);
+        const b = indPt(3.5, 0.1 + c * 0.09, -0.95);
+        ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+      }
+      ctx.stroke();
+    });
+  }
+  // the felled trunk with its branches half trimmed, the cut limbs on the ground
+  const cy = 0.04 + 0.27 * 0.95;
+  [[0.95, 1], [1.45, -1], [1.95, 1], [2.4, -1], [2.9, 1], [3.3, -1]].forEach(([x, sgn], k) => {
+    indLine(ctx, [x, cy + 0.03, -0.4 + sgn * 0.22], [x + 0.08, cy + 0.14, -0.4 + sgn * (0.3 + 0.2 + (k % 3) * 0.1)], IND.bark, 1.2);
+  });
+  indLog(ctx, [0.35, cy, -0.4], [3.55, cy + 0.04, -0.4], 0.27, IND.bark);
+  indLog(ctx, [2.9, 0.1, 0.95], [3.7, 0.13, 1.25], 0.05, IND.barkLight);
+  indLog(ctx, [1.0, 0.09, 1.05], [1.7, 0.11, 1.35], 0.045, IND.barkLight);
+  // the saw pit: the log high on two trestles, the sawdust under the cut, the saw in its kerf or leaning
+  const sz = 2.2;
+  indDisc(ctx, -0.8, 0.045, sz, 1.1, 0.7, '#e3d2a2');
+  indHeap(ctx, -0.7, 0.04, sz, 0.42, 0.14, '#eddcae', '#d3c08c', 3);
+  for (const x of [-2.95, -0.9]) {
+    for (const d of [-1, 1]) indLine(ctx, [x, 0.04, sz + d * 0.55], [x, 1.12, sz + d * 0.12], '#8d6a40', 1.5);
+    indBox(ctx, x - 0.08, x + 0.08, sz - 0.5, sz + 0.5, 1.02, 1.16, '#a9824f', { stroke: null });
+  }
+  indLog(ctx, [-3.5, 1.44, sz], [-0.45, 1.44, sz], 0.22, IND.bark);
+  indLine(ctx, [-3.3, 1.67, sz], [-0.9, 1.67, sz], '#e8ddc0', 0.6); // the chalk line
+  if (shut) {
+    indLine(ctx, [-1.25, 0.04, sz + 0.95], [-1.1, 1.7, sz + 0.2], IND.iron, 1.1);
+  } else {
+    indLine(ctx, [-0.7, 1.06, sz], [-0.7, 2.68, sz], '#bfc4ca', 1.1);
+    indLine(ctx, [-0.7, 2.68, sz - 0.2], [-0.7, 2.68, sz + 0.2], COL.wood, 1.2);
+    indLine(ctx, [-0.7, 1.0, sz - 0.17], [-0.7, 1.0, sz + 0.17], COL.wood, 1.2);
+    indMan(ctx, -1.1, 1.67, sz, '#a8977a', [-0.7, 2.68, sz]);
+    indMan(ctx, -0.3, 0.04, sz, '#6e604f', [-0.7, 1.0, sz]);
+    indMan(ctx, 1.7, 0.04, 0.5, '#8a7a5a', [1.7, 0.5, -0.1]);
+  }
+  // three stumps at the yard's edge, the freshest cut pale; the sledge with its load of logs; the cart's wheels
+  indCyl(ctx, 3.15, 0.04, 1.1, 0.3, 0.42, '#8a5f38', '#dcc08a');
+  for (const sx of [-1, 1]) {
+    indBox(ctx, 1.95 + sx * 0.45 - 0.06, 1.95 + sx * 0.45 + 0.06, 1.5, 3.5, 0.04, 0.17, '#8d6a40', { stroke: null });
+    indLine(ctx, [1.95 + sx * 0.45, 0.1, 3.45], [1.95 + sx * 0.45, 0.39, 3.62], '#8d6a40', 1.3);
+  }
+  for (let k = 0; k < 4; k++) indBox(ctx, 1.35, 2.55, 1.75 + k * 0.5, 1.85 + k * 0.5, 0.17, 0.24, '#9b744a', { stroke: null });
+  [[-0.17, 0, 0.17], [0.17, 0, 0.17], [0, 0.3, 0.15]].forEach(([dx, dy, r], k) => {
+    const y = 0.24 + r + dy;
+    indLog(ctx, [1.95 + dx, y, 1.62 - k * 0.08], [1.95 + dx, y + 0.02, 3.3 + k * 0.05], r, shade(IND.bark, k * 0.08));
+  });
+  indLine(ctx, [1.95, 0.34, 3.4], [1.95, 0.59, 3.85], '#8d6a40', 1.3);
+  indCyl(ctx, 3.5, 0.04, 2.2, 0.23, 0.3, '#8a5f38', '#d2b27a');
+  indCyl(ctx, 0.65, 0.04, 3.35, 0.21, 0.36, '#8a5f38', '#d2b27a');
+  for (const z of [3.32, 3.52]) {
+    const pts = [];
+    for (let k = 0; k < 20; k++) pts.push(indPt(3.3 + Math.cos((k / 20) * Math.PI * 2) * 0.5, 0.5 + Math.sin((k / 20) * Math.PI * 2) * 0.5, z));
+    poly(ctx, pts, '#9a7446', IND.iron, 0.9);
+  }
+  indPost(ctx, 3.85, 3.7, 0, 1.2, COL.wood, 0.1);
+}
+
+
+// --- The iron mine and the marble quarry ------------------------------------
+
+/** A smooth step from 0 at a to 1 at b. */
+function indSmooth(a, b, v) {
+  const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
 }
 
 /**
- * Clothing Maker: a tailor's shop with a striped awning over its counter,
- * folded clothes stacked on the counter, and a line of new tunics in every
- * dye drying in the yard.
+ * A rounded hill of earth and rock under grass at the back of a yard, drawn as a heightfield of
+ * facets (as the models draw theirs): x0..x1 across, from its back at zBack to its toe at zToe on
+ * the street side, about h metres high. It falls away to the ground at its ends unless `o.left` or
+ * `o.right` is false (a cut face or another hill stands there). Each facet is lit by its slope (the
+ * sun is upper left): grass, going to earth where it steepens, to bare rock where it is steep.
+ * Returns the height function, so boulders can be set on it.
  */
-function clothingMakerArt(ctx, S, variant) {
-  quad(ctx, 0.03, 0.03, S - 0.03, S - 0.03, 0, '#c2b08a');
-  box(ctx, 0.12, 0.12, 1.15, 1.0, 0, 18, '#ecdcbf');
-  gableRoof(ctx, 0.12, 0.12, 1.15, 1.0, 18, 8, COL.terraDark, 'v');
-  door(ctx, 'left', 0.12, 0.12, 1.27, 1.12, 0, 0.7, '#3d2a1a', 0.18, 9);
-  windows(ctx, 'right', 0.12, 0.12, 1.27, 1.12, 0, 1, 2, '#4a3a2a', { z: 8, h: 4, shutters: '#4d6f8f' });
-  // A striped awning over the counter on the street side.
-  const stripes = 5;
-  for (let k = 0; k < stripes; k++) {
-    const a = 0.16 + (k * 0.6) / stripes;
-    const b = a + 0.6 / stripes;
-    poly(ctx, [P(a, 1.12, 13), P(b, 1.12, 13), P(b, 1.45, 9), P(a, 1.45, 9)], k % 2 ? LINEN : '#4a6fa5');
-  }
-  for (const u of [0.18, 0.74]) {
-    const [x, y] = P(u, 1.43);
-    ctx.fillStyle = COL.woodDark;
-    ctx.fillRect(x - 0.5, y - 9, 1, 9);
-  }
-  // The counter with folded clothes on it.
-  box(ctx, 0.22, 1.18, 0.5, 0.2, 0, 4, COL.wood);
-  for (let k = 0; k < 3; k++) {
-    const [x, y] = P(0.32 + k * 0.15, 1.27, 4);
-    for (let j = 0; j < 2; j++) {
-      ctx.fillStyle = TUNICS[(variant + k * 2 + j) % TUNICS.length];
-      ctx.fillRect(x - 2.4, y - 1.7 * (j + 1), 4.8, 1.7);
+function indHill(ctx, x0, x1, zBack, zToe, h, o = {}) {
+  const { left = true, right = true, seed = 0 } = o;
+  const wave = (x, z) => Math.sin(x * 1.7 + seed) * Math.sin(z * 1.3 + 2.1) * 0.5 + Math.sin(x * 3.1 + z * 2.3) * 0.25;
+  const hAt = (x, z) => {
+    const ex = (left ? indSmooth(x0, x0 + 2.6, x) : 1) * (right ? indSmooth(x1, x1 - 2.6, x) : 1);
+    const along = indSmooth(zBack - 0.2, zBack + 0.9, z) * (1 - indSmooth(zBack + 0.6, zToe, z));
+    return Math.max(0, (h * (0.92 + 0.08 * Math.sin(x * 0.8 + seed)) + wave(x, z) * 0.45) * ex * along);
+  };
+  const nx = Math.max(3, Math.round((x1 - x0) / 0.42));
+  const nz = Math.max(3, Math.round((zToe - zBack) / 0.42));
+  const dx = (x1 - x0) / nx;
+  const dz = (zToe - zBack) / nz;
+  const grass = [111, 140, 67];
+  const earth = [139, 122, 88];
+  const rock = [150, 140, 122];
+  const hex = (c) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+  for (let sum = 0; sum < nx + nz - 1; sum++) {
+    for (let i = Math.max(0, sum - nz + 1); i <= Math.min(nx - 1, sum); i++) {
+      const j = sum - i;
+      const xa = x0 + i * dx;
+      const za = zBack + j * dz;
+      const hs = [hAt(xa, za), hAt(xa + dx, za), hAt(xa + dx, za + dz), hAt(xa, za + dz)];
+      if (Math.max(...hs) < 0.03) continue;
+      // the slope of the facet across and toward the street (rising toward +x or +z faces the light)
+      const su = (hs[1] + hs[2] - hs[0] - hs[3]) / (2 * dx);
+      const sv = (hs[2] + hs[3] - hs[0] - hs[1]) / (2 * dz);
+      const steep = Math.hypot(su, sv);
+      const m = Math.max(0, Math.min(1, (steep - 0.5) / 1.5));
+      const base = steep > 2.1 ? rock : grass.map((g, k) => g + (earth[k] - g) * m * 0.8);
+      const lit = Math.max(-0.5, Math.min(0.5, (su + sv) * 0.3 - 0.02));
+      const c = base.map((v) => Math.max(0, Math.min(255, v * (1 + lit * 0.45))));
+      const col = hex(c);
+      poly(ctx, [indPt(xa, hs[0], za), indPt(xa + dx, hs[1], za), indPt(xa + dx, hs[2], za + dz), indPt(xa, hs[3], za + dz)], col, col, 0.5);
     }
   }
-  // The drying line across the yard, tunics hanging from it.
-  const [ax, ay] = P(1.5, 0.25);
-  const [bx, by] = P(1.6, 1.85);
-  const H = 20;
-  ctx.fillStyle = COL.woodDark;
-  ctx.fillRect(ax - 0.6, ay - H, 1.2, H);
-  ctx.fillRect(bx - 0.6, by - H, 1.2, H);
-  ctx.strokeStyle = '#6b5a44';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.moveTo(ax, ay - H + 1); ctx.quadraticCurveTo((ax + bx) / 2, (ay + by) / 2 - H + 5, bx, by - H + 1); ctx.stroke();
+  // boulders on the slope
   for (let k = 0; k < 4; k++) {
-    const t = 0.16 + k * 0.22;
-    const sag = 8 * t * (1 - t); // the curve's own sag: its control point sits 4 px low, so 2 px at the middle
-    const x = ax + (bx - ax) * t;
-    const y = ay + (by - ay) * t - H + 1 + sag;
-    tunic(ctx, x, y, TUNICS[(variant + k) % TUNICS.length], 1.3);
+    const x = x0 + (x1 - x0) * (0.2 + 0.6 * hash01(seed, k, 1));
+    const z = zBack + (zToe - zBack) * (0.45 + 0.4 * hash01(seed, k, 2));
+    if (hAt(x, z) > 0.15) indHeap(ctx, x, hAt(x, z) * 0.9, z, 0.26, 0.2, IND.rock, shade(IND.rock, -0.25), seed + k);
+  }
+  return hAt;
+}
+
+/**
+ * The iron mine, as the 3D model draws it: a bank of earth and weathered
+ * rock under grass, cut sheer for the adit, its mouth framed in timber sets
+ * with a lantern at the right post; a spoil heap spilling down the right
+ * flank; the planked way with a barrow and baskets of ore; a windlass on
+ * forked posts over the shaft; a clay bloomery with its skin bellows, a
+ * heap of charcoal and the block the bloom is hammered on; the ore on a
+ * plank floor (the stock). Staffed: the lantern lit, the furnace glowing
+ * (and smoking: the renderer's smoke), the bloom on the block, a miner at
+ * the adit, a man at the windlass and one hammering. Idle: picks leaning
+ * at the post, the furnace out, nobody.
+ */
+function ironMineArt(ctx, S, variant, state) {
+  const [shut, step] = indRawLook(state);
+  indGround(ctx, S, '#a99c82');
+  // the bank: the cut part at the left (rock face under a grass cap), the rounded hill to its right
+  const aditX = -1.4;
+  indBox(ctx, -3.93, 0, -3.9, -1.5, 0, 3.0, IND.rock, { right: IND.rockDark });
+  indBox(ctx, -3.98, 0.03, -3.95, -1.44, 3.0, 3.25, '#8a7452', { top: '#7fa04e', right: '#6e5e42', stroke: shade('#8a7452', -0.4) });
+  for (const y of [0.5, 1.0, 2.0, 2.35, 2.7]) indLine(ctx, [-3.9, y, -1.5], [-0.1, y + 0.1, -1.5], 'rgba(60,52,42,0.5)', 0.6); // the beds of the strata along the cut face
+  indHill(ctx, 0, 3.93, -3.9, -0.7, 2.5, { left: false, seed: 5 });
+  // the adit: a dark mouth in the face, its timber sets, the lantern at the right post
+  poly(ctx, [indPt(aditX - 0.72, 0, -1.5), indPt(aditX + 0.72, 0, -1.5), indPt(aditX + 0.72, 1.75, -1.5), indPt(aditX - 0.72, 1.75, -1.5)], '#1c1814');
+  for (const s of [-1, 1]) indPost(ctx, aditX + s * 0.8, -1.42, 0, 1.95, COL.wood, 0.18);
+  indBox(ctx, aditX - 0.95, aditX + 0.95, -1.5, -1.34, 1.78, 2.0, COL.woodDark, { stroke: null });
+  indLamp(ctx, -0.52, 1.2, -1.28, shut);
+  if (shut) for (const k of [0, 1]) indLine(ctx, [-0.45 + k * 0.1, 0, -1.2], [-0.62 + k * 0.05, 1.35, -1.4], COL.wood, 0.9); // the picks against the post
+  // the spoil heap down the right flank of the cut, the planked way out of the adit with a barrow and baskets of ore
+  indHeap(ctx, 0.45, 0, -1.0, 0.85, 0.55, '#968a73', '#6e6453', 7);
+  indQuad(ctx, aditX - 0.4, aditX + 0.4, -1.5, 0.6, 0.05, '#a07a4a', '#5e4226');
+  for (let z = -1.3; z < 0.6; z += 0.3) indLine(ctx, [aditX - 0.4, 0.06, z], [aditX + 0.4, 0.06, z], '#6e4c2a', 0.5);
+  indBox(ctx, aditX - 0.25, aditX + 0.25, -0.6, 0.0, 0.25, 0.5, '#8d6a40', { stroke: '#5e4226' });
+  indHeap(ctx, aditX, 0.5, -0.3, 0.2, 0.12, IND.ore, IND.oreDark, 2);
+  indLine(ctx, [aditX - 0.2, 0.3, 0.0], [aditX - 0.25, 0.4, 0.55], COL.wood, 0.9);
+  indLine(ctx, [aditX + 0.2, 0.3, 0.0], [aditX + 0.25, 0.4, 0.55], COL.wood, 0.9);
+  for (const [x, z] of [[-0.5, 0.15], [-0.95, 0.75]]) indCyl(ctx, x, 0, z, 0.24, 0.3, '#a8814a', IND.ore);
+  // the ore (the stock) on its plank floor at the front left: a heap higher and wider with the store
+  indBox(ctx, -3.75, -1.35, 0.65, 3.05, 0, 0.14, '#9a7448', { stroke: shade('#9a7448', -0.35) });
+  if (step > 0) indHeap(ctx, -2.55, 0.14, 1.85, [0.8, 1.05, 1.2][step - 1], [0.32, 0.66, 1.0][step - 1], IND.ore, IND.oreDark, 11 + step);
+  // the shaft with its windlass on forked posts, the rope hanging a basket
+  indDisc(ctx, 2.45, 0.05, 0.1, 0.62, 0.62, '#17130f', '#7d7262');
+  indPost(ctx, 1.7, 0.1, 0, 1.25, COL.woodDark, 0.14);
+  indLine(ctx, [2.45, 1.04, 0.1], [2.45, 0.45, 0.1], '#5b5040', 0.6);
+  indCyl(ctx, 2.45, 0.2, 0.1, 0.16, 0.22, '#a8814a', IND.ore);
+  indLine(ctx, [1.7, 1.04, 0.1], [3.2, 1.04, 0.1], COL.wood, 1.7);
+  indLine(ctx, [3.2, 1.04, 0.1], [3.32, 0.74, 0.14], COL.woodDark, 1);
+  indPost(ctx, 3.2, 0.1, 0, 1.25, COL.woodDark, 0.14);
+  // the bloomery: a stack of clay with its tuyere glowing while staffed, bellows of skin, charcoal, the block for the bloom
+  indStand(0.9, 0, 2.3, 0.5, 1.44, () => {
+  const [fx, fy] = indPt(0.9, 0, 2.3);
+  ctx.fillStyle = '#b9946a';
+  ctx.beginPath();
+  ctx.moveTo(fx - 5.6, fy); ctx.lineTo(fx - 3.4, fy - 10.1); ctx.lineTo(fx + 3.4, fy - 10.1); ctx.lineTo(fx + 5.6, fy);
+  ctx.ellipse(fx, fy, 5.6, 2.8, 0, 0, Math.PI);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.16)';
+  ctx.beginPath(); ctx.moveTo(fx + 1.5, fy + 2.7); ctx.lineTo(fx + 1.5, fy - 10.1); ctx.lineTo(fx + 3.4, fy - 10.1); ctx.lineTo(fx + 5.6, fy); ctx.ellipse(fx, fy, 5.6, 2.8, 0, 0, Math.PI * 0.3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#d6b78a';
+  ctx.beginPath(); ctx.ellipse(fx, fy - 10.1, 3.4, 1.7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = shut ? '#2a2420' : '#f2742a';
+  ctx.beginPath(); ctx.ellipse(fx - 2.4, fy - 1.8, 1.5, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = IND.leather;
+  ctx.beginPath(); ctx.moveTo(fx - 12, fy + 1); ctx.lineTo(fx - 6, fy - 2); ctx.lineTo(fx - 5, fy + 1.5); ctx.lineTo(fx - 10, fy + 3.5); ctx.closePath(); ctx.fill();
+  });
+  indHeap(ctx, 1.75, 0, 2.7, 0.38, 0.26, '#3a342e', '#1f1b18', 9);
+  indCyl(ctx, 2.45, 0.04, 2.55, 0.25, 0.93, '#8a6a45', '#6a4a2a');
+  if (!shut) {
+    indStand(2.45, 0.9, 2.55, 0.3, 0.2, () => {
+      const [bx, by] = indPt(2.45, 0.97, 2.55);
+      ctx.fillStyle = '#f08a3a';
+      ctx.beginPath(); ctx.ellipse(bx, by - 0.4, 2.6, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    indMan(ctx, aditX, 0.04, -0.9, '#7a6a50', [aditX, 1.2, -1.5]);
+    indMan(ctx, 3.44, 0.04, 0.54, '#a8977a', [3.2, 1.04, 0.1]);
+    indMan(ctx, 2.45, 0.04, 2.09, '#6e604f', [2.45, 1.0, 2.55]);
   }
 }
+
+/**
+ * The marble quarry, as the 3D model draws it: a hill of limestone under a
+ * grass cap, its worked face cut in three benches of fresh white stone (the
+ * highest scored with the saw's kerfs and a row of wedge holes, a block
+ * half freed on the second bench); the shear legs over a block on its
+ * tongs with the windlass between them; two squared blocks on rollers that
+ * the masons dress; a water trough; the store of squared blocks (the stock).
+ * Staffed: the block hoisted, the lantern lit, a man at the crank and two
+ * masons. Idle: the block let down onto rollers, nobody.
+ */
+function marbleQuarryArt(ctx, S, variant, state) {
+  const [shut, step] = indRawLook(state);
+  indGround(ctx, S, '#cfc7b4');
+  const FRESH = '#ece0c4';
+  const LIT = '#f6edd6';
+  // the hill: its left shoulder, the worked part in three benches, the right flank
+  indHill(ctx, -3.93, -3.2, -3.9, -1.0, 2.7, { right: false, seed: 21 });
+  indBox(ctx, -3.2, -0.5, -3.9, -3.1, 0, 3.4, FRESH, { top: '#86a050', right: shade(FRESH, -0.25) });
+  indBox(ctx, -3.3, -0.4, -3.95, -3.05, 3.38, 3.6, '#7a8f48', { top: '#86a050', left: '#9a8460', right: '#6e6040', stroke: null });
+  indBox(ctx, -3.2, -0.5, -3.1, -2.3, 0, 2.5, FRESH, { top: LIT, right: shade(FRESH, -0.25) });
+  indBox(ctx, -3.2, -0.5, -2.3, -1.1, 0, 1.2, FRESH, { top: LIT, right: shade(FRESH, -0.25) });
+  // the saw's kerfs down the big face and the wedge holes along its head, a chisel line on each bench's edge
+  indUnit(-3.1, -0.8, -3.1, -3.1, 2.6, 3.3, () => {
+    ctx.strokeStyle = 'rgba(70,64,52,0.55)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (let k = 0; k < 8; k++) {
+      const a = indPt(-3.0 + k * 0.33, 2.6, -3.1);
+      const b = indPt(-3.0 + k * 0.33, 3.3, -3.1);
+      ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
+    }
+    ctx.stroke();
+    for (let k = 0; k < 9; k++) {
+      const [px, py] = indPt(-3.1 + k * 0.3, 3.2, -3.1);
+      ctx.fillStyle = '#4a463e';
+      ctx.fillRect(px - 0.7, py - 0.6, 1.4, 1.2);
+      if (k % 3 !== 1) { ctx.fillStyle = IND.iron; ctx.fillRect(px - 0.3, py - 1.6, 0.6, 1.4); }
+    }
+  });
+  // the block half freed on the second bench: a dark channel behind it, wedges along its top
+  indQuad(ctx, -2.85, -1.05, -2.3, -2.12, 1.2, '#4a463e');
+  indBox(ctx, -2.8, -1.1, -2.09, -1.35, 1.2, 1.95, LIT, { stroke: shade(FRESH, -0.45) });
+  for (let k = 0; k < 5; k++) {
+    indStand(-2.6 + k * 0.35, 1.95, -1.72, 0.05, 0.25, () => {
+      const [px, py] = indPt(-2.6 + k * 0.35, 1.95, -1.72);
+      ctx.fillStyle = IND.iron;
+      ctx.fillRect(px - 0.4, py - 1, 0.8, 1.6);
+    });
+  }
+  indHill(ctx, -0.5, 3.93, -3.9, -0.8, 2.8, { left: false, seed: 33 });
+  // the squared blocks on rollers that the masons dress (the masons stand behind them), chips and dust round them
+  const blocks = [[-2.9, 1.9, 1.3, 0.9], [-0.7, 1.9, 1.1, 0.9]];
+  for (const [cx, cz, w, d] of blocks) indDisc(ctx, cx, 0.05, cz, w * 0.8, d * 1.1, '#e4ddca');
+  if (!shut) {
+    indMan(ctx, -2.9, 0.04, 1.15, '#8a7a5a', [-2.9, 0.95, 1.6]);
+    indMan(ctx, -0.7, 0.04, 1.15, '#6e604f', [-0.7, 0.95, 1.6]);
+  }
+  for (const [cx, cz, w, d] of blocks) {
+    for (const dx of [-0.35, 0.35]) indBox(ctx, cx + dx * w - 0.06, cx + dx * w + 0.06, cz - d / 2 - 0.08, cz + d / 2 + 0.08, 0.04, 0.17, '#6a4a2a', { stroke: null });
+    indBox(ctx, cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2, 0.17, 0.99, FRESH, { top: LIT, stroke: shade(FRESH, -0.45) });
+  }
+  // the shear legs, their feet at the back and their crossing forward, the windlass between them
+  const apex = [1.9, 3.3, 0.1];
+  indLine(ctx, apex, [1.9, 0.1, -3.0], 'rgba(90,76,56,0.8)', 0.5); // the back stay
+  indLine(ctx, [1.2, 0.04, -1.0], apex, COL.woodDark, 1.7);
+  indLine(ctx, [1.32, 1.04, -0.66], [2.48, 1.04, -0.66], COL.wood, 1.7);
+  indLine(ctx, [2.48, 1.04, -0.66], [2.72, 0.74, -0.62], COL.woodDark, 0.9);
+  if (shut) {
+    // let down onto its rollers on the floor
+    for (const dz of [-0.15, 0.15]) indBox(ctx, 1.4, 2.4, dz + 0.1 - 0.06, dz + 0.1 + 0.06, 0.04, 0.17, '#6a4a2a', { stroke: null });
+    indBox(ctx, 1.45, 2.35, -0.35, 0.55, 0.17, 0.6, FRESH, { top: LIT, stroke: shade(FRESH, -0.45) });
+  } else {
+    indLine(ctx, apex, [1.9, 1.7, 0.1], '#5b5040', 0.6);
+    indLine(ctx, [1.5, 1.2, 0.1], [1.9, 1.7, 0.1], IND.iron, 0.7);
+    indLine(ctx, [2.3, 1.2, 0.1], [1.9, 1.7, 0.1], IND.iron, 0.7);
+    indBox(ctx, 1.45, 2.35, -0.15, 0.35, 0.8, 1.22, FRESH, { top: LIT, stroke: shade(FRESH, -0.45) });
+  }
+  indLine(ctx, [2.6, 0.04, -1.0], apex, COL.woodDark, 1.7);
+  if (!shut) indMan(ctx, 2.72, 0.04, -0.22, '#a8977a', [2.48, 1.04, -0.66]);
+  // the trough, the lantern's post, and the store of squared blocks at the front right
+  indBox(ctx, 3.0, 3.6, 0.25, 1.55, 0, 0.5, '#9a7448', { top: '#5a90a0', stroke: shade('#9a7448', -0.35) });
+  indPost(ctx, 3.5, -0.55, 0, 1.55, COL.woodDark, 0.12);
+  indLamp(ctx, 3.5, 1.55, -0.55, shut);
+  const layers = [[[2, 1]], [[2, 1], [2, 1]], [[2, 2], [2, 1], [2, 1]]];
+  const bearers = step > 0;
+  if (bearers) for (const dx of [-0.6, 0.6]) indBox(ctx, 2.9 + dx - 0.06, 2.9 + dx + 0.06, 2.35, 3.65, 0, 0.1, COL.wood, { stroke: null });
+  if (step > 0) {
+    layers[step - 1].forEach(([nx, nz], k) => {
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const cx = 2.9 + (i - (nx - 1) / 2) * 0.91;
+        const cz = 3.0 + (j - (nz - 1) / 2) * 0.61;
+        indBox(ctx, cx - 0.425, cx + 0.425, cz - 0.275, cz + 0.275, 0.1 + k * 0.42, 0.52 + k * 0.42, shade(FRESH, -0.04 * ((i + j + k) % 3)), { top: LIT, stroke: shade(FRESH, -0.45) });
+      }
+    });
+  }
+}
+
+
+// --- The workshops ----------------------------------------------------------
+
+const IND_LINEN = '#efe9d6';
+const IND_STONE = '#b6ab92';
+const IND_WICKER = '#b9976a';
+/** The dyes of the clothier and the weaver: woad blue, madder red, saffron, undyed linen and a sea green. */
+const IND_DYES = ['#4a6fa5', '#b0413e', '#d9a441', IND_LINEN, '#4f8a7a'];
+
+/** A table or bench: four legs under a thin top, x0..x1 by z0..z1, its top at `top` metres. */
+function indTable(ctx, x0, x1, z0, z1, top, color = '#a9824f') {
+  for (const x of [x0 + 0.08, x1 - 0.08]) for (const z of [z0 + 0.08, z1 - 0.08]) indPost(ctx, x, z, 0, top - 0.05, shade(color, -0.2), 0.08);
+  indBox(ctx, x0, x1, z0, z1, top - 0.06, top, color, { stroke: shade(color, -0.4) });
+}
+
+/** A jar or amphora standing at (x, z), the colour of the ware inside, a dark mouth. */
+function indJar(ctx, x, z, color, r = 0.17, h = 0.5, y = 0.04) {
+  indCyl(ctx, x, y, z, r, h, color, '#4a3022');
+}
+
+/** A wicker basket at (x, z) with its heap of fruit or goods. */
+function indBasket(ctx, x, z, fill, r = 0.26) {
+  indCyl(ctx, x, 0.04, z, r, 0.3, '#a8814a', fill);
+  indHeap(ctx, x, 0.34, z, r * 0.85, 0.12, fill, shade(fill, -0.3), Math.round(x * 17 + z * 5));
+}
+
+/** A tunic hung by its shoulders at model point (x, y, z). */
+function indTunic(ctx, x, y, z, color) {
+  indStand(x, y - 0.9, z, 0.2, 0.9, () => {
+    const [px, py] = indPt(x, y, z);
+    ctx.fillStyle = color;
+    ctx.fillRect(px - 2, py, 4, 6);
+    ctx.fillRect(px - 3.4, py, 6.8, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(px + 0.8, py + 2, 1.2, 4);
+  });
+}
+
+/** A flax stook: a sheaf tied at the waist, seed heads on top. */
+function indStook(ctx, x, z) {
+  indStand(x, 0.04, z, 0.2, 1.3, () => {
+    const [px, py] = indPt(x, 0.04, z);
+    ctx.fillStyle = '#b9a76a';
+    ctx.beginPath();
+    ctx.moveTo(px - 3.4, py); ctx.lineTo(px - 1.3, py - 4.5); ctx.lineTo(px - 3, py - 9); ctx.lineTo(px + 3, py - 9); ctx.lineTo(px + 1.3, py - 4.5); ctx.lineTo(px + 3.4, py);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#d6c690';
+    ctx.fillRect(px - 1.5, py - 8.5, 1.1, 8);
+    ctx.fillStyle = '#6b4a2a';
+    ctx.fillRect(px - 1.7, py - 5, 3.4, 1);
+  });
+}
+
+/**
+ * The lever press of the oil and wine houses: a stone bed on which the paste in its mats is piled, the
+ * long beam held at its butt between two uprights and drawn down at its free end by a windlass and a rope.
+ */
+function indLeverPress(ctx, pivotX, bedX, endX, z) {
+  indBox(ctx, bedX - 0.7, bedX + 0.7, z - 0.45, z + 0.45, 0, 0.2, IND_STONE, { stroke: shade(IND_STONE, -0.35) });
+  indBox(ctx, bedX - 0.4, bedX + 0.4, z - 0.3, z + 0.3, 0.2, 0.62, '#b79b66', { stroke: shade('#b79b66', -0.4) });
+  for (const dz of [-0.2, 0.2]) indPost(ctx, pivotX, z + dz, 0, 2.2, COL.woodDark, 0.14);
+  indLine(ctx, [pivotX, 1.7, z], [endX, 1.25, z], COL.wood, 3);
+  indLine(ctx, [endX, 1.25, z], [endX, 0.4, z], '#5b5040', 0.6);
+  indPost(ctx, endX, z, 0, 0.5, COL.woodDark, 0.16);
+  indLine(ctx, [endX - 0.3, 0.4, z], [endX + 0.3, 0.4, z], COL.wood, 1.6);
+}
+
+/** The shed of every workshop, back half: the tufa footing, the back wall with its dado, the left end wall. */
+function indShedBack(ctx, t) {
+  const wash = t.wash;
+  indBox(ctx, -3.7, 3.7, -3.7, -3.4, 0, 0.55, COL.tufa, { stroke: shade(COL.tufa, -0.35) });
+  indBox(ctx, -3.7, -3.4, -3.4, -1.6, 0, 0.55, COL.tufa, { stroke: shade(COL.tufa, -0.35) });
+  indBox(ctx, 3.4, 3.7, -3.4, -1.6, 0, 0.55, COL.tufa, { stroke: shade(COL.tufa, -0.35) });
+  indBox(ctx, -3.7, 3.7, -3.7, -3.44, 0.55, 1.5, t.dado, { noTop: true, stroke: shade(t.dado, -0.3) });
+  indBox(ctx, -3.7, 3.7, -3.7, -3.44, 1.5, 3.2, wash, { stroke: shade(wash, -0.35) });
+  if (t.window !== null) {
+    // a small window in the back wall, a dark opening in its plaster
+    poly(ctx, [indPt(t.window - 0.35, 1.25, -3.43), indPt(t.window + 0.35, 1.25, -3.43), indPt(t.window + 0.35, 2.15, -3.43), indPt(t.window - 0.35, 2.15, -3.43)], '#2c241c');
+  }
+  indSideWall(ctx, -3.4, t, false);
+  indBox(ctx, -3.7, -3.4, -1.64, -1.6, 0.55, 2.28, wash, { stroke: null, noTop: true }); // (the wall's end, a sliver, so the left wall reads as thick)
+}
+
+/** An end wall of the shed, sloping with the roof: its +u face at x = xf, plastered over its tufa footing with the dado along its foot. */
+function indSideWall(ctx, xf, t, outer) {
+  const zb = -3.44;
+  const zf = -1.6;
+  const hb = 3.08;
+  const hf = 2.28;
+  const foot = 0.55;
+  poly(ctx, [indPt(xf, foot, zb), indPt(xf, foot, zf), indPt(xf, hf, zf), indPt(xf, hb, zb)], outer ? shade(t.wash, -0.2) : shade(t.wash, -0.06), shade(t.wash, -0.4), 0.5);
+  poly(ctx, [indPt(xf, foot, zb), indPt(xf, foot, zf), indPt(xf, 1.5, zf), indPt(xf, 1.5, zb)], outer ? shade(t.dado, -0.2) : shade(t.dado, -0.05));
+  if (outer && t.door !== false) {
+    // the door in the right wall, a plank leaf in its arch
+    poly(ctx, [indPt(xf, foot, -2.98), indPt(xf, foot, -2.02), indPt(xf, 2.0, -2.02), indPt(xf, 2.2, -2.5), indPt(xf, 2.0, -2.98)], '#3a2a1c');
+    poly(ctx, [indPt(xf, foot, -2.9), indPt(xf, foot, -2.1), indPt(xf, 1.9, -2.1), indPt(xf, 1.9, -2.9)], '#7a5a38');
+  }
+}
+
+/** The shed's front half: the right wall, the boards (when shut), the posts and plate, the tiled pitch with its antefixes, the lantern. */
+function indShedFront(ctx, shut, t) {
+  indSideWall(ctx, 3.7, t, true);
+  indBox(ctx, 3.4, 3.7, -1.64, -1.6, 0.55, 2.28, shade(t.wash, -0.08), { stroke: null, noTop: true });
+  const posts = [-3.55, -1.2, 1.2, 3.55];
+  if (shut) {
+    // the shop front boarded up: planks from the sill to the plate, a bar across
+    for (let k = 0; k < 3; k++) {
+      const a = posts[k] + 0.1;
+      const b = posts[k + 1] - 0.1;
+      poly(ctx, [indPt(a, 0.04, -1.62), indPt(b, 0.04, -1.62), indPt(b, 2.2, -1.62), indPt(a, 2.2, -1.62)], '#8a7456', '#5e4b34', 0.5);
+      indUnit(a, b, -1.62, -1.62, 0.04, 2.2, () => {
+        ctx.strokeStyle = 'rgba(70,52,34,0.6)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        for (let j = 1; j < Math.round((b - a) / 0.3); j++) {
+          const p = indPt(a + j * 0.3, 0.04, -1.62);
+          const q = indPt(a + j * 0.3, 2.2, -1.62);
+          ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]);
+        }
+        ctx.stroke();
+      });
+      indLine(ctx, [a, 1.1, -1.6], [b, 1.1, -1.6], '#4e3a26', 1.2);
+    }
+  }
+  for (const x of posts) indBox(ctx, x - 0.09, x + 0.09, -1.74, -1.58, 0, 2.3, '#a9824f', { stroke: shade('#a9824f', -0.4) });
+  indBox(ctx, -3.7, 3.7, -1.76, -1.56, 2.18, 2.4, '#9a7448', { stroke: shade('#9a7448', -0.4) });
+  // one low pitch of tiles on the back wall's top, hanging over the ends and the front
+  // (One unit boxed above the walls' tops, so a turn paints it after them whichever way it faces.)
+  indUnit(-3.95, 3.95, -3.75, -1.35, 3.2, 3.4, () => {
+    leanRoof(ctx, indU(-3.95), indV(-3.75), indU(3.95), indV(-1.35), 'v0', 3.2 * IND_H, 2.4 * IND_H, COL.terra);
+    // the antefixes along the eave, one to a row of cover tiles
+    for (let x = -3.7; x <= 3.71; x += 0.5) {
+      const [px, py] = indPt(x, 2.4, -1.35);
+      ctx.fillStyle = '#e6c49a';
+      ctx.fillRect(px - 0.8, py - 0.4, 1.6, 2);
+    }
+  });
+  indLamp(ctx, 3.34, 1.86, -1.28, shut);
+}
+
+/** The wattle fence round the yard: along the left and the street, with the gate's gap; its posts. The right side stays open. */
+function indFence(ctx, side) {
+  const h = 0.85;
+  // (In lengths of a metre or so: a long box, turned, cannot be sorted against everything inside the yard.)
+  const rail = (x0, z0, x1, z1) => {
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0) / 1.0));
+    for (let k = 0; k < n; k++) {
+      const a = [x0 + ((x1 - x0) * k) / n, z0 + ((z1 - z0) * k) / n];
+      const b = [x0 + ((x1 - x0) * (k + 1)) / n, z0 + ((z1 - z0) * (k + 1)) / n];
+      // (Thick across its run only, so neighbours along it touch without overlapping and sort by where they stand.)
+      const padX = x0 === x1 ? 0.04 : 0;
+      const padZ = z0 === z1 ? 0.04 : 0;
+      indBox(ctx, Math.min(a[0], b[0]) - padX, Math.max(a[0], b[0]) + padX, Math.min(a[1], b[1]) - padZ, Math.max(a[1], b[1]) + padZ, 0.04, h, IND_WICKER, { stroke: shade(IND_WICKER, -0.4) });
+    }
+  };
+  if (side === 'left') rail(-3.85, -1.5, -3.85, 3.8);
+  else {
+    rail(-3.8, 3.85, -0.95, 3.85);
+    rail(0.95, 3.85, 3.85, 3.85);
+    for (const x of [-0.95, 0.95]) indPost(ctx, x, 3.85, 0, 1.35, '#a9824f', 0.14);
+  }
+}
+
+// The eight trades: each draws what stands under the shed and what stands in the yard, from its stores.
+
+/** Pots on three shelves along the back wall. */
+function indShelfPots(ctx, x0, x1, z, heights, shelves, count, mk) {
+  for (const y of heights) indBox(ctx, x0, x1, z - 0.17, z + 0.17, y - 0.05, y, '#a9824f', { stroke: null });
+  let n = 0;
+  for (let s = 0; s < shelves; s++) {
+    for (let k = 0; k < 6 && n < count; k++, n++) mk(x0 + 0.25 + k * ((x1 - x0 - 0.5) / 5), heights[s], z);
+  }
+}
+
+function potterInside(ctx, [shut, a, , o]) {
+  // the shelves along the back wall: thrown ware drying and the fired ware racked, a shelf more with each step of the stock
+  indShelfPots(ctx, 0.1, 3.2, -3.2, [0.42, 0.95, 1.48], o, o * 6, (x, y, z) => indCyl(ctx, x, y, z, 0.13, 0.22, '#c7704a', '#6a3a24'));
+  // the kick wheel: a heavy flywheel low on the axle, the wheelhead a hand's breadth above the potter's knees, his stool
+  indCyl(ctx, -2.1, 0.04, -2.25, 0.32, 0.1, '#b98a5a');
+  indPost(ctx, -2.1, -2.25, 0.1, 0.72, '#7a5632', 0.07);
+  indCyl(ctx, -2.1, 0.7, -2.25, 0.2, 0.05, '#c9a77a');
+  indBox(ctx, -2.3, -1.9, -1.95, -1.65, 0, 0.35, '#8d6a40', { stroke: null });
+  if (!shut) indMan(ctx, -2.1, 0.35, -1.8, '#8a7a5a', [-2.1, 0.75, -2.25]);
+}
+
+function potterYard(ctx, [shut, a, , o]) {
+  // the wedging table, the trough of wet clay with the lumps (the stock) in it and heaped beside it
+  indUnit(-3.15, -1.95, 0.7, 1.3, 0, 1.0, () => {
+    indTable(ctx, -3.15, -1.95, 0.7, 1.3, 0.86);
+    indBox(ctx, -2.9, -2.4, 0.85, 1.15, 0.86, 1.0, shade(IND.clay, -0.1), { stroke: shade(IND.clay, -0.4) });
+  });
+  indUnit(-0.9, 0.8, 0.98, 1.52, 0, 0.6, () => {
+    indBox(ctx, -0.9, 0.8, 0.98, 1.52, 0, 0.42, '#9a7448', { top: a ? shade(IND.clay, -0.2) : '#7a5a38', stroke: shade('#9a7448', -0.4) });
+    for (let k = 0; k < a * 3; k++) {
+      const x = -0.7 + (k % 5) * 0.28;
+      indBox(ctx, x - 0.1, x + 0.1, 1.2 + (k % 2) * 0.1, 1.38 + (k % 2) * 0.1, 0.42, 0.56, shade(IND.clay, 0.05 * (k % 3)), { stroke: shade(IND.clay, -0.4) });
+    }
+  });
+  indUnit(-0.8, 0.9, 1.7, 1.95, 0, 0.3, () => {
+    for (let k = 0; k < a * 2; k++) indBox(ctx, -0.8 + k * 0.32, -0.5 + k * 0.32, 1.7, 1.95, 0, 0.2 + 0.05 * (k % 2), shade(IND.clay, 0.06 * (k % 3)), { stroke: shade(IND.clay, -0.4) });
+  });
+  // finished pots in rows in the yard
+  for (let k = 0; k < o * 3; k++) indCyl(ctx, 0.3 + (k % 6) * 0.38, 0.04, 2.6 + Math.floor(k / 6) * 0.4, 0.13, 0.22, '#c7704a', '#6a3a24');
+  // the beehive kiln: a base of clay and brick, the dome plastered over with a vent, the stoke hole to the street
+  indUnit(1.35, 3.35, 0.45, 2.45, 0, 1.8, () => {
+  indCyl(ctx, 2.35, 0.04, 1.45, 1.0, 0.45, '#a8774e', '#a8774e');
+  const [kx, ky] = indPt(2.35, 0.49, 1.45);
+  ctx.fillStyle = '#c4986e';
+  ctx.beginPath(); ctx.moveTo(kx - 11.3, ky); ctx.ellipse(kx, ky, 11.3, 8.4, 0, Math.PI, Math.PI * 2); ctx.ellipse(kx, ky, 11.3, 5.65, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath(); ctx.moveTo(kx + 2, ky + 5.4); ctx.lineTo(kx + 2, ky - 8); ctx.ellipse(kx, ky, 11.3, 8.4, 0, Math.PI * 1.82, Math.PI * 2); ctx.ellipse(kx, ky, 11.3, 5.65, 0, 0, Math.PI * 0.45); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#a8774e';
+  ctx.fillRect(kx - 1.6, ky - 9.4, 3.2, 1.6); // the vent's collar
+  ctx.fillStyle = shut ? '#8f6a4a' : '#ff8a2a'; // the stoke hole: glowing, or bricked up
+  ctx.beginPath(); ctx.moveTo(kx - 10.4, ky + 3.2); ctx.lineTo(kx - 10.4, ky - 0.4); ctx.arc(kx - 8.3, ky - 0.4, 2.1, Math.PI, 0); ctx.lineTo(kx - 6.2, ky + 3.2); ctx.closePath(); ctx.fill();
+  });
+  if (!shut) indMan(ctx, 0.7, 0.04, 2.0, '#6e604f', [-0.5, 0.6, 1.25]);
+}
+
+function carpenterInside(ctx, [shut, a, , o]) {
+  // the furniture in the left bay: a stool, then a chest, then a couch with the last step
+  if (o >= 1) indBox(ctx, -3.25, -2.8, -3.1, -2.65, 0.04, 0.42, '#a9824f', { stroke: shade('#a9824f', -0.4) });
+  if (o >= 2) {
+    indBox(ctx, -2.5, -1.9, -3.2, -2.8, 0.04, 0.5, '#8d6a40', { stroke: shade('#8d6a40', -0.4) });
+    indBox(ctx, -2.5, -1.9, -3.0, -2.97, 0.2, 0.28, IND.iron, { stroke: null });
+  }
+  if (o >= 3) {
+    indBox(ctx, -3.2, -1.8, -2.5, -2.0, 0.2, 0.45, '#b6563a', { stroke: shade('#b6563a', -0.4) });
+    indBox(ctx, -3.2, -3.0, -2.5, -2.0, 0.45, 0.7, '#b6563a', { stroke: shade('#b6563a', -0.4) });
+  }
+  // the tools on the back wall, the bench with its stop and vice
+  for (const [x, y, c] of [[-0.6, 2.0, IND.iron], [0, 1.9, COL.wood], [0.7, 2.0, IND.iron], [1.4, 1.9, COL.wood]]) indLine(ctx, [x, y - 0.35, -3.42], [x, y + 0.35, -3.42], c, 0.9);
+  indTable(ctx, -0.65, 1.45, -2.41, -1.79, 0.9);
+  indBox(ctx, 1.25, 1.45, -2.45, -1.75, 0.9, 1.0, '#8d6a40', { stroke: null });
+  indBox(ctx, 0.1, 0.4, -2.2, -2.0, 0.9, 0.96, '#c9a36b', { stroke: null });
+  if (!shut) {
+    indMan(ctx, 0.4, 0.04, -1.55, '#a8977a', [0.3, 0.95, -2.1]);
+    indMan(ctx, -1.3, 0.04, -1.35, '#6e604f', [-1.4, 0.95, -2.2]);
+  } else {
+    indLine(ctx, [0.3, 0.9, -2.1], [0.6, 1.0, -2.1], '#8a7456', 1.2); // the mallet left on the bench
+  }
+}
+
+function carpenterYard(ctx, [shut, a, , o]) {
+  // the trestles with the baulk being dressed, shavings on the ground
+  indUnit(-2.6, -0.2, 1.3, 2.1, 0, 1.05, () => {
+    for (const x of [-2.2, -0.6]) {
+      for (const d of [-1, 1]) indLine(ctx, [x, 0.04, 1.7 + d * 0.4], [x, 0.8, 1.7 + d * 0.1], '#8d6a40', 1.4);
+      indBox(ctx, x - 0.06, x + 0.06, 1.55, 1.85, 0.74, 0.8, '#a9824f', { stroke: null });
+    }
+    indBox(ctx, -2.55, -0.25, 1.59, 1.81, 0.8, 1.02, '#c9a36b', { stroke: shade(IND.timber, -0.3) });
+  });
+  for (const [x, z] of [[0.2, -1.2], [-0.2, -1.55], [0.6, -1.7], [-0.9, 1.4], [-1.9, 1.25]]) indDisc(ctx, x, 0.045, z + (z < 0 ? 0 : 0.5), 0.2, 0.1, '#e6d4a6');
+  if (!shut) indMan(ctx, -1.4, 0.04, 2.15, '#8a7a5a', [-1.4, 1.0, 1.75]);
+  // the timber (the stock): squared baulks stacked in layers on sleepers, two more layers a step
+  indUnit(1.9, 3.2, 0.3, 3.1, 0, 1.6, () => {
+    for (const z of [0.7, 2.7]) indBox(ctx, 1.9, 3.2, z - 0.07, z + 0.07, 0, 0.1, COL.wood, { stroke: null });
+    for (let k = 0; k < a * 2; k++) indBox(ctx, 2.0, 3.1, 0.4, 3.0, 0.1 + k * 0.22, 0.1 + (k + 1) * 0.22, shade('#c9a36b', -0.1 * (k % 3)), { stroke: shade(IND.timber, -0.35) });
+  });
+}
+
+function oilInside(ctx, [shut, a, , o]) {
+  // the settling vat in the left bay, the lever press at the middle, the amphorae of oil in rows at the front
+  indCyl(ctx, -2.65, 0.04, -2.85, 0.42, 0.86, '#a8814a', '#c9a73a');
+  indLeverPress(ctx, -1.5, -0.1, 2.1, -2.55);
+  const counts = [0, 4, 9, 17][o];
+  for (let k = 0; k < counts; k++) indJar(ctx, -3.1 + (k % 10) * 0.42 + (k >= 10 ? 0.2 : 0), k < 10 ? -1.95 : -2.35, '#b8683f', 0.17, 0.5);
+  if (!shut) {
+    indMan(ctx, 2.5, 0.04, -2.2, '#a8977a', [2.1, 0.8, -2.55]);
+    indMan(ctx, -2.65, 0.04, -2.2, '#6e604f', [-2.65, 0.9, -2.85]);
+  }
+}
+
+function oilYard(ctx, [shut, a, , o]) {
+  // the trapetum in the open: the basin, the pillar, the beam with its two millstones and the bars
+  indUnit(-3.2, -0.8, 0.65, 3.1, 0, 1.6, () => {
+    indCyl(ctx, -2.0, 0.04, 1.55, 0.9, 0.25, IND_STONE, '#5a4a30');
+    indPost(ctx, -2.0, 1.55, 0.29, 1.15, COL.woodDark, 0.16);
+    indLine(ctx, [-3.1, 0.95, 1.55], [-0.9, 0.95, 1.55], COL.wood, 2.4);
+    for (const x of [-2.55, -1.45]) indCyl(ctx, x, 0.29, 1.55, 0.3, 0.42, '#a39a86', '#bdb39c');
+    indLine(ctx, [-2.0, 0.95, 1.55], [-2.0, 0.95, 2.6], COL.wood, 1.4);
+    if (!shut) indMan(ctx, -2.0, 0.04, 2.75, '#8a7a5a', [-2.0, 0.95, 2.45]);
+  });
+  // the olives in baskets at the right (green and black fruit), more each step
+  for (let k = 0; k < [0, 2, 5, 8][a]; k++) indBasket(ctx, 1.4 + (k % 3) * 0.7, 1.0 + Math.floor(k / 3) * 0.7, k % 2 ? '#3f4a2c' : '#7a8a3c');
+}
+
+function wineInside(ctx, [shut, a, , o]) {
+  // the press under the shed and the cradle of amphorae of wine at its right-hand end
+  indLeverPress(ctx, -2.9, -1.3, 0.4, -2.55);
+  indBox(ctx, 2.0, 3.3, -3.3, -1.7, 0.04, 0.12, '#8d6a40', { stroke: null });
+  const n = [0, 4, 8, 12][o];
+  for (let k = 0; k < n; k++) {
+    const layer = Math.floor(k / 4);
+    const z = -3.1 + (k % 4) * 0.4;
+    indLog(ctx, [2.15, 0.28 + layer * 0.3, z], [3.15, 0.28 + layer * 0.3, z], 0.17, '#b8683f', '#6a3a24');
+  }
+  if (!shut) indMan(ctx, 0.4, 0.04, -2.1, '#a8977a', [0.4, 0.5, -2.55]);
+}
+
+function wineYard(ctx, [shut, a, , o]) {
+  // the dolia, set into the earth to their shoulders, and the treading vat with its spout running to the first
+  indUnit(-3.6, -0.6, 0.7, 3.2, 0, 1.7, () => {
+    for (const [x, z] of [[-3.1, 1.2], [-3.1, 2.15], [-2.5, 2.75]]) indCyl(ctx, x, 0.04, z, 0.42, 0.3, '#b8683f', '#5a3a28');
+    indCyl(ctx, -1.55, 0.04, 1.4, 0.85, 0.7, '#cbb88e', '#7b2a3a');
+    indLine(ctx, [-2.4, 0.3, 1.4], [-3.0, 0.3, 1.25], '#8d6a40', 1.4);
+    if (!shut) {
+      indMan(ctx, -1.55, 0.7, 1.4, '#a8977a', [-1.55, 1.5, 1.4]);
+      indLine(ctx, [-2.3, 1.5, 1.4], [-0.8, 1.5, 1.4], COL.wood, 1.2);
+    }
+  });
+  // baskets of grapes at the right, dark and green, more each step
+  for (let k = 0; k < [0, 3, 6, 10][a]; k++) indBasket(ctx, 1.3 + (k % 4) * 0.62, 0.9 + Math.floor(k / 4) * 0.62, k % 3 ? '#4a2a4e' : '#8aa04a');
+}
+
+function weaponsInside(ctx, [shut, a, , o]) {
+  // the racks along the left of the shed: shields leaning and swords hung, more each step
+  indBox(ctx, -3.35, -1.65, -3.3, -3.15, 0.6, 0.68, '#8d6a40', { stroke: null });
+  for (let k = 0; k < o * 2; k++) {
+    indStand(-3.2 + k * 0.28, 0.6, -3.15, 0.15, 0.85, () => {
+      const [px, py] = indPt(-3.2 + k * 0.28, 0.6, -3.15);
+      ctx.fillStyle = k % 2 ? '#9a3a2a' : '#7a3a2a';
+      ctx.beginPath(); ctx.ellipse(px, py - 5.6, 2.3, 5.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c9a43a';
+      ctx.beginPath(); ctx.arc(px, py - 5.6, 0.9, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  for (let k = 0; k < o * 4; k++) indLine(ctx, [-3.25 + k * 0.14, 1.0, -3.4], [-3.25 + k * 0.14, 1.9, -3.4], k % 2 ? '#c7ccd2' : '#b8bec6', 0.8);
+  // the hearth under the flue, the bellows of ox-hide on their boards, the anvil on its stump, the quench trough
+  indBox(ctx, 1.65, 3.05, -3.35, -2.35, 0, 0.92, IND_STONE, { stroke: shade(IND_STONE, -0.35) });
+  indQuad(ctx, 1.8, 2.9, -3.25, -2.45, 0.93, shut ? '#2a2623' : '#f26a1f');
+  indBox(ctx, 1.75, 2.95, -3.42, -2.75, 1.5, 2.2, '#b8a888', { stroke: shade('#b8a888', -0.35) }); // the hood
+  poly(ctx, [indPt(0.8, 0.95, -3.0), indPt(1.6, 1.1, -3.0), indPt(1.6, 1.1, -2.7), indPt(0.8, 0.95, -2.7)], IND.leather, '#4a3422', 0.5);
+  indLine(ctx, [0.8, 0.95, -2.85], [0.4, 0.8, -2.85], COL.wood, 1.2);
+  indCyl(ctx, 0.35, 0.04, -1.95, 0.25, 0.6, IND.bark, IND.timberPale);
+  indBox(ctx, 0.1, 0.6, -2.1, -1.8, 0.64, 0.9, '#5a5f68', { top: '#7a8089', stroke: '#2a2d32' });
+  indBox(ctx, -1.4, -0.5, -2.2, -1.7, 0, 0.45, IND_STONE, { top: '#4a6a80', stroke: shade(IND_STONE, -0.35) });
+  if (!shut) {
+    indMan(ctx, 0.35, 0.04, -1.5, '#7a6a50', [0.35, 0.95, -1.95]);
+    indMan(ctx, 1.2, 0.04, -2.4, '#a8977a', [1.0, 1.0, -2.85]);
+  }
+}
+
+function weaponsYard(ctx, [shut, a, , o]) {
+  // the bar iron on sleepers (the stock): layers of bars, more each step
+  indUnit(0.4, 1.8, 0.8, 1.8, 0, 0.6, () => {
+    for (const z of [0.9, 1.7]) indBox(ctx, 0.4, 1.8, z - 0.06, z + 0.06, 0, 0.1, COL.wood, { stroke: null });
+    const layers = [0, 1, 2, 4][a];
+    for (let k = 0; k < layers; k++) indBox(ctx, 0.4, 1.8, 0.8, 1.8, 0.1 + k * 0.1, 0.18 + k * 0.1, shade(IND.iron, 0.06 * (k % 2)), { stroke: shade(IND.iron, -0.4) });
+    // the bars side by side along the top layer
+    for (let z = 0.95; layers && z < 1.8; z += 0.17) indLine(ctx, [0.45, 0.1 + layers * 0.1, z], [1.75, 0.1 + layers * 0.1, z], '#9aa2ad', 0.5);
+  });
+}
+
+/** The hood's flue: through the roof (the smoke leaves its top, the renderer's effect). */
+function weaponsOver(ctx) {
+  indBox(ctx, 2.15, 2.55, -3.2, -2.8, 2.2, 3.82, '#b8a888', { stroke: shade('#b8a888', -0.35) });
+  indBox(ctx, 2.05, 2.65, -3.3, -2.7, 3.7, 3.9, '#9a8b68', { stroke: null });
+}
+
+function fletcherInside(ctx, [shut, a, c, o]) {
+  // shaft bundles standing against the back wall at the left (the timber), feathers on pegs
+  for (let k = 0; k < Math.min(3, a + 1); k++) {
+    indLine(ctx, [-3.1 + k * 0.25, 0.04, -3.3], [-3.0 + k * 0.25, 1.6, -3.42], '#d2b27a', 1.6);
+    indLine(ctx, [-3.1 + k * 0.25, 1.1, -3.3], [-3.0 + k * 0.25, 1.1, -3.3], '#4a3422', 1.2);
+  }
+  for (let k = 0; k < 4; k++) indLine(ctx, [-2.2 + k * 0.22, 1.9, -3.42], [-2.2 + k * 0.22, 1.55, -3.42], '#f2eee6', 1.3);
+  // the low bench where the heads are bound in, a stool, a pot of glue
+  indTable(ctx, -2.25, -0.75, -2.45, -1.85, 0.62);
+  indBox(ctx, -2.0, -1.8, -2.25, -2.05, 0.62, 0.8, '#8a6a45', { stroke: null });
+  indBox(ctx, -1.5, -1.1, -1.55, -1.25, 0, 0.35, '#8d6a40', { stroke: null });
+  // the hung bows and the sheaves of arrows at the right of the shed, more each step of the work
+  for (let k = 0; k < o; k++) {
+    const x = 1.5 + k * 0.55;
+    indUnit(x - 0.3, x + 0.3, -3.42, -3.42, 1.0, 1.9, () => {
+      const [px, py] = indPt(x, 1.9, -3.42);
+      ctx.strokeStyle = '#6b4a2a';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.arc(px, py + 5, 5.2, -Math.PI / 2 - 0.9, -Math.PI / 2 + 0.9); ctx.stroke();
+      ctx.strokeStyle = '#e8ddc0';
+      ctx.lineWidth = 0.4;
+      ctx.beginPath(); ctx.moveTo(px - 3.9, py + 1.4); ctx.lineTo(px + 3.9, py + 1.4); ctx.stroke();
+    });
+    indLine(ctx, [x + 0.15, 0.04, -3.0], [x + 0.25, 1.1, -3.1], '#b89a64', 1.4);
+    indStand(x + 0.17, 0.2, -3.0, 0.05, 0.2, () => {
+      ctx.fillStyle = '#f2eee6';
+      const [fx, fy] = indPt(x + 0.17, 0.3, -3.0);
+      ctx.fillRect(fx - 1, fy - 2, 2, 2);
+    });
+  }
+  if (!shut) indMan(ctx, -1.55, 0.35, -2.0, '#a8977a', [-1.5, 0.7, -2.15]);
+}
+
+function fletcherYard(ctx, [shut, a, c, o]) {
+  // timber billets stacked on the left of the yard, the box of iron heads and bars right of it
+  indUnit(-2.7, -1.5, 0.5, 1.1, 0, 0.6, () => {
+    for (let k = 0; k < [0, 1, 2, 3][a]; k++) indBox(ctx, -2.7, -1.5, 0.5, 1.1, 0.04 + k * 0.14, 0.04 + (k + 1) * 0.14, shade('#c9a36b', -0.08 * (k % 2)), { stroke: shade(IND.timber, -0.35) });
+  });
+  indUnit(2.4, 3.0, 0.7, 1.1, 0, 0.5, () => {
+    indBox(ctx, 2.4, 3.0, 0.7, 1.1, 0.04, 0.32, '#8d6a40', { stroke: shade('#8d6a40', -0.4) });
+    if (c) indBox(ctx, 2.46, 2.94, 0.76, 1.04, 0.3, 0.32 + c * 0.05, IND.iron, { stroke: null });
+  });
+  // the target butt: a coil of straw on a frame, facing the archer, who tries a bow at it
+  indUnit(-3.3, -3.0, 0.9, 2.6, 0, 1.6, () => {
+    for (const z of [1.05, 2.45]) indPost(ctx, -3.2, z, 0, 1.5, COL.wood, 0.1);
+    const ring = (rad, col) => {
+      const pts = [];
+      for (let k = 0; k < 20; k++) pts.push(indPt(-3.1, 0.8 + Math.sin((k / 20) * Math.PI * 2) * rad, 1.75 + Math.cos((k / 20) * Math.PI * 2) * rad));
+      poly(ctx, pts, col);
+    };
+    ring(0.7, '#cfb46a'); ring(0.5, '#f2eee6'); ring(0.33, '#b0413e'); ring(0.15, '#e8c24a');
+  });
+  if (!shut) indMan(ctx, 0.1, 0.04, 1.75, '#6e604f', [-0.2, 0.95, 1.55]);
+}
+
+function linenInside(ctx, [shut, a, , o]) {
+  // the bolts of linen stacked in the bay at the right, three then eight then fourteen
+  indBox(ctx, 1.6, 3.3, -3.3, -1.7, 0.04, 0.12, '#8d6a40', { stroke: null });
+  const layers = [0, [3], [3, 3, 2], [3, 3, 3, 3, 2]][o] || [];
+  for (let k = 0; k < layers.length; k++) {
+    for (let i = 0; i < layers[k]; i++) {
+      const z = -3.0 + i * 0.5 + (k % 2) * 0.2;
+      indLog(ctx, [1.75, 0.3 + k * 0.28, z], [3.15, 0.3 + k * 0.28, z], 0.13, IND_LINEN, '#d6cfb8');
+    }
+  }
+  // the warp-weighted loom: two uprights leaning on the wall, the cloth beam across them, the woven cloth hanging from it
+  // and the warp below, each bunch tied to a clay weight; the weaver at it
+  const [lx0, lx1] = [-1.65, -0.15];
+  for (const x of [lx0, lx1]) indLine(ctx, [x, 0.04, -2.6], [x, 1.9, -3.15], COL.woodDark, 1.5);
+  poly(ctx, [indPt(lx0, 1.85, -3.14), indPt(lx1, 1.85, -3.14), indPt(lx1, 1.35, -3.0), indPt(lx0, 1.35, -3.0)], IND_LINEN, '#bfb59a', 0.4);
+  indUnit(lx0, lx1, -3.0, -2.72, 0.3, 1.35, () => {
+    ctx.strokeStyle = '#f4efe0';
+    ctx.lineWidth = 0.45;
+    ctx.beginPath();
+    for (let k = 0; k <= 9; k++) {
+      const x = lx0 + 0.08 + k * ((lx1 - lx0 - 0.16) / 9);
+      const p = indPt(x, 1.35, -3.0);
+      const q = indPt(x, 0.5, -2.74);
+      ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#9a5a36';
+    for (let k = 0; k <= 9; k += 2) {
+      const [px, py] = indPt(lx0 + 0.08 + k * ((lx1 - lx0 - 0.16) / 9), 0.42, -2.72);
+      ctx.beginPath(); ctx.arc(px, py, 1.1, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+  indLine(ctx, [lx0, 1.9, -3.15], [lx1, 1.9, -3.15], COL.wood, 1.8);
+  if (!shut) indMan(ctx, -0.9, 0.04, -2.3, '#cfc6ab', [-0.9, 1.1, -2.95]);
+}
+
+function linenYard(ctx, [shut, a, , o]) {
+  // the dye vat in the yard, woad blue
+  indUnit(1.7, 2.9, 0.9, 2.0, 0, 1.4, () => {
+    indCyl(ctx, 2.3, 0.04, 1.45, 0.5, 0.65, '#8a6a4a', '#3f5f8f');
+    indLine(ctx, [2.3, 0.7, 1.45], [2.7, 1.35, 1.2], COL.wood, 0.9);
+  });
+  // the flax in stooks at the left (the stock): three, six, ten, and hanks on a rail with the last step
+  const spots = [[-3.0, 1.0], [-2.5, 1.2], [-2.0, 1.0], [-3.0, 1.6], [-2.5, 1.8], [-2.0, 1.6], [-3.0, 2.2], [-2.5, 2.4], [-2.0, 2.2], [-1.5, 1.6]];
+  for (let k = 0; k < [0, 3, 6, 10][a]; k++) indStook(ctx, ...spots[k]);
+  if (a >= 3) {
+    indUnit(-1.3, 0.5, 2.8, 3.0, 0, 1.45, () => {
+      for (const x of [-1.2, 0.4]) indPost(ctx, x, 2.9, 0, 1.4, COL.wood, 0.08);
+      indLine(ctx, [-1.2, 1.35, 2.9], [0.4, 1.35, 2.9], COL.wood, 1.2);
+      for (let k = 0; k < 4; k++) indLine(ctx, [-1.0 + k * 0.4, 1.35, 2.9], [-1.0 + k * 0.4, 0.8, 2.9], '#d6c690', 1.6);
+    });
+  }
+  if (!shut) indMan(ctx, -1.2, 0.04, 2.35, '#d9c9a8', [-1.4, 0.7, 2.0]);
+}
+
+function clothingInside(ctx, [shut, a, , o]) {
+  // the rail of garments along the back wall and the shelf of folded cloth at the right: three, seven, eleven pieces
+  indLine(ctx, [-3.2, 1.7, -3.3], [0.6, 1.7, -3.3], COL.wood, 1.2);
+  for (let k = 0; k < Math.min(7, [0, 3, 7, 11][o]); k++) indTunic(ctx, -3.0 + k * 0.5, 1.7, -3.3, IND_DYES[k % IND_DYES.length]);
+  indBox(ctx, 1.2, 3.2, -3.35, -3.0, 0.9, 0.96, '#a9824f', { stroke: null });
+  for (let k = 0; k < Math.max(0, [0, 3, 7, 11][o] - 7); k++) indBox(ctx, 1.4 + k * 0.45, 1.8 + k * 0.45, -3.3, -3.05, 0.96, 1.14, IND_DYES[(k + 1) % IND_DYES.length], { stroke: null });
+  // the cutting table with cloth laid on it, the tailor sewing on his stool at the left
+  indTable(ctx, -1.35, 0.55, -2.45, -1.55, 0.92);
+  indBox(ctx, -1.0, 0.1, -2.3, -1.7, 0.92, 0.95, IND_LINEN, { stroke: null });
+  indBox(ctx, -2.85, -2.35, -2.65, -2.15, 0, 0.4, '#8d6a40', { stroke: null });
+  if (!shut) {
+    indMan(ctx, -2.6, 0.4, -2.4, '#4a6fa5', [-2.5, 0.7, -2.1]);
+    indMan(ctx, -0.4, 0.04, -1.25, '#a8977a', [-0.4, 0.95, -2.0]);
+  }
+}
+
+function clothingYard(ctx, [shut, a, , o]) {
+  // the bolts of linen on a pallet at the left (the stock), three, seven, twelve
+  indUnit(-3.1, -1.9, 0.9, 2.1, 0, 1.1, () => {
+    indBox(ctx, -3.1, -1.9, 0.9, 2.1, 0.04, 0.12, '#8d6a40', { stroke: null });
+    const n = [0, 3, 7, 12][a];
+    for (let k = 0; k < n; k++) {
+      const layer = Math.floor(k / 4);
+      const z = 1.1 + (k % 4) * 0.28;
+      indLog(ctx, [-3.0, 0.26 + layer * 0.27, z], [-2.0, 0.26 + layer * 0.27, z], 0.12, IND_LINEN, '#d6cfb8');
+    }
+  });
+  // the fuller's tub, the cloth trodden in it
+  indUnit(1.5, 2.9, 0.65, 2.05, 0, 1.7, () => {
+    indCyl(ctx, 2.2, 0.04, 1.35, 0.7, 0.55, '#9a7a50', '#b9b08a');
+    if (!shut) indMan(ctx, 2.2, 0.5, 1.35, '#a8977a', [2.2, 1.0, 1.35]);
+  });
+}
+
+/** Each trade: its plaster and dado, the window in its back wall, and what it draws under the shed, in the yard and over the roof. */
+const IND_TRADES = {
+  pottery_ws: { wash: COL.plaster, dado: COL.dado, window: -1.0, ground: '#cbbb98', inside: potterInside, yard: potterYard },
+  furniture_ws: { wash: '#e6d09c', dado: '#8a3a30', window: 2.2, ground: '#d2c29c', inside: carpenterInside, yard: carpenterYard },
+  oil_ws: { wash: '#e8cdb4', dado: '#b5703a', window: -2.4, ground: '#c8b892', inside: oilInside, yard: oilYard },
+  wine_ws: { wash: COL.plaster, dado: '#8a3a30', window: 0.2, ground: '#c4b48c', inside: wineInside, yard: wineYard },
+  weapons_ws: { wash: '#d8d0bc', dado: '#8a3a30', window: null, ground: '#b9ac90', inside: weaponsInside, yard: weaponsYard, over: weaponsOver },
+  fletcher_ws: { wash: '#e6d09c', dado: COL.dado, window: 2.4, ground: '#c9b98f', inside: fletcherInside, yard: fletcherYard },
+  linen_ws: { wash: COL.plaster, dado: '#b5703a', window: -2.3, ground: '#c9bb99', inside: linenInside, yard: linenYard },
+  clothing_ws: { wash: '#e8cdb4', dado: COL.dado, window: 2.4, ground: '#cbbb9a', inside: clothingInside, yard: clothingYard },
+};
+
+/**
+ * The eight workshops, as the 3D models draw them, on one shed: a plastered
+ * shed over a tufa footing with a red dado, open to the street under one
+ * pitch of tiles with antefixes, a wattle fence round the yard before it,
+ * and the trade's fittings under the shed and in the yard (the potter's
+ * kick wheel and beehive kiln; the carpenter's bench and trestles; the oil
+ * press's trapetum and lever press; the winery's treading vat and dolia;
+ * the smith's forge under its hood with bellows and anvil; the fletcher's
+ * bench and target butt; the weaver's warp-weighted loom and dye vat; the
+ * clothier's cutting table, rail of tunics and fuller's tub). The raw
+ * material and the product show in steps (the art state's stores); idle,
+ * the shop front is boarded up, the fire out, nobody at work.
+ */
+function workshopArt(ctx, S, variant, state, key) {
+  const t = IND_TRADES[key];
+  const look = indWsLook(state);
+  indGround(ctx, S, t.ground);
+  indFence(ctx, 'left');
+  indShedBack(ctx, t);
+  // (Everything under the shed is one unit: a turned drawing sorts it against the walls and the roof, and what
+  // stands on or against what else in it keeps the order it was drawn in.)
+  indUnit(-3.4, 3.4, -3.4, -1.7, 0, 2.4, () => t.inside(ctx, look));
+  indShedFront(ctx, look[0], t);
+  if (t.over) t.over(ctx, look);
+  t.yard(ctx, look);
+  indFence(ctx, 'front');
+}
+
 
 // ---------------------------------------------------------------------------
 // Storage & markets
@@ -3359,8 +4204,8 @@ const ART = {
   prefecture: prefectureArt,
   clay_pit: clayPitArt,
   timber_yard: timberYardArt,
-  iron_mine: mineArt,
-  marble_quarry: mineArt,
+  iron_mine: ironMineArt,
+  marble_quarry: marbleQuarryArt,
   market: marketArt,
   granary: granaryArt,
   warehouse: warehouseArt,
@@ -3380,8 +4225,6 @@ const ART = {
   hippodrome: hippodromeArt,
   hippodrome_part: hippodromeArt,
   chariot_maker: chariotMakerArt,
-  linen_ws: linenMakerArt,
-  clothing_ws: clothingMakerArt,
   native_hut: nativeHutArt,
   native_meeting: nativeMeetingArt,
   native_crops: nativeCropsArt,
@@ -3421,5 +4264,8 @@ export function artState(b, resting = false) {
   // pool, or a dry one (the baths were always drawn full, even out of a
   // reservoir's reach, which said they worked when they did not).
   if (kind === 'reservoir' || kind === 'fountain' || b.def.needsPiped) return b.hasWater ? 1 : 0;
+  // The raw producers and the workshops: staffed or shut, and what their stores hold (industryArtState).
+  const ind = industryArtState(b);
+  if (ind !== undefined) return ind;
   return 0;
 }
