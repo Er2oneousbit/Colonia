@@ -141,7 +141,7 @@ export const MODELS = Object.freeze({
   }),
   // The aqueducts' tiles and the reservoir (models/waterModels.js says how).
   ...WATER_MODELS,
-  // The four raw producers: clay pit, timber yard, iron mine and marble quarry (models/industry.js says how).
+  // The four raw producers (clay pit, timber yard, iron mine, marble quarry) and the eight workshops (models/industry.js says how).
   ...INDUSTRY_MODELS,
   // The market, the forum and the warehouse (models/commerce.js says how).
   ...COMMERCE_MODELS,
