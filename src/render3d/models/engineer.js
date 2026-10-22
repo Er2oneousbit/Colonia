@@ -23,8 +23,9 @@
  *     by ropes, a pulley block at the top, the rope run down to a windlass
  *     between the legs; the stone lifted by iron tongs (forceps) gripping
  *     holes cut in its sides, as many ashlar blocks still show.
- *   - Their stock: ashlar of tufa and travertine, square bricks (bessales)
- *     stacked in crossed courses, timber, lime and pozzolana for concrete
+ *   - Their stock: ashlar of tufa and travertine, sun-dried mudbricks
+ *     (adobe, the Republic's common brick: fired brick is Imperial) stacked
+ *     in crossed courses, timber, lime and pozzolana for concrete
  *     (Vitruvius, book II).
  *   - Their own workshop in opus craticium, the timber frame filled with
  *     rubble and plastered that Herculaneum's Casa a Graticcio keeps, and
@@ -36,7 +37,7 @@
  * at the back-right the shear legs over an ashlar block, the windlass
  * across them at a man's height with a crank on its end; in front, the
  * groma standing by the street as the yard's sign, squared timbers on
- * bearers, a mortar trough and a heap of pozzolana, a stack of bricks and
+ * bearers, a mortar trough and a heap of pozzolana, a stack of mudbricks and
  * a stack of ashlar.
  *
  * States (meshes tagged in userData.when, models.js partShows):
@@ -233,7 +234,7 @@ function workshop(lod, seed, out) {
     out.wood.push(slab(0.95, 0.04, 0.22, { bevel: 0.006, seed: seed + 11, wobble: 0.002, tone: 0.1, grime: 0 }).rotateY(0.08).translate(bx - 0.1, bY, bz + 0.03));
     // A squared beam across the bench's front, its mortise being cut (the carpenter's chisel comes down
     // on it: people/clips.js hammer), a few chips by it.
-    out.timber.push(slab(1.1, 0.13, 0.14, { bevel: 0.01, seed: seed + 12, wobble: 0.003, tone: 0.08, grime: 0 }).translate(bx + 0.15, bY, bz + 0.12));
+    out.timber.push(slab(1.1, 0.13, 0.14, { bevel: 0.01, seed: seed + 12, wobble: 0.007, tone: 0.1, grime: 0.15 }).translate(bx + 0.15, bY, bz + 0.12));
     // Scaffold poles leaning in the corner, a coil of rope hung on the end wall.
     for (let k = 0; k < 3; k++) out.wood.push(pole([x0 + t + 0.12 + k * 0.08, E.floorY, z1 - 0.35 - k * 0.12], [x0 + t + 0.05, 2.25 + k * 0.08, z0 + t + 0.08 + k * 0.05], 0.035, lod, seed + 20 + k));
     for (let k = 0; k < 3; k++) {
@@ -442,7 +443,7 @@ function hoist(lod, seed, out) {
   }
 }
 
-/** The yard's stock: squared timbers, the mortar trough and pozzolana, bricks, ashlar, chips of stone. */
+/** The yard's stock: squared timbers, the mortar trough and pozzolana, mudbricks, ashlar, chips of stone. */
 function stock(lod, seed, out) {
   const y0 = E.floorY;
   const rnd = artRng(seed);
@@ -468,7 +469,7 @@ function stock(lod, seed, out) {
     deform: (p, th) => { const k = 1 + 0.08 * Math.sin(th * 3 + 1) + 0.05 * Math.sin(th * 5); p.x *= k; p.z *= k; },
   });
   out.sand.push(heap.translate(0.7, y0, 0.22));
-  // Bricks: square bessales (two thirds of a foot) in crossed courses on a pallet.
+  // Mudbricks: sun-dried square blocks (two thirds of a foot), rougher and less even than fired ones, in crossed courses on a pallet.
   const kx = 0.42;
   const kz = 1.38;
   out.wood.push(box(0.7, 0.06, 0.7, kx, y0, kz, 0.75));
@@ -480,7 +481,7 @@ function stock(lod, seed, out) {
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
           if (c === courses - 1 && i * 3 + j > 4) continue; // the top course partly taken
-          const g = slab(bs - 0.006, bt - 0.004, bs - 0.006, { bevel: 0.004, seed: seed + c * 9 + i * 3 + j, wobble: 0.003, tone: 0.12, grime: 0 });
+          const g = slab(bs - 0.006, bt - 0.004, bs - 0.006, { bevel: 0.004, seed: seed + c * 9 + i * 3 + j, wobble: 0.007, tone: 0.14, grime: 0.15 });
           const ox = (c % 2 ? 0.01 : -0.01);
           out.bricks.push(g.translate(kx - bs + i * bs + ox, y0 + 0.06 + c * bt, kz - bs + j * bs - ox));
         }
@@ -490,7 +491,7 @@ function stock(lod, seed, out) {
     // (Far out: the stack as courses.)
     for (let c = 0; c < (lod === 1 ? courses : 1); c++) {
       const h = lod === 1 ? bt - 0.004 : bt * courses;
-      out.bricks.push(slab(3 * bs, h, 3 * bs, { bevel: 0.004, seed: seed + c, wobble: 0.003, tone: 0.08, grime: 0 }).translate(kx, y0 + 0.06 + c * bt, kz));
+      out.bricks.push(slab(3 * bs, h, 3 * bs, { bevel: 0.004, seed: seed + c, wobble: 0.007, tone: 0.1, grime: 0.15 }).translate(kx, y0 + 0.06 + c * bt, kz));
     }
   }
   // Ashlar: two blocks of tufa on the ground, one of travertine across them, a square and a chisel on it.
@@ -560,7 +561,8 @@ export function buildEngineerPost({ lod = 0, seed = 23 } = {}) {
     wood: material('wood', { surface: 'wood', vertexColors: true, snow: 1 }),
     bark: material('bark', { surface: 'bark', vertexColors: true, snow: 0.6 }),
     tile: material('roof-tile', { surface: 'terracotta', vertexColors: true, snow: 1 }),
-    brick: material('terracotta-ware', { surface: 'terracotta', vertexColors: true, snow: 0.8 }),
+    // Sun-dried mud: the earth's grain in a duller, browner clay than the fired roof tiles.
+    brick: material('mudbrick', { surface: 'earth', color: 0x9a7a55, vertexColors: true, snow: 0.9 }),
     iron: material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }),
     bronze: material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.7 }),
     rope: material('rope', { surface: 'rope', vertexColors: true, snow: 0.6, normal: 1 }),

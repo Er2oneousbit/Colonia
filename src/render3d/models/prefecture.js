@@ -9,7 +9,7 @@
  *     keeping two of the city's fourteen regions from a barracks (statio)
  *     and smaller watch posts (excubitoria). The excubitorium of the
  *     seventh cohort in Trastevere, dug up in 1866, was a house taken over
- *     by the watch: brick walls, a court with a basin, a shrine (lararium)
+ *     by the watch: plastered walls, a court with a basin, a shrine (lararium)
  *     to the post's guardian spirit, and the men's graffiti on its walls,
  *     many about the sebaciaria, the duty of keeping the lamps and torches
  *     lit on the night watch.
@@ -20,9 +20,14 @@
  *     (dolabrae), ladders, and hooks on long poles to pull down a burning
  *     roof before the fire could spread.
  *
- * So, on a 4 m tile: a small watch house of brick (opus testaceum) on a
- * travertine socle under a tiled gable roof; a studded double door framed
- * in travertine, a marble plaque over it cut VIGILES, COH VII in red; to
+ * The game is set about 300 BC, three centuries before the vigiles, so the
+ * house is dressed as the colony's night watch would have had it after
+ * their pattern: fired brick facing is Imperial, so its walls are rubble
+ * plastered white over a tufa footing with a red dado, the Republic's way.
+ *
+ * So, on a 4 m tile: a small watch house of plastered rubble on a tufa
+ * socle under a tiled gable roof; a studded double door framed in tufa, a
+ * cut tufa tablet over it with VIGILES, COH VII painted red; to
  * the left a rack of pitched buckets, a barred window; to the right the
  * lararium in its painted niche, the lantern on its bracket, a bench with
  * folded centones; along the side wall the ladder, the hook and the axes;
@@ -60,7 +65,7 @@ export const PREFECTURE = Object.freeze({
   x1: 1.15,
   z0: -1.72,
   z1: 0.18,
-  socle: 0.36, // the travertine socle's top: the door's threshold
+  socle: 0.36, // the tufa socle's top: the door's threshold
   wall: 0.34,
   eave: 3.4,
   door: Object.freeze({ x: -0.35, w: 1.0, h: 1.95 }),
@@ -138,14 +143,14 @@ export function prefectureActors(state) {
 /** The pump's water, kept by name so the game can freeze it in a hard frost (models/services.js). */
 export const PUMP_WATER = 'tank-water';
 
-/** The house: socle, brick walls with the door, window and niche, the roof, the dark inside, the doors open and shut. */
+/** The house: socle, plastered walls with the door, window and niche, the roof, the dark inside, the doors open and shut. */
 function house(lod, seed, out) {
   const { x0, x1, z0, z1, socle, wall: t, eave, door } = P;
   const W = x1 - x0;
   const cx = (x0 + x1) / 2;
   const cz = (z0 + z1) / 2;
   const rnd = artRng(seed);
-  // The socle: travertine blocks of seeded lengths round the house, a little proud of the wall; the threshold whole.
+  // The socle: tufa blocks of seeded lengths round the house, a little proud of the wall; the threshold whole.
   const proud = 0.035;
   const course = (axis, a, b, at, skip) => {
     let p = a;
@@ -186,12 +191,12 @@ function house(lod, seed, out) {
     { x: niche.x - cx, y: niche.y, w: niche.w, h: niche.h, arch: true },
   ], { lod, y0: socle });
   boxUV(front, cx, 0);
-  out.brick.push(front.translate(cx, 0, z1));
-  out.brick.push(boxUV(slab(W, eave - socle, t, { bevel: 0.004, seed, wobble: 0, tone: 0, grime: 0.15 }), 0, 0).translate(cx, socle, z0 + t / 2));
+  out.walls.push(front.translate(cx, 0, z1));
+  out.walls.push(boxUV(slab(W, eave - socle, t, { bevel: 0.004, seed, wobble: 0, tone: 0, grime: 0.15 }), 0, 0).translate(cx, socle, z0 + t / 2));
   for (const s of [-1, 1]) {
     const x = s < 0 ? x0 + t / 2 : x1 - t / 2;
-    out.brick.push(boxUV(slab(t, eave - socle, z1 - z0 - 2 * t + 0.002, { bevel: 0.004, seed: seed + s, wobble: 0, tone: 0, grime: 0.15 })).translate(x, socle, cz));
-    // The gable over it: a triangle of brick up under the ridge.
+    out.walls.push(boxUV(slab(t, eave - socle, z1 - z0 - 2 * t + 0.002, { bevel: 0.004, seed: seed + s, wobble: 0, tone: 0, grime: 0.15 })).translate(x, socle, cz));
+    // The gable over it: a triangle of plastered rubble up under the ridge.
     const span = z1 - z0;
     const rise = (span / 2) * Math.tan(D(24));
     const g = new BoxGeometry(t, rise, span, 1, 1, 2);
@@ -202,14 +207,23 @@ function house(lod, seed, out) {
     }
     g.computeVertexNormals();
     g.translate(x, eave, cz);
-    out.brick.push(tintGeometry(boxUV(g)));
+    out.walls.push(tintGeometry(boxUV(g)));
   }
-  // A brick cornice under the eaves of the front and back: two courses stepping out.
+  // The red dado: a band of stucco-red plaster a little proud of the wall above the socle, the Republic's
+  // usual dressing for a plain wall; the front is cut at the door, which has its own frame.
+  const dh = 0.5;
+  const dp = 0.012;
+  const dy = socle;
+    out.dado.push(slab(dx0 - (x0 - proud), dh, dp * 2, { bevel: 0.004, seed: seed + 50, wobble: 0, tone: 0, grime: 0.2 }).translate((x0 - proud + dx0) / 2, dy, z1));
+  out.dado.push(slab(x1 + proud - dx1, dh, dp * 2, { bevel: 0.004, seed: seed + 51, wobble: 0, tone: 0, grime: 0.2 }).translate((dx1 + x1 + proud) / 2, dy, z1));
+  out.dado.push(slab(W + 2 * proud, dh, dp * 2, { bevel: 0.004, seed: seed + 52, wobble: 0, tone: 0, grime: 0.2 }).translate(cx, dy, z0));
+  for (const x of [x0, x1]) out.dado.push(slab(dp * 2, dh, z1 - z0 - 2 * t, { bevel: 0.004, seed: seed + 53, wobble: 0, tone: 0, grime: 0.2 }).translate(x, dy, cz));
+  // A plastered cornice under the eaves of the front and back: two courses stepping out.
   if (lod < 2) {
     for (const z of [z1, z0]) {
       const s = z === z1 ? 1 : -1;
-      out.brick.push(boxUV(slab(W + 0.06, 0.07, 0.06, { bevel: 0.006, seed: seed + 30 + s, wobble: 0, tone: 0, grime: 0 })).translate(cx, eave - 0.2, z + s * 0.03));
-      out.brick.push(boxUV(slab(W + 0.12, 0.07, 0.1, { bevel: 0.006, seed: seed + 31 + s, wobble: 0, tone: 0, grime: 0 })).translate(cx, eave - 0.13, z + s * 0.05));
+      out.walls.push(boxUV(slab(W + 0.06, 0.07, 0.06, { bevel: 0.006, seed: seed + 30 + s, wobble: 0, tone: 0, grime: 0 })).translate(cx, eave - 0.2, z + s * 0.03));
+      out.walls.push(boxUV(slab(W + 0.12, 0.07, 0.1, { bevel: 0.006, seed: seed + 31 + s, wobble: 0, tone: 0, grime: 0 })).translate(cx, eave - 0.13, z + s * 0.05));
     }
   }
   // The dark inside, seen through the open door and the window: a box turned inside out.
@@ -223,7 +237,7 @@ function house(lod, seed, out) {
   room.translate(cx, socle + (eave - socle - 0.1) / 2 + 0.005, cz);
   room.computeVertexNormals();
   out.dark.push(tintGeometry(boxUV(room)));
-  // The door's travertine frame: jambs, a lintel, the doors (two leaves: shut, or swung in against the jambs).
+  // The door's tufa frame: jambs, a lintel, the doors (two leaves: shut, or swung in against the jambs).
   const zf = z1;
   for (const s of [-1, 1]) out.trav.push(slab(0.14, door.h, t + 0.07, { bevel: 0.01, seed: seed + 40 + s, wobble: 0.002, tone: 0.04, grime: 0.25 }).translate(door.x + s * (door.w / 2 + 0.07), socle, zf - t / 2 + 0.035));
   out.trav.push(slab(door.w + 0.42, 0.2, t + 0.1, { bevel: 0.012, seed: seed + 43, wobble: 0.002, tone: 0.04, grime: 0 }).translate(door.x, socle + door.h, zf - t / 2 + 0.05));
@@ -251,7 +265,7 @@ function house(lod, seed, out) {
       }
     }
   }
-  // The window: a travertine sill and head, three iron bars.
+  // The window: a tufa sill and head, three iron bars.
   const wy = socle + 1.46;
   out.trav.push(slab(0.56, 0.06, t + 0.08, { bevel: 0.008, seed: seed + 60, wobble: 0.002, tone: 0.03, grime: 0.15 }).translate(winX, wy - 0.06, zf - t / 2 + 0.04));
   out.trav.push(slab(0.56, 0.1, t + 0.04, { bevel: 0.008, seed: seed + 61, wobble: 0.002, tone: 0.03, grime: 0 }).translate(winX, wy + 0.5, zf - t / 2 + 0.02));
@@ -280,7 +294,7 @@ function house(lod, seed, out) {
       out.bronze.push(lar.translate(niche.x + s * 0.1, ny, zf - 0.08));
     }
   }
-  // The plaque over the door: VIGILES and the cohort's number, cut and painted red.
+  // The tablet over the door: a cut tufa slab (not marble, which Rome's builders had hardly begun to use), VIGILES and the cohort's number painted red.
   const plY = socle + door.h + 0.25;
   out.marble.push(slab(1.06, 0.4, 0.035, { bevel: 0.006, seed: seed + 80, wobble: 0, tone: 0, grime: 0.05 }).translate(door.x, plY, zf + 0.012));
   if (lod === 0) {
@@ -366,7 +380,7 @@ function kit(lod, seed, out) {
       out.rope.push(tintGeometry(boxUV(c), () => 0.9 - k * 0.08));
     }
   }
-  // The bench by the door: a board on two travertine blocks; the centones folded on it, ready.
+  // The bench by the door: a board on two tufa blocks; the centones folded on it, ready.
   const bx = 0.66;
   const bz = zf + 0.4;
   for (const s of [-1, 1]) out.trav.push(slab(0.1, 0.38, 0.3, { bevel: 0.012, seed: seed + 20 + s, wobble: 0.003, tone: 0.05, grime: 0.35 }).translate(bx + s * 0.28, P.floorY, bz));
@@ -452,7 +466,7 @@ function pump(lod, seed, out) {
 export function buildPrefecture({ lod = 0, seed = 41 } = {}) {
   lod = Math.max(0, Math.min(2, lod | 0));
   const out = {
-    trav: [], brick: [], tile: [], wood: [], dark: [], iron: [], bronze: [], marble: [], letters: [], red: [], plaster: [],
+    trav: [], walls: [], dado: [], tile: [], wood: [], dark: [], iron: [], bronze: [], marble: [], letters: [], red: [], plaster: [],
     doorOpen: [], doorShut: [], studsOpen: [], studsShut: [], bucketsHome: [], bailsHome: [], ladder: [], hook: [], hookIron: [],
     axeWood: [], axeIron: [], rope: [], centones: [], water: [], buckets: [], bails: [], flags: [], beam: [],
   };
@@ -479,33 +493,32 @@ export function buildPrefecture({ lod = 0, seed = 41 } = {}) {
   // material is one more draw call for every prefecture in view: left out.
   if (lod === 2) out.iron = out.bronze = [];
   const mats = {
-    trav: material('travertine', { surface: 'travertine', vertexColors: true, snow: 1 }),
-    brick: material('brick', { surface: 'brick', vertexColors: true, snow: 1 }),
+    plaster: material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }),
+    tufa: material('tufa', { surface: 'tufa', vertexColors: true, snow: 1 }),
     tile: material('roof-tile', { surface: 'terracotta', vertexColors: true, snow: 1 }),
     wood: material('wood', { surface: 'wood', vertexColors: true, snow: 1 }),
     iron: material('iron', { surface: 'iron', vertexColors: true, snow: 0.7 }),
     bronze: material('bronze', { surface: 'bronze', vertexColors: true, snow: 0.7 }),
-    marble: material('marble', { surface: 'marble', vertexColors: true, snow: 1 }),
     stone: material('limestone', { surface: 'limestone', vertexColors: true, snow: 1 }),
     rope: material('rope', { surface: 'rope', vertexColors: true, snow: 0.6, normal: 1 }),
     // The buckets' rope sealed black with pitch: the rope's texture, darkened.
     pitch: material('pitched-rope', { surface: 'rope', color: 0x4a3b2e, vertexColors: true, snow: 0.6 }),
     wool: material('centones', { surface: 'wool', vertexColors: true, snow: 0.8 }),
     red: material('stucco-red', { surface: 'plaster', color: 0xc0644a, vertexColors: true, snow: 1 }),
-    plaster: material('plaster', { surface: 'plaster', vertexColors: true, snow: 1 }),
     letters: material('inscription-red', { color: 0x6a1e14, roughness: 0.8, snow: 0.3 }),
     dark: material('room-dark', { color: 0x0e0b09, roughness: 1, snow: 0, wet: 0 }),
   };
   const p = new TaggedParts('prefecture');
   p.add('flags', mats.stone, out.flags);
-  p.add('stone', mats.trav, out.trav);
-  p.add('walls', mats.brick, out.brick);
+  p.add('stone', mats.tufa, out.trav);
+  p.add('walls', mats.plaster, out.walls);
+  p.add('dado', mats.red, out.dado);
   p.add('roof', mats.tile, out.tile);
   p.add('wood', mats.wood, out.wood);
   p.add('inside', mats.dark, out.dark, { cast: false });
   p.add('iron', mats.iron, out.iron);
   p.add('bronze', mats.bronze, out.bronze);
-  p.add('plaque', mats.marble, out.marble);
+  p.add('plaque', mats.tufa, out.marble);
   p.add('letters', mats.letters, out.letters, { cast: false });
   p.add('lararium', mats.red, out.red, { cast: false });
   p.add('aedicula', mats.plaster, out.plaster);
