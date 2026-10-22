@@ -2,6 +2,11 @@
 
 Every release, newest first: what changed and why, with what was measured. The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.13
+
+* **The great houses in 3D** (under WebGL): the Peristyle Villa, the Marble Villa, the Mansion and the Palatium, the four 3 x 3 homes, four looks each, after the House of the Faun (the ceiling of Republican taste): the atrium house with a Tuscan peristyle and garden behind, a blank plastered street front with a porter's door and shops, painted terracotta plaques at the eaves; the same dressed in marble where it shows, a statue in the garden; the mansion grown to its lot's edge with a second garden and a long pool, a loggia over the peristyle and a dining tower at one corner; the palatium with an Ionic porch, a double-height atrium and a great peristyle with a long basin, a fountain and statues. Fifteen of the twenty levels are models now. Also fixes the home kit's ridge roll for a ridge off the middle of its house, which had floated beside the roof on the Stone Cottage's across-the-street look.
+* 1447 unit tests
+
 ## v0.30.12
 
 * **The raw producers in 3D** (under WebGL): the Clay Pit, the Timber Yard, the Iron Mine and the Marble Quarry, the first of the industry buildings to leave their sprites, each a working yard with its stock in three steps, its workers at their trade while it is staffed and its tools put away when not, a lantern at night. The clay pit is dug in steps with water in the bottom, a plank ramp, a pug bed and drying racks under a thatched shelter; the timber yard a felling yard with stumps, a limbed trunk, a saw pit with two sawyers, an ox-sledge and a shed of poles and thatch; the iron mine an earth-and-rock bank with a timber-framed adit, a windlass over a shaft, a spoil heap and a clay bloomery that smokes while the fire is in; the marble quarry a limestone hill under a grass cap with a worked face of fresh white stone cut in benches, wedges in a half-freed block, a shear-legs crane and a store of squared blocks. Frost ices the pit's pool and the quarry's trough.
