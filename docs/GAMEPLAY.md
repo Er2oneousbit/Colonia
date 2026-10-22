@@ -1,29 +1,49 @@
 # Gameplay guide
 
-The rules and numbers behind Colonia. Every number here comes from `src/config.js` or `src/data/*.js`; if you change those, update this page (the in-game Help tables are generated from the data automatically).
+The rules and numbers behind Colonia.
+Every number here comes from `src/config.js` or `src/data/*.js`; if you change those, update this page (the in-game Help tables are generated from the data automatically).
 
 ## Time
 
-* A game day takes 2.5 seconds at 1x (8 simulation ticks a second, 20 a day); 16 days make a month (40 seconds), 3 months a season (2 minutes) and 12 months a year (8 minutes at 1x; it was 5.3 until v0.12.2, when seasons flew by). 2x, 4x and 8x run faster.
-* Speeds: 1x, 2x, 4x, 8x. People walk 2 tiles a game day, 1.2 tiles a second at 1x; their legs step with the ground they cover, so they match at every speed and stand still while paused. Carts roll a little slower, soldiers march at their own pace (table under *Military*).
+* A game day takes 2.5 seconds at 1x (8 simulation ticks a second, 20 a day); 16 days make a month (40 seconds), 3 months a season (2 minutes) and 12 months a year (8 minutes at 1x; it was 5.3 until
+  v0.12.2, when seasons flew by).
+  2x, 4x and 8x run faster.
+* Speeds: 1x, 2x, 4x, 8x.
+  People walk 2 tiles a game day, 1.2 tiles a second at 1x; their legs step with the ground they cover, so they match at every speed and stand still while paused.
+  Carts roll a little slower, soldiers march at their own pace (table under *Military*).
 
 ## Map sizes
 
-Sandbox maps come in Small (64x64), Medium (96x96), Large (128x128) and **Uber (256x256)**: sixteen times the land of Small, room for a capital and its whole province. Settlers walk in from the map entrance (a stone gateway with green pennants where the Imperial road meets the map edge; the exit, where people leave, has red ones) to the home they picked; on a big map that can be far, so anyone with more than a 70-tile walk rides in on a mule, up to twice walking speed (a trot): trips up to 140 tiles take no longer than a 70-tile walk. Uber costs about the same per frame as Large (only the tiles on screen are drawn) and a year-old Uber city saves in about 300 KB.
+Sandbox maps come in Small (64x64), Medium (96x96), Large (128x128) and **Uber (256x256)**: sixteen times the land of Small, room for a capital and its whole province.
+Settlers walk in from the map entrance (a stone gateway with green pennants where the Imperial road meets the map edge; the exit, where people leave, has red ones) to the home they picked; on a big
+map that can be far, so anyone with more than a 70-tile walk rides in on a mule, up to twice walking speed (a trot): trips up to 140 tiles take no longer than a 70-tile walk.
+Uber costs about the same per frame as Large (only the tiles on screen are drawn) and a year-old Uber city saves in about 300 KB.
 
-**Around the Imperial road** a band of plain land at least 6 tiles wide each side (its edge wanders out to about 8) has no rock and no meadow. Rock can never be cleared and every city starts along the road, so outcrops there would wall off the first blocks; farm plots belong out in the fields, a short road away. Rock beyond the band stays for marble quarries and iron mines.
+**Around the Imperial road** a band of plain land at least 6 tiles wide each side (its edge wanders out to about 8) has no rock and no meadow.
+Rock can never be cleared and every city starts along the road, so outcrops there would wall off the first blocks; farm plots belong out in the fields, a short road away.
+Rock beyond the band stays for marble quarries and iron mines.
 
-**Farm plots** (meadow, the yellow-green land farms need) come as whole fields: broad patches, most near water, with no field smaller than 12 tiles, so a 3x3 farm usually sits entirely on meadow at full fertility.
+**Farm plots** (meadow, the yellow-green land farms need) come as whole fields: broad patches, most near water, with no field smaller than 12 tiles, so a 3x3 farm usually sits entirely on meadow at
+full fertility.
 
 ## Turning the view
 
-The city can be seen from any of its four sides, as in the original: **Q** (or **]**) turns it a quarter turn clockwise on the screen, **Shift+Q** (or **[**) back, and so do the **⟳** and **⟲** buttons in the top bar. Between them a needle points north: the north of the game's compass, which the scouts' reports use (straight up at the start), and a click on it turns the view back to the start. The tile in the middle of the screen stays there as the view turns, at once. Everything turns with it: the ground, roads, walls and aqueducts, every building (drawn from that side), the people, soldiers and ships, overlays, the building being placed and its footprint. The minimap turns with the view too (an **N** by its corner marks north), so the camera frame on it stays a plain rectangle. Scrolling (keys, mouse at the edge, dragging) follows the screen, whichever way the city is turned.
+The city can be seen from any of its four sides, as in the original: **Q** (or **]**) turns it a quarter turn clockwise on the screen, **Shift+Q** (or **[**) back, and so do the **⟳** and **⟲**
+buttons in the top bar.
+Between them a needle points north: the north of the game's compass, which the scouts' reports use (straight up at the start), and a click on it turns the view back to the start.
+The tile in the middle of the screen stays there as the view turns, at once.
+Everything turns with it: the ground, roads, walls and aqueducts, every building (drawn from that side), the people, soldiers and ships, overlays, the building being placed and its footprint.
+The minimap turns with the view too (an **N** by its corner marks north), so the camera frame on it stays a plain rectangle.
+Scrolling (keys, mouse at the edge, dragging) follows the screen, whichever way the city is turned.
 
-The view is only a way of looking: nothing in the city changes with it (R still turns a building clockwise as the screen shows it, and a building turned so keeps that turn when the view turns again). Saves keep the view's turn with the camera; a new game starts unturned.
+The view is only a way of looking: nothing in the city changes with it (R still turns a building clockwise as the screen shows it, and a building turned so keeps that turn when the view turns again).
+Saves keep the view's turn with the camera; a new game starts unturned.
 
 ## Difficulty
 
-Chosen in the Sandbox setup and in every campaign briefing (the menus remember your last choice). Each mission in the Campaign list shows the hardest level you have beaten it on. All levers live in `src/data/difficulty.js`:
+Chosen in the Sandbox setup and in every campaign briefing (the menus remember your last choice).
+Each mission in the Campaign list shows the hardest level you have beaten it on.
+All levers live in `src/data/difficulty.js`:
 
 | Lever | Easy | Normal | Hard | Insane |
 |---|---|---|---|---|
@@ -48,11 +68,22 @@ Chosen in the Sandbox setup and in every campaign briefing (the menus remember y
 | Months before the same random event can come again | 36 | 24 | 18 | 12 |
 | How fast an untended garden or statue fades (see *Gardens and statues*) | x0.5 | x1 | x1 | x1.5 |
 
-Insane is for veterans: staff the Excubitorium (Prefecture) and the Collegium Fabrum (Engineer's Post) first (labor priorities), because an unpatrolled building burns or collapses a third sooner than on Normal, and plan for roughly twice Normal's army. In winter nothing grows on any farm (crops, pigs, and the foals and herd of the Equaria, the horse ranch): fields keep their progress and grow again from Martius, workers stay on, and carts still haul the harvest already in store. Games start in Ianuarius, so the first harvest waits for spring; a message warns in October, and the city lives on its granaries (or imports) from December to Februarius. Size farms for about a third more than the city eats (a full Insane wheat farm grows about 576 units a year instead of 768) and keep roughly 0.75 units per citizen in store when winter comes. Winter also costs the Equaria about a quarter of the year's foals and mares, so start it early. The headless simulator shows how a level plays out: `npm run sim -- --difficulty insane --raids occasional --garrison`.
+Insane is for veterans: staff the Excubitorium (Prefecture) and the Collegium Fabrum (Engineer's Post) first (labor priorities), because an unpatrolled building burns or collapses a third sooner than
+on Normal, and plan for roughly twice Normal's army.
+In winter nothing grows on any farm (crops, pigs, and the foals and herd of the Equaria, the horse ranch): fields keep their progress and grow again from Martius, workers stay on, and carts still haul
+the harvest already in store.
+Games start in Ianuarius, so the first harvest waits for spring; a message warns in October, and the city lives on its granaries (or imports) from December to Februarius.
+Size farms for about a third more than the city eats (a full Insane wheat farm grows about 576 units a year instead of 768) and keep roughly 0.75 units per citizen in store when winter comes.
+Winter also costs the Equaria about a quarter of the year's foals and mares, so start it early.
+The headless simulator shows how a level plays out: `npm run sim -- --difficulty insane --raids occasional --garrison`.
 
 ## Building names
 
-Every building goes by its Latin name, as the colonists would have called it: messages, advisors, the panels and this guide use it. The build menu shows the English name under the Latin one, its tooltip and a building's panel title give both (*Castra (Legion Fort)*), and the in-game manual has this table under *Building names*. Clear Land is a tool, not a building, and keeps its English name. The names live in `src/data/buildings.js` (`name` and `en`); the type keys behind them, which saves and sprites use, never changed. Below, a building's English name follows its Latin one in brackets the first time it comes up in each section.
+Every building goes by its Latin name, as the colonists would have called it: messages, advisors, the panels and this guide use it.
+The build menu shows the English name under the Latin one, its tooltip and a building's panel title give both (*Castra (Legion Fort)*), and the in-game manual has this table under *Building names*.
+Clear Land is a tool, not a building, and keeps its English name.
+The names live in `src/data/buildings.js` (`name` and `en`); the type keys behind them, which saves and sprites use, never changed.
+Below, a building's English name follows its Latin one in brackets the first time it comes up in each section.
 
 | Menu | Latin (English) |
 |---|---|
@@ -71,28 +102,71 @@ Every building goes by its Latin name, as the colonists would have called it: me
 | Storage & Markets | Macellum (Market), Granarium (Granary), Horreum (Warehouse), Emporium (Trade Dock) |
 | Military | Murus (Wall), Porta (Gate, cut where a wall crosses a road), Tirocinium (Barracks), Campus (Military Academy), Castra (Legion Fort), Praesidium (Archer Fort), Castra Equitum (Cavalry Fort), Turris (Watchtower), Navalia (Naval Dockyard), Portus (Training Harbor), Statio (Naval Station) |
 
-Where a message counts several of a kind it uses the Latin plural: *2 Figlinae are waiting for clay: build more Cretifodinae*. In plain description, as here, the English word may stand for the kind of building (a warehouse, the forts).
+Where a message counts several of a kind it uses the Latin plural: *2 Figlinae are waiting for clay: build more Cretifodinae*.
+In plain description, as here, the English word may stand for the kind of building (a warehouse, the forts).
 
 ## Housing
 
-A housing plot (Area) costs 10 Dn. Settlers arrive when the city mood is at least 30, the plot is within 2 tiles of a road, and that road connects to the map entrance. A home uses the nearest road that reaches the entrance, even when an unconnected street runs closer; other buildings use a road touching them, again preferring one that reaches the entrance, so a stray bit of road laid against a building never cuts it off from its workers and walkers.
+A housing plot (Area) costs 10 Dn.
+Settlers arrive when the city mood is at least 30, the plot is within 2 tiles of a road, and that road connects to the map entrance.
+A home uses the nearest road that reaches the entrance, even when an unconnected street runs closer; other buildings use a road touching them, again preferring one that reaches the entrance, so a
+stray bit of road laid against a building never cuts it off from its workers and walkers.
 
-**Road access, plainly.** Every building with workers must have a road touching one of its edges (wells, reservoirs, gardens, statues and the Oraculum (Oracle) need no road). The door's side does not matter: any edge touching a road works. A road that only meets a corner does not count. Homes take a road within 2 tiles, corners included. A building with no road gets no workers and does nothing at all, so the game makes it hard to miss:
+**Road access, plainly.** Every building with workers must have a road touching one of its edges (wells, reservoirs, gardens, statues and the Oraculum (Oracle) need no road).
+The door's side does not matter: any edge touching a road works.
+A road that only meets a corner does not count.
+Homes take a road within 2 tiles, corners included.
+A building with no road gets no workers and does nothing at all, so the game makes it hard to miss:
 
-* While you place it, the building is drawn in orange instead of green, the tiles along its edges where a road would serve it are picked out in yellow, and the warning shows by the cursor as well as in the sidebar.
+* While you place it, the building is drawn in orange instead of green, the tiles along its edges where a road would serve it are picked out in yellow, and the warning shows by the cursor as well as in
+  the sidebar.
 * Once built, a red sign with a crossed-out road floats over it, at every zoom and under every overlay, until a road reaches it (also over a home with no road within 2 tiles).
-* A building with workers that has had no road for 8 days says so once in a message (*The Excubitorium at 30,41 has no road touching it: it gets no workers and does nothing.*); click it to go there. Its panel and the Problems overlay say the same.
+* A building with workers that has had no road for 8 days says so once in a message (*The Excubitorium at 30,41 has no road touching it: it gets no workers and does nothing.*); click it to go there.
+  Its panel and the Problems overlay say the same.
 
-**Turning a building.** While you place a building, **R** turns it a quarter turn clockwise (so does the **⟳** button beside its name in the build panel, which shows how far it is turned: ⟳ 90°, 180°, 270°). The ghost turns with it, the building is placed the way it shows, and the next one of that kind you place starts at the same turn, for the rest of the session. With no building in hand, R is still the Road tool. **Facing the road by itself:** while you hold a building with a road along exactly one of its sides (a road past a corner does not count), the ghost turns its front to that road, and the build panel says *Faces the road beside it*. A building's front is the side its door, gate or porch is drawn on (the front-left face as it is first shown); buildings that look the same from every side (the well, fountain, reservoir, arenas, Oraculum (Oracle) and small statue) and the Circus have none, and homes and the rest painted over an area keep the turn in hand. With roads on two sides or more, or none, the building keeps the turn in hand (the last one you gave that kind). Press R and your turn takes over, a quarter turn on from what the ghost showed, until you pick another tool: then the road decides again. A turn is looks only: road access, workers and everything else are the same whichever way a building faces (any edge touching a road works, so a door turned away from the street still lets people in). The Circus (Hippodrome) is the exception: turned a quarter it lies north-south, 5 x 15. Buildings whose facing the world decides do not turn: an Emporium, a Navalia, a Statio, a Portus, a Fabrica Navalis and a Piscatoria face their water, and a Fornix (Triumphal Arch) runs along its road; for them R does nothing but say so, and the button is greyed out. Homes painted over an area all take the turn, and keep it as they grow and split. Rubble remembers the turn of what stood there, and its Rebuild puts it back the same way.
+**Turning a building.** While you place a building, **R** turns it a quarter turn clockwise (so does the **⟳** button beside its name in the build panel, which shows how far it is turned: ⟳ 90°, 180°,
+270°).
+The ghost turns with it, the building is placed the way it shows, and the next one of that kind you place starts at the same turn, for the rest of the session.
+With no building in hand, R is still the Road tool.
+**Facing the road by itself:** while you hold a building with a road along exactly one of its sides (a road past a corner does not count), the ghost turns its front to that road, and the build panel
+says *Faces the road beside it*.
+A building's front is the side its door, gate or porch is drawn on (the front-left face as it is first shown); buildings that look the same from every side (the well, fountain, reservoir, arenas,
+Oraculum (Oracle) and small statue) and the Circus have none, and homes and the rest painted over an area keep the turn in hand.
+With roads on two sides or more, or none, the building keeps the turn in hand (the last one you gave that kind).
+Press R and your turn takes over, a quarter turn on from what the ghost showed, until you pick another tool: then the road decides again.
+A turn is looks only: road access, workers and everything else are the same whichever way a building faces (any edge touching a road works, so a door turned away from the street still lets people in).
+The Circus (Hippodrome) is the exception: turned a quarter it lies north-south, 5 x 15.
+Buildings whose facing the world decides do not turn: an Emporium, a Navalia, a Statio, a Portus, a Fabrica Navalis and a Piscatoria face their water, and a Fornix (Triumphal Arch) runs along its
+road; for them R does nothing but say so, and the button is greyed out.
+Homes painted over an area all take the turn, and keep it as they grow and split.
+Rubble remembers the turn of what stood there, and its Rebuild puts it back the same way.
 
 Homes follow the housing ladder of the original game: 20 levels, rebuilt with Colonia's own names and numbers (`src/data/housing.js`).
 
-* **Moving up:** each day a home checks the next level. As soon as it has everything that level needs, and its desirability is at least its own level's `up`, it moves up at once. Never more than one level a day.
-* **Falling back:** a bad day is desirability at or below the level's floor ("Bad at" below), or any need of its own level missing. After **3 bad days in a row** (6 on Easy) it drops one level; any other day resets the count. The info panel says how many days are left. Tents never fall back.
-* **Residents over capacity** (after falling back, or moving up into a Villa, which holds far fewer people than an Insula) leave as homeless and look for room elsewhere, or leave the city if there is none.
-* **Footprints:** levels 1-10 are single tiles, 11-14 are 2x2, 15-18 3x3 and 19-20 4x4. Reaching 11, 15 or 19, a home grows into the bigger square: it tries the square anchored on itself, then shifted up-left, left and up, and takes over homes of its level or lower first, then clear land, and gardens only as a last resort. A home only partly inside the square breaks into single-tile homes, and those left outside carry on (with no service visits yet). No room: the panel says so, and it tries again every day. Leave room, or build housing in bands 2, 3 or 4 deep.
-* **Blocks:** four single-tile homes of the same level, side by side in a square, may join into one 2x2 block (vacant lots count as tents). It is still that level, holds four times the people, and is judged on its best tile. A home joins as any corner of the square, and blocks are laid from the west and north end of each run of single homes, so they line up and leave no home stranded between them: a run two deep and six long becomes three blocks, one seven long leaves only its last column single. About one square in five stays four single homes (fixed per map), so streets keep some variety; those four still have each other, and the first to reach the Tenement grows over the same square.
-* **Splitting:** a 2x2, 3x3 or 4x4 home that falls below its footprint's levels keeps its top-left corner at the smaller size (or another corner, if only that one still has a road within 2 tiles); every other tile becomes an Apartment House. People and goods are shared by the tiles each part covers. A tile with no road within 2 tiles becomes a vacant lot, and its people look for another home.
+* **Moving up:** each day a home checks the next level.
+  As soon as it has everything that level needs, and its desirability is at least its own level's `up`, it moves up at once.
+  Never more than one level a day.
+* **Falling back:** a bad day is desirability at or below the level's floor ("Bad at" below), or any need of its own level missing.
+  After **3 bad days in a row** (6 on Easy) it drops one level; any other day resets the count.
+  The info panel says how many days are left.
+  Tents never fall back.
+* **Residents over capacity** (after falling back, or moving up into a Villa, which holds far fewer people than an Insula) leave as homeless and look for room elsewhere, or leave the city if there is
+  none.
+* **Footprints:** levels 1-10 are single tiles, 11-14 are 2x2, 15-18 3x3 and 19-20 4x4.
+  Reaching 11, 15 or 19, a home grows into the bigger square: it tries the square anchored on itself, then shifted up-left, left and up, and takes over homes of its level or lower first, then clear
+  land, and gardens only as a last resort.
+  A home only partly inside the square breaks into single-tile homes, and those left outside carry on (with no service visits yet).
+  No room: the panel says so, and it tries again every day.
+  Leave room, or build housing in bands 2, 3 or 4 deep.
+* **Blocks:** four single-tile homes of the same level, side by side in a square, may join into one 2x2 block (vacant lots count as tents).
+  It is still that level, holds four times the people, and is judged on its best tile.
+  A home joins as any corner of the square, and blocks are laid from the west and north end of each run of single homes, so they line up and leave no home stranded between them: a run two deep and six
+  long becomes three blocks, one seven long leaves only its last column single.
+  About one square in five stays four single homes (fixed per map), so streets keep some variety; those four still have each other, and the first to reach the Tenement grows over the same square.
+* **Splitting:** a 2x2, 3x3 or 4x4 home that falls below its footprint's levels keeps its top-left corner at the smaller size (or another corner, if only that one still has a road within 2 tiles); every
+  other tile becomes an Apartment House.
+  People and goods are shared by the tiles each part covers.
+  A tile with no road within 2 tiles becomes a vacant lot, and its people look for another home.
 
 | # | Level | Size | People | To reach it | Bad at | Tax |
 |---|---|---|---|---|---|---|
@@ -117,22 +191,57 @@ Homes follow the housing ladder of the original game: 20 levels, rebuilt with Co
 | 19 | Grand Palatium ★ | 4x4 | 192 | des 66, entertainment 80, room to grow to 4x4 | 60 | 15 |
 | 20 | Imperial Palatium ★ | 4x4 | 208 | des 72, entertainment 95 | 68 | 16 |
 
-Needs add up: each level also needs everything the levels below it need. "To reach it" gives the desirability the level below needs to move up. "Bad at" is the floor for a home at that level. ★ Patricians (levels 13 and up) do not work, but pay much higher taxes, and never emigrate.
+Needs add up: each level also needs everything the levels below it need.
+"To reach it" gives the desirability the level below needs to move up.
+"Bad at" is the floor for a home at that level.
+★ Patricians (levels 13 and up) do not work, but pay much higher taxes, and never emigrate.
 
-* **Food:** tents forage and need none. Others eat only as many kinds as their level needs (a quarter unit per person per month, shared between the kinds; when one runs short, the rest comes from other food in the house), and market vendors bring only those kinds, topped up to three months.
-* **Goods** (pottery, furniture, oil, clothing, wine, marble) are used up twice a month, and only the ones the level needs. When one runs out, the next day is a bad day. A home stocks a good already one level before it needs it (a Tenement buys clothing for the Insula).
-* **Clothing** (Colonia's own, not in the original) is needed from the Insula up, villas and palaces included: the last level whose people work, so a city clothes its people before it builds villas. A city saved before version 10 loads with three months of clothing in its Tenements and better homes: time to build the chain (its first clothing takes about two months). After that, a home without it falls back a level after its bad days (3, 6 on Easy).
-* **Marble** (Colonia's own) is needed from the Marble Villa up, as its name says: the top five levels, all patrician. Homes use it at half the rate of the other goods (a Marble Villa of 108 people about 2.7 a month), and market vendors bring it like pottery, three months at a time; a Peristyle Villa stocks it for the next level. It comes from a Lapicidina (Marble Quarry) beside rocks, or from Corinthus or Delos. A city saved before version 32 loads with six months of marble in its Peristyle Villas and better homes: time to quarry it or open a route.
-* **Wine sources** (levels 17 and up): a working (staffed) winery counts as one, and so does each open trade route that sells wine while wine is set to import and switched on with that partner (its route card's switch).
+* **Food:** tents forage and need none.
+  Others eat only as many kinds as their level needs (a quarter unit per person per month, shared between the kinds; when one runs short, the rest comes from other food in the house), and market vendors
+  bring only those kinds, topped up to three months.
+* **Goods** (pottery, furniture, oil, clothing, wine, marble) are used up twice a month, and only the ones the level needs.
+  When one runs out, the next day is a bad day.
+  A home stocks a good already one level before it needs it (a Tenement buys clothing for the Insula).
+* **Clothing** (Colonia's own, not in the original) is needed from the Insula up, villas and palaces included: the last level whose people work, so a city clothes its people before it builds villas.
+  A city saved before version 10 loads with three months of clothing in its Tenements and better homes: time to build the chain (its first clothing takes about two months).
+  After that, a home without it falls back a level after its bad days (3, 6 on Easy).
+* **Marble** (Colonia's own) is needed from the Marble Villa up, as its name says: the top five levels, all patrician.
+  Homes use it at half the rate of the other goods (a Marble Villa of 108 people about 2.7 a month), and market vendors bring it like pottery, three months at a time; a Peristyle Villa stocks it for the
+  next level.
+  It comes from a Lapicidina (Marble Quarry) beside rocks, or from Corinthus or Delos.
+  A city saved before version 32 loads with six months of marble in its Peristyle Villas and better homes: time to quarry it or open a route.
+* **Wine sources** (levels 17 and up): a working (staffed) winery counts as one, and so does each open trade route that sells wine while wine is set to import and switched on with that partner (its
+  route card's switch).
 * **Education** is a tier: a school or a library, then both, then both and an academy. An academy alone does nothing.
 * **Health:** barber and baths are needs of their own; medical care is a medicus or a hospital (within 12 tiles), then both.
-* **Desirability** is read on the best tile of the home. Humble homes (levels 1-6) are poor neighbors, levels 9 and up good ones, villas and palaces very good. Gardens, statues, temples and plazas lift a block; a big home's best tile is usually on its edge, so decorate around it. Palaces need plazas or large statues. Gardens and statues need gardeners to keep their bonus (see *Gardens and statues* under Services).
+* **Desirability** is read on the best tile of the home.
+  Humble homes (levels 1-6) are poor neighbors, levels 9 and up good ones, villas and palaces very good.
+  Gardens, statues, temples and plazas lift a block; a big home's best tile is usually on its edge, so decorate around it.
+  Palaces need plazas or large statues.
+  Gardens and statues need gardeners to keep their bonus (see *Gardens and statues* under Services).
 
 ## Services (walkers)
 
-Most services are delivered by walkers. A walker serves every building within **2 tiles** of each road tile it steps on, and a home remembers the visit for **96 days** (a tax collector's visit, 48). Roamers walk 22-30 tiles, prefer to go straight, avoid tiles they just walked, stay within about 13 tiles of their building, and prefer streets with something to serve: at a junction a roamer looks up to 8 tiles down each way (to the next junction, a dead end, or a roadblock that would stop it) and favors the ways with buildings along them over empty road such as the Imperial road out to the map edge; a way that reaches a building within those 8 tiles, like a short spur to a clay pit, counts in full. An outpost at the end of a longer empty road is visited less: give it a post of its own. Short loops of road around housing blocks are covered far better than long dead ends.
+Most services are delivered by walkers.
+A walker serves every building within **2 tiles** of each road tile it steps on, and a home remembers the visit for **96 days** (a tax collector's visit, 48).
+Roamers walk 22-30 tiles, prefer to go straight, avoid tiles they just walked, stay within about 13 tiles of their building, and prefer streets with something to serve: at a junction a roamer looks up
+to 8 tiles down each way (to the next junction, a dead end, or a roadblock that would stop it) and favors the ways with buildings along them over empty road such as the Imperial road out to the map
+edge; a way that reaches a building within those 8 tiles, like a short spur to a clay pit, counts in full.
+An outpost at the end of a longer empty road is visited less: give it a post of its own.
+Short loops of road around housing blocks are covered far better than long dead ends.
 
-**Where a walker turns.** At a junction a service walker is drawn to the way whose homes most need him. Prefects and engineers go by the risk of the buildings along the way (the closer one is to burning or falling down, the stronger the pull). Every other walker goes by how far his own visit has worn off in the homes along the way, from just made to run out: a priest by the visit of a priest of his god, a teacher by the school visit, a barber, physician or bath attendant by theirs, an entertainer by his venue's, a tax collector by their registration, and a market vendor by how low their pantries are in the food and goods his market has (a home short of a food the market has run out of does not draw him). These walkers look past the next junction too, up to 8 road steps down each way, and a home farther along draws a little less (half as much 8 steps on); homes more than 13 tiles from the walker's building do not draw him at all, so he keeps to his neighbourhood. A way whose neediest home has lost the visit altogether weighs 41 times a way of homes he has just served, so the homes on a building's far street are no longer left to chance. Prefects, engineers, priests, tax collectors, barbers, physicians and bath attendants also start their next round as the last one turns for home; a school, library, academy, venue or market waits for its walker to come back. Measured over six seeds and two years on a mission 2 city whose Stone Cottages on a school's far street had waited months for a teacher: its homes went 85,494 home-days without some service before, none after, and the longest any home waited for a visit fell from 505 days to 96.
+**Where a walker turns.** At a junction a service walker is drawn to the way whose homes most need him.
+Prefects and engineers go by the risk of the buildings along the way (the closer one is to burning or falling down, the stronger the pull).
+Every other walker goes by how far his own visit has worn off in the homes along the way, from just made to run out: a priest by the visit of a priest of his god, a teacher by the school visit, a
+barber, physician or bath attendant by theirs, an entertainer by his venue's, a tax collector by their registration, and a market vendor by how low their pantries are in the food and goods his market
+has (a home short of a food the market has run out of does not draw him).
+These walkers look past the next junction too, up to 8 road steps down each way, and a home farther along draws a little less (half as much 8 steps on); homes more than 13 tiles from the walker's
+building do not draw him at all, so he keeps to his neighbourhood.
+A way whose neediest home has lost the visit altogether weighs 41 times a way of homes he has just served, so the homes on a building's far street are no longer left to chance.
+Prefects, engineers, priests, tax collectors, barbers, physicians and bath attendants also start their next round as the last one turns for home; a school, library, academy, venue or market waits for
+its walker to come back.
+Measured over six seeds and two years on a mission 2 city whose Stone Cottages on a school's far street had waited months for a teacher: its homes went 85,494 home-days without some service before,
+none after, and the longest any home waited for a visit fell from 505 days to 96.
 
 | Service | Building | Notes |
 |---|---|---|
@@ -146,38 +255,114 @@ Most services are delivered by walkers. A walker serves every building within **
 | Taxes | Forum (6), Curia (Senate House, 30; from mission 2; one per city) | Only visited homes pay tax. A collector is drawn to the homes whose registration has run out, and the next sets out as the last turns for home |
 | Gardens and statues | Topiaria (Gardeners' Yard, 4) | Gardeners tend every garden and statue within 2 tiles of their road, drawn to the ones longest untended; the next sets out as the last turns for home (see below) |
 
-**Roadblocks** (Claustra; Roads menu, 12 Dn) go on a road tile. Walkers roaming the streets turn back at one, so a building serves only the homes on its side; click a roadblock to let groups through (prefects, engineers and gardeners, priests, market vendors, entertainers, teachers/librarians/scholars, barbers/physicians/bath attendants, tax collectors; none at first). Everyone heading somewhere passes: carts, market buyers, settlers, caravans, prefects running to a fire or chasing a criminal, physicians sent to the sick, and roamers walking home (who still serve homes along the way, as on any walk). Soldiers and raiders ignore roadblocks. Clearing one leaves its road.
+**Roadblocks** (Claustra; Roads menu, 12 Dn) go on a road tile.
+Walkers roaming the streets turn back at one, so a building serves only the homes on its side; click a roadblock to let groups through (prefects, engineers and gardeners, priests, market vendors,
+entertainers, teachers/librarians/scholars, barbers/physicians/bath attendants, tax collectors; none at first).
+Everyone heading somewhere passes: carts, market buyers, settlers, caravans, prefects running to a fire or chasing a criminal, physicians sent to the sick, and roamers walking home (who still serve
+homes along the way, as on any walk).
+Soldiers and raiders ignore roadblocks.
+Clearing one leaves its road.
 
-**Clearing a road under people.** Walkers on a road you clear are not lost: each steps over the open ground to the nearest road (up to 8 tiles away) that leads where it was going, and carries on, carts with their loads. One with no such road in reach heads home, or vanishes if home is cut off too.
+**Clearing a road under people.** Walkers on a road you clear are not lost: each steps over the open ground to the nearest road (up to 8 tiles away) that leads where it was going, and carries on,
+carts with their loads.
+One with no such road in reach heads home, or vanishes if home is cut off too.
 
-**Gardens and statues** (Colonia's own rule: the original's needed no upkeep). Where a mission lets you build the **Topiaria** (Gardeners' Yard; Government & Decor, from the first mission, with the garden; and the sandbox): 1x1, 35 Dn, 4 workers (Engineering, beside the engineer's post), desirability +1 next to it. Its gardener (a Topiarius) walks 30 tiles like a prefect and tends every Viridarium (Garden), Signum, Statua and Colossus (the statues) within 2 tiles of the road he walks. They need no road of their own, so a garden or statue more than 2 tiles from any road can never be tended: set it where a gardener walks by. At a junction he is drawn to the way whose gardens and statues are nearest to fading.
+**Gardens and statues** (Colonia's own rule: the original's needed no upkeep).
+Where a mission lets you build the **Topiaria** (Gardeners' Yard; Government & Decor, from the first mission, with the garden; and the sandbox): 1x1, 35 Dn, 4 workers (Engineering, beside the
+engineer's post), desirability +1 next to it.
+Its gardener (a Topiarius) walks 30 tiles like a prefect and tends every Viridarium (Garden), Signum, Statua and Colossus (the statues) within 2 tiles of the road he walks.
+They need no road of their own, so a garden or statue more than 2 tiles from any road can never be tended: set it where a gardener walks by.
+At a junction he is drawn to the way whose gardens and statues are nearest to fading.
 
-* **Care.** A garden or statue keeps its full desirability for a month (16 days) after a gardener's last visit. Then it fades a step every 20 days: 80% of its bonus from day 36, 60% from day 56, 40% from day 76, and from day 96 (six months after the visit) its floor, 25%, where it stays. The next gardener puts it back to 100% at once. A new one starts fully tended. Easy fades at half the pace (a step every 40 days, the floor after 176 days), Insane half again as fast (every 13 days or so, the floor after 70); the month of grace and the floor are the same at every level.
-* **Seeing it.** Click a garden or statue: its panel says *Tended*, or *Untended: bonus at 60%*, and how many days ago it was last tended. From 60% down it looks it: the garden dry, its hedge ragged and most flowers gone, a statue dull and dusty. The **Gardens and statues** overlay (top bar) stands each one on a column by its care, green when tended and red at its floor, and shows the yards and their gardeners.
-* **What never fades:** plazas, the Fornix (Triumphal Arch), the Oraculum (Oracle) and the governor's residence (its servants keep it). Where a mission offers gardens or statues but no Topiaria, they keep their full bonus forever. A city loaded from a save made before this rule starts with every garden and statue fully tended, last visited the day it loads.
+* **Care.** A garden or statue keeps its full desirability for a month (16 days) after a gardener's last visit.
+  Then it fades a step every 20 days: 80% of its bonus from day 36, 60% from day 56, 40% from day 76, and from day 96 (six months after the visit) its floor, 25%, where it stays.
+  The next gardener puts it back to 100% at once.
+  A new one starts fully tended.
+  Easy fades at half the pace (a step every 40 days, the floor after 176 days), Insane half again as fast (every 13 days or so, the floor after 70); the month of grace and the floor are the same at
+  every level.
+* **Seeing it.** Click a garden or statue: its panel says *Tended*, or *Untended: bonus at 60%*, and how many days ago it was last tended.
+  From 60% down it looks it: the garden dry, its hedge ragged and most flowers gone, a statue dull and dusty.
+  The **Gardens and statues** overlay (top bar) stands each one on a column by its care, green when tended and red at its floor, and shows the yards and their gardeners.
+* **What never fades:** plazas, the Fornix (Triumphal Arch), the Oraculum (Oracle) and the governor's residence (its servants keep it).
+  Where a mission offers gardens or statues but no Topiaria, they keep their full bonus forever.
+  A city loaded from a save made before this rule starts with every garden and statue fully tended, last visited the day it loads.
 
-**Inspecting walkers.** Click a walker for its panel: who it is, where it comes from, what it is doing and carrying, and what it says. Whatever of a figure you can see can be clicked; only where a building is drawn over him does the click go to the building. Citizens mention the city's most pressing trouble (Caesar's legions first, then raiders, hunger, fire, sickness, troops away at a distant battle, unemployment over 12%, taxes more than 2 points over the default, wages under the fair wage, debt, an angry god, a mood under 35) or talk about their work; protesters say what upsets their home most; a walker keeps the same line for 8 days. *Follow* keeps the view on it until you move the map. A caravan or merchant ship also lists its business: on its way in, what it comes to buy and sell (the goods its city wants that you export, and those it sells that you import); a ship at the dock, what it still has to unload and to buy, what it bought and sold so far with the denarii each way, and its days at the dock; once it has traded, what it bought here and sold here, and the denarii each way. An Emporium's (Trade Dock's) panel shows its ship and how long it has been tied up, what is still to unload and to load (and how much of that is on a worker's cart), and its dock workers out.
+**Inspecting walkers.** Click a walker for its panel: who it is, where it comes from, what it is doing and carrying, and what it says.
+Whatever of a figure you can see can be clicked; only where a building is drawn over him does the click go to the building.
+Citizens mention the city's most pressing trouble (Caesar's legions first, then raiders, hunger, fire, sickness, troops away at a distant battle, unemployment over 12%, taxes more than 2 points over
+the default, wages under the fair wage, debt, an angry god, a mood under 35) or talk about their work; protesters say what upsets their home most; a walker keeps the same line for 8 days.
+*Follow* keeps the view on it until you move the map.
+A caravan or merchant ship also lists its business: on its way in, what it comes to buy and sell (the goods its city wants that you export, and those it sells that you import); a ship at the dock,
+what it still has to unload and to buy, what it bought and sold so far with the denarii each way, and its days at the dock; once it has traded, what it bought here and sold here, and the denarii each
+way.
+An Emporium's (Trade Dock's) panel shows its ship and how long it has been tied up, what is still to unload and to load (and how much of that is on a worker's cart), and its dock workers out.
 
-A home's **entertainment score** is the points of every venue whose entertainer passed by recently, plus a city-wide base of up to 20: for each kind of venue, the share of the population its working venues can seat (theater 400, amphitheater 900, arena 2,000 people), averaged over the three kinds and divided by 5. A growing city needs more venues, not just one of each. A working hippodrome (staffed, races booked) seats the whole city: its 100% is added to the three kinds' sum, still divided by 3, so the base can reach 26 (up to 6 more for every home). A staffed Great Arena adds a flat 5 for every home on top (the community engine's finished colosseum does the same), shows or not, once however many Arenas the city has: it comes after the seats are counted and capped, so the Arena's own 2,000 seats are never counted twice (in the base's terms it is 75% more coverage in the sum, 75 / 3 / 5 = 5 exactly). The base can so reach 31. The best score is 31 + 10 + 20 + 30 + 30 = 121; without a hippodrome it is 85.
+A home's **entertainment score** is the points of every venue whose entertainer passed by recently, plus a city-wide base of up to 20: for each kind of venue, the share of the population its working
+venues can seat (theater 400, amphitheater 900, arena 2,000 people), averaged over the three kinds and divided by 5.
+A growing city needs more venues, not just one of each.
+A working hippodrome (staffed, races booked) seats the whole city: its 100% is added to the three kinds' sum, still divided by 3, so the base can reach 26 (up to 6 more for every home).
+A staffed Great Arena adds a flat 5 for every home on top (the community engine's finished colosseum does the same), shows or not, once however many Arenas the city has: it comes after the seats are
+counted and capped, so the Arena's own 2,000 seats are never counted twice (in the base's terms it is 75% more coverage in the sum, 75 / 3 / 5 = 5 exactly).
+The base can so reach 31.
+The best score is 31 + 10 + 20 + 30 + 30 = 121; without a hippodrome it is 85.
 
-**The Circus** (Hippodrome; Entertainment menu, mission 7 and the sandbox): 15 x 5 tiles, three 5 x 5 sections in a row along the map's x axis, or along its y axis (5 x 15) when you turn it a quarter with R (you hold it by its middle tile; turned half round, the starting gates and the rounded end swap ends), one per city, 900 Dn and 800 marble (see *Building in marble*), 40 workers. A road beside any section serves it; clicking any section opens its panel, and demolishing any section takes the whole. Only the whole burns or collapses (one risk for it), and the rubble's Rebuild puts all of it back. A **Factio** (Chariot Stable: 3x3, 75 Dn, 10 workers) sends a team every 8 days at full staff when the hippodrome's races run low; each team books 32 days of races, so one maker keeps them going. While races run, the hippodrome sends its charioteer out every 8 days: he drives twice as fast and twice as far (52 tiles) as other entertainers and gives the homes he passes 30 points; its seats cover the whole city; and the prosperity target rises by 2. With no races it does nothing at all (in the original its charioteer drove without races; Colonia keeps its rule that a venue needs its shows). Placing one with no Factio in the city warns you. Rioters prize it just below villas and palatia.
+**The Circus** (Hippodrome; Entertainment menu, mission 7 and the sandbox): 15 x 5 tiles, three 5 x 5 sections in a row along the map's x axis, or along its y axis (5 x 15) when you turn it a quarter
+with R (you hold it by its middle tile; turned half round, the starting gates and the rounded end swap ends), one per city, 900 Dn and 800 marble (see *Building in marble*), 40 workers.
+A road beside any section serves it; clicking any section opens its panel, and demolishing any section takes the whole.
+Only the whole burns or collapses (one risk for it), and the rubble's Rebuild puts all of it back.
+A **Factio** (Chariot Stable: 3x3, 75 Dn, 10 workers) sends a team every 8 days at full staff when the hippodrome's races run low; each team books 32 days of races, so one maker keeps them going.
+While races run, the hippodrome sends its charioteer out every 8 days: he drives twice as fast and twice as far (52 tiles) as other entertainers and gives the homes he passes 30 points; its seats
+cover the whole city; and the prosperity target rises by 2.
+With no races it does nothing at all (in the original its charioteer drove without races; Colonia keeps its rule that a venue needs its shows).
+Placing one with no Factio in the city warns you.
+Rioters prize it just below villas and palatia.
 
-**Games and races.** The Great Arena holds **Ludi** (Games) and the Circus **Circenses** (Chariot races): a great day at the venue, paid from the treasury, that lifts the whole city's mood. Hold them from the venue's panel (*Hold games*, *Hold races*, with the cost on the button) or from the Entertainment advisor, which lists both. The venue must be staffed and have its shows booked, the rule its shows already have: gladiators or beasts at the Arena, races at the Circus. They cost money only, all at once, or are not held; the button says why when it cannot be pressed (*Nobody works at the Arena.*, *Needs 800 Dn, 500 in the treasury.*, *The city still talks of the last Ludi: the next in 4 months.*).
+**Games and races.** The Great Arena holds **Ludi** (Games) and the Circus **Circenses** (Chariot races): a great day at the venue, paid from the treasury, that lifts the whole city's mood.
+Hold them from the venue's panel (*Hold games*, *Hold races*, with the cost on the button) or from the Entertainment advisor, which lists both.
+The venue must be staffed and have its shows booked, the rule its shows already have: gladiators or beasts at the Arena, races at the Circus.
+They cost money only, all at once, or are not held; the button says why when it cannot be pressed (*Nobody works at the Arena.*, *Needs 800 Dn, 500 in the treasury.*, *The city still talks of the last
+Ludi: the next in 4 months.*).
 
 | | Venue | Cost | City mood | Next after |
 |---|---|---|---|---|
 | Ludi (Games) | a staffed Arena with gladiators or beasts booked | 200 Dn + 0.6 a citizen (800 at 1,000 people) | +10 | 6 months |
 | Circenses (Chariot races) | the Circus with races booked | 150 Dn + 0.5 a citizen (650 at 1,000 people) | +8 | 6 months |
 
-The lift is a factor of the city mood of its own, *Games* or *Races* in the Overview's breakdown (and so in every home's mood, which starts from the city's), fading by a fifth a month and gone under half a point. It is apart from the festivals' lift and adds to it. Holding them again sets the lift back to its full value, not on top of what is left. Each kind waits its own 6 months, city-wide (a second Arena does not let the city hold Ludi more often), and a venue torn down after its games takes nothing back. Festival music plays after them. The money goes in the Finance advisor's *Festivals and games* row. Against a large festival (150 Dn + 0.4 a citizen with food and wine, +8, every 4 months, and a god pleased), games cost money only and about as much, lift a little more and please no god, and come less often: a treat bought again and again, not a lasting bonus (by the next one the lift has faded to a quarter). Measured in the balance sim (level 3 city of about 1,000 people, six seeds, 4 years, `--games`): Ludi held whenever they could be kept the city mood about 5 higher for some 1,300 Dn a year, about what the demo city's small festivals do for it for about as much; Ludi and Circenses together about 8 higher for 1,900 Dn a year. The Circus's own prosperity (+2 on the target while races run) is unchanged; races held add nothing to it.
+The lift is a factor of the city mood of its own, *Games* or *Races* in the Overview's breakdown (and so in every home's mood, which starts from the city's), fading by a fifth a month and gone under
+half a point.
+It is apart from the festivals' lift and adds to it.
+Holding them again sets the lift back to its full value, not on top of what is left.
+Each kind waits its own 6 months, city-wide (a second Arena does not let the city hold Ludi more often), and a venue torn down after its games takes nothing back.
+Festival music plays after them.
+The money goes in the Finance advisor's *Festivals and games* row.
+Against a large festival (150 Dn + 0.4 a citizen with food and wine, +8, every 4 months, and a god pleased), games cost money only and about as much, lift a little more and please no god, and come
+less often: a treat bought again and again, not a lasting bonus (by the next one the lift has faded to a quarter).
+Measured in the balance sim (level 3 city of about 1,000 people, six seeds, 4 years, `--games`): Ludi held whenever they could be kept the city mood about 5 higher for some 1,300 Dn a year, about what
+the demo city's small festivals do for it for about as much; Ludi and Circenses together about 8 higher for 1,900 Dn a year.
+The Circus's own prosperity (+2 on the target while races run) is unchanged; races held add nothing to it.
 
-**The top two homes need the hippodrome's help.** The Grand Palatium needs 80 entertainment and the Imperial Palatium 95 (they were 70 and 80): without a hippodrome the most a home can get is 85 (80 before the Great Arena's 5), every other venue at its best, so the Imperial Palatium needs one, as in the original. Measured on the level 3 demo city with every venue (river and lakes maps, 3 years): without a hippodrome no home scored 60; with one, 55 to 58% of homes scored 80 or more and 38 to 43% scored 95 or more.
+**The top two homes need the hippodrome's help.** The Grand Palatium needs 80 entertainment and the Imperial Palatium 95 (they were 70 and 80): without a hippodrome the most a home can get is 85 (80
+before the Great Arena's 5), every other venue at its best, so the Imperial Palatium needs one, as in the original.
+Measured on the level 3 demo city with every venue (river and lakes maps, 3 years): without a hippodrome no home scored 60; with one, 55 to 58% of homes scored 80 or more and 38 to 43% scored 95 or
+more.
 
-Water is by area, not walkers: Puteus (Well) 2 tiles; Lacus (Fountain) 4 tiles (must be inside a full reservoir's 10-tile piped area; with the WebGL renderer its look follows its neighbourhood: see *Renderer* under Settings); a Castellum Aquae (Reservoir) fills when it touches water or connects by aqueduct to a full reservoir. An Aquaeductus (Aqueduct) and a road cross only at right angles, each straight through the crossing tile: a road may not run along under an aqueduct, nor turn or branch under it, and an aqueduct may not turn over a road (roads already under aqueducts in an older city stay). No road may pass under the aqueduct tile right beside a reservoir, where the channel steps down into it, and a reservoir cannot be placed beside a road under an aqueduct. While you place housing plots, a blue tint shows where homes would get water (pale for well water, a clear outlined blue for fountain water); while you place a fountain or baths, a faint teal shows the reservoirs' piped area, where they would run, and placing a fountain also shows the fountains' reach in outlined blue on top. A fountain that gives no water (no workers in reach, or no piped water) shows the area it would cover in a muted grey-blue instead. Placing or clicking a well or fountain shows its own reach in dark blue, a reservoir its piped area in dark teal. Wells and reservoirs need no road. Wells, fountains and reservoirs never burn or collapse.
+Water is by area, not walkers: Puteus (Well) 2 tiles; Lacus (Fountain) 4 tiles (must be inside a full reservoir's 10-tile piped area; with the WebGL renderer its look follows its neighbourhood: see
+*Renderer* under Settings); a Castellum Aquae (Reservoir) fills when it touches water or connects by aqueduct to a full reservoir.
+An Aquaeductus (Aqueduct) and a road cross only at right angles, each straight through the crossing tile: a road may not run along under an aqueduct, nor turn or branch under it, and an aqueduct may
+not turn over a road (roads already under aqueducts in an older city stay).
+No road may pass under the aqueduct tile right beside a reservoir, where the channel steps down into it, and a reservoir cannot be placed beside a road under an aqueduct.
+While you place housing plots, a blue tint shows where homes would get water (pale for well water, a clear outlined blue for fountain water); while you place a fountain or baths, a faint teal shows
+the reservoirs' piped area, where they would run, and placing a fountain also shows the fountains' reach in outlined blue on top.
+A fountain that gives no water (no workers in reach, or no piped water) shows the area it would cover in a muted grey-blue instead.
+Placing or clicking a well or fountain shows its own reach in dark blue, a reservoir its piped area in dark teal.
+Wells and reservoirs need no road.
+Wells, fountains and reservoirs never burn or collapse.
 
 ## Bridges
 
-Two bridges carry a road over water, as in the original. Drag either in a straight line from open land on one bank across the water to open land on the other (a road tile is laid on each bank where there is none). Every walker, cart, caravan, soldier and raider on foot crosses both.
+Two bridges carry a road over water, as in the original.
+Drag either in a straight line from open land on one bank across the water to open land on the other (a road tile is laid on each bank where there is none).
+Every walker, cart, caravan, soldier and raider on foot crosses both.
 
 | | Pons (Ship Bridge) | Pons Sublicius (Low Bridge) |
 |---|---|---|
@@ -186,13 +371,23 @@ Two bridges carry a road over water, as in the original. Drag either in a straig
 | Spans | 3 to 16 tiles of water | 1 to 16 tiles of water |
 | Boats | every boat sails under it | **no boat passes it** |
 
-* **No boat passes a low bridge**: merchant ships, fishing boats, liburnians and raider ships alike stay on their own side. A low bridge between the sea and an Emporium (Trade Dock) cuts the dock off: no merchant ship comes to it again while the bridge stands, and its panel says why. A Statio (Naval Station), a Navalia or a Portus beyond one is cut off from the sea too, and its ships stay on their own side of it. A wharf whose every fishing ground lies beyond one has nowhere to fish.
-* **The warning**: while you place a low bridge, the build menu lists every Emporium, Statio, Navalia or Portus it would cut off from the sea and every wharf it would cut off from its fishing grounds (or, with none of those, that ships from the sea will not sail beyond it). It may still be built: the choice is yours.
-* **Raider ships cannot pass one either.** A low bridge below your city keeps raids by sea out of the upper river: they come ashore on the near side of it, or by land. (Colonia's own consequence of the original's rule.)
+* **No boat passes a low bridge**: merchant ships, fishing boats, liburnians and raider ships alike stay on their own side.
+  A low bridge between the sea and an Emporium (Trade Dock) cuts the dock off: no merchant ship comes to it again while the bridge stands, and its panel says why.
+  A Statio (Naval Station), a Navalia or a Portus beyond one is cut off from the sea too, and its ships stay on their own side of it.
+  A wharf whose every fishing ground lies beyond one has nowhere to fish.
+* **The warning**: while you place a low bridge, the build menu lists every Emporium, Statio, Navalia or Portus it would cut off from the sea and every wharf it would cut off from its fishing grounds
+  (or, with none of those, that ships from the sea will not sail beyond it).
+  It may still be built: the choice is yours.
+* **Raider ships cannot pass one either.** A low bridge below your city keeps raids by sea out of the upper river: they come ashore on the near side of it, or by land.
+  (Colonia's own consequence of the original's rule.)
 * A liburnian a low bridge cuts off from its Statio sails to a station on its own side with an empty berth, or is laid up (the warning while placing names them).
-* A boat already under way when a low bridge goes up across its route stops short of it and finds another way: a merchant ship turns back to sea, a fishing boat fishes at a ground on its side or goes home, a raider ship puts its warriors ashore near it. One that has no way left (a boat cut off from its wharf, a merchant ship moored upstream) is lost.
+* A boat already under way when a low bridge goes up across its route stops short of it and finds another way: a merchant ship turns back to sea, a fishing boat fishes at a ground on its side or goes
+  home, a raider ship puts its warriors ashore near it.
+  One that has no way left (a boat cut off from its wharf, a merchant ship moored upstream) is lost.
 * A low bridge may not be built over a boat (wait until it has passed) nor on the tile where ships come in from the sea, and the two kinds never share a tile: clear one to build the other.
-* Where a road on the bank meets a ship bridge's first or last water tile from the side, or two ship bridges cross, the deck there is a level landing open to the joining way, and the ramps climb from it: nobody steps up or down where ways meet. A ship lowers its mast as it passes under the deck and raises it again as it comes out.
+* Where a road on the bank meets a ship bridge's first or last water tile from the side, or two ship bridges cross, the deck there is a level landing open to the joining way, and the ramps climb from
+  it: nobody steps up or down where ways meet.
+  A ship lowers its mast as it passes under the deck and raises it again as it comes out.
 * The bridge laid across the river on river maps at the start is a ship bridge, free, as it always was. Clearing a bridge is free; the boats' water opens again at once.
 
 ## Workers
@@ -205,16 +400,57 @@ Two bridges carry a road over water, as in the original. Drag either in a straig
 ## Food and industry
 
 * People eat **0.25 units per month** (a 100-unit load feeds 400 person-months).
-* Farms must sit on meadow. Output scales with the share of meadow under the 3x3 field. With a farm (or any building placed on meadow) in hand, the meadow is tinted green-gold with a clear outline, also under snow. A full wheat farm makes 100 units every 20 days (about 80 a month, enough for ~300 people). Fields never catch fire or wear out (raiders and rioters can still destroy them). On Insane nothing grows in winter (December to Februarius; see [Difficulty](#difficulty)).
+* Farms must sit on meadow.
+  Output scales with the share of meadow under the 3x3 field.
+  With a farm (or any building placed on meadow) in hand, the meadow is tinted green-gold with a clear outline, also under snow.
+  A full wheat farm makes 100 units every 20 days (about 80 a month, enough for ~300 people).
+  Fields never catch fire or wear out (raiders and rioters can still destroy them).
+  On Insane nothing grows in winter (December to Februarius; see [Difficulty](#difficulty)).
 * Farm wagons haul up to 400 units, other carts up to 200; a producer can have 2 carts on the road.
-* **Fish** is a food of its own: a fifth kind beside wheat, vegetables, fruit and meat (no home needs more than 3 kinds, so it never replaces a land food; it lets a city by the water skip a farm). Granaries take it; warehouses refuse it unless you order otherwise; markets sell it like any food, after the kinds a home already keeps. No trade partner deals in it yet.
-* **Fishing** (from mission 4): a **Fabrica Navalis** (Shipyard: 2x2, 100 Dn, 10 workers, Industry) and a **Piscatoria** (Fishing Wharf: 2x2, 60 Dn, 6 workers, Food Production) stand on the bank of water with fish: a river, the sea or a lake of at least 80 tiles (not a pond), their front row out over the water and the other row on the shore (see **Out over the water** under *Trade*). The wharf's water must have a fishing ground; gulls circle over each. Grounds are worked out from the map itself: 3 to 6 tiles out from the shore where the water allows (the widest spots of a narrow river), not by the map's edge, one per 150 tiles of water (1 to 10 on one water, 10 tiles apart; on the map at most 8 on a 96x96 map, more on a bigger one, up to 24; the biggest waters first; a lake left without one has no fish, like a pond). More than the original's 8 a map: a 128 coast now has about 10 and a river 4.
-  * The shipyard builds a fishing boat from **100 timber** in 16 days at full staff (longer with fewer workers, and by the difficulty's production: 18 on Hard, 20 on Insane). The timber is Colonia's own rule: the original's shipyard needed no materials at all. The work goes on only while the yard holds the 100 timber (without it the boat on the slip waits where it is, nothing lost), and the timber is used when the boat is launched. Carts bring timber like a workshop's raw material: a Silva Caedua's (Timber Yard's) carts, dock wagons and warehouses holding timber send it to the nearest Officina Lignaria (Carpenter), Officina Sagittaria (Fletcher) or shipyard with room, before storage. The yard holds up to 200 (two boats). Its panel shows the timber against the 100 a boat needs, with loads on their way; when a wharf on its water waits for a boat and the yard has none, the panel says *Needs timber: build a Silva Caedua (Timber Yard) or buy timber.* (buying only where a partner of the mission sells it), the wharf says *Waiting for a boat: the shipyard has no timber*, and the Production advisor lists it with its hint. A yard that only lacks wood for its spare says so plainly, not as a trouble. Placing a shipyard where the city has no timber yard, no boat's worth of timber in store and no open route selling it warns first. Every mission with a shipyard has the timber yard and woods for it; Paestum and Portus Mercatorum have no partner selling timber, so there it must be felled. A city saved before version 17 loads with 100 timber in a yard that had a boat started, so that boat is launched on time, and none in the others. The boat waits on the water by the yard until the nearest staffed wharf on the same water without a boat needs it (nearest by water, not the first one built), then sails there and belongs to it. The yard keeps one spare boat and builds nothing more while it waits.
-  * The wharf's boat waits at the wharf (1.02 - staffing) x 10 days (0.2 days at full staff, 5.2 at half, never with nobody at work, and not while the wharf holds 200 fish or more), sails at walking pace (2 tiles a day) to the nearest fishing ground by water, fishes 4 days (5 on Insane, by the production lever), comes back and lands 100 fish. The wharf carts them to a granary like a farm's harvest (up to 200 a cart). Where the wharf stands matters: measured on Normal (`npm run sim -- --type coast --fishing 2`, a level 2 town), a wharf 8 to 10 tiles from its ground made about 950 to 1,300 fish a year (a trip of 11 to 14 days), 15 tiles away about 650, 22 tiles 600, 30 tiles 400 and 60 tiles 200. A pig farm at full staff and fertility makes about 740 a year with 10 workers to the wharf's 6, so a wharf by its ground is the cheapest food there is, once the shipyard is paid for. Build wharves near the gulls.
+* **Fish** is a food of its own: a fifth kind beside wheat, vegetables, fruit and meat (no home needs more than 3 kinds, so it never replaces a land food; it lets a city by the water skip a farm).
+  Granaries take it; warehouses refuse it unless you order otherwise; markets sell it like any food, after the kinds a home already keeps.
+  No trade partner deals in it yet.
+* **Fishing** (from mission 4): a **Fabrica Navalis** (Shipyard: 2x2, 100 Dn, 10 workers, Industry) and a **Piscatoria** (Fishing Wharf: 2x2, 60 Dn, 6 workers, Food Production) stand on the bank of
+  water with fish: a river, the sea or a lake of at least 80 tiles (not a pond), their front row out over the water and the other row on the shore (see **Out over the water** under *Trade*).
+  The wharf's water must have a fishing ground; gulls circle over each.
+  Grounds are worked out from the map itself: 3 to 6 tiles out from the shore where the water allows (the widest spots of a narrow river), not by the map's edge, one per 150 tiles of water (1 to 10 on
+  one water, 10 tiles apart; on the map at most 8 on a 96x96 map, more on a bigger one, up to 24; the biggest waters first; a lake left without one has no fish, like a pond).
+  More than the original's 8 a map: a 128 coast now has about 10 and a river 4.
+  * The shipyard builds a fishing boat from **100 timber** in 16 days at full staff (longer with fewer workers, and by the difficulty's production: 18 on Hard, 20 on Insane).
+    The timber is Colonia's own rule: the original's shipyard needed no materials at all.
+    The work goes on only while the yard holds the 100 timber (without it the boat on the slip waits where it is, nothing lost), and the timber is used when the boat is launched.
+    Carts bring timber like a workshop's raw material: a Silva Caedua's (Timber Yard's) carts, dock wagons and warehouses holding timber send it to the nearest Officina Lignaria (Carpenter), Officina
+    Sagittaria (Fletcher) or shipyard with room, before storage.
+    The yard holds up to 200 (two boats).
+    Its panel shows the timber against the 100 a boat needs, with loads on their way; when a wharf on its water waits for a boat and the yard has none, the panel says *Needs timber: build a Silva Caedua
+    (Timber Yard) or buy timber.* (buying only where a partner of the mission sells it), the wharf says *Waiting for a boat: the shipyard has no timber*, and the Production advisor lists it with its hint.
+    A yard that only lacks wood for its spare says so plainly, not as a trouble.
+    Placing a shipyard where the city has no timber yard, no boat's worth of timber in store and no open route selling it warns first.
+    Every mission with a shipyard has the timber yard and woods for it; Paestum and Portus Mercatorum have no partner selling timber, so there it must be felled.
+    A city saved before version 17 loads with 100 timber in a yard that had a boat started, so that boat is launched on time, and none in the others.
+    The boat waits on the water by the yard until the nearest staffed wharf on the same water without a boat needs it (nearest by water, not the first one built), then sails there and belongs to it.
+    The yard keeps one spare boat and builds nothing more while it waits.
+  * The wharf's boat waits at the wharf (1.02 - staffing) x 10 days (0.2 days at full staff, 5.2 at half, never with nobody at work, and not while the wharf holds 200 fish or more), sails at walking pace
+    (2 tiles a day) to the nearest fishing ground by water, fishes 4 days (5 on Insane, by the production lever), comes back and lands 100 fish.
+    The wharf carts them to a granary like a farm's harvest (up to 200 a cart).
+    Where the wharf stands matters: measured on Normal (`npm run sim -- --type coast --fishing 2`, a level 2 town), a wharf 8 to 10 tiles from its ground made about 950 to 1,300 fish a year (a trip of 11
+    to 14 days), 15 tiles away about 650, 22 tiles 600, 30 tiles 400 and 60 tiles 200.
+    A pig farm at full staff and fertility makes about 740 a year with 10 workers to the wharf's 6, so a wharf by its ground is the cheapest food there is, once the shipyard is paid for.
+    Build wharves near the gulls.
   * Fishing goes on all year: the sea does not freeze, even in an Insane winter when the fields rest.
-  * A demolished wharf's boat sinks with it, as does a demolished yard's spare; the yards build new ones. A boat that cannot find its way home is lost with its catch, with a message at most once a month. Neptune's wrath sinks every fishing boat; replacing them takes 100 timber each. Raider ships throw fire pots at boats within 5 tiles (see [Raids by sea](#military)); raiders on land never attack boats.
-* You can read a cart at a glance: it carries its good (sacks of wheat, crates of vegetables or fruit, baskets of olives or grapes, meat, flat baskets of silver fish, clay, logs, iron ingots, marble blocks, pots, pale amphorae of oil, dark amphorae of wine, tables and chairs, shields and spears, sheaves of arrows, bundles of flax, bolts of linen, folded clothes in every dye), piled 1 to 4 high for how full it is. A farm's wagon is longer and pulled by an ox; a storehouse's cart shows its load against the most its orders move (a warehouse's 400-unit Get load, a granary's 800), so a routine 100-unit lot reads a quarter full; only a farm's cart is a wagon. Horses are not carted: a drover leads them, one horse per 100 units. An empty cart on its way home shows its bare bed.
-* Raw material goes to a workshop that needs it (timber to a shipyard too), else to a warehouse (which later ships it to workshops and shipyards that run low). Finished goods go to warehouses; markets fetch them for homes that need them.
+  * A demolished wharf's boat sinks with it, as does a demolished yard's spare; the yards build new ones.
+    A boat that cannot find its way home is lost with its catch, with a message at most once a month.
+    Neptune's wrath sinks every fishing boat; replacing them takes 100 timber each.
+    Raider ships throw fire pots at boats within 5 tiles (see [Raids by sea](#military)); raiders on land never attack boats.
+* You can read a cart at a glance: it carries its good (sacks of wheat, crates of vegetables or fruit, baskets of olives or grapes, meat, flat baskets of silver fish, clay, logs, iron ingots, marble
+  blocks, pots, pale amphorae of oil, dark amphorae of wine, tables and chairs, shields and spears, sheaves of arrows, bundles of flax, bolts of linen, folded clothes in every dye), piled 1 to 4 high
+  for how full it is.
+  A farm's wagon is longer and pulled by an ox; a storehouse's cart shows its load against the most its orders move (a warehouse's 400-unit Get load, a granary's 800), so a routine 100-unit lot reads a
+  quarter full; only a farm's cart is a wagon.
+  Horses are not carted: a drover leads them, one horse per 100 units.
+  An empty cart on its way home shows its bare bed.
+* Raw material goes to a workshop that needs it (timber to a shipyard too), else to a warehouse (which later ships it to workshops and shipyards that run low).
+  Finished goods go to warehouses; markets fetch them for homes that need them.
 
 | Chain | Placement rule |
 |---|---|
@@ -230,9 +466,20 @@ Two bridges carry a road over water, as in the original. Drag either in a straig
 
 Workshops follow a **recipe**: most use 100 units of one raw material per 100-unit batch; the Officina Sagittaria needs both timber and iron and waits until it has both.
 
-**Cloth** (Colonia's own, not in the original; from mission 4, where the other workshops open): clothing takes two workshops. A **Linarium** (Flax Field: 3x3, 40 Dn, 10 workers, Industry labor, 100 flax every 24 days at full staff and fertility, resting in an Insane winter like every farm) feeds a **Textrinum** (Linen Weaver: 2x2, 45 Dn, 10 workers, 100 flax into 100 linen in 20 days), whose linen goes by cart straight to a **Taberna Vestiaria** (Clothing Maker: 2x2, 50 Dn, 10 workers, 100 linen into 100 clothing in 18 days). Linen counts as a raw material: carts take it to a Taberna Vestiaria first and warehouses send it on to one running low, like clay to a potter. Clothing goes to a warehouse, and markets fetch it for homes from the Tenement up. Thirty workers from field to tunic, against eighteen for furniture: the chain is work as well as goods. Tarraco and Alexandria sell linen, so a city without flax fields (a desert, say) can still sew; Capua and Corinthus buy clothing.
+**Cloth** (Colonia's own, not in the original; from mission 4, where the other workshops open): clothing takes two workshops.
+A **Linarium** (Flax Field: 3x3, 40 Dn, 10 workers, Industry labor, 100 flax every 24 days at full staff and fertility, resting in an Insane winter like every farm) feeds a **Textrinum** (Linen
+Weaver: 2x2, 45 Dn, 10 workers, 100 flax into 100 linen in 20 days), whose linen goes by cart straight to a **Taberna Vestiaria** (Clothing Maker: 2x2, 50 Dn, 10 workers, 100 linen into 100 clothing
+in 18 days).
+Linen counts as a raw material: carts take it to a Taberna Vestiaria first and warehouses send it on to one running low, like clay to a potter.
+Clothing goes to a warehouse, and markets fetch it for homes from the Tenement up.
+Thirty workers from field to tunic, against eighteen for furniture: the chain is work as well as goods.
+Tarraco and Alexandria sell linen, so a city without flax fields (a desert, say) can still sew; Capua and Corinthus buy clothing.
 
-**Building in marble** (Colonia's own: the original's buildings needed only money): the grand buildings are built of marble as well as denarii, taken from the warehouses (Horrea) as you place them, all of it or none. Short of it, the build menu greys the building out and says how much is missing (*Needs 200 marble in the warehouses, 150 stored*), and placing it is refused. Undo gives the marble back to the warehouses it came from, with the money; demolishing gives nothing back, and rebuilding from the rubble pays again. A load is 100 units.
+**Building in marble** (Colonia's own: the original's buildings needed only money): the grand buildings are built of marble as well as denarii, taken from the warehouses (Horrea) as you place them,
+all of it or none.
+Short of it, the build menu greys the building out and says how much is missing (*Needs 200 marble in the warehouses, 150 stored*), and placing it is refused.
+Undo gives the marble back to the warehouses it came from, with the money; demolishing gives nothing back, and rebuilding from the rubble pays again.
+A load is 100 units.
 
 | Building | Dn | Marble |
 |---|---|---|
@@ -244,36 +491,85 @@ Workshops follow a **recipe**: most use 100 units of one raw material per 100-un
 | Arena (Great Arena), 5x5 | 400 | 600 |
 | Circus (Hippodrome), 15x5 | 900 | 800 |
 
-The small statue, the Curia (Senate), the governor's house and villa need none, and the monuments take their marble in stages. Every mission that offers one of these buildings offers marble too: a Lapicidina (from mission 3, on maps with rock) or a partner that sells it. With the quarry, from mission 3, Caesar may ask for marble too, as for any good the city can make. Only the warehouses count: once a Peristyle Villa or better stands, each market keeps up to three loads of marble for the finest homes, and that marble is theirs.
+The small statue, the Curia (Senate), the governor's house and villa need none, and the monuments take their marble in stages.
+Every mission that offers one of these buildings offers marble too: a Lapicidina (from mission 3, on maps with rock) or a partner that sells it.
+With the quarry, from mission 3, Caesar may ask for marble too, as for any good the city can make.
+Only the warehouses count: once a Peristyle Villa or better stands, each market keeps up to three loads of marble for the finest homes, and that marble is theirs.
 
 ### Granary and warehouse orders
 
 Click a granary or warehouse: each good (each food, in a granary) has an order button, and a click cycles it through three orders. Its panel also says what the orders are doing right now.
 
 * **Accept** (the default): carts and traders may bring it here. New warehouses refuse food, which belongs in granaries; set a food to Accept to store it in a warehouse.
-* **Refuse**: nothing brings it here: producer and dock carts, other storage's carts and caravan imports go elsewhere. Nobody taking it out cares: market buyers, exports and the Emperor still take a refused good.
+* **Refuse**: nothing brings it here: producer and dock carts, other storage's carts and caravan imports go elsewhere.
+  Nobody taking it out cares: market buyers, exports and the Emperor still take a refused good.
 * **Get**: deliveries come as for Accept, and the building's own cart also fetches the good from other storage on its roads.
-  * A warehouse fetches while it holds 4 loads (400 units) or less and has room for 8, from another warehouse, while the others hold more than 4 loads between them. It brings up to 4 loads a trip and prefers nearer and fuller warehouses (each load stored there counts as 4 tiles of road), so Get keeps 5 to 8 loads; it does not fill the warehouse.
-  * A granary fetches while it has room for a load: up to 8 loads (800 units) of one food, from the nearest granary (one with 400 units or less to give counts as twice as far), taking the food on Get that granary holds most of. It never takes the last 100 units of a food from the granaries on its roads.
+  * A warehouse fetches while it holds 4 loads (400 units) or less and has room for 8, from another warehouse, while the others hold more than 4 loads between them.
+    It brings up to 4 loads a trip and prefers nearer and fuller warehouses (each load stored there counts as 4 tiles of road), so Get keeps 5 to 8 loads; it does not fill the warehouse.
+  * A granary fetches while it has room for a load: up to 8 loads (800 units) of one food, from the nearest granary (one with 400 units or less to give counts as twice as far), taking the food on Get that
+    granary holds most of.
+    It never takes the last 100 units of a food from the granaries on its roads.
   * A building on Get for a good is never a source of it, so two of them never pass a good back and forth.
-* **Empty the granary / warehouse** (a switch): it takes nothing in, and its cart carries everything out, up to 200 units a trip, wherever any cart would take it: a barracks that needs it, a workshop that uses it, a granary, or other storage that accepts it. A good with nowhere to go stays (the panel names it) and the cart takes the next one. Get pauses while emptying. Market buyers, ships buying exports and the Emperor still take from it; caravans pass it by for another warehouse.
-* A storage building sends **one cart at a time**, decided once a day: Empty, else Get, else (warehouses) its routine trips with weapons and arrows to a barracks and raw materials to workshops. Get and Empty need the building at least half staffed; taking deliveries needs only some staff. The room for a Get cart's load is held at home from the moment it leaves, so nothing is lost on the way back.
+* **Empty the granary / warehouse** (a switch): it takes nothing in, and its cart carries everything out, up to 200 units a trip, wherever any cart would take it: a barracks that needs it, a workshop
+  that uses it, a granary, or other storage that accepts it.
+  A good with nowhere to go stays (the panel names it) and the cart takes the next one.
+  Get pauses while emptying.
+  Market buyers, ships buying exports and the Emperor still take from it; caravans pass it by for another warehouse.
+* A storage building sends **one cart at a time**, decided once a day: Empty, else Get, else (warehouses) its routine trips with weapons and arrows to a barracks and raw materials to workshops.
+  Get and Empty need the building at least half staffed; taking deliveries needs only some staff.
+  The room for a Get cart's load is held at home from the moment it leaves, so nothing is lost on the way back.
 * The Emperor's requests take from storage not on Get first.
 
-**Finding what is wrong.** The **Problems** overlay (top bar) raises a column over each home with a problem, the most urgent first: a sick home (pale green); a home already falling back a level (tall, colored by the first thing it lacks); a home in unrest (wine red: mood under 30, or it has already sent out a protester or thief; only where there is crime); and a home that cannot move up, colored by the first thing it lacks (water, food, temples, entertainment, education, health, goods, desirability, room to grow), unless it is already as good as the province allows (its next level needs a building or a trade partner the mission does not have); empty lots no settler can reach and buildings that do not work are red, buildings that work badly (understaffed, short of goods, nowhere to deliver) amber. Point at a column for the reason; a legend lists the colors. The **Production** advisor shows, for each good, what was made, used (eaten, worked up, built into boats and ships, used by homes, spent on recruits, sent to the Emperor), imported and exported last month and what the storehouses hold; lists the buildings that are not working, grouped by reason, with a *Show* button that goes to each in turn; and names the bottlenecks: workshops waiting for a raw material, and shipyards for timber (and what makes it or who sells it), buildings without workers, harvests with nowhere to go, goods used faster than they come in, homes short of food. The **Overview** tab charts population, treasury and mood month by month (up to 20 years).
+**Finding what is wrong.** The **Problems** overlay (top bar) raises a column over each home with a problem, the most urgent first: a sick home (pale green); a home already falling back a level (tall,
+colored by the first thing it lacks); a home in unrest (wine red: mood under 30, or it has already sent out a protester or thief; only where there is crime); and a home that cannot move up, colored by
+the first thing it lacks (water, food, temples, entertainment, education, health, goods, desirability, room to grow), unless it is already as good as the province allows (its next level needs a
+building or a trade partner the mission does not have); empty lots no settler can reach and buildings that do not work are red, buildings that work badly (understaffed, short of goods, nowhere to
+deliver) amber.
+Point at a column for the reason; a legend lists the colors.
+The **Production** advisor shows, for each good, what was made, used (eaten, worked up, built into boats and ships, used by homes, spent on recruits, sent to the Emperor), imported and exported last
+month and what the storehouses hold; lists the buildings that are not working, grouped by reason, with a *Show* button that goes to each in turn; and names the bottlenecks: workshops waiting for a raw
+material, and shipyards for timber (and what makes it or who sells it), buildings without workers, harvests with nowhere to go, goods used faster than they come in, homes short of food.
+The **Overview** tab charts population, treasury and mood month by month (up to 20 years).
 
-**Going from building to building.** A building's panel (not a home's), where there are two or more of its kind, has a row with **◀** and **▶** (or the **,** and **.** keys): the one before or after it of the same kind, every Officina Lignaria in turn, say, in the order they were built, wrapping round; the view glides there and its panel opens. **Next idle (n)** goes to the next one of that kind that is idle (n counts them; greyed out when no other is). Idle means its status line is red (no road, no workers, no water...) or amber (waiting for a raw material, nowhere to deliver, no shows booked, a farm resting for the winter...), as the Problems overlay marks it; understaffed alone does not count, since the building still works, only slower. **I** goes through the idle buildings of every kind, kind by kind (**Shift+I** goes back), on from the building whose panel is open; the Production advisor has the same as a button, *Next idle building (I)*.
+**Going from building to building.** A building's panel (not a home's), where there are two or more of its kind, has a row with **◀** and **▶** (or the **,** and **.** keys): the one before or after
+it of the same kind, every Officina Lignaria in turn, say, in the order they were built, wrapping round; the view glides there and its panel opens.
+**Next idle (n)** goes to the next one of that kind that is idle (n counts them; greyed out when no other is).
+Idle means its status line is red (no road, no workers, no water...)
+or amber (waiting for a raw material, nowhere to deliver, no shows booked, a farm resting for the winter...), as the Problems overlay marks it; understaffed alone does not count, since the building
+still works, only slower.
+**I** goes through the idle buildings of every kind, kind by kind (**Shift+I** goes back), on from the building whose panel is open; the Production advisor has the same as a button, *Next idle
+building (I)*.
 
 ## Money
 
-* **Wages:** default 24 Dn per worker per year (Rome's fair wage). Paid monthly. Citizens compare your wage with what Rome pays, which starts at 24 and can rise or fall now and then (see *Events*); the Labor advisor says what Rome pays now.
-* **Taxes:** at the default 7% rate each resident pays `5 x the level's tax` Dn per year (a Hut resident 10, a Domus resident 15, an Insula resident 25, an Imperial Palatium resident 80; see the housing table). A town of Cottages with most of its people registered and working about pays its wages; Huts do not, and better homes bring a profit. The rate scales this linearly. Only homes a tax collector visited in the last 48 days pay; a home's panel says whether it is registered and for how many more days, or why not (no Forum, a Forum without workers, or no collector lately), and the Finance tab counts the homes that are not. A collector is drawn to the homes whose registration has run out (see Services), but one Forum can only walk so far: homes more than about 13 tiles from it, or down a long dead end, still lapse. A second Forum, or roadblocks at the ends of a block, keep collectors on your streets.
+* **Wages:** default 24 Dn per worker per year (Rome's fair wage).
+  Paid monthly.
+  Citizens compare your wage with what Rome pays, which starts at 24 and can rise or fall now and then (see *Events*); the Labor advisor says what Rome pays now.
+* **Taxes:** at the default 7% rate each resident pays `5 x the level's tax` Dn per year (a Hut resident 10, a Domus resident 15, an Insula resident 25, an Imperial Palatium resident 80; see the housing
+  table).
+  A town of Cottages with most of its people registered and working about pays its wages; Huts do not, and better homes bring a profit.
+  The rate scales this linearly.
+  Only homes a tax collector visited in the last 48 days pay; a home's panel says whether it is registered and for how many more days, or why not (no Forum, a Forum without workers, or no collector
+  lately), and the Finance tab counts the homes that are not.
+  A collector is drawn to the homes whose registration has run out (see Services), but one Forum can only walk so far: homes more than about 13 tiles from it, or down a long dead end, still lapse.
+  A second Forum, or roadblocks at the ends of a block, keep collectors on your streets.
 * **Tribute:** each year Rome takes half a denarius per citizen above 150. Paying raises favor; failing costs 10 favor.
-* **Trade:** open a route once (Trade advisor), then a caravan comes every 32-56 days and a ship every 64-96 (about the original's pace; a far partner less often, a busy one more; on Insane both come half as often in winter). Each good can be set to export (keep a reserve) or import (up to a target). Partners buy and sell limited amounts per year. See *Trade* below.
+* **Trade:** open a route once (Trade advisor), then a caravan comes every 32-56 days and a ship every 64-96 (about the original's pace; a far partner less often, a busy one more; on Insane both come
+  half as often in winter).
+  Each good can be set to export (keep a reserve) or import (up to a target).
+  Partners buy and sell limited amounts per year.
+  See *Trade* below.
 * **Army pay:** 2-3 Dn per soldier per month (ledger row "Army pay"). Raiders who get away carry off up to 15% of the treasury ("Lost to raiders").
-* **The governor's salary** (Imperial advisor): paid at each month's end, after wages, taxes and army pay, from the treasury into your personal savings (ledger row "Governor's salary", counted as spending). It is not paid in a month the treasury cannot cover it, so it never puts the city in debt, and it stops once a mission is won. See *The governor* below.
+* **The governor's salary** (Imperial advisor): paid at each month's end, after wages, taxes and army pay, from the treasury into your personal savings (ledger row "Governor's salary", counted as
+  spending).
+  It is not paid in a month the treasury cannot cover it, so it never puts the city in debt, and it stops once a mission is won.
+  See *The governor* below.
 * Construction needs money in the treasury; running wages into debt costs 3 favor a month, and nothing can be built until you are out of it.
-* **Loans from Rome** (Finance advisor): Rome lends 2,000 Dn whenever no loan is being repaid, in debt or not, repaid automatically in equal monthly instalments over 24 months with interest over the whole term of 10% on Easy, 20% on Normal, 30% on Hard and 40% on Insane (2,200 to 2,800 Dn in all). Instalments are paid each month before wages, even from an empty treasury (the debt that follows costs favor from that month). The loan and its repayments have ledger lines of their own and do not count as profit or loss for prosperity; borrowed money pays tribute and the Emperor's requests like any other, at the loan's interest.
+* **Loans from Rome** (Finance advisor): Rome lends 2,000 Dn whenever no loan is being repaid, in debt or not, repaid automatically in equal monthly instalments over 24 months with interest over the
+  whole term of 10% on Easy, 20% on Normal, 30% on Hard and 40% on Insane (2,200 to 2,800 Dn in all).
+  Instalments are paid each month before wages, even from an empty treasury (the debt that follows costs favor from that month).
+  The loan and its repayments have ledger lines of their own and do not count as profit or loss for prosperity; borrowed money pays tribute and the Emperor's requests like any other, at the loan's
+  interest.
 
 ## Trade
 
@@ -288,13 +584,42 @@ Click a granary or warehouse: each good (each food, in a granary) has an order b
 | Paid | at once | imports as each lot lands on the quay, exports as each lot goes aboard |
 | Stays | a moment | until both sides are done: about 18 days with storage 5 road tiles from the dock, 25 at 10, 38 at 15 (longer when the goods split into more wagons, or with fewer dock workers); 48 days at most |
 
-* An **Emporium** (Trade Dock: 3x3, 10 workers, 120 Dn) must stand out over navigable water: water connected to the map edge through a body of at least 80 tiles. Rivers and coasts always qualify, big lakes touching the edge sometimes do, desert and plains maps usually do not. Ships sail under a ship bridge but never past a low bridge (see **Bridges**).
-* **Out over the water.** Every building that stands on the shore (the Emporium, Navalia, Statio, Portus, Fabrica Navalis and Piscatoria) stands partly over the water, as the original's docks did: a 2x2 (the Fabrica Navalis, the Piscatoria) with its front row on the water, a 3x3 (the Emporium, the Navalia, the Statio, the Portus) with its two front rows on it, and the rest on the shore. The front faces the water by itself (R does not turn it): on a straight stretch of bank as long as the building, hold it so its front rows lie on the water and its back on dry land. Anywhere else the ghost is red and says so: *Two rows of the Emporium must stand on the water, the rest on the shore* (one row for a 2x2). Ships and boats tie up on the water just past its front, alongside the quay, so that water must be open too. The rows on the water are drawn as a quay or jetty on piles or stone piers, the water showing under them, and no boat sails through them: merchant ships, fishing boats, liburnians and raider ships go round, and nothing else may be built there. So it may not stand where ships come in from the sea, over a fishing ground, over a boat (wait until it has passed), over the berth or mooring of another waterside building or the water a deployed squadron holds, nor close a channel so that no boat could sail past it (two buildings facing each other across a narrow river may not meet in the middle). Its road must touch it on the shore: a bridge beside its pier does not count. Demolished, burned, collapsed or undone, its rows on the water are open water again; only its shore row leaves rubble. One that stood wholly on land in a game saved before this rule stays where it is, keeps its look and works as it did.
-* One ship ties up at a dock at a time, and waits there while it trades. When it ties up it settles what it will sell you (each import you set, up to its yearly quota and your import level, counting what other ships still have aboard and what dock workers are carting; the crane stops early if your stock reaches the level meanwhile) and what it wants to buy (each export, up to its quota and what you have above your export level in the warehouses its workers can reach in time); 2,400 units each way at most.
-* **Dock workers**: an Emporium sends out 3 at 75% staff or more (8 of its 10 workers), 2 at 50% or more, 1 with any staff. Each carries up to 400 units of one good a trip (less to a workshop or barracks with room for less, which still come first). A free worker first takes a lot from the quay to storage, and from there goes straight on to a warehouse to fetch an export for the ship; when the quay is empty it fetches an export from the dock. Workers claim what they set out for, so several of them (of any dock) never take a good below your export level. A worker does not set out on a trip it cannot finish before the ship's 48 days are up.
-* **The ship sails** when everything is unloaded (or nothing could land for a day: the quay is full, or the treasury empty) and everything it wants is aboard (or nothing more can be fetched), or after 48 days, or when its Emporium is demolished (at once) or loses its staff (at the Emporium's next daily check). A ship whose city bought its year's worth meanwhile (from another of its ships) wants no more. A ship with nothing to trade sails at once. Cargo still aboard is neither paid for nor counted; an export a worker brings back after the ship sailed stays on the quay as yours, and dock workers take it back to storage. A demolished Emporium's workers take their loads to storage. The trade log gets one entry a ship, when it sails.
-* Busy harbors: a stay is 2 to 7 weeks, so a city with several sea partners needs 2 or 3 Emporia; a ship that finds every one taken waits offshore and tries again 6 days later, and while one waits the Emporium's panel and the Trade advisor say whose ships are waiting. Keep a warehouse near each.
-* Horses are the exception everywhere above: they live at an Equaria (Horse Ranch), never in a warehouse, so the ranches stand in for the warehouses when horses are bought or sold, and with no ranch none can be imported (see **Horses stay at the ranch** under the military).
+* An **Emporium** (Trade Dock: 3x3, 10 workers, 120 Dn) must stand out over navigable water: water connected to the map edge through a body of at least 80 tiles.
+  Rivers and coasts always qualify, big lakes touching the edge sometimes do, desert and plains maps usually do not.
+  Ships sail under a ship bridge but never past a low bridge (see **Bridges**).
+* **Out over the water.** Every building that stands on the shore (the Emporium, Navalia, Statio, Portus, Fabrica Navalis and Piscatoria) stands partly over the water, as the original's docks did: a 2x2
+  (the Fabrica Navalis, the Piscatoria) with its front row on the water, a 3x3 (the Emporium, the Navalia, the Statio, the Portus) with its two front rows on it, and the rest on the shore.
+  The front faces the water by itself (R does not turn it): on a straight stretch of bank as long as the building, hold it so its front rows lie on the water and its back on dry land.
+  Anywhere else the ghost is red and says so: *Two rows of the Emporium must stand on the water, the rest on the shore* (one row for a 2x2).
+  Ships and boats tie up on the water just past its front, alongside the quay, so that water must be open too.
+  The rows on the water are drawn as a quay or jetty on piles or stone piers, the water showing under them, and no boat sails through them: merchant ships, fishing boats, liburnians and raider ships go
+  round, and nothing else may be built there.
+  So it may not stand where ships come in from the sea, over a fishing ground, over a boat (wait until it has passed), over the berth or mooring of another waterside building or the water a deployed
+  squadron holds, nor close a channel so that no boat could sail past it (two buildings facing each other across a narrow river may not meet in the middle).
+  Its road must touch it on the shore: a bridge beside its pier does not count.
+  Demolished, burned, collapsed or undone, its rows on the water are open water again; only its shore row leaves rubble.
+  One that stood wholly on land in a game saved before this rule stays where it is, keeps its look and works as it did.
+* One ship ties up at a dock at a time, and waits there while it trades.
+  When it ties up it settles what it will sell you (each import you set, up to its yearly quota and your import level, counting what other ships still have aboard and what dock workers are carting; the
+  crane stops early if your stock reaches the level meanwhile) and what it wants to buy (each export, up to its quota and what you have above your export level in the warehouses its workers can reach in
+  time); 2,400 units each way at most.
+* **Dock workers**: an Emporium sends out 3 at 75% staff or more (8 of its 10 workers), 2 at 50% or more, 1 with any staff.
+  Each carries up to 400 units of one good a trip (less to a workshop or barracks with room for less, which still come first).
+  A free worker first takes a lot from the quay to storage, and from there goes straight on to a warehouse to fetch an export for the ship; when the quay is empty it fetches an export from the dock.
+  Workers claim what they set out for, so several of them (of any dock) never take a good below your export level.
+  A worker does not set out on a trip it cannot finish before the ship's 48 days are up.
+* **The ship sails** when everything is unloaded (or nothing could land for a day: the quay is full, or the treasury empty) and everything it wants is aboard (or nothing more can be fetched), or after
+  48 days, or when its Emporium is demolished (at once) or loses its staff (at the Emporium's next daily check).
+  A ship whose city bought its year's worth meanwhile (from another of its ships) wants no more.
+  A ship with nothing to trade sails at once.
+  Cargo still aboard is neither paid for nor counted; an export a worker brings back after the ship sailed stays on the quay as yours, and dock workers take it back to storage.
+  A demolished Emporium's workers take their loads to storage.
+  The trade log gets one entry a ship, when it sails.
+* Busy harbors: a stay is 2 to 7 weeks, so a city with several sea partners needs 2 or 3 Emporia; a ship that finds every one taken waits offshore and tries again 6 days later, and while one waits the
+  Emporium's panel and the Trade advisor say whose ships are waiting.
+  Keep a warehouse near each.
+* Horses are the exception everywhere above: they live at an Equaria (Horse Ranch), never in a warehouse, so the ranches stand in for the warehouses when horses are bought or sold, and with no ranch
+  none can be imported (see **Horses stay at the ranch** under the military).
 * Partners and routes (open cost in Dn):
 
 | Partner | Route | Sells | Buys |
@@ -312,44 +637,149 @@ Click a granary or warehouse: each good (each food, in a granary) has an order b
 | Rhodus (1300) | sea | wine | wheat, timber, iron, weapons |
 | Delos (1500) | sea | linen, marble | oil, wine, clothing, furniture |
 
-* **Gades, Rhodus and Delos** trade with the sandbox and the late provinces (Rhodus from Luna and Corduba, Gades and Delos from Carteia, all three at Puteoli): Gades, the Phoenician port beyond the Pillars of Hercules and Rome's ally from 206 BC; Rhodus, the trading republic and its wine; Delos, a free port from 166 BC, the market of the Aegean. They buy on the original's quota tiers, 1,500, 2,500 or 4,000 units of a good a year.
-* **Yearly quotas.** Each partner buys and sells at most a set amount of each good a year (400 to 2,500 for the first nine, shown in the route's card with what has changed hands this year); the count starts again each new year. A mission may set what a partner buys for itself, on the original's tiers of 1,500, 2,500 and 4,000 a year, and may change it during the mission: in a set year, in a month from Martius to October (the same month every time the mission is played), a partner's demand for a good rises or falls a tier, or stops. A message says so: *Trade increased: Corinthus now buys 4,000 wine a year (was 2,500).* A good it no longer buys leaves its card, and its caravans and ships stop asking for it. The first two missions, the military provinces of steps 3 to 5, Paestum, Oasis Aurea and Urbs Magna keep the partners' own amounts all mission long. Figlina and Beneventum set their own, the trade that gives them work for more people than their military partner: Tarraco and Capua each buy 4,000 pottery a year from Figlina; Capua 2,500 furniture and 1,500 clothing, Aquileia 2,500 meat, Lugdunum 2,500 wine and Tarraco 1,500 pottery from Beneventum. The provinces beside them from step 6 on set their own, and change them.
-* **Busy routes come more often.** A caravan carries up to 800 units each way and comes every 32 to 56 days, about 3,500 units a year; a ship 2,400 every 64 to 96 days, about 5,800. A route whose larger side (what it buys, or what it sells) is more than that sends its traders proportionally more often, so on average they can carry its whole year: a land route buying 4,000 a year comes every 28 to 49 days, Delos's ships (8,000 a year) every 46 to 69. No route of the first two missions, the military provinces of steps 3 to 5, Paestum, Oasis Aurea or Urbs Magna is that busy (the busiest, Aquileia's caravans and Corinthus's ships, are at 92% and 90% of it), so they come as they always have; Figlina's and Beneventum's own quotas make some of theirs busy (Figlina's Tarraco and Capua, every 19 to 36 days; Beneventum's Capua, Aquileia and Lugdunum). A busy sea route needs the Emporia to match.
-* **Far partners come less often** (Colonia's own rule: in the original a partner's place on the empire map changed nothing about trade). A trader is on the way half a day for every unit of its route on the Empire map (the map is 100 units wide), each way: from the Etruscan coast Capua is 6 days off, Tarraco 13, Alexandria 29. A quiet route cannot send its traders more often than one can go home and come back, so its usual wait (32-56 days, 64-96 by sea) becomes at least the round trip, its spread kept: Tarraco, 19 days from Puteoli and Beneventum, sends a caravan every 38 to 62 days, and Alexandria, 47 days from Corduba, a ship every 94 to 126. The busy rule above then applies to that, so a far route busier than that still carries its whole year (Corduba's Alexandria, 4,500 a year, every 88 to 117 days; its Rhodus, 6,500 a year and 43 days off, every 60 to 82, the pace it had). From the Etruscan coast every round trip fits in the usual wait, so nothing changes there. The routes that come less often: Tarraco from Beneventum, Oasis Aurea (Luceria), Copia and Puteoli; Lugdunum and Alexandria from Corduba; Alexandria from Carteia and Narbo Martius. The first trader after you open a route comes when it can have made the trip, at least 8 days later (Tarraco from the Etruscan coast in 13, Alexandria in 29). A route's card in the Trade advisor says how many days its traders are on the way and how often they come.
-* **Prices** (Colonia's own rules: in the original every partner paid from one price table). Each partner has its own prices, which change from year to year. A good's price with a partner is its base price (the table in the in-game help, per 100 units) x the province's market x the year's drift x the partner's distance, rounded to whole denarii:
-  * **Distance**: your nearest partner (by the length of its route on the Empire map, the same length that sets its traders' trip) trades at base, your farthest at 25% more, the others in between in proportion to their route's length; with one partner, base prices. Both ways: a far partner's goods cost more to bring in, and a far market pays more for your goods. Buying from one partner to sell to another the same year never pays: an export price is at most about three quarters of the import price, and distance adds no more than a quarter. Across a New Year it can: goods bought cheap and kept in store until their price rises may sell for more than they cost, if a partner still has room in its quota for them.
-  * **The province's market**: every campaign province that trades has 2 to 4 goods its land and history make cheap or dear, with every partner and both ways: Figlina's clay is cheap and timber dear on its treeless plain; Firmum's iron and Picene olives cheap, wine dear; Pons Aelius's timber and olives cheap, iron dear; Paestum's wine cheap, marble dear; Portus Mercatorum's iron and wine cheap, marble dear; Beneventum's meat and timber cheap, oil dear; Oasis Aurea's olives cheap, its wheat and vegetables dear and its timber dearer still (+25%); Cosa's wine and pottery cheap, iron dear; Urbs Magna's clay cheap, wheat and marble dear; Copia's wheat and vegetables cheap, timber dear; Mutina's wheat and pottery cheap, iron dear; Luna's marble and timber cheap, wheat dear; Corduba's iron and olives cheap, weapons dear; Carteia's olives cheap, linen dear; Narbo Martius's wheat cheap, wine and weapons dear; Puteoli's iron and linen cheap, furniture and marble dear. The briefing and the Trade advisor name them (*Local market: Wine (-10%) and pottery (-10%) are cheap here; iron (+10%) is dear, to buy and to sell.*). The sandbox has none.
-  * **The year's drift**: at each New Year every good's price moves: last year's drift pulled halfway back toward the base, plus a step of up to 10% either way, never more than 15% from the base. The first year of a mission is at base. The steps follow from the map's seed, so a mission's prices are the same every time it is played on its map, and a loaded game has the prices it was saved with. A message names the biggest moves among the goods your partners deal in: *New Year's prices: oil (+9%) and wine (+9%) fetch more this year; clay (-9%) and furniture (-8%) are cheaper.*
-  * **Worked example**, Cosa: Capua is its nearest partner, Alexandria its farthest (+25%), Corinthus between (+14%); wine is cheap there (x 0.9). In the first year Capua sells wine at 215 x 0.9 = 194 and buys it at 160 x 0.9 = 144, Corinthus buys it at 160 x 0.9 x 1.144 = 165 and Alexandria at 160 x 0.9 x 1.25 = 180. In the third year wine's drift is 1.109, so Alexandria pays 160 x 0.9 x 1.109 x 1.25 = 200 and Capua charges 215.
-  * A route's card shows each good at that partner's price this year (*Wine 0/600 · 194 Dn*) and how its distance moves its prices; the Import and Export choices show the range across your partners (*Import (buy 194 to 201)*: Capua and Massilia); the panels of a caravan, a ship and an Emporium give this year's prices for the goods they carry. Every payment uses them: a caravan's when it trades at the warehouse, a ship's as each lot lands and as each lot goes aboard.
-* **Trade by partner** (Colonia's own rule: in the original one setting per good applied to every route). Each good on a route's card has a switch beside its price, all on to begin with: untick it and you stop trading that good with that partner, so you can sell your pottery only to the buyers who pay best, or buy wine only from the cheapest seller. The good's own setting in the Goods table (No trade, Import or Export, and its level) stays the master: a good trades with a partner only while its setting allows it **and** that partner's switch is on, and a switch on never makes a good on No trade move. The Goods table counts the partners left on for each good you trade (*to 3 of 5 buyers*, *from 1 of 3 sellers*, or a warning when every one is off). Every trader keeps to the switches: a caravan neither buys nor sells a good switched off with its city; a ship leaves it out of what it settles when it ties up, and if you switch it off while the ship is moored, the crane lands no more of it, dock workers fetch no more of it and nothing more of it goes aboard (what a worker brings back stays on the quay as yours). Imports a ship still has aboard that are switched off no longer count as on their way. Switched-off goods do not count toward a route's yearly volume, so a busy route you trade only a little with comes at the usual pace. A partner with every good it deals in switched off sends no traders at all (its route stays open, and it is not shown on the way on the Empire map); switch one good back on and its next trader comes when due. For the two kinds of wine the top homes want, only sellers switched on count. The trade log names what each visit sold and bought (*Capua: sold pottery 400; bought wine 600: +512 / −1,290 Dn*). The switches are saved with the game; a city saved before them loads with every switch on.
+* **Gades, Rhodus and Delos** trade with the sandbox and the late provinces (Rhodus from Luna and Corduba, Gades and Delos from Carteia, all three at Puteoli): Gades, the Phoenician port beyond the
+  Pillars of Hercules and Rome's ally from 206 BC; Rhodus, the trading republic and its wine; Delos, a free port from 166 BC, the market of the Aegean.
+  They buy on the original's quota tiers, 1,500, 2,500 or 4,000 units of a good a year.
+* **Yearly quotas.** Each partner buys and sells at most a set amount of each good a year (400 to 2,500 for the first nine, shown in the route's card with what has changed hands this year); the count
+  starts again each new year.
+  A mission may set what a partner buys for itself, on the original's tiers of 1,500, 2,500 and 4,000 a year, and may change it during the mission: in a set year, in a month from Martius to October (the
+  same month every time the mission is played), a partner's demand for a good rises or falls a tier, or stops.
+  A message says so: *Trade increased: Corinthus now buys 4,000 wine a year (was 2,500).* A good it no longer buys leaves its card, and its caravans and ships stop asking for it.
+  The first two missions, the military provinces of steps 3 to 5, Paestum, Oasis Aurea and Urbs Magna keep the partners' own amounts all mission long.
+  Figlina and Beneventum set their own, the trade that gives them work for more people than their military partner: Tarraco and Capua each buy 4,000 pottery a year from Figlina; Capua 2,500 furniture
+  and 1,500 clothing, Aquileia 2,500 meat, Lugdunum 2,500 wine and Tarraco 1,500 pottery from Beneventum.
+  The provinces beside them from step 6 on set their own, and change them.
+* **Busy routes come more often.** A caravan carries up to 800 units each way and comes every 32 to 56 days, about 3,500 units a year; a ship 2,400 every 64 to 96 days, about 5,800.
+  A route whose larger side (what it buys, or what it sells) is more than that sends its traders proportionally more often, so on average they can carry its whole year: a land route buying 4,000 a year
+  comes every 28 to 49 days, Delos's ships (8,000 a year) every 46 to 69.
+  No route of the first two missions, the military provinces of steps 3 to 5, Paestum, Oasis Aurea or Urbs Magna is that busy (the busiest, Aquileia's caravans and Corinthus's ships, are at 92% and 90%
+  of it), so they come as they always have; Figlina's and Beneventum's own quotas make some of theirs busy (Figlina's Tarraco and Capua, every 19 to 36 days; Beneventum's Capua, Aquileia and Lugdunum).
+  A busy sea route needs the Emporia to match.
+* **Far partners come less often** (Colonia's own rule: in the original a partner's place on the empire map changed nothing about trade).
+  A trader is on the way half a day for every unit of its route on the Empire map (the map is 100 units wide), each way: from the Etruscan coast Capua is 6 days off, Tarraco 13, Alexandria 29.
+  A quiet route cannot send its traders more often than one can go home and come back, so its usual wait (32-56 days, 64-96 by sea) becomes at least the round trip, its spread kept: Tarraco, 19 days
+  from Puteoli and Beneventum, sends a caravan every 38 to 62 days, and Alexandria, 47 days from Corduba, a ship every 94 to 126.
+  The busy rule above then applies to that, so a far route busier than that still carries its whole year (Corduba's Alexandria, 4,500 a year, every 88 to 117 days; its Rhodus, 6,500 a year and 43 days
+  off, every 60 to 82, the pace it had).
+  From the Etruscan coast every round trip fits in the usual wait, so nothing changes there.
+  The routes that come less often: Tarraco from Beneventum, Oasis Aurea (Luceria), Copia and Puteoli; Lugdunum and Alexandria from Corduba; Alexandria from Carteia and Narbo Martius.
+  The first trader after you open a route comes when it can have made the trip, at least 8 days later (Tarraco from the Etruscan coast in 13, Alexandria in 29).
+  A route's card in the Trade advisor says how many days its traders are on the way and how often they come.
+* **Prices** (Colonia's own rules: in the original every partner paid from one price table).
+  Each partner has its own prices, which change from year to year.
+  A good's price with a partner is its base price (the table in the in-game help, per 100 units) x the province's market x the year's drift x the partner's distance, rounded to whole denarii:
+  * **Distance**: your nearest partner (by the length of its route on the Empire map, the same length that sets its traders' trip) trades at base, your farthest at 25% more, the others in between in
+    proportion to their route's length; with one partner, base prices.
+    Both ways: a far partner's goods cost more to bring in, and a far market pays more for your goods.
+    Buying from one partner to sell to another the same year never pays: an export price is at most about three quarters of the import price, and distance adds no more than a quarter.
+    Across a New Year it can: goods bought cheap and kept in store until their price rises may sell for more than they cost, if a partner still has room in its quota for them.
+  * **The province's market**: every campaign province that trades has 2 to 4 goods its land and history make cheap or dear, with every partner and both ways: Figlina's clay is cheap and timber dear on
+    its treeless plain; Firmum's iron and Picene olives cheap, wine dear; Pons Aelius's timber and olives cheap, iron dear; Paestum's wine cheap, marble dear; Portus Mercatorum's iron and wine cheap,
+    marble dear; Beneventum's meat and timber cheap, oil dear; Oasis Aurea's olives cheap, its wheat and vegetables dear and its timber dearer still (+25%); Cosa's wine and pottery cheap, iron dear; Urbs
+    Magna's clay cheap, wheat and marble dear; Copia's wheat and vegetables cheap, timber dear; Mutina's wheat and pottery cheap, iron dear; Luna's marble and timber cheap, wheat dear; Corduba's iron and
+    olives cheap, weapons dear; Carteia's olives cheap, linen dear; Narbo Martius's wheat cheap, wine and weapons dear; Puteoli's iron and linen cheap, furniture and marble dear.
+    The briefing and the Trade advisor name them (*Local market: Wine (-10%) and pottery (-10%) are cheap here; iron (+10%) is dear, to buy and to sell.*).
+    The sandbox has none.
+  * **The year's drift**: at each New Year every good's price moves: last year's drift pulled halfway back toward the base, plus a step of up to 10% either way, never more than 15% from the base.
+    The first year of a mission is at base.
+    The steps follow from the map's seed, so a mission's prices are the same every time it is played on its map, and a loaded game has the prices it was saved with.
+    A message names the biggest moves among the goods your partners deal in: *New Year's prices: oil (+9%) and wine (+9%) fetch more this year; clay (-9%) and furniture (-8%) are cheaper.*
+  * **Worked example**, Cosa: Capua is its nearest partner, Alexandria its farthest (+25%), Corinthus between (+14%); wine is cheap there (x 0.9).
+    In the first year Capua sells wine at 215 x 0.9 = 194 and buys it at 160 x 0.9 = 144, Corinthus buys it at 160 x 0.9 x 1.144 = 165 and Alexandria at 160 x 0.9 x 1.25 = 180.
+    In the third year wine's drift is 1.109, so Alexandria pays 160 x 0.9 x 1.109 x 1.25 = 200 and Capua charges 215.
+  * A route's card shows each good at that partner's price this year (*Wine 0/600 · 194 Dn*) and how its distance moves its prices; the Import and Export choices show the range across your partners
+    (*Import (buy 194 to 201)*: Capua and Massilia); the panels of a caravan, a ship and an Emporium give this year's prices for the goods they carry.
+    Every payment uses them: a caravan's when it trades at the warehouse, a ship's as each lot lands and as each lot goes aboard.
+* **Trade by partner** (Colonia's own rule: in the original one setting per good applied to every route).
+  Each good on a route's card has a switch beside its price, all on to begin with: untick it and you stop trading that good with that partner, so you can sell your pottery only to the buyers who pay
+  best, or buy wine only from the cheapest seller.
+  The good's own setting in the Goods table (No trade, Import or Export, and its level) stays the master: a good trades with a partner only while its setting allows it **and** that partner's switch is
+  on, and a switch on never makes a good on No trade move.
+  The Goods table counts the partners left on for each good you trade (*to 3 of 5 buyers*, *from 1 of 3 sellers*, or a warning when every one is off).
+  Every trader keeps to the switches: a caravan neither buys nor sells a good switched off with its city; a ship leaves it out of what it settles when it ties up, and if you switch it off while the ship
+  is moored, the crane lands no more of it, dock workers fetch no more of it and nothing more of it goes aboard (what a worker brings back stays on the quay as yours).
+  Imports a ship still has aboard that are switched off no longer count as on their way.
+  Switched-off goods do not count toward a route's yearly volume, so a busy route you trade only a little with comes at the usual pace.
+  A partner with every good it deals in switched off sends no traders at all (its route stays open, and it is not shown on the way on the Empire map); switch one good back on and its next trader comes
+  when due.
+  For the two kinds of wine the top homes want, only sellers switched on count.
+  The trade log names what each visit sold and bought (*Capua: sold pottery 400; bought wine 600: +512 / −1,290 Dn*).
+  The switches are saved with the game; a city saved before them loads with every switch on.
 
-**The Empire map** (E, the compass in the top bar, or the button under the Trade advisor's small map) shows the Mediterranean world from the Atlantic to Syria, each city where it really is: your province (the red star, where the mission's city stood), Rome, every partner of the scenario with its route (solid when open, faint and broken while closed, grey where ships cannot reach you), and who is on the way. Point at the star for the place. Caravans keep to the roads and ships to the sea lanes, each by the shortest way from its city to yours. From the Etruscan coast, caravans come along the coast of Gaul from Tarraco, over the Alps from Lugdunum, through the Po valley from Aquileia and through Rome from Capua; ships from Corinthus, Alexandria, Rhodus and Delos through the Strait of Messina, those from Gades through the Pillars of Hercules and west of Sardinia and Corsica. Ships for Corduba come up the Baetis.
+**The Empire map** (E, the compass in the top bar, or the button under the Trade advisor's small map) shows the Mediterranean world from the Atlantic to Syria, each city where it really is: your
+province (the red star, where the mission's city stood), Rome, every partner of the scenario with its route (solid when open, faint and broken while closed, grey where ships cannot reach you), and who
+is on the way.
+Point at the star for the place.
+Caravans keep to the roads and ships to the sea lanes, each by the shortest way from its city to yours.
+From the Etruscan coast, caravans come along the coast of Gaul from Tarraco, over the Alps from Lugdunum, through the Po valley from Aquileia and through Rome from Capua; ships from Corinthus,
+Alexandria, Rhodus and Delos through the Strait of Messina, those from Gades through the Pillars of Hercules and west of Sardinia and Corsica.
+Ships for Corduba come up the Baetis.
 
-* **Where each province is.** Novum Castrum: Castrum Novum on the Adriatic coast of Picenum. Aquae Clarae: by the lake of Volsinii. Figlina: the upper Arno valley. Firmum, Paestum, Beneventum, Cosa, Copia, Mutina, Luna, Corduba, Carteia, Narbo Martius and Puteoli: where those cities were. Portus Mercatorum: Populonia, the Etruscan iron port. Oasis Aurea: Luceria, on the dry Apulian plain. Pons Aelius and Urbs Magna: the Etruscan coast by Pisae, where every province used to be. The sandbox is on the Etruscan coast unless its setup picks another place (*Province*): Luna, Cosa, Puteoli (Campania), Paestum or Narbo Martius, from each of which all twelve partners trade and every city a sandbox request may name is a year's march at most.
-* A caravan or ship sets out from its city its trip's days before it arrives (half a day a map unit: from the Etruscan coast Massilia 6, Capua 6, Tarraco 13, Corinthus 19, Delos 22, Gades 23, Rhodus 26, Alexandria 29; never longer than a busy route's shortest wait between traders, so one is on its way at a time; a partner next door is shown 2 days out) and moves along its route in its city's color. The first one after you open a route sets out from its city that day and arrives when its trip is done, at least 8 days later, so it never appears halfway along. Point at it (or tap it) for the days left: *Massilia ship: 6 days*. The side panel lists those on the way and those coming later (*sets out in 12 days*). A ship that found no free staffed Emporium comes back 6 days later, so it shows 6 days out again.
-* A warband shows as a red banner from the first word of it, about 6 months before it strikes, closing in over those months. While it is only rumoured it stands at the frontier, over land on the province's frontier side (north of the Etruscan coast, Populonia and Narbo Martius; north-west of Firmum, Luceria and Corduba; west of Mutina, toward the Ligurian hills), with no number (*Warband gathering beyond the frontier, in about 6 months*): its side and size are not known yet. Once the scouts have seen it (about 3 months out) it shows with its size, half way in from the side it will enter by: *Warband of 14 from the north, in 3 months* (one coming by land from a side where the empire map shows sea is drawn on the nearest side over land; its words keep the side of your city's map). Click it (or *Show the edge*) to close the map and look at the map edge it will come from. A warband coming by sea sails in a dark longship out on the sea (*Warband of 14 by sea from the north-east, in 3 months*), and *Show the landing* looks at the shore where the scouts expect it to land (corrected a month out if they will land elsewhere; *no landing found* if they can find none, and will come overland). A warning about a warband or Caesar's legions on the way opens this map with it picked out. Raiders already in the province show at your city; click them to look at them.
+* **Where each province is.** Novum Castrum: Castrum Novum on the Adriatic coast of Picenum.
+  Aquae Clarae: by the lake of Volsinii.
+  Figlina: the upper Arno valley.
+  Firmum, Paestum, Beneventum, Cosa, Copia, Mutina, Luna, Corduba, Carteia, Narbo Martius and Puteoli: where those cities were.
+  Portus Mercatorum: Populonia, the Etruscan iron port.
+  Oasis Aurea: Luceria, on the dry Apulian plain.
+  Pons Aelius and Urbs Magna: the Etruscan coast by Pisae, where every province used to be.
+  The sandbox is on the Etruscan coast unless its setup picks another place (*Province*): Luna, Cosa, Puteoli (Campania), Paestum or Narbo Martius, from each of which all twelve partners trade and every
+  city a sandbox request may name is a year's march at most.
+* A caravan or ship sets out from its city its trip's days before it arrives (half a day a map unit: from the Etruscan coast Massilia 6, Capua 6, Tarraco 13, Corinthus 19, Delos 22, Gades 23, Rhodus 26,
+  Alexandria 29; never longer than a busy route's shortest wait between traders, so one is on its way at a time; a partner next door is shown 2 days out) and moves along its route in its city's color.
+  The first one after you open a route sets out from its city that day and arrives when its trip is done, at least 8 days later, so it never appears halfway along.
+  Point at it (or tap it) for the days left: *Massilia ship: 6 days*.
+  The side panel lists those on the way and those coming later (*sets out in 12 days*).
+  A ship that found no free staffed Emporium comes back 6 days later, so it shows 6 days out again.
+* A warband shows as a red banner from the first word of it, about 6 months before it strikes, closing in over those months.
+  While it is only rumoured it stands at the frontier, over land on the province's frontier side (north of the Etruscan coast, Populonia and Narbo Martius; north-west of Firmum, Luceria and Corduba;
+  west of Mutina, toward the Ligurian hills), with no number (*Warband gathering beyond the frontier, in about 6 months*): its side and size are not known yet.
+  Once the scouts have seen it (about 3 months out) it shows with its size, half way in from the side it will enter by: *Warband of 14 from the north, in 3 months* (one coming by land from a side where
+  the empire map shows sea is drawn on the nearest side over land; its words keep the side of your city's map).
+  Click it (or *Show the edge*) to close the map and look at the map edge it will come from.
+  A warband coming by sea sails in a dark longship out on the sea (*Warband of 14 by sea from the north-east, in 3 months*), and *Show the landing* looks at the shore where the scouts expect it to land
+  (corrected a month out if they will land elsewhere; *no landing found* if they can find none, and will come overland).
+  A warning about a warband or Caesar's legions on the way opens this map with it picked out.
+  Raiders already in the province show at your city; click them to look at them.
 * Click a city (or its caravan or ship) for what it sells and buys (what it buys in this mission, now), this year's amounts, and the button to open its route.
 
-* Caesar's legions, once they set out (see *Caesar's legions*), show as a purple standard with an eagle on the roads from Rome, with their number, over the 12 months of their march (12 months however far the province: to Corduba they simply move faster on the map); in the province, beside it.
-* A distant battle (see *Distant battles*) shows the threatened city as a small walled square (dark while the enemy holds it), the enemy's banner on its line of march toward it, and your troops' red standard with their strength on their way there and back; a recall's rider (a small horseman) rides out after them, and troops he turned back march home from where he reached them. Click any of them for the Imperial advisor.
+* Caesar's legions, once they set out (see *Caesar's legions*), show as a purple standard with an eagle on the roads from Rome, with their number, over the 12 months of their march (12 months however
+  far the province: to Corduba they simply move faster on the map); in the province, beside it.
+* A distant battle (see *Distant battles*) shows the threatened city as a small walled square (dark while the enemy holds it), the enemy's banner on its line of march toward it, and your troops' red
+  standard with their strength on their way there and back; a recall's rider (a small horseman) rides out after them, and troops he turned back march home from where he reached them.
+  Click any of them for the Imperial advisor.
 
 The map only reads the game: the game keeps running while it is open (pause with Space), and nothing on it changes trade, raids or wars.
 
 ## Military
 
-**Raids.** The military provinces (Firmum at step 3, then one at every step from 4 to 10) and sandboxes unless set to peaceful are raided; the peaceful provinces never are. The first raid comes after about 8 years with occasional raids and 5 with frequent ones (campaign missions: 2 years in Firmum, 5 in Pons Aelius, 4 in Portus Mercatorum, 3.5 in Oasis Aurea, 3 in Urbs Magna, Mutina, Corduba and Narbo Martius), 25% sooner on Insane, and none while the city has fewer than 300 people. Mutina, Corduba and Narbo Martius are raided only by land, whatever the Sea raids setting. You are warned three times (⚠ in the top bar from the first), one message a month at most:
+**Raids.** The military provinces (Firmum at step 3, then one at every step from 4 to 10) and sandboxes unless set to peaceful are raided; the peaceful provinces never are.
+The first raid comes after about 8 years with occasional raids and 5 with frequent ones (campaign missions: 2 years in Firmum, 5 in Pons Aelius, 4 in Portus Mercatorum, 3.5 in Oasis Aurea, 3 in Urbs
+Magna, Mutina, Corduba and Narbo Martius), 25% sooner on Insane, and none while the city has fewer than 300 people.
+Mutina, Corduba and Narbo Martius are raided only by land, whatever the Sea raids setting.
+You are warned three times (⚠ in the top bar from the first), one message a month at most:
 
-* **About 6 months ahead**, traders speak of a warband gathering beyond the frontier, with the months left, but not its size or side: nothing about it is fixed yet. A city under 300 people hears nothing.
-* **About 3 months ahead**, scouts report its size and the side it will come from (*a warband of about 14 raiders gathering to the north, 3 months away*), or that it comes by sea and where it will land. If the city has fallen under 300 people by then, the raid is put off 6 months and, if anything had been said, *the warband has drifted away, for now*.
-* **A month ahead**, a last warning names its side again (*a month away and will come in from the north*), or for a raid by sea where its ships make for the shore, looked for again then (*not where the scouts first thought* if that changed). If they can find no shore (the city built along it, or the *Sea raids* switch turned off), they come overland, from a side the scouts cannot tell yet.
-* A raid dated inside a stage's lead (a short interval, a raid put off) skips the stages already past: the scouts' report comes straight away if it is 3 months off or less. The first two warnings open the Empire map on the warband when clicked; the last one takes you to the place (or, for ships that found no shore, to the Empire map). The arrival is as before.
+* **About 6 months ahead**, traders speak of a warband gathering beyond the frontier, with the months left, but not its size or side: nothing about it is fixed yet.
+  A city under 300 people hears nothing.
+* **About 3 months ahead**, scouts report its size and the side it will come from (*a warband of about 14 raiders gathering to the north, 3 months away*), or that it comes by sea and where it will land.
+  If the city has fallen under 300 people by then, the raid is put off 6 months and, if anything had been said, *the warband has drifted away, for now*.
+* **A month ahead**, a last warning names its side again (*a month away and will come in from the north*), or for a raid by sea where its ships make for the shore, looked for again then (*not where the
+  scouts first thought* if that changed).
+  If they can find no shore (the city built along it, or the *Sea raids* switch turned off), they come overland, from a side the scouts cannot tell yet.
+* A raid dated inside a stage's lead (a short interval, a raid put off) skips the stages already past: the scouts' report comes straight away if it is 3 months off or less.
+  The first two warnings open the Empire map on the warband when clicked; the last one takes you to the place (or, for ships that found no shore, to the Empire map).
+  The arrival is as before.
 
-The Empire map shows the warband closing in, its size, and the map edge it will enter by. A warband has about `base + population / 450 + raids so far` warriors (x0.7 Easy, x1.3 Hard, x1.5 Insane; 3 to 40; on Insane raiders also have 15% more health and attack, and come 25% sooner), with slingers once the city passes 700 people and horsemen past 1,200. Raiders spawn on a map edge that can reach your homes and head for the nearest buildings, which they wreck or burn. They flee when 70% of the band is dead, and give up after 80 days, 10 buildings destroyed, or being cut off; a band that reached the city takes plunder when it leaves.
+The Empire map shows the warband closing in, its size, and the map edge it will enter by.
+A warband has about `base + population / 450 + raids so far` warriors (x0.7 Easy, x1.3 Hard, x1.5 Insane; 3 to 40; on Insane raiders also have 15% more health and attack, and come 25% sooner), with
+slingers once the city passes 700 people and horsemen past 1,200.
+Raiders spawn on a map edge that can reach your homes and head for the nearest buildings, which they wreck or burn.
+They flee when 70% of the band is dead, and give up after 80 days, 10 buildings destroyed, or being cut off; a band that reached the city takes plunder when it leaves.
 
 Repelling a raid: +8 peace, +3 favor. Each building lost: -1 peace.
 
-**Peoples.** Each military province is raided by a people of its place and time, with warriors of its own, as the original's enemies were. The sandbox meets the mixed band above unless its setup asks for *the province's own people* (*Raiders* in the setup); then it meets the people of its site. The messages, the scouts' report, the top bar, the Empire map (*Warband of 9 Gauls from the north*) and the Military advisor name them, and the advisor describes them.
+**Peoples.** Each military province is raided by a people of its place and time, with warriors of its own, as the original's enemies were.
+The sandbox meets the mixed band above unless its setup asks for *the province's own people* (*Raiders* in the setup); then it meets the people of its site.
+The messages, the scouts' report, the top bar, the Empire map (*Warband of 9 Gauls from the north*) and the Military advisor name them, and the advisor describes them.
 
 | Province | People | Warriors (shares) | Make for first | Break when fallen |
 |---|---|---|---|---|
@@ -362,29 +792,89 @@ Repelling a raid: +8 peace, +3 favor. Each building lost: -1 peace.
 | Corduba (and Carteia) | Lusitanians | raiders 50%, javelineers 30%, horsemen 20% | food | 60% |
 | Narbo Martius | Cimbri and Teutones | swordsmen 40%, axemen 30%, raiders 20%, horsemen 10% | one of food, homes, troops or stores, drawn for each raid | 65% |
 
-* **The new warriors** (health / attack / defense; the original's numbers on Colonia's scale, so against your legionary they stand in the original's order): *swordsman* 80 / 14 / 4, slower than a raider; *axeman* 88 / 21 / 5, hews through walls; *javelineer* 50 / 7 / 2, throws from 4 tiles and runs fast; *war chariot* 88 / 21 / 6, as fast as your cavalry; *war elephant* 145 / 28 / 8, slow, batters walls, and arrows and stones do it half harm; *hoplite* 88 / 17 / 6, slow and steady. Each is drawn its own way (a tall green shield, a bare-chested axeman, a headband and javelins, a two-pony car, a grey elephant with a tower, a bronze round shield). Click one for its panel: its people, what the warband makes for and when it breaks.
-* **Size.** A people sends as many men as weigh what the mixed band of that raid would (health x attack, added up): fewer Gauls than raiders, more Ligurians. So a mission's raids are as heavy as before, made of other men.
-* **Targets.** A warband walks toward its people's first targets (round a block rather than through it); it still strikes any building it passes beside. With none standing, it goes for the nearest building, as the mixed band always does.
+* **The new warriors** (health / attack / defense; the original's numbers on Colonia's scale, so against your legionary they stand in the original's order): *swordsman* 80 / 14 / 4, slower than a
+  raider; *axeman* 88 / 21 / 5, hews through walls; *javelineer* 50 / 7 / 2, throws from 4 tiles and runs fast; *war chariot* 88 / 21 / 6, as fast as your cavalry; *war elephant* 145 / 28 / 8, slow,
+  batters walls, and arrows and stones do it half harm; *hoplite* 88 / 17 / 6, slow and steady.
+  Each is drawn its own way (a tall green shield, a bare-chested axeman, a headband and javelins, a two-pony car, a grey elephant with a tower, a bronze round shield).
+  Click one for its panel: its people, what the warband makes for and when it breaks.
+* **Size.** A people sends as many men as weigh what the mixed band of that raid would (health x attack, added up): fewer Gauls than raiders, more Ligurians.
+  So a mission's raids are as heavy as before, made of other men.
+* **Targets.** A warband walks toward its people's first targets (round a block rather than through it); it still strikes any building it passes beside.
+  With none standing, it goes for the nearest building, as the mixed band always does.
 * **Breaking.** A warband flees once the share of it its people can stand to lose has fallen (the mixed band 70%).
-* **Missiles at your people.** A people's slingers and javelineers strike walkers in reach (anyone on foot but a prefect) while the city has fewer than 4 soldiers, as the original's did; a walker has 20 health. The mixed band's slingers do not. The Military advisor counts *people struck down by missiles*.
+* **Missiles at your people.** A people's slingers and javelineers strike walkers in reach (anyone on foot but a prefect) while the city has fewer than 4 soldiers, as the original's did; a walker has 20
+  health.
+  The mixed band's slingers do not.
+  The Military advisor counts *people struck down by missiles*.
 
-**Raids by sea** (not in the original, which had no war at sea; on by default, with a *Sea raids* switch in *Settings* and the sandbox setup). Where a river or the sea reaches the map edge (ships can sail it), about a third of raids come by ship: when the scouts see a raid coming, a roll decides, on a random stream of its own (the map seed and the raid's number), so the same city gets the same raids and a raid by land is exactly the raid it always was. Switched off, or on a map without such water, every raid comes by land. The scouts say so (*by sea, from the north-east ... will come ashore near 44, 14*).
+**Raids by sea** (not in the original, which had no war at sea; on by default, with a *Sea raids* switch in *Settings* and the sandbox setup).
+Where a river or the sea reaches the map edge (ships can sail it), about a third of raids come by ship: when the scouts see a raid coming, a roll decides, on a random stream of its own (the map seed
+and the raid's number), so the same city gets the same raids and a raid by land is exactly the raid it always was.
+Switched off, or on a map without such water, every raid comes by land.
+The scouts say so (*by sea, from the north-east ...
+will come ashore near 44, 14*).
 
-* The warband comes in raider ships, 8 raiders a ship (at most 5 ships), sailing in one after another from the edge of the water where merchant ships come in (a little faster than a walker: about 1.8 tiles a day). They land on open shore by that water from which raiders can walk to a home, the walk to the nearest home as close to 6 tiles as there is (never under 3), put their raiders ashore and wait offshore. From the landing the raiders fight like any warband; the raid's 80 days count from the first landing, and ships that cannot put their raiders ashore within 60 days give up. When the raid is over the ships sail away; fleeing raiders run back to the landing and board, while one of their ships is afloat (else they run for the map edge).
-* At sea each raider ship throws up to 10 fire pots, one every 2 days, at anything within 5 tiles: a fishing boat sinks (its shipyard builds another, from another 100 timber); a building takes 20 damage (x the difficulty's raider strength: 23 on Insane) and 25 points of fire risk if it can burn, which a passing prefect clears as always. Pots alone never let a raid carry off plunder. Ten pots are 200 damage: four huts, or half a dock. Watchtowers (Turres) and soldiers on land cannot reach ships.
+* The warband comes in raider ships, 8 raiders a ship (at most 5 ships), sailing in one after another from the edge of the water where merchant ships come in (a little faster than a walker: about 1.8
+  tiles a day).
+  They land on open shore by that water from which raiders can walk to a home, the walk to the nearest home as close to 6 tiles as there is (never under 3), put their raiders ashore and wait offshore.
+  From the landing the raiders fight like any warband; the raid's 80 days count from the first landing, and ships that cannot put their raiders ashore within 60 days give up.
+  When the raid is over the ships sail away; fleeing raiders run back to the landing and board, while one of their ships is afloat (else they run for the map edge).
+* At sea each raider ship throws up to 10 fire pots, one every 2 days, at anything within 5 tiles: a fishing boat sinks (its shipyard builds another, from another 100 timber); a building takes 20 damage
+  (x the difficulty's raider strength: 23 on Insane) and 25 points of fire risk if it can burn, which a passing prefect clears as always.
+  Pots alone never let a raid carry off plunder.
+  Ten pots are 200 damage: four huts, or half a dock.
+  Watchtowers (Turres) and soldiers on land cannot reach ships.
 * A ship sunk before it lands drowns the raiders aboard (they count as slain).
 
-Measured (`npm run sim`-style script, the level 2 demo city on six coast maps with two wharves, a raid of 16 by sea on Normal): with no defense the raiders landed every time and the raid ended as an undefended land raid does (10 buildings lost, 960 Dn of plunder, about 12 pot hits and 1 fishing boat sunk); with a squadron of four at its berths four of six raids were sunk at sea (no building lost), and the two that landed came ashore out of the squadron's reach: where the station stands, and where you deploy it, matters.
+Measured (`npm run sim`-style script, the level 2 demo city on six coast maps with two wharves, a raid of 16 by sea on Normal): with no defense the raiders landed every time and the raid ended as an
+undefended land raid does (10 buildings lost, 960 Dn of plunder, about 12 pot hits and 1 fishing boat sunk); with a squadron of four at its berths four of six raids were sunk at sea (no building
+lost), and the two that landed came ashore out of the squadron's reach: where the station stands, and where you deploy it, matters.
 
-**The fleet** (Pons Aelius, Portus Mercatorum, Urbs Magna, Corduba and Narbo Martius, which have raids and water from the sea, and the sandbox; Firmum and Mutina are raided but their water does not reach the sea, and Oasis Aurea has none):
+**The fleet** (Pons Aelius, Portus Mercatorum, Urbs Magna, Corduba and Narbo Martius, which have raids and water from the sea, and the sandbox; Firmum and Mutina are raided but their water does not
+reach the sea, and Oasis Aurea has none):
 
-* A **Navalia** (Naval Dockyard: 3x3, 400 Dn, 12 workers, Military; out over water ships can sail, like a dock) builds a **liburnian**, a light warship with two banks of oars and a bronze ram, from 300 timber, 100 iron and 100 linen, in 30 days at full staff. It works only while it holds those and a staffed Statio (Naval Station) on its water has an empty berth and takes new ships: a station that is deployed, or has a ship away at a distant battle, gets none until it is recalled and its ships are home (its panel says "No recruits while deployed"; a ship already launched for it still joins). Carts bring the materials (up to 400 of each) only then, before any workshop, as they do weapons for a barracks, and warehouses send them over. Each new ship rows to the emptiest such station.
-* A **Statio** (3x3, 500 Dn, 10 workers, Military; out over the water, like a dock; 800 hp; never burns or decays, rioters spare it) berths a squadron of 4 on the water in front of it. The squadron fights raider ships within 12 tiles of its berths and chases them 4 tiles farther. **Deploy** (station panel or Military advisor, or **F** with its panel open), then click the water, sends it anywhere on its own river or sea (the nearest water within 2 tiles of the click); it guards 8 tiles around that spot. Its flag on the water can be clicked (the station's panel) and dragged like a fort's standard; the ghost flag turns red where the squadron cannot go (land, or other water), and a drop there leaves it where it was. A ship's hull under the pointer is picked before the flag, so a squadron at its flag is still clicked by its ships; the flag's top shows above them. **Recall** brings it home. A station lost (demolished or wrecked) sends its ships to another station on the same water with an empty berth; any left over are laid up and gone.
-* Fighting: a liburnian (180 hp) shoots arrows (13 attack, every 1.5 days, range 4.5 tiles) and rams a ship it reaches (45 damage, every 3 days); it rows faster than a raider ship sails (2.4 tiles a day to 1.8). A raider ship has 140 hp (x the difficulty's raider strength) and shoots back (9 attack, range 5). One liburnian beats one raider ship; five raider ships sink one liburnian. Pay: 4 Dn a liburnian a month ("Army pay").
-* The **Portus** (Training Harbor; Colonia's own, wherever the Navalia is: the five provinces with the fleet and the sandbox): the fleet's academy, after the harbor Agrippa cut near Naples to train his crews (Rome's first war fleet, in 260 BC, learned to row on benches on dry land while its ships were built). 3x3, 600 Dn, 12 workers (Military), desirability -4; out over water ships can sail, the Navalia's rule. It trains only at full staff, and only crews of stations on its own water. A new liburnian rows first to the berth of the Portus nearest its station and **moors there 8 days** (counted only while the Portus is fully staffed; kept waiting more than 32 days, it rows on untrained), then rows to its berth, trained; the station's panel and the Portus's show who is in training and the days left. Untrained ships at their berths take turns as soldiers at rest do: a station at rest (not deployed, no ships away, no raid on or a month away, no raider ships about) sends one at a time to the Portus, never its last ship at its berths. A raid or a deployment calls a new ship on its way (or moored there, training) straight to its station, untrained, and one launched during a raid goes straight there. A trained crew rows faster (2.7 tiles a day to 2.4), rams harder (55 to 45) and is harder to hit (+3 defense). In a distant battle a liburnian counts 4, trained 6. The station's panel shows "3 of 4 trained".
-* Click a liburnian or a raider ship for its panel: its hull, what it is doing, its station, whether its crew is trained (or the raiders and fire pots aboard). The Military advisor has a *Fleet* card (liburnians, at sea, pay, raider ships sunk, raids by sea) and the stations with Deploy and Recall.
+* A **Navalia** (Naval Dockyard: 3x3, 400 Dn, 12 workers, Military; out over water ships can sail, like a dock) builds a **liburnian**, a light warship with two banks of oars and a bronze ram, from 300
+  timber, 100 iron and 100 linen, in 30 days at full staff.
+  It works only while it holds those and a staffed Statio (Naval Station) on its water has an empty berth and takes new ships: a station that is deployed, or has a ship away at a distant battle, gets
+  none until it is recalled and its ships are home (its panel says "No recruits while deployed"; a ship already launched for it still joins).
+  Carts bring the materials (up to 400 of each) only then, before any workshop, as they do weapons for a barracks, and warehouses send them over.
+  Each new ship rows to the emptiest such station.
+* A **Statio** (3x3, 500 Dn, 10 workers, Military; out over the water, like a dock; 800 hp; never burns or decays, rioters spare it) berths a squadron of 4 on the water in front of it.
+  The squadron fights raider ships within 12 tiles of its berths and chases them 4 tiles farther.
+  **Deploy** (station panel or Military advisor, or **F** with its panel open), then click the water, sends it anywhere on its own river or sea (the nearest water within 2 tiles of the click); it guards
+  8 tiles around that spot.
+  Its flag on the water can be clicked (the station's panel) and dragged like a fort's standard; the ghost flag turns red where the squadron cannot go (land, or other water), and a drop there leaves it
+  where it was.
+  A ship's hull under the pointer is picked before the flag, so a squadron at its flag is still clicked by its ships; the flag's top shows above them.
+  **Recall** brings it home.
+  A station lost (demolished or wrecked) sends its ships to another station on the same water with an empty berth; any left over are laid up and gone.
+* Fighting: a liburnian (180 hp) shoots arrows (13 attack, every 1.5 days, range 4.5 tiles) and rams a ship it reaches (45 damage, every 3 days); it rows faster than a raider ship sails (2.4 tiles a day
+  to 1.8).
+  A raider ship has 140 hp (x the difficulty's raider strength) and shoots back (9 attack, range 5).
+  One liburnian beats one raider ship; five raider ships sink one liburnian.
+  Pay: 4 Dn a liburnian a month ("Army pay").
+* The **Portus** (Training Harbor; Colonia's own, wherever the Navalia is: the five provinces with the fleet and the sandbox): the fleet's academy, after the harbor Agrippa cut near Naples to train his
+  crews (Rome's first war fleet, in 260 BC, learned to row on benches on dry land while its ships were built).
+  3x3, 600 Dn, 12 workers (Military), desirability -4; out over water ships can sail, the Navalia's rule.
+  It trains only at full staff, and only crews of stations on its own water.
+  A new liburnian rows first to the berth of the Portus nearest its station and **moors there 8 days** (counted only while the Portus is fully staffed; kept waiting more than 32 days, it rows on
+  untrained), then rows to its berth, trained; the station's panel and the Portus's show who is in training and the days left.
+  Untrained ships at their berths take turns as soldiers at rest do: a station at rest (not deployed, no ships away, no raid on or a month away, no raider ships about) sends one at a time to the Portus,
+  never its last ship at its berths.
+  A raid or a deployment calls a new ship on its way (or moored there, training) straight to its station, untrained, and one launched during a raid goes straight there.
+  A trained crew rows faster (2.7 tiles a day to 2.4), rams harder (55 to 45) and is harder to hit (+3 defense).
+  In a distant battle a liburnian counts 4, trained 6.
+  The station's panel shows "3 of 4 trained".
+* Click a liburnian or a raider ship for its panel: its hull, what it is doing, its station, whether its crew is trained (or the raiders and fire pots aboard).
+  The Military advisor has a *Fleet* card (liburnians, at sea, pay, raider ships sunk, raids by sea) and the stations with Deploy and Recall.
 
-**Recruiting.** A staffed Tirocinium (Barracks) trains one recruit every 8 days (at full staff) and sends him by road to the emptiest staffed fort. Each fort holds 8 soldiers. A fort that is **deployed** (its standard planted in the field, see Orders), or has any of its men away at a distant battle (on their way out, there, or coming home), takes **no recruits**: its panel says "No recruits while deployed", and the barracks waits. A recruit already on his way still arrives and joins. Recruiting resumes once the fort is recalled and all its men are home. Equipment is delivered to the Tirocinium by cart only while forts that take recruits have empty places:
+**Recruiting.** A staffed Tirocinium (Barracks) trains one recruit every 8 days (at full staff) and sends him by road to the emptiest staffed fort.
+Each fort holds 8 soldiers.
+A fort that is **deployed** (its standard planted in the field, see Orders), or has any of its men away at a distant battle (on their way out, there, or coming home), takes **no recruits**: its panel
+says "No recruits while deployed", and the barracks waits.
+A recruit already on his way still arrives and joins.
+Recruiting resumes once the fort is recalled and all its men are home.
+Equipment is delivered to the Tirocinium by cart only while forts that take recruits have empty places:
 
 | Soldier | Fort | Needs | HP | Attack | Defense | Range | Speed (1x) | Pay |
 |---|---|---|---|---|---|---|---|---|
@@ -392,42 +882,149 @@ Measured (`npm run sim`-style script, the level 2 demo city on six coast maps wi
 | Archer | Praesidium (Archer Fort, 220) | 50 arrows | 60 | 10 | 3 | 6.5 tiles | 0.9 | 2 |
 | Cavalryman | Castra Equitum (Cavalry Fort, 350) | 1 horse | 120 | 15 | 6 | melee | 1.6 | 3 |
 
-Pay is Dn per soldier per month, on top of the wages of the forts' and barracks' staff (8 and 10 workers). A full set of three forts with a barracks employs about 34 people, so size the army to the city: an army that takes the farmers leaves the city hungry (use labor priorities).
+Pay is Dn per soldier per month, on top of the wages of the forts' and barracks' staff (8 and 10 workers).
+A full set of three forts with a barracks employs about 34 people, so size the army to the city: an army that takes the farmers leaves the city hungry (use labor priorities).
 
-**Training: the Campus** (Military Academy; wherever there are forts: Firmum at step 3, then mission 4 on, the peaceful provinces aside). The original's academy: 3x3, 1,000 Dn, 20 workers (Military), desirability -3 (rings -3, -2, -1); it can burn and collapse. It trains only at **full staff**: 19 of 20 workers trains nobody.
+**Training: the Campus** (Military Academy; wherever there are forts: Firmum at step 3, then mission 4 on, the peaceful provinces aside).
+The original's academy: 3x3, 1,000 Dn, 20 workers (Military), desirability -3 (rings -3, -2, -1); it can burn and collapse.
+It trains only at **full staff**: 19 of 20 workers trains nobody.
 
 * Every soldier is trained or not, for good; the fort panel shows "5 of 8 trained" and the Military advisor the whole army's count.
-* A new recruit marches first to the fully staffed academy nearest **his fort** (the larger of the two axis distances between the buildings' middles; the nearest to the fort, not the barracks, so a recruit may cross the city and back), and **trains there 16 days** (a month) before he is trained: the days count only while the academy is fully staffed (one worker short pauses him, and he goes on where he stopped once it is staffed again; kept waiting more than 32 days in all, he gives up and goes on untrained), and his place in the fort is held for him meanwhile. Then, trained, he marches on to his fort. If the academy is demolished on the way or while he trains, he walks on untrained. The fort's panel and the academy's show who is in training and the days left; click the recruit for his own. The month costs a garrison time: in a script (the level 2 demo city on three maps, its three forts with a staffed Campus and military labor first), after 8 months the forts held 10, 13 and 12 soldiers, every one trained, with 2 more at the academy, where they held 13, 14 and 13 when training was instant. With no such academy (or no road joining barracks, academy and fort) he goes straight to the fort.
-* Soldiers who joined untrained (before the academy stood, or while it was short of staff) go to train too, **one man of a fort at a time** (Colonia's own: in the original such a man stayed untrained). Once a day a fort **at rest** sends its untrained man resting in the yard with the lowest place to the fully staffed academy nearest it, when a road joins the two. At rest means: not deployed, none of its men away at a distant battle, no raiders, Caesar's legions or rebel gladiators in the province, no raider ships off the shore, no wolf or angry villager near the fort, and no warband a month away (after the last warning nobody leaves). Never the fort's last man, and a man still walking back counts as away, so a fort is at most one man short. He goes out by the gate and walks over open land to the academy's road, trains there 16 days by the recruits' rules (only at full staff; kept waiting more than 32 days, he comes home untrained) and walks back into the yard, trained. His place in the fort is his all along. A raid (anything that has the men stand to) or a deployment calls him straight back, untrained if he had not finished, and he fights whoever strikes at him on the way as any soldier does; a fort sent to a distant battle takes him along (untrained). The academy demolished or cut off meanwhile, he comes home untrained. A man is sent only when he can find a way there on foot (a road may run where men cannot walk), and his trip may take 40 days, longer for a far academy or a long way round; one not there in time is given up, and that fort sends nobody for 16 days (nor for 16 days after finding no way on foot). The fort's panel says "5 of 8 trained, 1 at the Campus", and a click on him says "Training at the Campus, 9 days left". Measured: a fort of 8 untrained legionaries with the academy 10 to 20 tiles' walk away is all trained in 15 to 23 months, never fewer than 7 in its yard (two at a time would take 8 to 11.5 months but leave it 6). In 18 runs of a raid of 14 that struck with no warning while men were away (up to one from each of the three forts), every one turned back on the raid's first tick and was with his fort within about a day; the raids went as they did without the trips (killed 197 against 191, buildings lost 47 against 41, soldiers lost 146 against 138, 15 of 18 repelled either way: within the runs' spread).
-* What it gives (Colonia has no morale, so the original's staying power and close order become numbers): a trained **legionary holding position** (standing his ground: still at his post, by the fort or where it was deployed, or standing to fight a raider in reach; not running after one or marching) has +4 defense and takes a quarter of every missile's damage (a sling stone that would do 3.5 does 0.5: the original's close order took 1 damage a missile); trained **archers and cavalry** +2 defense at all times. Attack and hit points never change. In a distant battle a soldier counts 2 (legionary) or 1 (auxiliary), one more trained (see Distant battles).
+* A new recruit marches first to the fully staffed academy nearest **his fort** (the larger of the two axis distances between the buildings' middles; the nearest to the fort, not the barracks, so a
+  recruit may cross the city and back), and **trains there 16 days** (a month) before he is trained: the days count only while the academy is fully staffed (one worker short pauses him, and he goes on
+  where he stopped once it is staffed again; kept waiting more than 32 days in all, he gives up and goes on untrained), and his place in the fort is held for him meanwhile.
+  Then, trained, he marches on to his fort.
+  If the academy is demolished on the way or while he trains, he walks on untrained.
+  The fort's panel and the academy's show who is in training and the days left; click the recruit for his own.
+  The month costs a garrison time: in a script (the level 2 demo city on three maps, its three forts with a staffed Campus and military labor first), after 8 months the forts held 10, 13 and 12
+  soldiers, every one trained, with 2 more at the academy, where they held 13, 14 and 13 when training was instant.
+  With no such academy (or no road joining barracks, academy and fort) he goes straight to the fort.
+* Soldiers who joined untrained (before the academy stood, or while it was short of staff) go to train too, **one man of a fort at a time** (Colonia's own: in the original such a man stayed untrained).
+  Once a day a fort **at rest** sends its untrained man resting in the yard with the lowest place to the fully staffed academy nearest it, when a road joins the two.
+  At rest means: not deployed, none of its men away at a distant battle, no raiders, Caesar's legions or rebel gladiators in the province, no raider ships off the shore, no wolf or angry villager near
+  the fort, and no warband a month away (after the last warning nobody leaves).
+  Never the fort's last man, and a man still walking back counts as away, so a fort is at most one man short.
+  He goes out by the gate and walks over open land to the academy's road, trains there 16 days by the recruits' rules (only at full staff; kept waiting more than 32 days, he comes home untrained) and
+  walks back into the yard, trained.
+  His place in the fort is his all along.
+  A raid (anything that has the men stand to) or a deployment calls him straight back, untrained if he had not finished, and he fights whoever strikes at him on the way as any soldier does; a fort sent
+  to a distant battle takes him along (untrained).
+  The academy demolished or cut off meanwhile, he comes home untrained.
+  A man is sent only when he can find a way there on foot (a road may run where men cannot walk), and his trip may take 40 days, longer for a far academy or a long way round; one not there in time is
+  given up, and that fort sends nobody for 16 days (nor for 16 days after finding no way on foot).
+  The fort's panel says "5 of 8 trained, 1 at the Campus", and a click on him says "Training at the Campus, 9 days left".
+  Measured: a fort of 8 untrained legionaries with the academy 10 to 20 tiles' walk away is all trained in 15 to 23 months, never fewer than 7 in its yard (two at a time would take 8 to 11.5 months but
+  leave it 6).
+  In 18 runs of a raid of 14 that struck with no warning while men were away (up to one from each of the three forts), every one turned back on the raid's first tick and was with his fort within about a
+  day; the raids went as they did without the trips (killed 197 against 191, buildings lost 47 against 41, soldiers lost 146 against 138, 15 of 18 repelled either way: within the runs' spread).
+* What it gives (Colonia has no morale, so the original's staying power and close order become numbers): a trained **legionary holding position** (standing his ground: still at his post, by the fort or
+  where it was deployed, or standing to fight a raider in reach; not running after one or marching) has +4 defense and takes a quarter of every missile's damage (a sling stone that would do 3.5 does
+  0.5: the original's close order took 1 damage a missile); trained **archers and cavalry** +2 defense at all times.
+  Attack and hit points never change.
+  In a distant battle a soldier counts 2 (legionary) or 1 (auxiliary), one more trained (see Distant battles).
 
-**Horse breeding.** An Equaria (Horse Ranch: 3x3 on meadow, 10 workers) starts with 2 breeding mares and gains one every 30 staffed days, up to 8. Foaling speed scales with the herd (a new ranch works at a quarter of a mature one's pace); at 8 mares on full meadow it produces a horse about every 30 days.
+**Horse breeding.** An Equaria (Horse Ranch: 3x3 on meadow, 10 workers) starts with 2 breeding mares and gains one every 30 staffed days, up to 8.
+Foaling speed scales with the herd (a new ranch works at a quarter of a mature one's pace); at 8 mares on full meadow it produces a horse about every 30 days.
 
-**Horses stay at the ranch.** No warehouse keeps horses (a warehouse has no order for them). A ranch's stables hold 8 horses; a full ranch foals no more until some leave, and its panel says so. While a fort has empty places for cavalry, a groom leads the horses the forts still need (up to 4 at a time) straight to a Tirocinium with room; otherwise they wait at the ranch. Horses can also be imported from Cirta: they go to a Tirocinium that needs them or to a staffed ranch with room. **Without a ranch no horses can be imported** (with horses on Import, the Trade advisor says so), and a ship brings no more than the staffed ranches have room for plus what the Tirocinia still need. Horses you sell are taken from the ranches: a caravan's from the ranches on its warehouse's roads, a ship's by dock workers from staffed ranches near the Emporium. The city's stock (trade levels, the Emperor's requests, the Production and Military advisors) counts the horses at the ranches. The Emperor asks for horses only while you have a ranch, in whole horses, and never more than your ranches' stables hold together.
+**Horses stay at the ranch.** No warehouse keeps horses (a warehouse has no order for them).
+A ranch's stables hold 8 horses; a full ranch foals no more until some leave, and its panel says so.
+While a fort has empty places for cavalry, a groom leads the horses the forts still need (up to 4 at a time) straight to a Tirocinium with room; otherwise they wait at the ranch.
+Horses can also be imported from Cirta: they go to a Tirocinium that needs them or to a staffed ranch with room.
+**Without a ranch no horses can be imported** (with horses on Import, the Trade advisor says so), and a ship brings no more than the staffed ranches have room for plus what the Tirocinia still need.
+Horses you sell are taken from the ranches: a caravan's from the ranches on its warehouse's roads, a ship's by dock workers from staffed ranches near the Emporium.
+The city's stock (trade levels, the Emperor's requests, the Production and Military advisors) counts the horses at the ranches.
+The Emperor asks for horses only while you have a ranch, in whole horses, and never more than your ranches' stables hold together.
 
-Older saves: horses that were in a warehouse move to a ranch with room when the save loads; what no ranch has room for waits at its warehouse (its panel says so) until its cart can take it to a ranch with room or a Tirocinium that needs it.
+Older saves: horses that were in a warehouse move to a ranch with room when the save loads; what no ranch has room for waits at its warehouse (its panel says so) until its cart can take it to a ranch
+with room or a Tirocinium that needs it.
 
-**At rest.** A fort's soldiers rest in its yard, inside its walls, among the tents (or the stable), and the wounded heal there, from nothing to full in 30 days (`HEAL_DAYS`; a liburnian at its berth mends its hull at the same pace; nobody heals while deployed, standing to or marching): new recruits, from the barracks or the academy, walk in by its gate, and so do men coming home from a deployment or a distant battle. While raiders are in the province (or raider ships off its shore), Caesar's legions or rebel gladiators, and whenever a wolf or an angry villager comes within 12 tiles, they come out by the gate and stand to on the fort's ground outside, on their posts in its ranks (around its post, where they always stood), and go back in when it is over (for a wolf or villager, once it is 16 tiles off). Nothing outside reaches a man in the yard: raiders, wolves and villagers do not pick him, and he catches no thief in the street. With the gate built over, the men use the first open tile beside the fort; with every side shut, those inside stay in.
+**At rest.** A fort's soldiers rest in its yard, inside its walls, among the tents (or the stable), and the wounded heal there, from nothing to full in 30 days (`HEAL_DAYS`; a liburnian at its berth
+mends its hull at the same pace; nobody heals while deployed, standing to or marching): new recruits, from the barracks or the academy, walk in by its gate, and so do men coming home from a deployment
+or a distant battle.
+While raiders are in the province (or raider ships off its shore), Caesar's legions or rebel gladiators, and whenever a wolf or an angry villager comes within 12 tiles, they come out by the gate and
+stand to on the fort's ground outside, on their posts in its ranks (around its post, where they always stood), and go back in when it is over (for a wolf or villager, once it is 16 tiles off).
+Nothing outside reaches a man in the yard: raiders, wolves and villagers do not pick him, and he catches no thief in the street.
+With the gate built over, the men use the first open tile beside the fort; with every side shut, those inside stay in.
 
-**Building where people stand.** A building or wall placed where soldiers, raiders, wolves or villagers stand, or where a rioter (or a prefect after him) waits off the roads, never shuts them inside it: each steps aside to the nearest open tile the moment it is built, and goes on from there (soldiers to their places in the ranks, which are always on open ground). Placing is never refused for them. A man of Rome on a road where a wall makes a gate stays where he is: the gate is his to pass.
+**Building where people stand.** A building or wall placed where soldiers, raiders, wolves or villagers stand, or where a rioter (or a prefect after him) waits off the roads, never shuts them inside
+it: each steps aside to the nearest open tile the moment it is built, and goes on from there (soldiers to their places in the ranks, which are always on open ground).
+Placing is never refused for them.
+A man of Rome on a road where a wall makes a gate stays where he is: the gate is his to pass.
 
-**Orders.** As in the original, a fort that is not deployed **holds its ground**: its soldiers stand on their posts by the fort and fight only what comes to them. A legionary or cavalryman steps out to strike an enemy within about 2 tiles of the fort's ranks (any of its men's posts, so the men behind the front rank join in) and steps back, letting go of one that moves a tile beyond that; an archer shoots whatever comes in range of his post (6.5 tiles) and never walks out; and anyone answers an enemy striking at him (a slinger out of reach of the ranks) for as long as it does. The same holds against raiders by land or sea and against Caesar's legions. To fight in the field, **Deploy** (fort panel or Military advisor, or **F** with the fort's panel open) plants a standard anywhere: the soldiers march there, hold that spot and go out to meet raiders within about 1.5x their sight of it (legion 12 tiles, archers 13.5, cavalry 18), chasing up to 4 tiles beyond that; on the march there, a soldier also fights any enemy that comes within half his sight of him (4 tiles for a legionary), then marches on. **Recall** sends them home. If a fort is destroyed or demolished, its garrison disbands. A fort with any of its men away at a distant battle (on their way out, there, or on their way home after a recall) cannot be cleared, demolished from its panel or undone: *Its soldiers are away at a distant battle: recall them or wait for them to come home*. The same holds for a Statio with ships away. Raiders or an earthquake can still bring one down, and then its men away are released where they are. Forts never burn or decay.
+**Orders.** As in the original, a fort that is not deployed **holds its ground**: its soldiers stand on their posts by the fort and fight only what comes to them.
+A legionary or cavalryman steps out to strike an enemy within about 2 tiles of the fort's ranks (any of its men's posts, so the men behind the front rank join in) and steps back, letting go of one
+that moves a tile beyond that; an archer shoots whatever comes in range of his post (6.5 tiles) and never walks out; and anyone answers an enemy striking at him (a slinger out of reach of the ranks)
+for as long as it does.
+The same holds against raiders by land or sea and against Caesar's legions.
+To fight in the field, **Deploy** (fort panel or Military advisor, or **F** with the fort's panel open) plants a standard anywhere: the soldiers march there, hold that spot and go out to meet raiders
+within about 1.5x their sight of it (legion 12 tiles, archers 13.5, cavalry 18), chasing up to 4 tiles beyond that; on the march there, a soldier also fights any enemy that comes within half his sight
+of him (4 tiles for a legionary), then marches on.
+**Recall** sends them home.
+If a fort is destroyed or demolished, its garrison disbands.
+A fort with any of its men away at a distant battle (on their way out, there, or on their way home after a recall) cannot be cleared, demolished from its panel or undone: *Its soldiers are away at a
+distant battle: recall them or wait for them to come home*.
+The same holds for a Statio with ships away.
+Raiders or an earthquake can still bring one down, and then its men away are released where they are.
+Forts never burn or decay.
 
-**Numbered forts and their standards.** Every fort has a number, as the legions had: its panel says *Castra III (Legion Fort)*, the Military advisor lists it so, and its standard carries *III* when deployed. A new fort takes the lowest number no standing fort holds, so a fort built after one was torn down takes that number again. **Shift+1** to **Shift+9** pick up the standard of fort I to IX where you are looking (its panel opens, the view stays): the next click on the map plants it there, as Deploy does (Esc or a right-click puts it down). Pressed twice quickly, the view glides to the fort's standard if it is deployed, else to the fort. Forts X and up are reached by their panel or the Military advisor. A deployed fort's standard on the map is a target of its own, picked before the soldiers, walkers and buildings around it: a click opens the fort (with **Recall**), and pressing on it and dragging moves it (the map does not scroll meanwhile): a ghost standard follows the pointer, and letting go sends the soldiers there, as **Deploy** and a click would. Let go off the map (over a panel or the sidebar), or press **Esc** while dragging, and the standard stays where it was. On a touch screen a drag that starts on a standard moves it; anywhere else it scrolls the map. Saves keep each fort's number; a save from before numbered forts numbers its forts 1, 2, 3 in the order they were built.
+**Numbered forts and their standards.** Every fort has a number, as the legions had: its panel says *Castra III (Legion Fort)*, the Military advisor lists it so, and its standard carries *III* when
+deployed.
+A new fort takes the lowest number no standing fort holds, so a fort built after one was torn down takes that number again.
+**Shift+1** to **Shift+9** pick up the standard of fort I to IX where you are looking (its panel opens, the view stays): the next click on the map plants it there, as Deploy does (Esc or a right-click
+puts it down).
+Pressed twice quickly, the view glides to the fort's standard if it is deployed, else to the fort.
+Forts X and up are reached by their panel or the Military advisor.
+A deployed fort's standard on the map is a target of its own, picked before the soldiers, walkers and buildings around it: a click opens the fort (with **Recall**), and pressing on it and dragging
+moves it (the map does not scroll meanwhile): a ghost standard follows the pointer, and letting go sends the soldiers there, as **Deploy** and a click would.
+Let go off the map (over a panel or the sidebar), or press **Esc** while dragging, and the standard stays where it was.
+On a touch screen a drag that starts on a standard moves it; anywhere else it scrolls the map.
+Saves keep each fort's number; a save from before numbered forts numbers its forts 1, 2, 3 in the order they were built.
 
-Measured (a script on six maps, the level 2 demo city with its three forts, one raid of 8 on Normal): forts left at rest killed 17 raiders in all and lost 9 men, but 3 of the 6 raids broke 10 buildings and won; deployed onto the warband as it came (what `npm run sim -- --garrison` now does), they killed 46, lost 29 men and 3 buildings, and repelled every raid. Before this change, when every fort charged anything within 14 to 26 tiles, it was 37 killed, 28 lost, 21 buildings and 5 of 6 repelled.
+Measured (a script on six maps, the level 2 demo city with its three forts, one raid of 8 on Normal): forts left at rest killed 17 raiders in all and lost 9 men, but 3 of the 6 raids broke 10
+buildings and won; deployed onto the warband as it came (what `npm run sim -- --garrison` now does), they killed 46, lost 29 men and 3 buildings, and repelled every raid.
+Before this change, when every fort charged anything within 14 to 26 tiles, it was 37 killed, 28 lost, 21 buildings and 5 of 6 repelled.
 
-**Defenses.** Turres (watchtowers: 2x2, 6 workers) shoot one arrow about every 1.5 s at full staff at raiders (or rebel gladiators, or wolves) within 8 tiles (12 damage). Walls (Murus: 12 Dn per tile, 220 hp) block raiders; dragging a wall across a road builds a gate (Porta: 40 Dn, 320 hp) that citizens use freely but raiders must break. Dragging a road through a wall cuts a gate. Raiders pick the cheapest way to your buildings, and breaking a wall counts as 14 extra tiles of walking, so close every gap. Damaged walls show cracks (with the WebGL renderer: under half their hit points merlons fall and stones drop at the foot, under a quarter a breach opens; see *Renderer* under Settings); buildings patch raid damage slowly once the fighting stops.
+**Defenses.** Turres (watchtowers: 2x2, 6 workers) shoot one arrow about every 1.5 s at full staff at raiders (or rebel gladiators, or wolves) within 8 tiles (12 damage).
+Walls (Murus: 12 Dn per tile, 220 hp) block raiders; dragging a wall across a road builds a gate (Porta: 40 Dn, 320 hp) that citizens use freely but raiders must break.
+Dragging a road through a wall cuts a gate.
+Raiders pick the cheapest way to your buildings, and breaking a wall counts as 14 extra tiles of walking, so close every gap.
+Damaged walls show cracks (with the WebGL renderer: under half their hit points merlons fall and stones drop at the foot, under a quarter a breach opens; see *Renderer* under Settings); buildings
+patch raid damage slowly once the fighting stops.
 
-**Prefects** fight enemies who come close, as in the original. A prefect walking his rounds (on patrol or heading home; not one running to a fire, putting one out or chasing a criminal) stops when a raider, one of Caesar's legionaries, a rebel gladiator or a wolf on land is within 2 tiles, and fights him where he stands: 40 health, attack 5 (about a third of a legionary's 14), defense 2, a blow a day. He keeps standing his ground while the enemy is within 3 tiles, striking while it is within 2; once it is farther he goes back to his rounds (he never chases one). The enemy turns on him when no soldier is near, and usually wins: on Normal a raider kills a lone prefect in about 4 blows and takes about 14 of his 70 health in return. A prefect does not heal. One killed is gone: his prefecture sends the next only after its usual 3 days (longer when short-staffed), so the streets go unwatched meanwhile, and the Military advisor counts *prefects lost*. A message comes only when two or more fall within 10 days and 12 tiles of each other. His kills count toward the raid's slain (or the legion's) like a soldier's. Raiders still aboard their ships are out of his reach, as is an enemy across water, a wall or a building. He lets a fleeing warband go, and leaves Caesar's men alone while they wait their turn at the entrance, march home or stand halted (so a halted army is not provoked into cutting down one prefect after another). Fires come first: a prefect sent to a fire leaves the fight. Click a fighting prefect and his panel says *Fighting a raider* and shows his health. Measured (the level 2 demo city with 4 prefectures and no soldiers, 10 raiders, three maps, Normal and Insane): the raid still ended with 10 buildings lost every time, with 0 to 2 prefects killed; prefects slow a warband, they do not stop it.
+**Prefects** fight enemies who come close, as in the original.
+A prefect walking his rounds (on patrol or heading home; not one running to a fire, putting one out or chasing a criminal) stops when a raider, one of Caesar's legionaries, a rebel gladiator or a wolf
+on land is within 2 tiles, and fights him where he stands: 40 health, attack 5 (about a third of a legionary's 14), defense 2, a blow a day.
+He keeps standing his ground while the enemy is within 3 tiles, striking while it is within 2; once it is farther he goes back to his rounds (he never chases one).
+The enemy turns on him when no soldier is near, and usually wins: on Normal a raider kills a lone prefect in about 4 blows and takes about 14 of his 70 health in return.
+A prefect does not heal.
+One killed is gone: his prefecture sends the next only after its usual 3 days (longer when short-staffed), so the streets go unwatched meanwhile, and the Military advisor counts *prefects lost*.
+A message comes only when two or more fall within 10 days and 12 tiles of each other.
+His kills count toward the raid's slain (or the legion's) like a soldier's.
+Raiders still aboard their ships are out of his reach, as is an enemy across water, a wall or a building.
+He lets a fleeing warband go, and leaves Caesar's men alone while they wait their turn at the entrance, march home or stand halted (so a halted army is not provoked into cutting down one prefect after
+another).
+Fires come first: a prefect sent to a fire leaves the fight.
+Click a fighting prefect and his panel says *Fighting a raider* and shows his health.
+Measured (the level 2 demo city with 4 prefectures and no soldiers, 10 raiders, three maps, Normal and Insane): the raid still ended with 10 buildings lost every time, with 0 to 2 prefects killed;
+prefects slow a warband, they do not stop it.
 
 ### Caesar's legions
 
 The original's teeth for a governor out of favor (and the reason favor 0 no longer recalls you).
 
-* **The warning.** Checked every day: with favor at **10 or less** and no attack already coming or in the province, Caesar sends his legions, and says so every time (the original warned only the first time). They march from Rome for **12 months** (the Empire map shows them, the top bar shows *⚠ Legions*). Two reminders follow: **halfway** (6 months out, which opens the Empire map when clicked) and **a month away** (which takes you to the map entrance), each saying what your favor at that moment would make them do on arrival, with the bands that would change it (*At your favor now (8) they would attack; from 18 they would halt, from 24 turn for home*). Nothing calls the march off: favor won back meanwhile only decides what they do when they come.
-* **The army.** Imperial legionaries (110 health as your legionary, attack 18 against his 14, defense 11 against 9: the original's proportions), entering at the map entrance in companies (a gate or wall on the entrance tile itself is torn down first): **16, 32, 48, then 72** for the first, second, third and every later attack in this city, x0.7 on Easy, x1.3 on Hard and x1.5 on Insane (Easy 11, 22, 34, 50; Hard 21, 42, 62, 75; Insane 24, 48, 72, 75), never more than 75. Insane's tougher raiders do not make them tougher.
-* **Their targets.** Your residence first; with none, the homes of the best level that has people (the nearest of them); then anything. They go round the city where they can and break through buildings and walls where they must (a building in the way costs them as much as 20 tiles of walking). They fight soldiers who come close, and prefects who fight them (see Prefects above), and towers shoot them as they shoot raiders.
+* **The warning.** Checked every day: with favor at **10 or less** and no attack already coming or in the province, Caesar sends his legions, and says so every time (the original warned only the first
+  time).
+  They march from Rome for **12 months** (the Empire map shows them, the top bar shows *⚠ Legions*).
+  Two reminders follow: **halfway** (6 months out, which opens the Empire map when clicked) and **a month away** (which takes you to the map entrance), each saying what your favor at that moment would
+  make them do on arrival, with the bands that would change it (*At your favor now (8) they would attack; from 18 they would halt, from 24 turn for home*).
+  Nothing calls the march off: favor won back meanwhile only decides what they do when they come.
+* **The army.** Imperial legionaries (110 health as your legionary, attack 18 against his 14, defense 11 against 9: the original's proportions), entering at the map entrance in companies (a gate or wall
+  on the entrance tile itself is torn down first): **16, 32, 48, then 72** for the first, second, third and every later attack in this city, x0.7 on Easy, x1.3 on Hard and x1.5 on Insane (Easy 11, 22,
+  34, 50; Hard 21, 42, 62, 75; Insane 24, 48, 72, 75), never more than 75.
+  Insane's tougher raiders do not make them tougher.
+* **Their targets.** Your residence first; with none, the homes of the best level that has people (the nearest of them); then anything.
+  They go round the city where they can and break through buildings and walls where they must (a building in the way costs them as much as 20 tiles of walking).
+  They fight soldiers who come close, and prefects who fight them (see Prefects above), and towers shoot them as they shoot raiders.
 * **Favor decides, every day they are in the province** (the sane order; the original's bands were swapped):
 
   | Favor | Easy | Normal | Hard | Insane |
@@ -436,41 +1033,116 @@ The original's teeth for a governor out of favor (and the reason favor 0 no long
   | They halt where they stand (in their first year only) | 17-21 | 18-23 | 20-26 | 22-29 |
   | They attack | under 17 | under 18 | under 20 | under 22 |
 
-  A halted army stands still but fights anyone who attacks it; after a year at your gates it attacks whatever the favor in that band. An army with nothing it can reach for 4 days goes home, and any army after two years in the province. A legionary leaves alone for 20 days a soldier he cannot get at (across water).
-* **The end.** When the last imperial legionary is gone the attack is over. An army **destroyed** earns Caesar's respect: **+10 favor**. An army that marched home earns nothing (the original paid a retreat as a victory). The next day, favor still at 10 or less sends the next, bigger attack.
+  A halted army stands still but fights anyone who attacks it; after a year at your gates it attacks whatever the favor in that band.
+  An army with nothing it can reach for 4 days goes home, and any army after two years in the province.
+  A legionary leaves alone for 20 days a soldier he cannot get at (across water).
+* **The end.** When the last imperial legionary is gone the attack is over.
+  An army **destroyed** earns Caesar's respect: **+10 favor**.
+  An army that marched home earns nothing (the original paid a retreat as a victory).
+  The next day, favor still at 10 or less sends the next, bigger attack.
 * Raids go on meanwhile: a warband and the legions can be in the province together, each counted apart. The danger music plays for both. Buildings they wreck cost peace as raiders' do.
 * Console: `legion` sets them marching now, `legion now [n]` brings them at once.
 
 ### Distant battles
 
-Caesar asks the province for troops to defend a city of the empire. In every mission with forts (never in a peaceful province): Ariminum in Firmum's year 2 (a small army of 12: one fort of legionaries is enough), Placentia in Pons Aelius, Saguntum in Portus Mercatorum, Ariminum in Oasis Aurea, Messana and later Placentia again in Urbs Magna, each of these in its mission's year 3 (4 in Oasis Aurea, 9 for the second in Urbs Magna); Placentia (year 3) and Ariminum (year 7) in Mutina; Italica, threatened by the Lusitanians and reached by water (a sea route: the Baetis runs from Corduba past it to the sea), in Corduba's years 3 and 8; and two mighty hosts in Narbo Martius, the Teutones at Aquae Sextiae (year 4) and the Cimbri at Vercellae (year 8), both reached by land; each in a month from Martius to October drawn from the map's seed. In the **sandbox with raids on**, from the third year, each month brings a request with a chance of 1 in 36 (about one every three years), at least a year after the last one ended, for one of the third century's four cities (Placentia, Ariminum, Saguntum, Messana) and an enemy strength (16 to 40) drawn from the map's seed, but only to a city with an army to send: a staffed fort with soldiers in it, or (for Saguntum or Messana only) a Statio (Naval Station) with ships and water to the sea. A city with no army is never asked, nor fined for not answering. A request that comes while another battle is still going on (or its city still lost) is dropped, as in the original. None of these cities trades with you.
+Caesar asks the province for troops to defend a city of the empire.
+In every mission with forts (never in a peaceful province): Ariminum in Firmum's year 2 (a small army of 12: one fort of legionaries is enough), Placentia in Pons Aelius, Saguntum in Portus
+Mercatorum, Ariminum in Oasis Aurea, Messana and later Placentia again in Urbs Magna, each of these in its mission's year 3 (4 in Oasis Aurea, 9 for the second in Urbs Magna); Placentia (year 3) and
+Ariminum (year 7) in Mutina; Italica, threatened by the Lusitanians and reached by water (a sea route: the Baetis runs from Corduba past it to the sea), in Corduba's years 3 and 8; and two mighty
+hosts in Narbo Martius, the Teutones at Aquae Sextiae (year 4) and the Cimbri at Vercellae (year 8), both reached by land; each in a month from Martius to October drawn from the map's seed.
+In the **sandbox with raids on**, from the third year, each month brings a request with a chance of 1 in 36 (about one every three years), at least a year after the last one ended, for one of the
+third century's four cities (Placentia, Ariminum, Saguntum, Messana) and an enemy strength (16 to 40) drawn from the map's seed, but only to a city with an army to send: a staffed fort with soldiers
+in it, or (for Saguntum or Messana only) a Statio (Naval Station) with ships and water to the sea.
+A city with no army is never asked, nor fined for not answering.
+A request that comes while another battle is still going on (or its city still lost) is dropped, as in the original.
+None of these cities trades with you.
 
-* **The request.** *Caesar calls for troops: a large army of Carthage threatens Saguntum, and the battle will be fought in 24 months.* The enemy's strength is shown in words (a small army under 23, a large army under 45, a mighty host from 45) and as a number in the Imperial advisor.
-* **Empire service.** Each fort and each Statio has an *Empire service* switch (its panel, the Military advisor, the Imperial advisor), off at first. The Imperial advisor's *Send the troops* button (once per battle, with a confirmation) sends **every** soldier of every fort switched on, and, when the city lies on a **sea route** (Saguntum, Messana) and your water reaches the sea, every liburnian of every station switched on (Colonia's own: the original's fleet had no part). Soldiers and ships leave the province the moment they are sent (the march months stand for the whole way); their places at home are kept (the barracks and the navalia do not fill them, and send nothing to a fort or station with men away until all are home), and they are paid as usual.
-* **Strength**, fixed when they are sent: a legionary 2 (3 trained at a Campus, the military academy), an archer or cavalryman 1 (2 trained), a liburnian 4 (6 with a trained crew). The original's enemy strengths are halved for Colonia's 8-man forts.
-* **The march.** They need the length of their way on the empire map from the province, at 4 map units a month, at least 3 months. From the Etruscan coast (Pons Aelius, Urbs Magna, a sandbox there) the ways are drawn for it: Placentia and Ariminum 3, Messana 5, Saguntum 7. From anywhere else they take the roads, or the sea lanes for a city by the sea, to the point nearest the city: Ariminum 3 from Firmum and Luceria, Saguntum 8 from Populonia, Placentia and Ariminum 3 from Mutina, Aquae Sextiae 3 and Vercellae 4 from Narbo Martius, and Italica 3 from Corduba, down the Baetis (it would be a 12-month voyage from the Etruscan coast), so Corduba's troops are away a quarter as long. Each month they come a month nearer, and one more while they are farther off than the enemy is from the city (troops sent late catch up), never nearer than a month (there, they wait). The enemy waits at its gathering place until its own march (6 to 8 months) must begin, and reaches the city in the battle's month. The Imperial advisor says whether troops sent now would come in time.
-* **The battle**, in its month, in this order: nobody sent: lost, **-25 favor** (**-10** if the city had no soldier or ship at all to send); troops more than 2 months away: lost, too late, **-25**, and they come home unharmed; their strength under the enemy's: lost, too weak, **-10**, and every man and ship sent is lost; otherwise **won: +25 favor and a triumphal arch** to build. A lost battle never on its own brings favor down to 10, where Caesar sends his legions. A win costs each fort and station sent a share of its men by the margin `100 x (yours - enemy) / yours`: under 10, 70%; 10-24, 50%; 25-49, 25%; 50-74, 15%; 75 and up, 10% (the original's 5% and 0% rows could never be reached; a tie is a win). Survivors come home after as many months as they covered and walk (or sail) back to their posts; one whose fort or station is gone disbands. A lost city is in enemy hands for 24 months (after any troops are home), then retaken.
-* **Recall** (Colonia's own). Until the battle is fought, the men of one fort (or the ships of one station) can be called back: *Recall from (city)* on its panel or in the Imperial advisor's table of the posts sent. Those still in the province on their way out turn at once. For those already gone, a **rider** carries the order: he rides twice as fast as they march, so he needs **half the months they have marched, rounded up, at least 1**. They march on meanwhile (they do not know yet); when he reaches them they turn back, and come home after **as many months as they had marched out by then**. Turned back, they no longer count in the battle: the army's strength drops by theirs, and the rest fight alone by the rules above (too weak is still too weak). An army that everyone was called back from counts as **nobody sent (-25)**, never as too weak, so sending troops and recalling them all never costs less than staying home. A rider who reaches them only after the battle's month is too late: they fight with the rest and come home by the battle's rule (one reaching them in the battle's own month turns them in time). The empire map shows the rider riding out after the troops and the recalled troops coming home. Example: troops 4 months out on the 7-month road to Saguntum; the rider needs 2 months, in which they march 2 more; they turn 6 months out and are home 6 months later, 8 months after the order.
+* **The request.** *Caesar calls for troops: a large army of Carthage threatens Saguntum, and the battle will be fought in 24 months.* The enemy's strength is shown in words (a small army under 23, a
+  large army under 45, a mighty host from 45) and as a number in the Imperial advisor.
+* **Empire service.** Each fort and each Statio has an *Empire service* switch (its panel, the Military advisor, the Imperial advisor), off at first.
+  The Imperial advisor's *Send the troops* button (once per battle, with a confirmation) sends **every** soldier of every fort switched on, and, when the city lies on a **sea route** (Saguntum, Messana)
+  and your water reaches the sea, every liburnian of every station switched on (Colonia's own: the original's fleet had no part).
+  Soldiers and ships leave the province the moment they are sent (the march months stand for the whole way); their places at home are kept (the barracks and the navalia do not fill them, and send
+  nothing to a fort or station with men away until all are home), and they are paid as usual.
+* **Strength**, fixed when they are sent: a legionary 2 (3 trained at a Campus, the military academy), an archer or cavalryman 1 (2 trained), a liburnian 4 (6 with a trained crew).
+  The original's enemy strengths are halved for Colonia's 8-man forts.
+* **The march.** They need the length of their way on the empire map from the province, at 4 map units a month, at least 3 months.
+  From the Etruscan coast (Pons Aelius, Urbs Magna, a sandbox there) the ways are drawn for it: Placentia and Ariminum 3, Messana 5, Saguntum 7.
+  From anywhere else they take the roads, or the sea lanes for a city by the sea, to the point nearest the city: Ariminum 3 from Firmum and Luceria, Saguntum 8 from Populonia, Placentia and Ariminum 3
+  from Mutina, Aquae Sextiae 3 and Vercellae 4 from Narbo Martius, and Italica 3 from Corduba, down the Baetis (it would be a 12-month voyage from the Etruscan coast), so Corduba's troops are away a
+  quarter as long.
+  Each month they come a month nearer, and one more while they are farther off than the enemy is from the city (troops sent late catch up), never nearer than a month (there, they wait).
+  The enemy waits at its gathering place until its own march (6 to 8 months) must begin, and reaches the city in the battle's month.
+  The Imperial advisor says whether troops sent now would come in time.
+* **The battle**, in its month, in this order: nobody sent: lost, **-25 favor** (**-10** if the city had no soldier or ship at all to send); troops more than 2 months away: lost, too late, **-25**, and
+  they come home unharmed; their strength under the enemy's: lost, too weak, **-10**, and every man and ship sent is lost; otherwise **won: +25 favor and a triumphal arch** to build.
+  A lost battle never on its own brings favor down to 10, where Caesar sends his legions.
+  A win costs each fort and station sent a share of its men by the margin `100 x (yours - enemy) / yours`: under 10, 70%; 10-24, 50%; 25-49, 25%; 50-74, 15%; 75 and up, 10% (the original's 5% and 0%
+  rows could never be reached; a tie is a win).
+  Survivors come home after as many months as they covered and walk (or sail) back to their posts; one whose fort or station is gone disbands.
+  A lost city is in enemy hands for 24 months (after any troops are home), then retaken.
+* **Recall** (Colonia's own).
+  Until the battle is fought, the men of one fort (or the ships of one station) can be called back: *Recall from (city)* on its panel or in the Imperial advisor's table of the posts sent.
+  Those still in the province on their way out turn at once.
+  For those already gone, a **rider** carries the order: he rides twice as fast as they march, so he needs **half the months they have marched, rounded up, at least 1**.
+  They march on meanwhile (they do not know yet); when he reaches them they turn back, and come home after **as many months as they had marched out by then**.
+  Turned back, they no longer count in the battle: the army's strength drops by theirs, and the rest fight alone by the rules above (too weak is still too weak).
+  An army that everyone was called back from counts as **nobody sent (-25)**, never as too weak, so sending troops and recalling them all never costs less than staying home.
+  A rider who reaches them only after the battle's month is too late: they fight with the rest and come home by the battle's rule (one reaching them in the battle's own month turns them in time).
+  The empire map shows the rider riding out after the troops and the recalled troops coming home.
+  Example: troops 4 months out on the 7-month road to Saguntum; the rider needs 2 months, in which they march 2 more; they turn 6 months out and are home 6 months later, 8 months after the order.
 * Console: `battle [city] [n]` asks for troops now, `battle now` fights the pending battle now.
 
 ### Triumphal arches
 
-Each distant battle won earns one **Fornix** (Triumphal Arch; Government & Decor, shown there only while one is there to build, *Free (1)*): 3x3, free, no workers, never burns or decays (Caesar's legions and raiders can wreck it, 1,200 health). It is built **across a straight road**: the road must run through its middle row or column from side to side, plain road (not a plaza, bridge or the Imperial road's entrance) with no roadblock, and its other six tiles must be open land with no road (so not over a junction or a road two wide). The road runs on under it and walkers pass as before (soldiers and raiders go round it). Desirability +18 beside it, in rings of 18, 18, 15, 15, 12 (the falling reading of the original's numbers). An arch that is lost (demolished or destroyed) may be built again; its road stays clear (rubble falls only either side of it).
+Each distant battle won earns one **Fornix** (Triumphal Arch; Government & Decor, shown there only while one is there to build, *Free (1)*): 3x3, free, no workers, never burns or decays (Caesar's
+legions and raiders can wreck it, 1,200 health).
+It is built **across a straight road**: the road must run through its middle row or column from side to side, plain road (not a plaza, bridge or the Imperial road's entrance) with no roadblock, and
+its other six tiles must be open land with no road (so not over a junction or a road two wide).
+The road runs on under it and walkers pass as before (soldiers and raiders go round it).
+Desirability +18 beside it, in rings of 18, 18, 15, 15, 12 (the falling reading of the original's numbers).
+An arch that is lost (demolished or destroyed) may be built again; its road stays clear (rubble falls only either side of it).
 
 ### The gladiators' revolt
 
-A revolt of the gladiators is a scheduled event of Urbs Magna (year 5) and Puteoli (year 6), in a month from Aprilis to Iulius (see Events); the console's `revolt` starts one now. In its month, if no Ludus Gladiatorius (Gladiator School) is working (staffed, with a road), it is called off for good, without a word. Otherwise *the gladiators have revolted*, and for 3 months every gladiator out in the streets turns on the city where he stands: those on their way from a school to a venue, and the entertainers of venues whose gladiator shows are booked; the schools keep training them, so new ones turn as they set out. A rebel gladiator (75 health, attack 12, defense 4) goes for the nearest buildings as a raider does and breaks what he reaches. Soldiers, watchtowers and prefects fight them, and while they are in the province no peace is gained. In the end month the revolt is over and the survivors flee the map. Rebels are no part of a raid: a raid and a revolt are counted apart.
+A revolt of the gladiators is a scheduled event of Urbs Magna (year 5) and Puteoli (year 6), in a month from Aprilis to Iulius (see Events); the console's `revolt` starts one now.
+In its month, if no Ludus Gladiatorius (Gladiator School) is working (staffed, with a road), it is called off for good, without a word.
+Otherwise *the gladiators have revolted*, and for 3 months every gladiator out in the streets turns on the city where he stands: those on their way from a school to a venue, and the entertainers of
+venues whose gladiator shows are booked; the schools keep training them, so new ones turn as they set out.
+A rebel gladiator (75 health, attack 12, defense 4) goes for the nearest buildings as a raider does and breaks what he reaches.
+Soldiers, watchtowers and prefects fight them, and while they are in the province no peace is gained.
+In the end month the revolt is over and the survivors flee the map.
+Rebels are no part of a raid: a raid and a revolt are counted apart.
 
 ### Wolves
 
-Wolf packs live in the woods of the northern and hill provinces that have an army to clear them: Firmum, Pons Aelius, Mutina and Narbo Martius; never in the first two missions, on the desert map, or in a province that cannot build forts or watchtowers (prefects alone lose to wolves, and a pack grows back). The sandbox has a *Wolves* switch in its setup, off unless ticked. A map has 1 to 4 packs by the size of its land (one for each 100 x 100 tiles), each of 6 to 8 wolves, with a den deep in a wood at least 30 tiles from the map entrance and 10 from the Imperial road. The dens are drawn from the map's seed when the city is founded.
+Wolf packs live in the woods of the northern and hill provinces that have an army to clear them: Firmum, Pons Aelius, Mutina and Narbo Martius; never in the first two missions, on the desert map, or
+in a province that cannot build forts or watchtowers (prefects alone lose to wolves, and a pack grows back).
+The sandbox has a *Wolves* switch in its setup, off unless ticked.
+A map has 1 to 4 packs by the size of its land (one for each 100 x 100 tiles), each of 6 to 8 wolves, with a den deep in a wood at least 30 tiles from the map entrance and 10 from the Imperial road.
+The dens are drawn from the map's seed when the city is founded.
 
-* **Roaming.** A pack rests at a spot and, 3 days after its wolves have gathered there, moves on together, up to 16 tiles, never more than 22 from its den, to open land with no building within 6 tiles, no road within 2, no Roman soldier within 8 and little desirability (1 at most, 2 in winter, when hunger brings them a little nearer): the city's edge, never its heart. When the city builds up the ground where a pack rests, it moves away the next day.
-* **Hunting.** A walker who comes within 2.5 tiles of a wolf (anyone on foot but a prefect: cart pushers, traders' caravans, settlers, service walkers) sets the whole pack on: each wolf runs at the nearest walker within 6 tiles of it, not beyond 12 tiles of the pack's spot, the wolves spreading over several. A walker being bitten stands still. A bite takes 4 health on Easy, 6 on Normal, 8 on Hard and Insane, against a walker's 20: he dies in 5, 4 or 3 bites. A kill ends the hunt: the pack eats and rests 2 days before it hunts again. A walker killed is gone with whatever he carried, as when a fire takes him; his building sends another in its own time. A message names the first walker a pack kills, then at most one about wolves every 16 days.
-* **Clearing a pack.** Wolves (58 health, quick on their feet) are hostile, so soldiers fight them as they fight raiders: deploy a fort by the pack (a pack moves off from soldiers, so deploy where it rests). Watchtowers shoot them, and a prefect on his rounds fights one within 2 tiles; a wolf struck bites back, and a lone prefect usually loses to one. While one wolf of a pack lives, it grows back one wolf every 16 days up to its size; only killing the last ends it (*the wolf pack near 44, 61 is no more*).
-* Wolves are no enemy in the province: they hold up no victory and cost no peace, and they break no buildings. Raiders and wolves leave each other alone. Click a wolf for its panel (its pack, how many are left and when the next grows back, its bite); the Military advisor lists the packs, the wolves killed and the people they have killed.
+* **Roaming.** A pack rests at a spot and, 3 days after its wolves have gathered there, moves on together, up to 16 tiles, never more than 22 from its den, to open land with no building within 6 tiles,
+  no road within 2, no Roman soldier within 8 and little desirability (1 at most, 2 in winter, when hunger brings them a little nearer): the city's edge, never its heart.
+  When the city builds up the ground where a pack rests, it moves away the next day.
+* **Hunting.** A walker who comes within 2.5 tiles of a wolf (anyone on foot but a prefect: cart pushers, traders' caravans, settlers, service walkers) sets the whole pack on: each wolf runs at the
+  nearest walker within 6 tiles of it, not beyond 12 tiles of the pack's spot, the wolves spreading over several.
+  A walker being bitten stands still.
+  A bite takes 4 health on Easy, 6 on Normal, 8 on Hard and Insane, against a walker's 20: he dies in 5, 4 or 3 bites.
+  A kill ends the hunt: the pack eats and rests 2 days before it hunts again.
+  A walker killed is gone with whatever he carried, as when a fire takes him; his building sends another in its own time.
+  A message names the first walker a pack kills, then at most one about wolves every 16 days.
+* **Clearing a pack.** Wolves (58 health, quick on their feet) are hostile, so soldiers fight them as they fight raiders: deploy a fort by the pack (a pack moves off from soldiers, so deploy where it
+  rests).
+  Watchtowers shoot them, and a prefect on his rounds fights one within 2 tiles; a wolf struck bites back, and a lone prefect usually loses to one.
+  While one wolf of a pack lives, it grows back one wolf every 16 days up to its size; only killing the last ends it (*the wolf pack near 44, 61 is no more*).
+* Wolves are no enemy in the province: they hold up no victory and cost no peace, and they break no buildings.
+  Raiders and wolves leave each other alone.
+  Click a wolf for its panel (its pack, how many are left and when the next grows back, its bite); the Military advisor lists the packs, the wolves killed and the people they have killed.
 
-Measured (`npm run sim -- --scenario <id> --years 3`, the level 2 demo city with no soldiers, Normal): Mutina's 3 packs killed 1 walker in 3 years, Narbo Martius's 4 killed 14; Firmum's and Pons Aelius's packs, farther from the town, none. With the demo garrison (`--garrison --years 6`), Narbo Martius's packs killed 28 walkers and lost 20 wolves, one pack cleared.
+Measured (`npm run sim -- --scenario <id> --years 3`, the level 2 demo city with no soldiers, Normal): Mutina's 3 packs killed 1 walker in 3 years, Narbo Martius's 4 killed 14; Firmum's and Pons
+Aelius's packs, farther from the town, none.
+With the demo garrison (`--garrison --years 6`), Narbo Martius's packs killed 28 walkers and lost 20 wolves, one pack cleared.
 
 ## Auto-pause
 
@@ -485,12 +1157,46 @@ Measured (`npm run sim -- --scenario <id> --years 3`, the level 2 demo city with
 | A building collapses | a building falls down from neglect (not one torn down in a raid) | off |
 | Disease breaks out | disease breaks out in a home (the month's sum of further cases does not pause) | off |
 
-Only the arrival is on at first: it is the one that costs buildings within days if you are looking elsewhere, and a pause nobody asked for would look like a freeze. When the game pauses, a note in the corner says why (*Paused: a fire broke out*); click it to look (where it happened, the empire map for the legions setting out, the Imperial advisor for Caesar's letters). It stays until you click it or the game runs again: Space or P resumes. Only the running game pauses: the main menu's town, a console command (`fire`, `invade`...) and the headless sim never do. The switches change nothing in the city itself: a game plays the same with them on or off.
+Only the arrival is on at first: it is the one that costs buildings within days if you are looking elsewhere, and a pause nobody asked for would look like a freeze.
+When the game pauses, a note in the corner says why (*Paused: a fire broke out*); click it to look (where it happened, the empire map for the legions setting out, the Imperial advisor for Caesar's
+letters).
+It stays until you click it or the game runs again: Space or P resumes.
+Only the running game pauses: the main menu's town, a console command (`fire`, `invade`...)
+and the headless sim never do.
+The switches change nothing in the city itself: a game plays the same with them on or off.
 
 ## Saving
 
-Games are stored in the browser's localStorage under `colonia.save.<slot>`: `auto` (every 3 months and whenever the page is hidden or closed), `quick` (F5 / F9) and `slot1`-`slot5`. Map layers are run-length compressed and walker paths packed, so a year-old small city saves in about 120 KB and a year-old Uber city in about 300 KB; most of a big save is its buildings (about 0.8 KB each). Browsers usually allow about 5 MB per site, so a handful of big-city saves can fill it. The Save/Load menus show each save's size and the total in use. Saves are tied to that browser and site: for backups, the 💾 beside each save in the Save and Load menus downloads that save as a file without loading it (exactly as stored, named like `colonia-slot1-aquae-clarae-279bc.json`), *Export current game* downloads the game being played, and *Copy save data* copies it as text. A campaign save keeps only which mission it is, so it loads with that mission's goals and trade as they are in the version you play: a city saved before a mission's goals changed plays on toward the new ones, and a trade partner the mission has gained since is there to open. The save format is versioned (currently 35: saves no longer hold values the game works out again, so they are a little smaller, and older saves load as they did; version 34: missiles in flight, so a save made in the middle of a fight lands the arrows that were in the air, where before they fell harmlessly on load; version 33: Ludi and Circenses, each kind's lift to the city mood, its cooldown and how many were held, and older saves load having held none, either one free to hold at once; version 32: homes need marble from the Marble Villa up, and older saves load with marble at 0 in homes and markets, their Peristyle Villas and better with six months of it; version 31 was monuments, 30 waterside buildings out over the water, 29 soldiers training at rest and 28 prefects fighting one fire at a time; version 27 was festivals costing goods and each god remembering its last festival, older saves loading with every god on a fresh year, none held; version 26 was gardens and statues remembering when a gardener last tended them, older saves loading with every one fully tended, last visited the day they load; version 25 was numbered forts, an older save's forts numbered in the order they were built; version 24 was the sandbox's events, a switch each, and version 23 events, raiders' peoples, wolves, low bridges and native villages; version 22 was buildings turn, each keeping the turn it was placed with, and a hippodrome turned a quarter lies north-south; older saves load with every building at turn 0, the hippodrome along x as it always was; version 21 was trade by partner (older saves load with every switch on); version 20 was horses living at the Horse Ranch (an older save's warehouse horses move to ranches with room); version 19: riders carrying a recall from a distant battle and recalled troops on their way home; older saves load with no rider out and nobody recalled; version 17 was shipyards that hold timber (an older save loads with 100 timber in a yard that had a boat started and none in the others); version 16 was training that takes time; version 15 was
- the staged raid warnings and the legions' reminders: version 14 and older saves load with each warning whose moment has passed counted as given, so none comes late or twice; version 14 was Caesar's legions, distant battles, the forts' and stations' Empire service switch and triumphal arches; version 13 and older saves load with no legions coming, no battle, no arch earned, every switch off and the population peak (for the overrun rule) starting again from the population they have, and a city that was at favor 0 goes on (the legions set out the next day); version 13 was the governor; version 12 was training at the Military Academy and the Portus, and large temples: version 11 saves load with every soldier, ship and recruit untrained and nobody on the way to be trained; version 11 was sea raids and the fleet: version 10 saves load with no fleet and the Sea raids switch on, and a raid the scouts already saw comes by land as it would have; version 10 was the cloth industry: version 9 saves load with no flax, linen or clothing in store, their Tenements and better homes with three months of clothing; version 8 saves load without fish or a hippodrome; version 7 brought granary and warehouse orders, rubble that remembers what fell, and the original's five gods; version 6 saves still load, each good a storehouse accepted on Accept and the rest on Refuse, nothing emptying, old rubble without its story, and Jupiter's temples, mood, priests and every home's access to him becoming Mercury's, and Vesta's Venus's; version 5 saves load with nobody sick and city health at 50, and version 4 saves too, their homes also starting at the city's mood). Until version 1.0 a release may change it: saves from before v0.7 (the 20-level housing ladder) cannot be loaded, and say so.
+Games are stored in the browser's localStorage under `colonia.save.<slot>`: `auto` (every 3 months and whenever the page is hidden or closed), `quick` (F5 / F9) and `slot1`-`slot5`.
+Map layers are run-length compressed and walker paths packed, so a year-old small city saves in about 120 KB and a year-old Uber city in about 300 KB; most of a big save is its buildings (about 0.8 KB
+each).
+Browsers usually allow about 5 MB per site, so a handful of big-city saves can fill it.
+The Save/Load menus show each save's size and the total in use.
+Saves are tied to that browser and site: for backups, the 💾 beside each save in the Save and Load menus downloads that save as a file without loading it (exactly as stored, named like
+`colonia-slot1-aquae-clarae-279bc.json`), *Export current game* downloads the game being played, and *Copy save data* copies it as text.
+A campaign save keeps only which mission it is, so it loads with that mission's goals and trade as they are in the version you play: a city saved before a mission's goals changed plays on toward the
+new ones, and a trade partner the mission has gained since is there to open.
+The save format is versioned (currently 35: saves no longer hold values the game works out again, so they are a little smaller, and older saves load as they did; version 34: missiles in flight, so a
+save made in the middle of a fight lands the arrows that were in the air, where before they fell harmlessly on load; version 33: Ludi and Circenses, each kind's lift to the city mood, its cooldown and
+how many were held, and older saves load having held none, either one free to hold at once; version 32: homes need marble from the Marble Villa up, and older saves load with marble at 0 in homes and
+markets, their Peristyle Villas and better with six months of it; version 31 was monuments, 30 waterside buildings out over the water, 29 soldiers training at rest and 28 prefects fighting one fire at
+a time; version 27 was festivals costing goods and each god remembering its last festival, older saves loading with every god on a fresh year, none held; version 26 was gardens and statues remembering
+when a gardener last tended them, older saves loading with every one fully tended, last visited the day they load; version 25 was numbered forts, an older save's forts numbered in the order they were
+built; version 24 was the sandbox's events, a switch each, and version 23 events, raiders' peoples, wolves, low bridges and native villages; version 22 was buildings turn, each keeping the turn it was
+placed with, and a hippodrome turned a quarter lies north-south; older saves load with every building at turn 0, the hippodrome along x as it always was; version 21 was trade by partner (older saves
+load with every switch on); version 20 was horses living at the Horse Ranch (an older save's warehouse horses move to ranches with room); version 19: riders carrying a recall from a distant battle and
+recalled troops on their way home; older saves load with no rider out and nobody recalled; version 17 was shipyards that hold timber (an older save loads with 100 timber in a yard that had a boat
+started and none in the others); version 16 was training that takes time; version 15 was
+ the staged raid warnings and the legions' reminders: version 14 and older saves load with each warning whose moment has passed counted as given, so none comes late or twice; version 14 was Caesar's
+ legions, distant battles, the forts' and stations' Empire service switch and triumphal arches; version 13 and older saves load with no legions coming, no battle, no arch earned, every switch off and
+ the population peak (for the overrun rule) starting again from the population they have, and a city that was at favor 0 goes on (the legions set out the next day); version 13 was the governor; version
+ 12 was training at the Military Academy and the Portus, and large temples: version 11 saves load with every soldier, ship and recruit untrained and nobody on the way to be trained; version 11 was sea
+ raids and the fleet: version 10 saves load with no fleet and the Sea raids switch on, and a raid the scouts already saw comes by land as it would have; version 10 was the cloth industry: version 9
+ saves load with no flax, linen or clothing in store, their Tenements and better homes with three months of clothing; version 8 saves load without fish or a hippodrome; version 7 brought granary and
+ warehouse orders, rubble that remembers what fell, and the original's five gods; version 6 saves still load, each good a storehouse accepted on Accept and the rest on Refuse, nothing emptying, old
+ rubble without its story, and Jupiter's temples, mood, priests and every home's access to him becoming Mercury's, and Vesta's Venus's; version 5 saves load with nobody sick and city health at 50, and
+ version 4 saves too, their homes also starting at the city's mood).
+ Until version 1.0 a release may change it: saves from before v0.7 (the 20-level housing ladder) cannot be loaded, and say so.
 
 ## City mood (sentiment)
 
@@ -509,13 +1215,16 @@ Starts from 60 and is recalculated monthly (moving halfway toward the new value)
 | New city | +20 for the first 9 months, fading evenly to nothing over the next 6 (settlers also come 1.6 times as keenly meanwhile) |
 | Difficulty | -8 on Insane |
 
-The top bar shows the mood (🙂) and, beside it, unemployment (⚒): the share of the workforce with no job. It turns amber above 10%, where it starts to cost mood; its tooltip says how much, and a click opens the Labor advisor. More workplaces, or fewer new homes, bring it down.
+The top bar shows the mood (🙂) and, beside it, unemployment (⚒): the share of the workforce with no job.
+It turns amber above 10%, where it starts to cost mood; its tooltip says how much, and a click opens the Labor advisor.
+More workplaces, or fewer new homes, bring it down.
 
 Mood 30+ brings settlers; below 25 people start leaving.
 
 ## Home mood and crime
 
-Every household also has a **mood** of its own (0-100, the house panel's *Mood and order*), used for crime only: settlers and emigrants still follow the city's mood. Twice a month (the 1st and the 9th) each home moves at most 3 points toward a target:
+Every household also has a **mood** of its own (0-100, the house panel's *Mood and order*), used for crime only: settlers and emigrants still follow the city's mood.
+Twice a month (the 1st and the 9th) each home moves at most 3 points toward a target:
 
 | Term | Effect |
 |---|---|
@@ -528,15 +1237,30 @@ Every household also has a **mood** of its own (0-100, the house panel's *Mood a
 
 A new household starts at the city's mood. The panel and the crime overlay name the home's worst trouble, or else the city's worst mood factor.
 
-**The daily roll.** Once the city has 300 people (never in the first two campaign missions), each day one unhappy home may breed trouble: the one with the lowest mood among homes below 50 that still can (a home at 50 or more settles down and can start again). The chance is 61% x (1 - city mood / 108) a day (61% at mood 0, 44% at 30, 27% at 60, 5% at 100), times the difficulty's crime lever, and halved when a prefect passed that home in the last 32 days. What happens is the worst the home can do:
+**The daily roll.** Once the city has 300 people (never in the first two campaign missions), each day one unhappy home may breed trouble: the one with the lowest mood among homes below 50 that still
+can (a home at 50 or more settles down and can start again).
+The chance is 61% x (1 - city mood / 108) a day (61% at mood 0, 44% at 30, 27% at 60, 5% at 100), times the difficulty's crime lever, and halved when a prefect passed that home in the last 32 days.
+What happens is the worst the home can do:
 
 * **Protester** (mood under 50, once per unhappy spell): stands in the street by the home for about four days. Harmless: it costs no peace, except on Insane, where every fifth protest costs 1.
-* **Thief** (mood under 35, once): walks to the nearest staffed Forum or Curia (Senate House; within 50 road tiles) and steals a quarter of this year's taxes there, at most 400 Dn and never more than the treasury holds (nothing under 5), shown as *Stolen by thieves* in the Finance ledger; with no Forum or Curia in reach he takes half the biggest stock of the nearest stocked market (at most 100). A prefect or soldier who catches him on the way saves it all.
-* **Riot** (mood 15 or less while the city's mood is under 30, with a road within 4 tiles): the rioters set their own home alight (its people become homeless), and a mob of 1 to 6 (by population: up to 150, 300, 800, 1,200, 2,000 people, more) marches across country on the most prized building within 40 tiles (the governor's residence, the Curia, then villas and palatia, an arena, a hospital, venues, schools, baths, the Forum, a medicus, temples, workshops, the granary, markets, insulae...), or with none that close the nearest such building it can walk to, setting alight each building it passes (not warehouses, forts, towers, wells, fountains, reservoirs, statues or gardens, nor homes of level 6 or below) and resting by the flames about three days. Rioters leave after 16 days, or when nothing they can reach is left to burn. A riot costs peace at once (see *Peace* below), but the anger is spent: every home's mood rises by 20.
+* **Thief** (mood under 35, once): walks to the nearest staffed Forum or Curia (Senate House; within 50 road tiles) and steals a quarter of this year's taxes there, at most 400 Dn and never more than
+  the treasury holds (nothing under 5), shown as *Stolen by thieves* in the Finance ledger; with no Forum or Curia in reach he takes half the biggest stock of the nearest stocked market (at most 100).
+  A prefect or soldier who catches him on the way saves it all.
+* **Riot** (mood 15 or less while the city's mood is under 30, with a road within 4 tiles): the rioters set their own home alight (its people become homeless), and a mob of 1 to 6 (by population: up to
+  150, 300, 800, 1,200, 2,000 people, more) marches across country on the most prized building within 40 tiles (the governor's residence, the Curia, then villas and palatia, an arena, a hospital,
+  venues, schools, baths, the Forum, a medicus, temples, workshops, the granary, markets, insulae...), or with none that close the nearest such building it can walk to, setting alight each building it
+  passes (not warehouses, forts, towers, wells, fountains, reservoirs, statues or gardens, nor homes of level 6 or below) and resting by the flames about three days.
+  Rioters leave after 16 days, or when nothing they can reach is left to burn.
+  A riot costs peace at once (see *Peace* below), but the anger is spent: every home's mood rises by 20.
 
-**Catching criminals.** A prefect (not one fighting a fire or a raider) or a soldier beside a criminal holds him until he gives up: about 15 ticks for a prefect, 6 for a soldier. Every 10 ticks a prefect on patrol also looks for a thief or rioter within 30 tiles that nobody chases yet and runs after him (across fields if need be); after the catch he goes home. One he cannot reach (across a river) he leaves alone for 8 days and keeps on his patrol. Fires come first: a prefect sent to a fire drops the chase.
+**Catching criminals.** A prefect (not one fighting a fire or a raider) or a soldier beside a criminal holds him until he gives up: about 15 ticks for a prefect, 6 for a soldier.
+Every 10 ticks a prefect on patrol also looks for a thief or rioter within 30 tiles that nobody chases yet and runs after him (across fields if need be); after the catch he goes home.
+One he cannot reach (across a river) he leaves alone for 8 days and keeps on his patrol.
+Fires come first: a prefect sent to a fire drops the chase.
 
-**The crime overlay** (top bar) raises a column over each occupied home by its mood, taller and redder for more crime (0: 10, 1-10: 8, 11-20: 6, 21-30: 4, 31-40: 2, 41-49: 1, 50+: none); a home that has already sent out a protester or thief stands at 8 or more. Excubitoria (prefectures), prefects and criminals stay in view; point at a home for its mood, its trouble and whether a prefect patrols it.
+**The crime overlay** (top bar) raises a column over each occupied home by its mood, taller and redder for more crime (0: 10, 1-10: 8, 11-20: 6, 21-30: 4, 31-40: 2, 41-49: 1, 50+: none); a home that
+has already sent out a protester or thief stands at 8 or more.
+Excubitoria (prefectures), prefects and criminals stay in view; point at a home for its mood, its trouble and whether a prefect patrols it.
 
 ## Health and disease
 
@@ -550,54 +1274,152 @@ Every occupied home has a **health score** (0-100, the house panel's *Health* se
 | Fountain water | 10 (a well does not count) |
 | Food | 10 for each kind in the pantry |
 
-At most 100, and at most 40 for a home whose level eats and that has no food at all. For example a Domus (level 9) with a medicus, baths, a barber, a fountain and two kinds of food scores 9 + 30 + 15 + 10 + 10 + 20 = 94.
+At most 100, and at most 40 for a home whose level eats and that has no food at all.
+For example a Domus (level 9) with a medicus, baths, a barber, a fountain and two kinds of food scores 9 + 30 + 15 + 10 + 10 + 20 = 94.
 
-**Disease risk** builds like fire risk, on each occupied home every day: 0.2 x (100 - score) / 100 x crowding x the difficulty's disease lever, give or take 40%, where crowding is 0.5 + residents / 40 (at most 2), and half that within a staffed hospital's reach. A physician passing within 2 tiles clears it. A crowded home of 40 scoring 20 that no physician visits reaches 100 in about 10 months on Normal; a home scoring 80 would take over three years, and has a medicus anyway. From 100 a home has a 25% chance a day to **fall sick**. There is no disease while the city has under 200 people, nor in the first two campaign missions.
+**Disease risk** builds like fire risk, on each occupied home every day: 0.2 x (100 - score) / 100 x crowding x the difficulty's disease lever, give or take 40%, where crowding is 0.5 + residents / 40
+(at most 2), and half that within a staffed hospital's reach.
+A physician passing within 2 tiles clears it.
+A crowded home of 40 scoring 20 that no physician visits reaches 100 in about 10 months on Normal; a home scoring 80 would take over three years, and has a medicus anyway.
+From 100 a home has a 25% chance a day to **fall sick**.
+There is no disease while the city has under 200 people, nor in the first two campaign missions.
 
-**A sick home.** When it falls sick a fifth of its residents die (a tenth within a hospital's reach), at least one; a home left empty becomes a vacant lot. The rest are sick for 32 days: the home cannot move up and takes in no settlers, and each day every occupied home touching it gains 0.3 disease risk and has a 0.3% chance to fall sick too (times the lever, halved within a hospital's reach), once a day however many sick homes it touches. A physician who passes cures it at once. A staffed Medicus (Physician) within 24 road tiles sends one, the way prefectures send prefects to fires (a physician already on his rounds nearby is called over first); he stays a day, then sees to the next sick home nearby or goes back. Otherwise the home recovers by itself when its days run out. A sick home is drawn pale with a cloth on a pole, and carries a round green sign with a cross over its roof, at any zoom and by night; its panel opens on the outbreak, with the days left and what cures it. The first outbreak of a month has a message of its own; the month's others are summed up in one message at the start of the next.
+**A sick home.** When it falls sick a fifth of its residents die (a tenth within a hospital's reach), at least one; a home left empty becomes a vacant lot.
+The rest are sick for 32 days: the home cannot move up and takes in no settlers, and each day every occupied home touching it gains 0.3 disease risk and has a 0.3% chance to fall sick too (times the
+lever, halved within a hospital's reach), once a day however many sick homes it touches.
+A physician who passes cures it at once.
+A staffed Medicus (Physician) within 24 road tiles sends one, the way prefectures send prefects to fires (a physician already on his rounds nearby is called over first); he stays a day, then sees to
+the next sick home nearby or goes back.
+Otherwise the home recovers by itself when its days run out.
+A sick home is drawn pale with a cloth on a pole, and carries a round green sign with a cross over its roof, at any zoom and by night; its panel opens on the outbreak, with the days left and what
+cures it.
+The first outbreak of a month has a message of its own; the month's others are summed up in one message at the start of the next.
 
-**City health** moves 2 points a month toward the residents' average score (weighted by residents). It stays at 50 while the city has under 200 people. It is shown (the Health advisor and the Overview), not a rating: it feeds no rating and not migration.
+**City health** moves 2 points a month toward the residents' average score (weighted by residents).
+It stays at 50 while the city has under 200 people.
+It is shown (the Health advisor and the Overview), not a rating: it feeds no rating and not migration.
 
-**The Disease overlay** (top bar) raises a column over each occupied home by its disease risk, like the fire overlay, and a pale green one at full height over each sick home. Medici, hospitals, baths and barbers stay in view, with their walkers; point at a home for its score, what lowers it (no medicus, no baths, well water only, no food...), its risk and the days its sickness has left. Citizens talk about it when a home is sick. Keeping a physician passing every street is the cure: in the balance sim's demo city, whose one Medicus covers most of its homes, an outbreak comes about once in five years on Normal (and hardly ever on Easy), while its basic version, with wells and no medicus, barber or baths, has over a hundred in three years. The **Health** overlay shows which homes a barber, a medicus and the baths reach.
+**The Disease overlay** (top bar) raises a column over each occupied home by its disease risk, like the fire overlay, and a pale green one at full height over each sick home.
+Medici, hospitals, baths and barbers stay in view, with their walkers; point at a home for its score, what lowers it (no medicus, no baths, well water only, no food...), its risk and the days its
+sickness has left.
+Citizens talk about it when a home is sick.
+Keeping a physician passing every street is the cure: in the balance sim's demo city, whose one Medicus covers most of its homes, an outbreak comes about once in five years on Normal (and hardly ever
+on Easy), while its basic version, with wells and no medicus, barber or baths, has over a hundred in three years.
+The **Health** overlay shows which homes a barber, a medicus and the baths reach.
 
 ## Health, Education and Entertainment advisors
 
-Three advisor tabs (F2) show how well the city's services cover its people. Each lists every kind of building with how many are **staffed** of those built (Balneae without piped water are counted apart), its **reach** (the residents of homes one of its walkers visited in the last 96 days; for a hospital, the homes within 12 tiles while it is staffed; also as a share of everyone) and the **homes' needs** it meets: of the people whose homes need it for their next level (their own, at the top), how many have it. A home that needs only "a medicus or a hospital" is served by either, and one that needs only "a school or a library" likewise. Click a building's name to go to each of them in turn.
+Three advisor tabs (F2) show how well the city's services cover its people.
+Each lists every kind of building with how many are **staffed** of those built (Balneae without piped water are counted apart), its **reach** (the residents of homes one of its walkers visited in the
+last 96 days; for a hospital, the homes within 12 tiles while it is staffed; also as a share of everyone) and the **homes' needs** it meets: of the people whose homes need it for their next level
+(their own, at the top), how many have it.
+A home that needs only "a medicus or a hospital" is served by either, and one that needs only "a school or a library" likewise.
+Click a building's name to go to each of them in turn.
 
-Coverage is a truncated percentage (100 means everyone) in one of twelve words: None (0%), Almost none (1-9%), Very poor (10-19%), Poor (20-29%), Weak (30-39%), Patchy (40-49%), About half (50-59%), Fair (60-69%), Good (70-79%), Very good (80-89%), Nearly full (90-99%), Full (100%). Colonia's coverage is not the original's places per building: here a school or a medicus serves every home its walker passes, however many, so the advisors count the people actually reached. Venues are the exception: their seats (theater 400, amphitheater 900, arena 2,000; the original had 500, 800 and 1,500) set the city-wide entertainment base, and the Entertainment advisor shows them.
+Coverage is a truncated percentage (100 means everyone) in one of twelve words: None (0%), Almost none (1-9%), Very poor (10-19%), Poor (20-29%), Weak (30-39%), Patchy (40-49%), About half (50-59%),
+Fair (60-69%), Good (70-79%), Very good (80-89%), Nearly full (90-99%), Full (100%).
+Colonia's coverage is not the original's places per building: here a school or a medicus serves every home its walker passes, however many, so the advisors count the people actually reached.
+Venues are the exception: their seats (theater 400, amphitheater 900, arena 2,000; the original had 500, 800 and 1,500) set the city-wide entertainment base, and the Entertainment advisor shows them.
 
-* **Health:** city health out of 100 with a verdict by tens (red below 40; "too small to judge" under 200 people) and whether it is rising or falling toward last month's average; sick homes now (with *Show*), and outbreaks, deaths and cures this year and last; the Medicus (Physician), Valetudinarium (Hospital), Balneae (Baths) and Tonstrina (Barber) rows. Advice: the health building that holds the most homes back (from their next level, or from keeping their own; a tie goes to the baths, then the barber, then the medicus, then the hospital), saying whether none is built, none works, or more are needed; else, where there is disease and a tenth or more of the people have no medicus or hospital near, that their homes fall sick more often; else a need no building of the province can meet ("this province has no Valetudinarium to build"); else that health care meets every home's needs.
-* **Education:** the Ludus Litterarius (School), Bibliotheca (Library) and Academia (Academy) rows and the kind that serves the smallest share of those who need it. Advice: the building that holds the most homes back (academies counted too; ties go to the school, then the library), saying whether none is built, none works, or more are needed; else that no home needs schooling yet (Townhouses and up do); else a need the province cannot meet; else that every home that needs schooling has it.
-* **Entertainment:** the city-wide base every home gets (0 to 31: the seats, a hippodrome's races and a staffed Great Arena's 5) and the seats behind it; per venue kind the staffed venues, the kinds of show booked of those they can stage (a theater plays; an amphitheater plays and bouts; an arena bouts and beasts), the seats of venues with shows as a share of the population, and the people reached; the training buildings and whom they supply; homes short of their next level's entertainment, and how many get no entertainer's visit at all; when the next festival can be held (the button goes to the Religion advisor). Advice, in the original's order: if more short homes get no entertainer's visit than get one, build venues among them (and, since a venue without shows sends no entertainer, which venues lack performers); if no home is short, all is well (or no home needs entertainment yet: Stone Cottages and up do); else the venue kind most in need of performers (each kind of show a staffed venue lacks weighs 1 at a theater, 2 at an amphitheater, 3 at an arena, counting only performers the province can train), with the kinds of show they lack and who trains the performers; else build more venues. The base and the coverage words are the day's count, what homes get until the next day.
+* **Health:** city health out of 100 with a verdict by tens (red below 40; "too small to judge" under 200 people) and whether it is rising or falling toward last month's average; sick homes now (with
+  *Show*), and outbreaks, deaths and cures this year and last; the Medicus (Physician), Valetudinarium (Hospital), Balneae (Baths) and Tonstrina (Barber) rows.
+  Advice: the health building that holds the most homes back (from their next level, or from keeping their own; a tie goes to the baths, then the barber, then the medicus, then the hospital), saying
+  whether none is built, none works, or more are needed; else, where there is disease and a tenth or more of the people have no medicus or hospital near, that their homes fall sick more often; else a
+  need no building of the province can meet ("this province has no Valetudinarium to build"); else that health care meets every home's needs.
+* **Education:** the Ludus Litterarius (School), Bibliotheca (Library) and Academia (Academy) rows and the kind that serves the smallest share of those who need it.
+  Advice: the building that holds the most homes back (academies counted too; ties go to the school, then the library), saying whether none is built, none works, or more are needed; else that no home
+  needs schooling yet (Townhouses and up do); else a need the province cannot meet; else that every home that needs schooling has it.
+* **Entertainment:** the city-wide base every home gets (0 to 31: the seats, a hippodrome's races and a staffed Great Arena's 5) and the seats behind it; per venue kind the staffed venues, the kinds of
+  show booked of those they can stage (a theater plays; an amphitheater plays and bouts; an arena bouts and beasts), the seats of venues with shows as a share of the population, and the people reached;
+  the training buildings and whom they supply; homes short of their next level's entertainment, and how many get no entertainer's visit at all; when the next festival can be held (the button goes to the
+  Religion advisor).
+  Advice, in the original's order: if more short homes get no entertainer's visit than get one, build venues among them (and, since a venue without shows sends no entertainer, which venues lack
+  performers); if no home is short, all is well (or no home needs entertainment yet: Stone Cottages and up do); else the venue kind most in need of performers (each kind of show a staffed venue lacks
+  weighs 1 at a theater, 2 at an amphitheater, 3 at an arena, counting only performers the province can train), with the kinds of show they lack and who trains the performers; else build more venues.
+  The base and the coverage words are the day's count, what homes get until the next day.
 
-The **Overview** shows city health (click it for the Health advisor) and crime at a glance: rioters, thieves or protesters on the streets now, worst first, or none (or no crime in a town under 300 people, or in the first two campaign missions).
+The **Overview** shows city health (click it for the Health advisor) and crime at a glance: rioters, thieves or protesters on the streets now, worst first, or none (or no crime in a town under 300
+people, or in the first two campaign missions).
 
 ## Fire and collapse
 
-Every building gains fire and collapse risk daily at its own rates (homes by level), at the original's pace (x0.62 of the listed rates since v0.12.2: an ordinary building left unserved on Normal burns or falls in about 10 months), x0.5 Easy, x1.3 Hard, x1.5 Insane. At 100 there is a 25% chance per day of disaster. A burning ruin burns for 6 days and can spread: each building beside the flames gains 5 fire risk a day and has a 2% chance a day to catch, once a day however many burning tiles it touches. An unguarded fire in a dense block usually takes a handful of homes; a prefect on the way usually stops it at one or two. Prefects within 24 road tiles are dispatched automatically, one for each burning building (a prefect already on his way to a building, or at it, answers its later calls): first prefects out on their rounds, then a fresh one from the nearest staffed prefecture with fewer than 3 of its prefects already on fire duty (a fire beyond that waits for one of them to finish, or for another prefecture within 24 tiles). A prefect fights one burning building at a time: he stands at it for half a day, throwing water, and then all of its tiles go out together; he then takes the next burning building within 4 tiles of him that no other prefect is fighting, then runs to the nearest one elsewhere within 24 tiles (one no other prefect is running to first), then walks back to his prefecture. Two prefects never fight the same building. Meanwhile every building still burning, the one being fought included, keeps heating its neighbours and may still set them alight: the building itself was lost the moment it caught, so what the prefects save is the street around it, and a block alight needs several of them. A ruin that burns out on its own while being fought sends its prefect straight on. Click a burning ruin to see whether a prefect is putting it out. (The original's prefect also fights one burning ruin at a time, standing up to a day at each, but its ruins are single tiles and it sends only prefects already on patrol.)
+Every building gains fire and collapse risk daily at its own rates (homes by level), at the original's pace (x0.62 of the listed rates since v0.12.2: an ordinary building left unserved on Normal burns
+or falls in about 10 months), x0.5 Easy, x1.3 Hard, x1.5 Insane.
+At 100 there is a 25% chance per day of disaster.
+A burning ruin burns for 6 days and can spread: each building beside the flames gains 5 fire risk a day and has a 2% chance a day to catch, once a day however many burning tiles it touches.
+An unguarded fire in a dense block usually takes a handful of homes; a prefect on the way usually stops it at one or two.
+Prefects within 24 road tiles are dispatched automatically, one for each burning building (a prefect already on his way to a building, or at it, answers its later calls): first prefects out on their
+rounds, then a fresh one from the nearest staffed prefecture with fewer than 3 of its prefects already on fire duty (a fire beyond that waits for one of them to finish, or for another prefecture
+within 24 tiles).
+A prefect fights one burning building at a time: he stands at it for half a day, throwing water, and then all of its tiles go out together; he then takes the next burning building within 4 tiles of
+him that no other prefect is fighting, then runs to the nearest one elsewhere within 24 tiles (one no other prefect is running to first), then walks back to his prefecture.
+Two prefects never fight the same building.
+Meanwhile every building still burning, the one being fought included, keeps heating its neighbours and may still set them alight: the building itself was lost the moment it caught, so what the
+prefects save is the street around it, and a block alight needs several of them.
+A ruin that burns out on its own while being fought sends its prefect straight on.
+Click a burning ruin to see whether a prefect is putting it out.
+(The original's prefect also fights one burning ruin at a time, standing up to a day at each, but its ruins are single tiles and it sends only prefects already on patrol.)
 
 Left with no prefect or engineer passing, an ordinary building reaches 100 in about 100 days on Normal, for fire and collapse alike:
 
-* **As likely to burn as to collapse:** workshops (potter, carpenter, oil press, winery, weaponsmith, fletcher), the timber yard, and every other building not named below: markets, granaries, health, education and entertainment buildings, the Forum and Curia, barracks; and Domus and Apartment Houses. Docks burn a little sooner.
+* **As likely to burn as to collapse:** workshops (potter, carpenter, oil press, winery, weaponsmith, fletcher), the timber yard, and every other building not named below: markets, granaries, health,
+  education and entertainment buildings, the Forum and Curia, barracks; and Domus and Apartment Houses.
+  Docks burn a little sooner.
 * **Burn first:** homes from Tent to Merchant House (Tents and Family Tents never collapse).
 * **Collapse first:** temples, the clay pit, iron mine and marble quarry, Tenements and up. The Excubitorium (Prefecture), Oraculum (Oracle) and Turris (Watchtower) cannot burn at all.
-* **Never burn or collapse:** warehouses, the Collegium Fabrum (Engineer's Post), wells, fountains, reservoirs, farms and the Equaria (Horse Ranch), gardens, statues and forts. Only raiders, rioters and an angered Mercury (who burns the fullest granary or warehouse) can destroy them (rioters set fire to farms and engineer's posts, never to warehouses, water works or forts). They never catch from a fire next door either; their panel says so, and the Fire risk and Collapse risk overlays raise no column over them.
+* **Never burn or collapse:** warehouses, the Collegium Fabrum (Engineer's Post), wells, fountains, reservoirs, farms and the Equaria (Horse Ranch), gardens, statues and forts.
+  Only raiders, rioters and an angered Mercury (who burns the fullest granary or warehouse) can destroy them (rioters set fire to farms and engineer's posts, never to warehouses, water works or forts).
+  They never catch from a fire next door either; their panel says so, and the Fire risk and Collapse risk overlays raise no column over them.
 
-Rubble remembers what stood there. Click it: *Ruins of an Excubitorium, burned down in Iul 280 BC.* (Rubble that fell before the buildings had their Latin names keeps the English one it recorded.) The causes are burned down, burned by an angry god, burned by raiders, burned by rioters, collapsed, torn down by raiders, (for a wall) broken down by raiders, and brought down by an earthquake. Every tile of a fallen building keeps the record until it is cleared or built over. Its panel has a **Rebuild** button that puts the same building back on the same spot (a home's plots come back as empty lots, a broken wall as wall) at the usual price plus clearing the rubble; it is greyed out with the reason while the ruins still burn, or when there is no money or something now stands in the way, and Undo takes it back like any building. Rubble in a save made by an older version of the game says only *Rubble from a disaster*. (Ruins from before v0.12.2 know what fell but not where it stood exactly, so they offer no Rebuild.)
+Rubble remembers what stood there.
+Click it: *Ruins of an Excubitorium, burned down in Iul 280 BC.* (Rubble that fell before the buildings had their Latin names keeps the English one it recorded.)
+The causes are burned down, burned by an angry god, burned by raiders, burned by rioters, collapsed, torn down by raiders, (for a wall) broken down by raiders, and brought down by an earthquake.
+Every tile of a fallen building keeps the record until it is cleared or built over.
+Its panel has a **Rebuild** button that puts the same building back on the same spot (a home's plots come back as empty lots, a broken wall as wall) at the usual price plus clearing the rubble; it is
+greyed out with the reason while the ruins still burn, or when there is no money or something now stands in the way, and Undo takes it back like any building.
+Rubble in a save made by an older version of the game says only *Rubble from a disaster*.
+(Ruins from before v0.12.2 know what fell but not where it stood exactly, so they offer no Rebuild.)
 
 ## Gods
 
-The original's five gods: Ceres, Neptune, Mercury, Mars and Venus. Every temple (Aedes Cereris, Aedes Neptuni and so on) is the same but for its god (50 Dn, 2 workers, a priest every 4 days); the first mission has Ceres and Mercury, the second adds the other three.
+The original's five gods: Ceres, Neptune, Mercury, Mars and Venus.
+Every temple (Aedes Cereris, Aedes Neptuni and so on) is the same but for its god (50 Dn, 2 workers, a priest every 4 days); the first mission has Ceres and Mercury, the second adds the other three.
 
-**Large temples** (Templum Cereris, Templum Neptuni and so on: the grand temples; from mission 3), one per god as in the original: 3x3, 150 Dn, 5 workers, desirability +14 (rings 14, 14, 12, 12, 10). The same priest on the same round as a small temple, so no farther reach on the ground; it counts as **two temples** toward its god (the original counted 1,500 people of coverage to a small temple's 750). Two small temples do the same for 100 Dn and 4 workers; the large one pays back in desirability and in fewer buildings to keep up. Homes still count distinct gods: no level needs a large temple. It burns and collapses like the small ones (the original; Augustus makes them fire-proof). The Religion advisor counts a staffed large temple as two and says so ("2 (0 small, 1 large: a large temple counts as two)").
+**Large temples** (Templum Cereris, Templum Neptuni and so on: the grand temples; from mission 3), one per god as in the original: 3x3, 150 Dn, 5 workers, desirability +14 (rings 14, 14, 12, 12, 10).
+The same priest on the same round as a small temple, so no farther reach on the ground; it counts as **two temples** toward its god (the original counted 1,500 people of coverage to a small temple's
+750).
+Two small temples do the same for 100 Dn and 4 workers; the large one pays back in desirability and in fewer buildings to keep up.
+Homes still count distinct gods: no level needs a large temple.
+It burns and collapses like the small ones (the original; Augustus makes them fire-proof).
+The Religion advisor counts a staffed large temple as two and says so ("2 (0 small, 1 large: a large temple counts as two)").
 
-Each god wants one staffed temple per 500 of its share of citizens (a fifth of the population; a large temple counts as two). Towns under 800 people are left alone. Above that, a god with no temple sinks toward mood 5 and eventually strikes (mood 12 or less; then 8 months before it can strike again, and its mood rises 12). Only one god strikes in a month, the angriest first; the others wait their turn, so neglected gods never all strike at once. Blessings (mood 92+, then 14 months before the next) need festivals or oracles on top of good coverage.
+Each god wants one staffed temple per 500 of its share of citizens (a fifth of the population; a large temple counts as two).
+Towns under 800 people are left alone.
+Above that, a god with no temple sinks toward mood 5 and eventually strikes (mood 12 or less; then 8 months before it can strike again, and its mood rises 12).
+Only one god strikes in a month, the angriest first; the others wait their turn, so neglected gods never all strike at once.
+Blessings (mood 92+, then 14 months before the next) need festivals or oracles on top of good coverage.
 
-**Jealous gods** (the original's rule, Venus included). In a city of 800 people or more, the god with strictly the most staffed temples (a large one counting as two) is the **favourite**: its mood target rises to 100, or by 50 if it was under 50. The god with strictly the fewest is **jealous**: its mood target falls 25. A tie at the top or the bottom means no favourite or no jealous god, and gods whose temples the province does not offer take no part. The Religion advisor marks both. So build the gods' temples evenly, with one a little ahead if you want its blessings.
+**Jealous gods** (the original's rule, Venus included).
+In a city of 800 people or more, the god with strictly the most staffed temples (a large one counting as two) is the **favourite**: its mood target rises to 100, or by 50 if it was under 50.
+The god with strictly the fewest is **jealous**: its mood target falls 25.
+A tie at the top or the bottom means no favourite or no jealous god, and gods whose temples the province does not offer take no part.
+The Religion advisor marks both.
+So build the gods' temples evenly, with one a little ahead if you want its blessings.
 
-**Festivals** (Religion advisor: a size for a god) cost money, food from the granaries and, large or grand, wine from the warehouses, all at once; if any of it is missing the festival cannot be held and nothing is taken (the advisor greys the size out and says what is short: *Needs 300 wine in the warehouses, 100 stored.*). Food is taken from the foods the granaries hold most of, levelling them, each from the granary that holds most of it; wine from the warehouse with the most. A granary or warehouse set to Get that good gives last, as for the Emperor. Food a warehouse holds does not count.
+**Festivals** (Religion advisor: a size for a god) cost money, food from the granaries and, large or grand, wine from the warehouses, all at once; if any of it is missing the festival cannot be held
+and nothing is taken (the advisor greys the size out and says what is short: *Needs 300 wine in the warehouses, 100 stored.*).
+Food is taken from the foods the granaries hold most of, levelling them, each from the granary that holds most of it; wine from the warehouse with the most.
+A granary or warehouse set to Get that good gives last, as for the Emperor.
+Food a warehouse holds does not count.
 
-A festival is held at the god's own temples, and a bigger feast needs more priests to lead its rites (Colonia's own rule). A staffed temple of the god (an Aedes) has 1 priest, a staffed large temple (a Templum) 2: a **small** festival needs 1 (any temple of the god, small or large), a **large** one 3 (a temple and a large temple, two large temples, or three temples), and a **grand** one 3 and an Oraculum (Oracle), any Oracle (it speaks for every god, and has no workers to wait for). A temple counts only while it has workers, as it does for the god's mood: an empty temple has no priests for the rites. Another god's temples do not help. A size the god's temples cannot hold is greyed out, with the reason under the god's buttons: *Needs a temple of Venus.*, *Needs temples of Mars with 3 priests (a temple has 1, a large temple 2): 2 at work.* Where the province has no Oracle (missions 1 to 4), the grand size says so instead: *Oracles are not available in this province.* So mission 1 holds festivals for Ceres and Mercury, every later mission for every god, and grand festivals come from mission 5.
+A festival is held at the god's own temples, and a bigger feast needs more priests to lead its rites (Colonia's own rule).
+A staffed temple of the god (an Aedes) has 1 priest, a staffed large temple (a Templum) 2: a **small** festival needs 1 (any temple of the god, small or large), a **large** one 3 (a temple and a large
+temple, two large temples, or three temples), and a **grand** one 3 and an Oraculum (Oracle), any Oracle (it speaks for every god, and has no workers to wait for).
+A temple counts only while it has workers, as it does for the god's mood: an empty temple has no priests for the rites.
+Another god's temples do not help.
+A size the god's temples cannot hold is greyed out, with the reason under the god's buttons: *Needs a temple of Venus.*, *Needs temples of Mars with 3 priests (a temple has 1, a large temple 2): 2 at
+work.* Where the province has no Oracle (missions 1 to 4), the grand size says so instead: *Oracles are not available in this province.* So mission 1 holds festivals for Ceres and Mercury, every later
+mission for every god, and grand festivals come from mission 5.
 
 | Size | Money | Food (a load at least) | Wine | City mood | The god | Next festival after |
 |---|---|---|---|---|---|---|
@@ -605,11 +1427,26 @@ A festival is held at the god's own temples, and a bigger feast needs more pries
 | Large | 150 Dn + 0.4 a citizen | 10% | half a grand festival's, rounded up to a load | +8 | mood +10, target +30 | 4 months |
 | Grand | 400 Dn + 1 a citizen | 20% | 1 load per 500 citizens + 1 (the original's) | +14 | mood +18, target +50 | 8 months |
 
-A month's food is 0.25 a citizen, and a load 100 units. 1,000 people: 100 food for any size, 200 wine for a large festival, 300 for a grand one; 10,000 people: 125, 250 and 500 food, 1,100 and 2,100 wine. The god's part of its mood target fades by 15% a month, the city's mood boost by 20%. The people tire of festivals: one held less than 3 months after the last (any god's) lifts the city mood only in proportion, two thirds after 2 months, so festivals every 2 months keep the city mood about +5 to +7, as one every 3 months did before the gods took turns (+4 to +8); the god always gets its full share. Festival music plays for about 24 days after a festival.
+A month's food is 0.25 a citizen, and a load 100 units.
+1,000 people: 100 food for any size, 200 wine for a large festival, 300 for a grand one; 10,000 people: 125, 250 and 500 food, 1,100 and 2,100 wine.
+The god's part of its mood target fades by 15% a month, the city's mood boost by 20%.
+The people tire of festivals: one held less than 3 months after the last (any god's) lifts the city mood only in proportion, two thirds after 2 months, so festivals every 2 months keep the city mood
+about +5 to +7, as one every 3 months did before the gods took turns (+4 to +8); the god always gets its full share.
+Festival music plays for about 24 days after a festival.
 
-**Neglect** (the original's rule): each god counts the months since its last festival, of any size. For a year nothing happens; after that its mood target falls a point a month, 28 at most (40 months on), until a festival in its honor starts the year again. Not in towns under 800 people, and not for a god whose temple the mission does not have (it stays at 50). Five gods with a small festival each every 2 months come round in 10 months, inside the year; a large festival in the round still fits (4 + 4 x 2 = 12), a grand one pushes the round to 16 months, so the others lose up to 4 for a while. A new game starts every god's count at 0. The Religion advisor shows each god's last festival ("none yet", or how many months ago) and, when it applies, *Neglected: mood target -5*. In the balance sim, a 1,400-person city that held no festival saw every god sink from 80 to 52 within four years (no wrath, its temples covered them; the city mood lost the gods' +5); holding small festivals in turn kept them at 85 to 95, with about two blessings per god in six years.
+**Neglect** (the original's rule): each god counts the months since its last festival, of any size.
+For a year nothing happens; after that its mood target falls a point a month, 28 at most (40 months on), until a festival in its honor starts the year again.
+Not in towns under 800 people, and not for a god whose temple the mission does not have (it stays at 50).
+Five gods with a small festival each every 2 months come round in 10 months, inside the year; a large festival in the round still fits (4 + 4 x 2 = 12), a grand one pushes the round to 16 months, so
+the others lose up to 4 for a while.
+A new game starts every god's count at 0.
+The Religion advisor shows each god's last festival ("none yet", or how many months ago) and, when it applies, *Neglected: mood target -5*.
+In the balance sim, a 1,400-person city that held no festival saw every god sink from 80 to 52 within four years (no wrath, its temples covered them; the city mood lost the gods' +5); holding small
+festivals in turn kept them at 85 to 95, with about two blessings per god in six years.
 
-A god that strikes stays **angered** until its mood is back above 50 (the Religion advisor says so). If Mercury or Venus strikes again before then, the wrath is harder. The first two campaign missions spare a new player that: there a second wrath is like the first.
+A god that strikes stays **angered** until its mood is back above 50 (the Religion advisor says so).
+If Mercury or Venus strikes again before then, the wrath is harder.
+The first two campaign missions spare a new player that: there a second wrath is like the first.
 
 | God | Blessing | Wrath | Angered again |
 |---|---|---|---|
@@ -619,28 +1456,60 @@ A god that strikes stays **angered** until its mood is back above 50 (the Religi
 | Mars | +10 peace | brawls: -10 peace, treasury looted (100 Dn + 0.1 a citizen) | the same |
 | Venus | every home's mood +25, and the city mood +15, fading a fifth a month | every home's mood capped at 50, then -5; the city mood -5, fading | homes capped at 45, then -10; the city mood -10, fading; and where disease can break out, every home gains disease risk of 80 x (100 - its health score) / 100 (x the difficulty's disease lever): badly served homes go most of the way to an outbreak, and a passing physician clears it |
 
-Venus's part of the city mood shows in the Overview's mood breakdown as "Venus's blessing or wrath" while it lasts (it fades x0.8 a month and is gone once under half a point). Measured in the balance sim's demo city (six seeds): a blessing lifts the city mood about 7 points; a first wrath takes about 3, a second about 9 more for a few months, and its thieves cost about 20 peace on Normal and Hard.
+Venus's part of the city mood shows in the Overview's mood breakdown as "Venus's blessing or wrath" while it lasts (it fades x0.8 a month and is gone once under half a point).
+Measured in the balance sim's demo city (six seeds): a blessing lifts the city mood about 7 points; a first wrath takes about 3, a second about 9 more for a few months, and its thieves cost about 20
+peace on Normal and Hard.
 
 ## Monuments
 
-Colonia's own design after the community engines' monuments, fitted to Colonia's goods. From the sixth step of the campaign (the Pantheum from the eighth), and in the sandbox, a city may raise **one monument**: a great work built in stages from goods, with a city-wide effect once it is finished. Pick it from the **Monuments** menu and place its site; once a site stands, every other monument in the menu is greyed out ("Your city raises one monument: the Basilica") until it is demolished, or on Insane razed. A monument is never a mission's goal: a finished one adds 150 to the win's Hall of Fame score instead.
+Colonia's own design after the community engines' monuments, fitted to Colonia's goods.
+From the sixth step of the campaign (the Pantheum from the eighth), and in the sandbox, a city may raise **one monument**: a great work built in stages from goods, with a city-wide effect once it is
+finished.
+Pick it from the **Monuments** menu and place its site; once a site stands, every other monument in the menu is greyed out ("Your city raises one monument: the Basilica") until it is demolished, or on
+Insane razed.
+A monument is never a mission's goal: a finished one adds 150 to the win's Hall of Fame score instead.
 
-In the WebGL renderer each religious monument and the Lighthouse is drawn in 3D at every stage, as the game counts it: what its finished stages built stands, the stage under way rises in quarters of its work, its scaffolds, cranes and centering about it; the goods delivered and not yet built in lie in stacks by the site; the treadwheels turn only while a work camp's crew is on site (never while halted); a site struck by the raid now on lies in rubble until the raid is over, and a sacked monument shows its fallen columns until it is repaired. A finished Great Sanctuary's fires burn and its priests and worshippers come while it is open (on its god's festival month, the feast); the Lighthouse's fire burns at night and smokes by day only while it is staffed and has timber in its store.
+In the WebGL renderer each religious monument and the Lighthouse is drawn in 3D at every stage, as the game counts it: what its finished stages built stands, the stage under way rises in quarters of
+its work, its scaffolds, cranes and centering about it; the goods delivered and not yet built in lie in stacks by the site; the treadwheels turn only while a work camp's crew is on site (never while
+halted); a site struck by the raid now on lies in rubble until the raid is over, and a sacked monument shows its fallen columns until it is repaired.
+A finished Great Sanctuary's fires burn and its priests and worshippers come while it is open (on its god's festival month, the feast); the Lighthouse's fire burns at night and smokes by day only
+while it is staffed and has timber in its store.
 
-**What a province offers.** A Fanum, the Basilica and the Thermae everywhere from step 6; the Pharus only where a sea partner trades and ships can sail in; the Mansio Magna only where two or more land partners trade; the Pantheum from step 8. So Oasis Aurea (step 6, four land partners) offers the work camp, the five Fanum, the Basilica, the Thermae and the Mansio Magna; Cosa adds the Pharus; Carteia, with one land partner, has no Mansio Magna. A monument whose stages need a good the province can neither make (its building and its land: rock for marble and iron, woods for timber, water for clay) nor buy cannot be placed.
+**What a province offers.** A Fanum, the Basilica and the Thermae everywhere from step 6; the Pharus only where a sea partner trades and ships can sail in; the Mansio Magna only where two or more land
+partners trade; the Pantheum from step 8.
+So Oasis Aurea (step 6, four land partners) offers the work camp, the five Fanum, the Basilica, the Thermae and the Mansio Magna; Cosa adds the Pharus; Carteia, with one land partner, has no Mansio
+Magna.
+A monument whose stages need a good the province can neither make (its building and its land: rock for marble and iron, woods for timber, water for clay) nor buy cannot be placed.
 
-**Placing.** Placing pays the site and its first stage's money at once; the whole footprint goes down as a construction site (5x5; the Pharus 3x3 on the shore, its two front rows out over water ships can sail, like a dock). A road must touch it. Placing with no work camp is allowed, with a warning. An undo gives it all back only before any goods or work went into it.
+**Placing.** Placing pays the site and its first stage's money at once; the whole footprint goes down as a construction site (5x5; the Pharus 3x3 on the shore, its two front rows out over water ships
+can sail, like a dock).
+A road must touch it.
+Placing with no work camp is allowed, with a warning.
+An undo gives it all back only before any goods or work went into it.
 
 **The Castra Operarum (Work Camp)**, 3x3, 300 Dn, 40 workers (Engineering), builds it:
 
-* **Its ox carts** (3 at 75% staff or more, 2 at 50%, 1 with any, as the Emporium's dock workers) each fetch up to 400 of the stage's goods from a staffed warehouse on the camp's roads: always the good the site is shortest of (the least delivered and on the way, for what it needs), from the nearest warehouse holding at least 100 of it, a fuller one counting as nearer and one set to Get that good last. The load is reserved at the site the moment the cart sets out and counts as built in when it arrives. Producers never deliver to a site: everything passes through a warehouse, so workshops keep their raw materials first. A cart whose site is gone takes its load to storage; a burned camp's loaded cart still delivers.
+* **Its ox carts** (3 at 75% staff or more, 2 at 50%, 1 with any, as the Emporium's dock workers) each fetch up to 400 of the stage's goods from a staffed warehouse on the camp's roads: always the good
+  the site is shortest of (the least delivered and on the way, for what it needs), from the nearest warehouse holding at least 100 of it, a fuller one counting as nearer and one set to Get that good
+  last.
+  The load is reserved at the site the moment the cart sets out and counts as built in when it arrives.
+  Producers never deliver to a site: everything passes through a warehouse, so workshops keep their raw materials first.
+  A cart whose site is gone takes its load to storage; a burned camp's loaded cart still delivers.
 * **Its crew** walks to the site, works there 16 days, then walks home to rest a day: build the camp close to the site, as the walk costs work.
-* **Food and water.** A well's or a fountain's water must reach one of its tiles, and its buyer keeps a larder of up to 200 food from the nearest granary on its roads (it eats 20 a month at full staff). Short of one, the camp works at half pace (its builders, and its carts set out every other day); short of both, it stops.
+* **Food and water.** A well's or a fountain's water must reach one of its tiles, and its buyer keeps a larder of up to 200 food from the nearest granary on its roads (it eats 20 a month at full staff).
+  Short of one, the camp works at half pace (its builders, and its carts set out every other day); short of both, it stops.
 * Up to 3 camps work on one site.
 
-**Stages.** Each stage needs goods, work (in camp-days: what one fully staffed camp's crew does in a day) and money (paid as it starts). A day's work on a site is the sum, over the camps whose crew is on it, of each camp's staffing (at most 1) x its food and water (1, 0.5 or 0). The builders lay only what has arrived: the work done may not pass the stage's work x the share of its least-delivered good. A stage is finished when every good is in and the work is done; then the next stage's money is paid if the treasury holds it, else the site waits ("Waiting for 750 Dn") while the carts already haul its goods. **Halt construction** (the site's panel) keeps the carts and crews home, for when the city needs its marble elsewhere.
+**Stages.** Each stage needs goods, work (in camp-days: what one fully staffed camp's crew does in a day) and money (paid as it starts).
+A day's work on a site is the sum, over the camps whose crew is on it, of each camp's staffing (at most 1) x its food and water (1, 0.5 or 0).
+The builders lay only what has arrived: the work done may not pass the stage's work x the share of its least-delivered good.
+A stage is finished when every good is in and the work is done; then the next stage's money is paid if the treasury holds it, else the site waits ("Waiting for 750 Dn") while the carts already haul
+its goods.
+**Halt construction** (the site's panel) keeps the carts and crews home, for when the city needs its marble elsewhere.
 
-Example: a Fanum in stage 2 (clay 800, marble 800, iron 200; work 90) with clay 400, marble 800 and iron 200 in and 30 work done: the most work the goods allow is 90 x 400/800 = 45, so one full camp builds 15 more days and then waits for clay. A camp at 30 of 40 workers with no water builds 0.75 x 0.5 = 0.375 a day; a second, full and fed, makes it 1.375.
+Example: a Fanum in stage 2 (clay 800, marble 800, iron 200; work 90) with clay 400, marble 800 and iron 200 in and 30 work done: the most work the goods allow is 90 x 400/800 = 45, so one full camp
+builds 15 more days and then waits for clay.
+A camp at 30 of 40 workers with no water builds 0.75 x 0.5 = 0.375 a day; a second, full and fed, makes it 1.375.
 
 | Monument | Placing | Stages: goods (units); work (camp-days); money (Dn) | In all | Staff, upkeep a month (Normal) |
 |---|---|---|---|---|
@@ -651,9 +1520,15 @@ Example: a Fanum in stage 2 (clay 800, marble 800, iron 200; work 90) with clay 
 | **Thermae** (Great Baths), 5x5, on piped water | 1,800 | Foundations and the pool's pit: clay 1,400, timber 400; 70; 600. The hot and warm halls: clay 1,200, iron 400, timber 400; 90; 600. The cold hall and the pool: marble 1,600, clay 400; 90; 600. The exercise court: marble 600, oil 400, linen 400; 40; 600 | 7,200 goods, 290 work, 3,600 Dn | 40 (Health & Education), 80 Dn; burns 300 timber a year |
 | **Basilica** (Hall of Justice), 5x5 | 1,500 | Foundations: clay 1,000, timber 400; 60; 500. Walls and piers: clay 1,200, marble 400; 80; 500. The great timber roof: timber 1,400, iron 300; 90; 500. The magistrates' apse: marble 800, furniture 400; 40; 500 | 5,900 goods, 270 work, 3,000 Dn | 30 (Government & Religion), 50 Dn |
 
-How long they take (the balance sim's level 3 city on Normal, the monument placed in its second year, its warehouse kept stocked: `npm run sim -- --level 3 --years 7 --monument <key>`): the Mansio Magna about 1.4 years, the Basilica 2.2, a Fanum and the Thermae 2.3, the Pharus 2.5 (its camp stood farther off), the Pantheum 3.1. Bought whole at the base import prices, the goods cost about 3,300 Dn (the Mansio Magna) to 9,800 Dn (the Pantheum) on top of their money.
+How long they take (the balance sim's level 3 city on Normal, the monument placed in its second year, its warehouse kept stocked: `npm run sim -- --level 3 --years 7 --monument <key>`): the Mansio
+Magna about 1.4 years, the Basilica 2.2, a Fanum and the Thermae 2.3, the Pharus 2.5 (its camp stood farther off), the Pantheum 3.1.
+Bought whole at the base import prices, the goods cost about 3,300 Dn (the Mansio Magna) to 9,800 Dn (the Pantheum) on top of their money.
 
-**Finished.** Rome hears of it (favor +8), the people celebrate (city mood +6, fading a fifth a month like a festival's lift), and culture rises by 5 for as long as it stands. A finished monument employs its staff and works while **at least 75% of them** are at work, and, for the three that use a good, while its store holds some (its own cart fetches timber from a warehouse or food from a granary once the store is under half); the Thermae also need piped water. Its effects start and stop on the day. Upkeep is paid each month with the wages (the Finance advisor's "Monument upkeep" row; it can run the treasury into debt): x0.5 on Easy, x1 on Normal, x1.25 on Hard, x1.5 on Insane.
+**Finished.** Rome hears of it (favor +8), the people celebrate (city mood +6, fading a fifth a month like a festival's lift), and culture rises by 5 for as long as it stands.
+A finished monument employs its staff and works while **at least 75% of them** are at work, and, for the three that use a good, while its store holds some (its own cart fetches timber from a warehouse
+or food from a granary once the store is under half); the Thermae also need piped water.
+Its effects start and stop on the day.
+Upkeep is paid each month with the wages (the Finance advisor's "Monument upkeep" row; it can run the treasury into debt): x0.5 on Easy, x1 on Normal, x1.25 on Hard, x1.5 on Insane.
 
 | Monument | Its effects while it works |
 |---|---|
@@ -669,19 +1544,48 @@ How long they take (the balance sim's level 3 city on Normal, the monument place
 | **Thermae** | every home within 24 tiles has the baths, as if an attendant had just passed; city health +10 and disease grows 30% slower; city mood +3 |
 | **Basilica** | every registered home pays a fifth more tax and stays registered 96 days instead of 48; unhappy homes breed trouble 30% less often; prosperity +8 |
 
-**Raids, fire, quakes.** A site or a monument never burns or collapses, fire next door never spreads to it, rioters spare it and an earthquake's cracks pass under it. Raiders (and Caesar's legions, rebel gladiators and angry villagers) who bring a site to 0 hit points (2,400; the Pharus 1,600) **set it back**: the stage under way loses half its work and a quarter of each good delivered to it (whole units, rounded down); its hit points refill and the finished stages stand. A site is set back once a raid: after that the raiders walk on past it (as they do a sacked monument), and only the next raid can set it back again. It counts as a building lost (peace -1). Example: a stage with 60 of 100 work and marble 1,000, timber 800, iron 200 in keeps 30 work and marble 750, timber 600, iron 150. A finished monument they bring down (4,000 hit points; the Pharus 2,400) is **sacked**: closed until it has patched itself back to full, at the pace damaged buildings mend once the fighting stops. **On Insane, raiders raze it instead**, a site at any stage or a finished monument: it falls to rubble, every stage and every good built into it is lost, and another monument may be started (its panel says so).
+**Raids, fire, quakes.** A site or a monument never burns or collapses, fire next door never spreads to it, rioters spare it and an earthquake's cracks pass under it.
+Raiders (and Caesar's legions, rebel gladiators and angry villagers) who bring a site to 0 hit points (2,400; the Pharus 1,600) **set it back**: the stage under way loses half its work and a quarter
+of each good delivered to it (whole units, rounded down); its hit points refill and the finished stages stand.
+A site is set back once a raid: after that the raiders walk on past it (as they do a sacked monument), and only the next raid can set it back again.
+It counts as a building lost (peace -1).
+Example: a stage with 60 of 100 work and marble 1,000, timber 800, iron 200 in keeps 30 work and marble 750, timber 600, iron 150.
+A finished monument they bring down (4,000 hit points; the Pharus 2,400) is **sacked**: closed until it has patched itself back to full, at the pace damaged buildings mend once the fighting stops.
+**On Insane, raiders raze it instead**, a site at any stage or a finished monument: it falls to rubble, every stage and every good built into it is lost, and another monument may be started (its panel
+says so).
 
-**Demolishing** asks first, naming what will be lost ("2 stages and 3,800 units of goods built into the Fanum Veneris will be lost"); nothing is refunded, and loads on the road go back to storage. The choice of monument is free again.
+**Demolishing** asks first, naming what will be lost ("2 stages and 3,800 units of goods built into the Fanum Veneris will be lost"); nothing is refunded, and loads on the road go back to storage.
+The choice of monument is free again.
 
-**Panels and advisors.** A site's panel shows its stage, a work bar with a mark at the most work its goods allow, each good delivered against its need (and what is on the way), the money, what holds it up first (no camp, a camp with no food and water, waiting for money, a good no warehouse on the camp's roads holds, builders waiting for a good, half pace), the goods the stages ahead need, and the Halt button. A camp's panel shows its carts, its crew, its larder and water. The Overview advisor has a Monument card; the Religion advisor counts a Fanum's or the Pantheum's temples; the Trade advisor marks the partners trading a quarter more; the Production advisor lists what was built into the monument last month; the Problems overlay flags a site or camp held up.
+**Panels and advisors.** A site's panel shows its stage, a work bar with a mark at the most work its goods allow, each good delivered against its need (and what is on the way), the money, what holds
+it up first (no camp, a camp with no food and water, waiting for money, a good no warehouse on the camp's roads holds, builders waiting for a good, half pace), the goods the stages ahead need, and the
+Halt button.
+A camp's panel shows its carts, its crew, its larder and water.
+The Overview advisor has a Monument card; the Religion advisor counts a Fanum's or the Pantheum's temples; the Trade advisor marks the partners trading a quarter more; the Production advisor lists
+what was built into the monument last month; the Problems overlay flags a site or camp held up.
 
-**How a site looks (WebGL renderer).** The Hall of Justice shows its stage and how far the stage's work has gone, in quarters: the foundations set out with stakes, cords and trenches, then the podium of tufa rising in courses; the ashlar walls and the column drums climbing in their scaffolds, a crane lifting the blocks; the roof's timber trusses hoisted into place one by one, then its tiles; the tribunal, a raised platform at the back of the hall, with its steps, rail, chair and bench. Finished, the hall is the earliest kind of basilica, as the Porcia and Aemilia were first built: tufa walls stuccoed and painted (a red dado, cream above, scored as blocks), a nave between aisles on stuccoed Ionic columns under a tiled gable with a clerestory of plain windows, a portico on the street side, the magistrate's chair on the tribunal and a statue of the colony's founder on a column. Goods delivered and not yet built in pile up in front of it, a pile of up to three loads (400 units each) a good. While a work camp's crew is on the site (not halted) the masons, carriers and mortar mixers are at work and the treadwheel crane turns and lifts; halted or between shifts, nobody is there and the crane stands still; struck in a raid, its scaffolds lie toppled with rubble until the raid is over. Finished, it is busy while it works (staffed to three quarters) and shut otherwise; sacked, its doors are broken and rubble lies in its porch. The work camp shows its crew at home (resting at the fire, at work in the sheds) or away (the clerk and the cook stay), its parked wagons (three less the carts out on the roads), and, while staffed, an empty larder and a cold kitchen when it has no food, empty jars when no water reaches it. These are looks only: nothing here changes how a monument is built.
+**How a site looks (WebGL renderer).** The Hall of Justice shows its stage and how far the stage's work has gone, in quarters: the foundations set out with stakes, cords and trenches, then the podium
+of tufa rising in courses; the ashlar walls and the column drums climbing in their scaffolds, a crane lifting the blocks; the roof's timber trusses hoisted into place one by one, then its tiles; the
+tribunal, a raised platform at the back of the hall, with its steps, rail, chair and bench.
+Finished, the hall is the earliest kind of basilica, as the Porcia and Aemilia were first built: tufa walls stuccoed and painted (a red dado, cream above, scored as blocks), a nave between aisles on
+stuccoed Ionic columns under a tiled gable with a clerestory of plain windows, a portico on the street side, the magistrate's chair on the tribunal and a statue of the colony's founder on a column.
+Goods delivered and not yet built in pile up in front of it, a pile of up to three loads (400 units each) a good.
+While a work camp's crew is on the site (not halted) the masons, carriers and mortar mixers are at work and the treadwheel crane turns and lifts; halted or between shifts, nobody is there and the
+crane stands still; struck in a raid, its scaffolds lie toppled with rubble until the raid is over.
+Finished, it is busy while it works (staffed to three quarters) and shut otherwise; sacked, its doors are broken and rubble lies in its porch.
+The work camp shows its crew at home (resting at the fire, at work in the sheds) or away (the clerk and the cook stay), its parked wagons (three less the carts out on the roads), and, while staffed,
+an empty larder and a cold kitchen when it has no food, empty jars when no water reaches it.
+These are looks only: nothing here changes how a monument is built.
 
 ## Events
 
 The province has its own fortunes, as in the original: random events drawn each month, and events a mission schedules. Each comes with a message; a click on one that happens at a place goes there.
 
-**Random events.** At the start of each month one draw is made against the original's table: about one month in five names an event on Normal (half as often on Easy, a quarter more on Hard, half again on Insane). It happens only if the mission allows it (the sandbox: those ticked in its setup, below), if it can (below), and if the same event has not come within the last 24 months (36 on Easy, 18 on Hard, 12 on Insane; Rome's wages 12 on every level). So at most one a month.
+**Random events.** At the start of each month one draw is made against the original's table: about one month in five names an event on Normal (half as often on Easy, a quarter more on Hard, half again
+on Insane).
+It happens only if the mission allows it (the sandbox: those ticked in its setup, below), if it can (below), and if the same event has not come within the last 24 months (36 on Easy, 18 on Hard, 12 on
+Insane; Rome's wages 12 on every level).
+So at most one a month.
 
 | Event | Chance a month (Normal) | Needs | What happens |
 |---|---|---|---|
@@ -693,35 +1597,69 @@ The province has its own fortunes, as in the original: random events drawn each 
 | An iron mine collapses | 3.1% | an iron mine | the oldest one becomes rubble |
 | A clay pit floods | 3.9% | a clay pit | the oldest one becomes rubble |
 
-**The sandbox's switches.** The sandbox setup lists every random event the sandbox can draw, each with its own switch, all ticked to begin with: Rome's wage (one switch for the rise and the cut, which share a cooldown), land trade stopped, sea trade stopped, bad water, a mine collapse and a clay pit flood. An event unticked never comes; the others come exactly as often as with every switch on (the draw is the same, and a month that draws an unticked event brings nothing). The **Events** box above the list ticks or clears them all at once, and shows a mix as half-ticked. The choice is kept with the city in its saves; a sandbox saved by an earlier version keeps what its one Events switch said (all on or all off). The scheduled events below are a mission's alone, so the setup has no switch for them, and a campaign mission always has the events it was made with.
+**The sandbox's switches.** The sandbox setup lists every random event the sandbox can draw, each with its own switch, all ticked to begin with: Rome's wage (one switch for the rise and the cut, which
+share a cooldown), land trade stopped, sea trade stopped, bad water, a mine collapse and a clay pit flood.
+An event unticked never comes; the others come exactly as often as with every switch on (the draw is the same, and a month that draws an unticked event brings nothing).
+The **Events** box above the list ticks or clears them all at once, and shows a mix as half-ticked.
+The choice is kept with the city in its saves; a sandbox saved by an earlier version keeps what its one Events switch said (all on or all off).
+The scheduled events below are a mission's alone, so the setup has no switch for them, and a campaign mission always has the events it was made with.
 
 While trade is stopped, each route card (Trade advisor, Empire map) says until when, and the Empire map shows no trader on the road. Neptune's wrath stops ships for 5 months the same way (see *Gods*).
 
 **Scheduled events** (campaign missions only; the year is fixed, the month drawn from the map's seed):
 
-* **The earthquake** (Paestum and Carteia small, Copia and Mutina medium, Puteoli large). It strikes near the middle of your city (never on a wolf pack's den, which the cracks pass under, as under the Imperial road). Four cracks then grow out of that point over days, one mostly north, one east, one south, one west, a few steps a day: a small quake tries 25 to 56 steps (5 to 11 days), a medium 100 to 163 (16 to 27 days), a large 250 to 377 (31 to 47 days). A crack cannot cross water or rock. Every tile it enters loses whatever stood there (a building falls, the rest of its ground left as rubble that remembers the quake; roads, aqueducts and walls go) and becomes rock for good: nothing can be built on it again, so route roads and aqueducts round the cracks. The Imperial road holds (the way by road from the map entry to the exit as the quake finds it): cracks pass under it, so the city is never cut off from the empire. A message says where it struck, and another when the earth is still, with the buildings and homes lost. Undo is off while it shakes.
+* **The earthquake** (Paestum and Carteia small, Copia and Mutina medium, Puteoli large).
+  It strikes near the middle of your city (never on a wolf pack's den, which the cracks pass under, as under the Imperial road).
+  Four cracks then grow out of that point over days, one mostly north, one east, one south, one west, a few steps a day: a small quake tries 25 to 56 steps (5 to 11 days), a medium 100 to 163 (16 to 27
+  days), a large 250 to 377 (31 to 47 days).
+  A crack cannot cross water or rock.
+  Every tile it enters loses whatever stood there (a building falls, the rest of its ground left as rubble that remembers the quake; roads, aqueducts and walls go) and becomes rock for good: nothing can
+  be built on it again, so route roads and aqueducts round the cracks.
+  The Imperial road holds (the way by road from the map entry to the exit as the quake finds it): cracks pass under it, so the city is never cut off from the empire.
+  A message says where it struck, and another when the earth is still, with the buildings and homes lost.
+  Undo is off while it shakes.
 * **A new Caesar** (Beneventum, Cosa, Urbs Magna, Narbo Martius): your favor starts afresh at 50, whatever it was (the original's engine meant this but never did it).
-* **The gladiators' revolt** (Urbs Magna in year 5, Puteoli in year 6; Aprilis to Iulius): see [The gladiators' revolt](#the-gladiators-revolt). With no gladiator school at work that month, nothing happens.
+* **The gladiators' revolt** (Urbs Magna in year 5, Puteoli in year 6; Aprilis to Iulius): see [The gladiators' revolt](#the-gladiators-revolt).
+  With no gladiator school at work that month, nothing happens.
 * **Price changes** (Figlina's pottery, Cosa's wine, Copia's wheat, Luna's marble): from that month, the good costs a share more with every partner, both ways, for good. A message says so.
 
-Which missions have which random events: Figlina the clay pit; Firmum wages and landslides; Pons Aelius landslides and storms; Paestum storms; Portus Mercatorum the iron mine and storms; Beneventum landslides on the Appian Way; Oasis Aurea sandstorms and bad water; Urbs Magna wages; Mutina the iron mine; Luna storms; Corduba wages and the iron mine; Carteia storms in the strait; Narbo Martius wages and landslides. The first two missions have none.
+Which missions have which random events: Figlina the clay pit; Firmum wages and landslides; Pons Aelius landslides and storms; Paestum storms; Portus Mercatorum the iron mine and storms; Beneventum
+landslides on the Appian Way; Oasis Aurea sandstorms and bad water; Urbs Magna wages; Mutina the iron mine; Luna storms; Corduba wages and the iron mine; Carteia storms in the strait; Narbo Martius
+wages and landslides.
+The first two missions have none.
 
-The console's `event` command reports Rome's wage, trade stopped and a quake shaking, and `event <kind>` makes one happen now (for testing); the URL flag `events=off` turns every event off, and `events=wages,sea` starts the sandbox setup (and a `skipmenu=1` sandbox) with only those switches ticked. The balance simulator: `npm run sim -- --events off` (no events), `--events wages,clay` (the sandbox with only those switches on) or `--scenario c10p --years 9` (Puteoli's earthquake).
+The console's `event` command reports Rome's wage, trade stopped and a quake shaking, and `event <kind>` makes one happen now (for testing); the URL flag `events=off` turns every event off, and
+`events=wages,sea` starts the sandbox setup (and a `skipmenu=1` sandbox) with only those switches ticked.
+The balance simulator: `npm run sim -- --events off` (no events), `--events wages,clay` (the sandbox with only those switches on) or `--scenario c10p --years 9` (Puteoli's earthquake).
 
 ## Ratings and winning
 
 * **Culture:** religion, entertainment (full marks at an average score of 40), school, library, academy coverage (+8 with a staffed Curia, from mission 2). Moves at most 4 points a month.
-* **Prosperity:** average house level (full marks at an average of Insulae), patricians, last year's profit, unemployment, wages, +10 with a staffed Curia, and +2 while the Circus has races. Moves at most 2 points a month.
-* **Peace:** +1 a month while mood is 45+, -2 while it is under 30; in a month when enemies were in the province (raiders ashore or in their ships off the coast, or Caesar's legions) it gains nothing and falls 2 instead; +8 for each raid repelled, -1 for each building raiders destroy. Crime costs peace by difficulty:
+* **Prosperity:** average house level (full marks at an average of Insulae), patricians, last year's profit, unemployment, wages, +10 with a staffed Curia, and +2 while the Circus has races.
+  Moves at most 2 points a month.
+* **Peace:** +1 a month while mood is 45+, -2 while it is under 30; in a month when enemies were in the province (raiders ashore or in their ships off the coast, or Caesar's legions) it gains nothing
+  and falls 2 instead; +8 for each raid repelled, -1 for each building raiders destroy.
+  Crime costs peace by difficulty:
 
   | | Easy | Normal | Hard | Insane |
   |---|---|---|---|---|
   | Riot | none | -5 | -10 | -15 |
   | Thief | none | -1, and no gain that month | -2, and no gain that month | -3, and no gain that month |
   | Protests | none | none | none | -1 for every fifth |
-* **Favor:** requests (+10 / -12), tribute, gifts, debt, a modest salary at New Year (+1), distant battles (+25 won, -10 too weak, -25 too late, -25 nobody sent or -10 with no army to send; a lost battle alone never drops favor to the legions' 10), a raid repelled (+3), Caesar's legions destroyed (+10). Starts at 50 and drifts toward 50, so a favor goal of 50 or less (30 at step 3, 35 at Pons Aelius, 40 at Paestum) is met from the start and asks you to keep it, while one above 50 (from step 5) must be earned with requests, gifts and, in a military province, battles won and raids repelled. Favor 0 does not end the game: at 10 or less Caesar sends his legions (see *Caesar's legions*). The Emperor first asks in the city's fourth year (36-48 months in), once it has 500 people, then every 14-26 months for money or goods he can see you make, due in 12 months; Insane asks for half as much again, more often, due in 9.
+* **Favor:** requests (+10 / -12), tribute, gifts, debt, a modest salary at New Year (+1), distant battles (+25 won, -10 too weak, -25 too late, -25 nobody sent or -10 with no army to send; a lost
+  battle alone never drops favor to the legions' 10), a raid repelled (+3), Caesar's legions destroyed (+10).
+  Starts at 50 and drifts toward 50, so a favor goal of 50 or less (30 at step 3, 35 at Pons Aelius, 40 at Paestum) is met from the start and asks you to keep it, while one above 50 (from step 5) must
+  be earned with requests, gifts and, in a military province, battles won and raids repelled.
+  Favor 0 does not end the game: at 10 or less Caesar sends his legions (see *Caesar's legions*).
+  The Emperor first asks in the city's fourth year (36-48 months in), once it has 500 people, then every 14-26 months for money or goods he can see you make, due in 12 months; Insane asks for half as
+  much again, more often, due in 9.
 
-A mission is won when every goal is met at the same time (checked monthly), and no enemies are in the province: with raiders or Caesar's legions on the map Rome waits (a message says so once) and proclaims the victory at the first month's end after they are gone. You can keep building afterwards. It is lost only when the city is **overrun** (checked daily, in a mission: the sandbox has no goals and is never lost): more invaders in the province (Caesar's legionaries, raiders ashore and raiders still aboard their ships) than your soldiers plus 2 (ships do not count), while the population is under a quarter of the most it has been in this mission. The original's rule; the message says so.
+A mission is won when every goal is met at the same time (checked monthly), and no enemies are in the province: with raiders or Caesar's legions on the map Rome waits (a message says so once) and
+proclaims the victory at the first month's end after they are gone.
+You can keep building afterwards.
+It is lost only when the city is **overrun** (checked daily, in a mission: the sandbox has no goals and is never lost): more invaders in the province (Caesar's legionaries, raiders ashore and raiders
+still aboard their ships) than your soldiers plus 2 (ships do not count), while the population is under a quarter of the most it has been in this mission.
+The original's rule; the message says so.
 
 ## The governor
 
@@ -731,13 +1669,32 @@ A mission is won when every goal is met at the same time (checked monthly), and 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Salary (Dn a month) | 0 | 2 | 5 | 8 | 12 | 20 | 30 | 40 | 60 | 80 | 100 |
 
-Each step of the campaign is played at one rank, both provinces of a step alike: Citizen at step 1, one up each step after, Proconsul at step 10. Winning a province of step 10 makes you **Caesar**, the eleventh rank: the victory screen hails you ("Hail, Caesar!"), there is no next post and your savings stay yours, and the Campaign list says so under the steps. The sandbox setup lets you pick a rank (Procurator unless you choose). The rank never changes during a mission; the victory screen names the next one.
+Each step of the campaign is played at one rank, both provinces of a step alike: Citizen at step 1, one up each step after, Proconsul at step 10.
+Winning a province of step 10 makes you **Caesar**, the eleventh rank: the victory screen hails you ("Hail, Caesar!"), there is no next post and your savings stay yours, and the Campaign list says so
+under the steps.
+The sandbox setup lets you pick a rank (Procurator unless you choose).
+The rank never changes during a mission; the victory screen names the next one.
 
-**Salary.** It starts at your rank's rate; the Imperial advisor lets you draw a lower rank's rate instead, never a higher one's: Rome pays no governor above his rank (Colonia's own rule; the original let you draw any rate and took favor for it). The picker lists every rank, those above yours greyed out, so you can see what each promotion pays. It is paid at each month's end from the treasury into your personal savings, but only when the treasury can cover it. At New Year Rome looks at what you were actually paid over the year and finds the lowest rank whose year of pay covers it: a year below your rank's pay earns +1 however far below if you chose a lower rate (a Citizen, at 0, cannot earn it; months the treasury could not pay you earn nothing), and your own rank's pay changes nothing. Switching to a modest rate on the last day of the year does not help: it is the year's pay that counts. The Imperial advisor shows what you will have drawn by New Year at the current rate, and what Rome will make of it. (Favor drifts back toward 50, half a point a month, so the effect fades over the following months.) A game saved when a salary above the rank was still allowed loads at your rank's rate, with no favor lost; what you drew above your rank's rate since New Year goes from your savings back to the treasury (as far as your savings hold it), and a message says how much.
+**Salary.** It starts at your rank's rate; the Imperial advisor lets you draw a lower rank's rate instead, never a higher one's: Rome pays no governor above his rank (Colonia's own rule; the original
+let you draw any rate and took favor for it).
+The picker lists every rank, those above yours greyed out, so you can see what each promotion pays.
+It is paid at each month's end from the treasury into your personal savings, but only when the treasury can cover it.
+At New Year Rome looks at what you were actually paid over the year and finds the lowest rank whose year of pay covers it: a year below your rank's pay earns +1 however far below if you chose a lower
+rate (a Citizen, at 0, cannot earn it; months the treasury could not pay you earn nothing), and your own rank's pay changes nothing.
+Switching to a modest rate on the last day of the year does not help: it is the year's pay that counts.
+The Imperial advisor shows what you will have drawn by New Year at the current rate, and what Rome will make of it.
+(Favor drifts back toward 50, half a point a month, so the effect fades over the following months.)
+A game saved when a salary above the rank was still allowed loads at your rank's rate, with no favor lost; what you drew above your rank's rate since New Year goes from your savings back to the
+treasury (as far as your savings hold it), and a message says how much.
 
-**Savings** are your own, and go with you: winning a mission carries them to the next step, to both of its provinces where it has two (the last win at a step sets what the next one starts with), and a mission played again starts from what it started with the time before. The first mission and the sandbox start with none. They are spent two ways (festivals stay paid from the treasury):
+**Savings** are your own, and go with you: winning a mission carries them to the next step, to both of its provinces where it has two (the last win at a step sets what the next one starts with), and a
+mission played again starts from what it started with the time before.
+The first mission and the sandbox start with none.
+They are spent two ways (festivals stay paid from the treasury):
 
-* **Gifts to the Emperor** (Imperial advisor). Their price grows with your savings: a modest gift costs an eighth of your savings plus 20 Dn, a generous one a quarter plus 50, a lavish one half plus 100. Each further gift within a year of your last one pleases him less:
+* **Gifts to the Emperor** (Imperial advisor).
+  Their price grows with your savings: a modest gift costs an eighth of your savings plus 20 Dn, a generous one a quarter plus 50, a lavish one half plus 100.
+  Each further gift within a year of your last one pleases him less:
 
   | Gift | 1st | 2nd | 3rd | 4th | 5th and later |
   |---|---|---|---|---|---|
@@ -745,16 +1702,38 @@ Each step of the campaign is played at one rank, both provinces of a step alike:
   | Generous | +5 | +3 | +1 | 0 | 0 |
   | Lavish | +10 | +5 | +3 | +1 | 0 |
 
-  His count starts again 12 months after your last gift. A gift that would please him no more cannot be sent. Example: with 400 Dn saved the gifts cost 70, 150 and 300; a lavish one leaves 100 and gives +10; a month later a modest one costs 32 and gives +1.
+  His count starts again 12 months after your last gift.
+  A gift that would please him no more cannot be sent.
+  Example: with 400 Dn saved the gifts cost 70, 150 and 300; a lavish one leaves 100 and gives +10; a month later a modest one costs 32 and gives +1.
 * **Donations** to the treasury, any amount up to your savings. The ledger shows them on their own row ("Governor's donations"), and like a loan they do not count as profit for prosperity.
 
-**The residence.** The Praetorium (Governor's House: 3x3, 150 Dn, desirability +12 falling by 2 every 2 tiles over 3), the Praetorium Maius (Governor's Villa: 4x4, 400 Dn, +20, by 3 over 4) and the Regia (Governor's Palace: 5x5, 750 Dn and 400 marble, +28, by 4 over 5), under Government & Decor: the house from mission 1, the villa from mission 3, the palace from mission 5, all three in the sandbox. They are kept by servants (4, 8 and 12 workers, Government labor, like the Forum; Colonia's own, the original's needed none), so they need a road like any building with workers, and they give their desirability only as far as they are staffed: an unstaffed residence is a shuttered house that adds nothing. They can burn or crack like other stone buildings (slowly). Only one may stand at a time: building another is refused until you demolish the one you have. It does nothing for your salary, savings or favor; it is the grandest decoration in the city, and rioters go for it before anything else.
+**The residence.** The Praetorium (Governor's House: 3x3, 150 Dn, desirability +12 falling by 2 every 2 tiles over 3), the Praetorium Maius (Governor's Villa: 4x4, 400 Dn, +20, by 3 over 4) and the
+Regia (Governor's Palace: 5x5, 750 Dn and 400 marble, +28, by 4 over 5), under Government & Decor: the house from mission 1, the villa from mission 3, the palace from mission 5, all three in the
+sandbox.
+They are kept by servants (4, 8 and 12 workers, Government labor, like the Forum; Colonia's own, the original's needed none), so they need a road like any building with workers, and they give their
+desirability only as far as they are staffed: an unstaffed residence is a shuttered house that adds nothing.
+They can burn or crack like other stone buildings (slowly).
+Only one may stand at a time: building another is refused until you demolish the one you have.
+It does nothing for your salary, savings or favor; it is the grandest decoration in the city, and rioters go for it before anything else.
 
 ## The campaign
 
-Ten steps and eighteen missions. The first two teach the basics and have no crime or disease. The goals grow with the housing ladder: each mission's buildings let homes reach a certain level, and its culture and prosperity goals ask for a good share of what those buildings can give. "Mission 4" in this manual means step 4, either of its provinces, unless a province is named.
+Ten steps and eighteen missions.
+The first two teach the basics and have no crime or disease.
+The goals grow with the housing ladder: each mission's buildings let homes reach a certain level, and its culture and prosperity goals ask for a good share of what those buildings can give.
+"Mission 4" in this manual means step 4, either of its provinces, unless a province is named.
 
-**Branches.** Every step from 3 to 10 offers two provinces at the same rank, with the same start year and funds, as the original's career did from its third rank: one **peaceful**, one **military**. A military province has raids, forts and Caesar's calls for troops (Firmum brings them to step 3, a step sooner than the campaign had them); a peaceful one has no raids, no forts, barracks, towers, walls or fleet, and asks for more people, culture and prosperity, and from step 4 more favor (with no army, Caesar's legions are its real danger: keep his favor). Both ask for Caesar's favor from step 3. Winning any mission of a step opens both of the next, so you may switch tracks at every split; the missions you won stay open to replay. After a win the victory screen offers "Choose your next post": a card for each province (its track, a line of its story, its map and goals, and what threatens it), each with a Start button that opens its briefing, whose Back returns to the choice. If a city at a step with two provinces is overrun, the defeat screen offers the same choice again ("Choose a province again"). The Campaign list shows one row per step, the two provinces side by side, the step's number turning to a check once either is won. Your savings go to both provinces of the next step. A record of wins from before the branches needs nothing done: it opens what it opened before, and the new provinces beside the steps it reached.
+**Branches.** Every step from 3 to 10 offers two provinces at the same rank, with the same start year and funds, as the original's career did from its third rank: one **peaceful**, one **military**.
+A military province has raids, forts and Caesar's calls for troops (Firmum brings them to step 3, a step sooner than the campaign had them); a peaceful one has no raids, no forts, barracks, towers,
+walls or fleet, and asks for more people, culture and prosperity, and from step 4 more favor (with no army, Caesar's legions are its real danger: keep his favor).
+Both ask for Caesar's favor from step 3.
+Winning any mission of a step opens both of the next, so you may switch tracks at every split; the missions you won stay open to replay.
+After a win the victory screen offers "Choose your next post": a card for each province (its track, a line of its story, its map and goals, and what threatens it), each with a Start button that opens
+its briefing, whose Back returns to the choice.
+If a city at a step with two provinces is overrun, the defeat screen offers the same choice again ("Choose a province again").
+The Campaign list shows one row per step, the two provinces side by side, the step's number turning to a check once either is won.
+Your savings go to both provinces of the next step.
+A record of wins from before the branches needs nothing done: it opens what it opened before, and the new provinces beside the steps it reached.
 
 | Step | Peaceful | Military | Rank |
 |---|---|---|---|
@@ -769,22 +1748,54 @@ Ten steps and eighteen missions. The first two teach the basics and have no crim
 | 9 | Carteia | Corduba | Consul |
 | 10 | Puteoli | Narbo Martius | Proconsul, then Caesar |
 
-The provinces of steps 3 to 5 are Roman colonies of the 270s and 260s BC. **Firmum** (264 BC, a hilltop over the Picene country): lakes and woods with no water to the map's edge, so every raid comes over land; the first raid two years in (3 to 4 warriors on Normal), legionaries only (an iron mine, a weaponsmith, a barracks, a Castra, the Campus, towers and walls; archers, cavalry and the fleet wait for step 4), Aquileia and Capua (which buys iron) by land, and Caesar's call for troops for Ariminum in its second year. **Paestum** (273 BC, the Greek temple city of Poseidonia): a coast with Capua by land and Massilia and Corinthus by sea, everything of mission 4 but the army and the fleet. **Beneventum** (268 BC, on the Appian Way): a river map whose four partners all come by land and buy on the bigger quotas (furniture and clothing for Capua, meat for Aquileia, wine for Lugdunum, pottery for Tarraco), everything of mission 5 but the army and the fleet. **Figlina**, beside Firmum, is the potters' town: Tarraco and Capua each buy 4,000 pottery a year.
+The provinces of steps 3 to 5 are Roman colonies of the 270s and 260s BC.
+**Firmum** (264 BC, a hilltop over the Picene country): lakes and woods with no water to the map's edge, so every raid comes over land; the first raid two years in (3 to 4 warriors on Normal),
+legionaries only (an iron mine, a weaponsmith, a barracks, a Castra, the Campus, towers and walls; archers, cavalry and the fleet wait for step 4), Aquileia and Capua (which buys iron) by land, and
+Caesar's call for troops for Ariminum in its second year.
+**Paestum** (273 BC, the Greek temple city of Poseidonia): a coast with Capua by land and Massilia and Corinthus by sea, everything of mission 4 but the army and the fleet.
+**Beneventum** (268 BC, on the Appian Way): a river map whose four partners all come by land and buy on the bigger quotas (furniture and clothing for Capua, meat for Aquileia, wine for Lugdunum,
+pottery for Tarraco), everything of mission 5 but the army and the fleet.
+**Figlina**, beside Firmum, is the potters' town: Tarraco and Capua each buy 4,000 pottery a year.
 
-The late provinces, from step 6, are colonies and cities of the late third and second centuries BC, each with a trade of its own on the bigger quotas (see Trade: what a partner buys may rise, or fall, during the mission):
+The late provinces, from step 6, are colonies and cities of the late third and second centuries BC, each with a trade of its own on the bigger quotas (see Trade: what a partner buys may rise, or fall,
+during the mission):
 
 * **Cosa** (step 6, peaceful; 273 BC, one of the eighteen colonies that kept faith in Hannibal's war): a lake district whose lagoon reaches the sea; wine for Corinthus, Alexandria and Lugdunum.
 * **Copia** (step 7, peaceful; 193 BC, on the plain of Thurii): a river plain; wheat, vegetables, fruit and meat by the shipload and the caravan. The first peaceful province with the Circus.
-* **Mutina** (step 8, military; 183 BC, taken by the Ligurians in 177): an inland plain with four caravan routes and no water to the edge (no fleet, every raid by land); calls for troops for Placentia and Ariminum; Ligurian villages in the hills (see **Native villages**).
-* **Luna** (step 8, peaceful; 177 BC, under the white mountains, on "land taken from the Ligurians"): marble and timber for Carthago and Rhodus, furniture for Massilia and Alexandria; Ligurian villages on the edge of the woods.
-* **Corduba** (step 9, military; on the Baetis, raided by the Lusitanians from 155 BC): weapons for Carthago, Alexandria and Cirta, Gades and Rhodus by the river; raids by land only; twice a call for troops for Italica, by sea.
+* **Mutina** (step 8, military; 183 BC, taken by the Ligurians in 177): an inland plain with four caravan routes and no water to the edge (no fleet, every raid by land); calls for troops for Placentia
+  and Ariminum; Ligurian villages in the hills (see **Native villages**).
+* **Luna** (step 8, peaceful; 177 BC, under the white mountains, on "land taken from the Ligurians"): marble and timber for Carthago and Rhodus, furniture for Massilia and Alexandria; Ligurian villages
+  on the edge of the woods.
+* **Corduba** (step 9, military; on the Baetis, raided by the Lusitanians from 155 BC): weapons for Carthago, Alexandria and Cirta, Gades and Rhodus by the river; raids by land only; twice a call for
+  troops for Italica, by sea.
 * **Carteia** (step 9, peaceful; 171 BC, the first Latin colony outside Italy): eight partners, Gades and Delos among them; oil and clothing.
-* **Narbo Martius** (step 10, military; 118 BC, the first citizen colony beyond the Alps): a river map of 256 tiles a side with land on every edge, the largest war bands of the career, and calls for troops against the Teutones at Aquae Sextiae and the Cimbri at Vercellae.
-* **Puteoli** (step 10, peaceful; 194 BC, "a lesser Delos"): a coast of 224 tiles a side and all twelve partners; Delos buys 4,000 oil and 4,000 wine a year, and late in the mission Corinthus buys less wine.
+* **Narbo Martius** (step 10, military; 118 BC, the first citizen colony beyond the Alps): a river map of 256 tiles a side with land on every edge, the largest war bands of the career, and calls for
+  troops against the Teutones at Aquae Sextiae and the Cimbri at Vercellae.
+* **Puteoli** (step 10, peaceful; 194 BC, "a lesser Delos"): a coast of 224 tiles a side and all twelve partners; Delos buys 4,000 oil and 4,000 wine a year, and late in the mission Corinthus buys less
+  wine.
 
-**A city of districts.** The last step's maps gather their fields (meadow), their forests and their rocky hills each in a region of its own, far from the other two, with only scattered patches elsewhere. Since a building hires only from homes within 40 road tiles, one compact town cannot staff the farms, the timber yards and the quarries and mines: the city grows a district by each region, every district with its own homes, markets and services, joined by roads (and on Narbo's river, bridges). The briefings say so.
+**A city of districts.** The last step's maps gather their fields (meadow), their forests and their rocky hills each in a region of its own, far from the other two, with only scattered patches
+elsewhere.
+Since a building hires only from homes within 40 road tiles, one compact town cannot staff the farms, the timber yards and the quarries and mines: the city grows a district by each region, every
+district with its own homes, markets and services, joined by roads (and on Narbo's river, bridges).
+The briefings say so.
 
-**Population and jobs.** About a third of your plebeians look for work, and above 10% unemployment the city's mood falls (up to 15 points), so peace stops growing. The first two missions unlock few buildings that hire (farms, a granary, markets, prefects, engineers, a Forum, temples, then fountains, a school, a theater and the Curia), so their goals are what a sensibly built town of them employs: about 300 people in mission 1, 450 in mission 2 (550 with the Curia's 30 jobs, which came after the goal was set). More homes there only add idle hands. Later missions add workshops, shows, schools and baths, and trade: whatever a partner buys keeps farms and workshops staffed, so jobs grow with your exports. Patricians do not work: where your homes can reach the Villa (mission 4 on), a city whose best homes become villas holds more people for the same jobs, since only the plebeians look for work, while the villas still need every service, food and five goods (wine among them). Every mission's population goal fits what a sensibly built city of its buildings employs at 10% unemployment (`npm run sim -- --capacity`), counting a few villas where they can be reached (5% of the people, what the villas of a well-run city held in play): Firmum 1,100, Pons Aelius 2,700, Portus Mercatorum 3,900, Oasis Aurea 3,500, Urbs Magna 5,800, each with room to spare from mission 4 on (Urbs Magna's buildings employ about 8,200). At every step the peaceful province asks for more people than the military one: at steps 3 to 5 about a fifth more, Figlina 1,400, Paestum 3,350 and Beneventum 4,800, about 85 to 90% of what their buildings employ (1,640, 3,900 and 5,550, the first two with the Curia's jobs; Figlina's and Beneventum's with bigger trade of their own). Portus Mercatorum once asked for 4,600; 3,900 is the most its settlers can bring within the pace of the step after it. (Missions 3 to 7 once asked for 3,500 to 12,000 people, more than their jobs could employ, and could not be won.) The late provinces trade far more, on quotas of 1,500, 2,500 and 4,000 a year, and their goals are set a little under what their jobs employ (83 to 90%, since the gardeners' yards added their jobs): from 5,600 at Cosa to 12,000 at Puteoli, whose buildings and twelve partners employ about 14,300.
+**Population and jobs.** About a third of your plebeians look for work, and above 10% unemployment the city's mood falls (up to 15 points), so peace stops growing.
+The first two missions unlock few buildings that hire (farms, a granary, markets, prefects, engineers, a Forum, temples, then fountains, a school, a theater and the Curia), so their goals are what a
+sensibly built town of them employs: about 300 people in mission 1, 450 in mission 2 (550 with the Curia's 30 jobs, which came after the goal was set).
+More homes there only add idle hands.
+Later missions add workshops, shows, schools and baths, and trade: whatever a partner buys keeps farms and workshops staffed, so jobs grow with your exports.
+Patricians do not work: where your homes can reach the Villa (mission 4 on), a city whose best homes become villas holds more people for the same jobs, since only the plebeians look for work, while
+the villas still need every service, food and five goods (wine among them).
+Every mission's population goal fits what a sensibly built city of its buildings employs at 10% unemployment (`npm run sim -- --capacity`), counting a few villas where they can be reached (5% of the
+people, what the villas of a well-run city held in play): Firmum 1,100, Pons Aelius 2,700, Portus Mercatorum 3,900, Oasis Aurea 3,500, Urbs Magna 5,800, each with room to spare from mission 4 on (Urbs
+Magna's buildings employ about 8,200).
+At every step the peaceful province asks for more people than the military one: at steps 3 to 5 about a fifth more, Figlina 1,400, Paestum 3,350 and Beneventum 4,800, about 85 to 90% of what their
+buildings employ (1,640, 3,900 and 5,550, the first two with the Curia's jobs; Figlina's and Beneventum's with bigger trade of their own).
+Portus Mercatorum once asked for 4,600; 3,900 is the most its settlers can bring within the pace of the step after it.
+(Missions 3 to 7 once asked for 3,500 to 12,000 people, more than their jobs could employ, and could not be won.)
+The late provinces trade far more, on quotas of 1,500, 2,500 and 4,000 a year, and their goals are set a little under what their jobs employ (83 to 90%, since the gardeners' yards added their jobs):
+from 5,600 at Cosa to 12,000 at Puteoli, whose buildings and twelve partners employ about 14,300.
 
 | Mission | Map | Population | Culture | Prosperity | Peace | Favor | Homes up to | First raid |
 |---|---|---|---|---|---|---|---|---|
@@ -807,29 +1818,71 @@ The late provinces, from step 6, are colonies and cities of the late third and s
 | 10 Narbo Martius (military) | river, 256 | 10,000 | 77 | 72 | 78 | 70 | Imperial Palatium | 3 years |
 | 10 Puteoli (peaceful) | coast, 224 | 12,000 | 80 | 78 | 85 | 85 | Imperial Palatium | |
 
-Mission 3 opens the Amphitheatrum (Amphitheater) and the Ludus Gladiatorius (Gladiator School) for its Domus: a theater alone gives a home at most 16 entertainment (10 for a visit, 6 for the seats), and a Domus needs 20; it also opens the Lapicidina (Marble Quarry), for the marble its grand temples and statues are built of. Mission 4 opens shipyards and fishing wharves, and the cloth industry (Linarium, Textrinum, Taberna Vestiaria) its Insulae need: without clothing its homes would stop at Tenements. Missions 5 and 6 have every building but the Circus (Hippodrome) and its Factio (Chariot Stable), which come with step 7 (every province from there, and the sandbox); without a hippodrome the Imperial Palatium (95 entertainment) is out of reach. Peaceful provinces never have the army's buildings or the fleet; a military province has the fleet only where its water reaches the map's edge (not Oasis Aurea or Mutina).
+Mission 3 opens the Amphitheatrum (Amphitheater) and the Ludus Gladiatorius (Gladiator School) for its Domus: a theater alone gives a home at most 16 entertainment (10 for a visit, 6 for the seats),
+and a Domus needs 20; it also opens the Lapicidina (Marble Quarry), for the marble its grand temples and statues are built of.
+Mission 4 opens shipyards and fishing wharves, and the cloth industry (Linarium, Textrinum, Taberna Vestiaria) its Insulae need: without clothing its homes would stop at Tenements.
+Missions 5 and 6 have every building but the Circus (Hippodrome) and its Factio (Chariot Stable), which come with step 7 (every province from there, and the sandbox); without a hippodrome the Imperial
+Palatium (95 entertainment) is out of reach.
+Peaceful provinces never have the army's buildings or the fleet; a military province has the fleet only where its water reaches the map's edge (not Oasis Aurea or Mutina).
 
-**How long a mission takes.** Settlers come about 60 a month at a good mood of 70 (more in a city's first year), peace grows a point a month from 20, culture and prosperity rise a few points a month. In the missions of steps 1 to 4 and in Oasis Aurea peace sets the length, in the others the population, so even a city that is always ready needs about 1.3 years for the first mission, 2.1 for the second, 2.5 (Figlina) or 2.3 (Firmum) at step 3, 2.9 (Pons Aelius) or 3.75 (Paestum) at step 4, 4.2 (Portus Mercatorum) or 5.4 (Beneventum) at step 5, 4.2 (Oasis Aurea) or 6.5 (Cosa) at step 6, 6.8 (Urbs Magna) or 7.1 (Copia) at step 7, 7.1 (Mutina) or 8.5 (Luna) at step 8, 9.9 (Corduba) or 12 (Carteia) at step 9, and 12.65 (Narbo Martius) or 15.4 (Puteoli) at the last step, which is longer than any before it (`npm run sim -- --pace` prints the table). A year is 8 minutes at 1x; with the city to build first, that makes roughly 45 minutes for the first missions and a few hours for the last at normal speed.
+**How long a mission takes.** Settlers come about 60 a month at a good mood of 70 (more in a city's first year), peace grows a point a month from 20, culture and prosperity rise a few points a month.
+In the missions of steps 1 to 4 and in Oasis Aurea peace sets the length, in the others the population, so even a city that is always ready needs about 1.3 years for the first mission, 2.1 for the
+second, 2.5 (Figlina) or 2.3 (Firmum) at step 3, 2.9 (Pons Aelius) or 3.75 (Paestum) at step 4, 4.2 (Portus Mercatorum) or 5.4 (Beneventum) at step 5, 4.2 (Oasis Aurea) or 6.5 (Cosa) at step 6, 6.8
+(Urbs Magna) or 7.1 (Copia) at step 7, 7.1 (Mutina) or 8.5 (Luna) at step 8, 9.9 (Corduba) or 12 (Carteia) at step 9, and 12.65 (Narbo Martius) or 15.4 (Puteoli) at the last step, which is longer than
+any before it (`npm run sim -- --pace` prints the table).
+A year is 8 minutes at 1x; with the city to build first, that makes roughly 45 minutes for the first missions and a few hours for the last at normal speed.
 
 ## Native villages
 
-In Mutina and Luna the land's own people, the Ligurians, still live in villages of their own, and a sandbox can have them too (the setup's *Native villages* switch, off at first). As in the original, they are not yours: you cannot build or clear their huts, and nothing of theirs burns or falls down. Raiders and Caesar's legions pass them by.
+In Mutina and Luna the land's own people, the Ligurians, still live in villages of their own, and a sandbox can have them too (the setup's *Native villages* switch, off at first).
+As in the original, they are not yours: you cannot build or clear their huts, and nothing of theirs burns or falls down.
+Raiders and Caesar's legions pass them by.
 
-* **A village** is a Concilium (Meeting Place, 2x2) with 4 to 8 Tuguria (Native Huts) round it and a few small fields, at the woods' edge, at least 25 tiles from the Imperial road and off the meadow your farms need. A map has 1 to 3 (Mutina and Luna 2 or 3), placed with the map.
-* **Their land**: every tile within 3 of a hut and within 6 of a meeting place. The *Native land* overlay shows it: red where the village is angry, green where it has been calmed. Placing a building there says so.
-* **Anger**: every village starts angry. Each day an angry hut or meeting place looks over its land, and any building of yours there (roads, walls and aqueducts do not count, nor the mission post) sets its village attacking for 2 days, again every day the building stands. A calmed hut or meeting place grows 1 angrier a day, and only looks once it is angry again.
-* **An attack**: each angry hut sends out a villager (30 health, attack 8), a new one 5 days after one falls. They go for your building on the village's land nearest the meeting place and break it down, and whatever stands in their way, as raiders do; a wall keeps them out (they do not break walls or gates), and a building of yours they cannot reach at all (walled in) sets off no attack. Your soldiers, towers and prefects fight villagers only while they attack, and villagers never start a fight with a walker. When the attack is over they walk home. Villagers are no enemy in the province (the victory does not wait for them), but a month with an attack gains no peace.
-* **The Sacellum Pacis** (Mission Post; Temples menu, only where there are villages): 2x2, 100 Dn, 20 workers (Government & Religion), desirability -3 within 2; it never burns or falls down. Its missionary walks the roads like a priest (a roadblock's *Priests* permission lets him through), and every hut and meeting place within 4 tiles of him is calmed: 100 days of peace, renewed each time he passes. An attack ends at once when, after his visit, no hut or meeting place still angry has a building of yours on its land. So lay a road past the villages before you build on their land, and keep the post staffed.
-* **Native trade**: while a staffed mission post stands, each calmed village sends a trader every 9 days. He walks over open land to the nearest warehouse with something for him and buys up to 3 loads (100 units each) of goods you have set to Export, never below their keep level, paying the cheapest price any partner pays you this year; with nothing there he tries the next warehouse (three at most), then goes home. The trade log names the village.
-* **What a village shows** (the WebGL renderer, in 3D; it only shows what the rules above already say): calmed and at peace, the women grind and spin at their doors and the plots are hoed (none in the dead of winter, December to February); with a mission post at work, the goods they would sell are laid out at the meeting place; angry, the men gather there with their spears, the war horn sounds and the fire is built high, a man with a spear at every hut's door; attacking, the men are away (they are the villagers out fighting) and only the women, children and old are at home. The plots' crops follow the months (spelt and barley green through winter, ripe in June; millet ripe in August; beans in June); they are the look of the year in the hills, not a harvest: the villages grow nothing for the rules.
-* Unlike the original: the post needs its staff (the original's missionary worked with nobody at work), trade stops while no post is staffed (the original's went on for ever once one had worked), and each village goes for the building nearest its own meeting place (the original's all went for one meeting place, by a bug the last one found).
+* **A village** is a Concilium (Meeting Place, 2x2) with 4 to 8 Tuguria (Native Huts) round it and a few small fields, at the woods' edge, at least 25 tiles from the Imperial road and off the meadow
+  your farms need.
+  A map has 1 to 3 (Mutina and Luna 2 or 3), placed with the map.
+* **Their land**: every tile within 3 of a hut and within 6 of a meeting place.
+  The *Native land* overlay shows it: red where the village is angry, green where it has been calmed.
+  Placing a building there says so.
+* **Anger**: every village starts angry.
+  Each day an angry hut or meeting place looks over its land, and any building of yours there (roads, walls and aqueducts do not count, nor the mission post) sets its village attacking for 2 days, again
+  every day the building stands.
+  A calmed hut or meeting place grows 1 angrier a day, and only looks once it is angry again.
+* **An attack**: each angry hut sends out a villager (30 health, attack 8), a new one 5 days after one falls.
+  They go for your building on the village's land nearest the meeting place and break it down, and whatever stands in their way, as raiders do; a wall keeps them out (they do not break walls or gates),
+  and a building of yours they cannot reach at all (walled in) sets off no attack.
+  Your soldiers, towers and prefects fight villagers only while they attack, and villagers never start a fight with a walker.
+  When the attack is over they walk home.
+  Villagers are no enemy in the province (the victory does not wait for them), but a month with an attack gains no peace.
+* **The Sacellum Pacis** (Mission Post; Temples menu, only where there are villages): 2x2, 100 Dn, 20 workers (Government & Religion), desirability -3 within 2; it never burns or falls down.
+  Its missionary walks the roads like a priest (a roadblock's *Priests* permission lets him through), and every hut and meeting place within 4 tiles of him is calmed: 100 days of peace, renewed each
+  time he passes.
+  An attack ends at once when, after his visit, no hut or meeting place still angry has a building of yours on its land.
+  So lay a road past the villages before you build on their land, and keep the post staffed.
+* **Native trade**: while a staffed mission post stands, each calmed village sends a trader every 9 days.
+  He walks over open land to the nearest warehouse with something for him and buys up to 3 loads (100 units each) of goods you have set to Export, never below their keep level, paying the cheapest price
+  any partner pays you this year; with nothing there he tries the next warehouse (three at most), then goes home.
+  The trade log names the village.
+* **What a village shows** (the WebGL renderer, in 3D; it only shows what the rules above already say): calmed and at peace, the women grind and spin at their doors and the plots are hoed (none in the
+  dead of winter, December to February); with a mission post at work, the goods they would sell are laid out at the meeting place; angry, the men gather there with their spears, the war horn sounds and
+  the fire is built high, a man with a spear at every hut's door; attacking, the men are away (they are the villagers out fighting) and only the women, children and old are at home.
+  The plots' crops follow the months (spelt and barley green through winter, ripe in June; millet ripe in August; beans in June); they are the look of the year in the hills, not a harvest: the villages
+  grow nothing for the rules.
+* Unlike the original: the post needs its staff (the original's missionary worked with nobody at work), trade stops while no post is staffed (the original's went on for ever once one had worked), and
+  each village goes for the building nearest its own meeting place (the original's all went for one meeting place, by a bug the last one found).
 
 ## Hall of Fame
 
-Colonia's own (the original kept no list of best careers). Every campaign win is scored, and the **Hall of Fame** (main menu, or the campaign screen) lists the ten best and your career's score. The victory screen shows the win's score, its parts and its place ("the 3rd best win").
+Colonia's own (the original kept no list of best careers).
+Every campaign win is scored, and the **Hall of Fame** (main menu, or the campaign screen) lists the ten best and your career's score.
+The victory screen shows the win's score, its parts and its place ("the 3rd best win").
 
-* **A win's score**: the four ratings at the win, added (0 to 400); plus 100 x your people / the population goal (at most 200); plus 100 x the mission's planned years / the years you took (at most 150: 100 when as fast as the plan allows; the plan is the fewest years a city always ready needs, under **How long a mission takes** above); all times the difficulty (Easy x0.5, Normal x1, Hard x1.5, Insane x2), rounded; plus 50 for each distant battle won and 25 for each raid repelled in that mission, and 150 for a finished monument standing at the win. Each part is in whole points.
-* Example: Firmum on Normal with ratings 45 + 30 + 50 + 40 = 165, 1,800 people for a goal of 1,600 (112), won in 6 years where the plan says 4.5 (75), one distant battle won and two raids repelled: 352 + 50 + 50 = **452**.
+* **A win's score**: the four ratings at the win, added (0 to 400); plus 100 x your people / the population goal (at most 200); plus 100 x the mission's planned years / the years you took (at most 150:
+  100 when as fast as the plan allows; the plan is the fewest years a city always ready needs, under **How long a mission takes** above); all times the difficulty (Easy x0.5, Normal x1, Hard x1.5,
+  Insane x2), rounded; plus 50 for each distant battle won and 25 for each raid repelled in that mission, and 150 for a finished monument standing at the win.
+  Each part is in whole points.
+* Example: Firmum on Normal with ratings 45 + 30 + 50 + 40 = 165, 1,800 people for a goal of 1,600 (112), won in 6 years where the plan says 4.5 (75), one distant battle won and two raids repelled:
+  352 + 50 + 50 = **452**.
 * **The ten best wins** list each province once, with its best: a replay that scores higher replaces it, one that scores lower changes nothing. Ties keep the older win ahead.
 * **The career**: the best win at each step of the campaign, added, plus 500 once you win a province of the last step and Rome hails you Caesar.
 * The sandbox is not scored: its goals are your own. Nor is a win from the console's `win`, or in a city where the console's free building was ever switched on.
@@ -840,36 +1893,430 @@ Colonia's own (the original kept no list of best careers). Every campaign win is
 
 None of this changes the simulation: the same seed plays out the same way with every setting on or off, and saves do not store it.
 
-* **Day and night** (*Settings*: Day and night). One day and night takes 5 minutes at 1x (under 40 seconds at 8x) and stops while the game is paused. Daylight lasts a bit over half of it; sunset and dawn get warm colors. From dusk, homes light their windows one by one (about half their windows, more in bigger homes), temples, forts, towers, gates, docks and venues light torches, one walker in three carries a lantern, raiders carry torches, and fires light up their surroundings. Closed buildings (no staff) and farms, workshops and storehouses stay dark. Tool previews, radius overlays and selection outlines are drawn after the lighting, so they are always bright. Info overlays turn the tint off.
-* **Seasons** (*Settings*: Seasons). Four seasons follow the calendar: **Winter** is December to Februarius, **Spring** Martius to Maius, **Summer** Iunius to Augustus and **Fall** September to November (a season is 80 seconds at 1x). A new game starts in Ianuarius, mid-winter. The top bar shows the season next to the date (❄️ Winter, 🌱 Spring, ☀️ Summer, 🍂 Fall; hover it for the full date and the weather). The month sets the colors: December to Februarius are full winter (snow only ever falls on winter scenery), Aprilis full spring, Iunius and Iulius full summer and October full fall; Martius, Maius, Augustus, September and November blend two looks. Winter: grey-green grass and a third of the round trees bare. Spring: fresh green, meadows full of flowers, blossoms on some trees. Fall: olive-gold grass and orange, gold and red leaves. Cypresses never change. With *Seasons* off the colors stay summer's, and so does the weather (no snow). The calendar's seasons (`sim/time.js`) also drive the Insane farm winter, whether or not *Seasons* is on: resting fields keep their crop at the height it reached, dry and dull, fruit trees and vines stand bare and most pigs stay in the sty.
-* **Snow cover** (*Settings*: Weather and Seasons). Snow settles while it falls: a dusting after about 2 days of snowfall, deep snow after about 6. The ground, trees, rocks, roofs and fields turn white; roads, plazas and water stay clear. It melts slowly in dry winter weather (about 25 game days from deep snow) and within about 5 days once spring comes (faster in the rain). The white look is baked into the sprites, so it costs nothing per frame; a new snow level (or a new month) is prepared in the background and swapped in whole.
-* **Weather** (*Settings*: Weather). Each season has its own weather. **Spring** is the rainy season: rain about 45% of the time, three times as much as summer. **Summer** is mostly clear (about three quarters of the time) and its rain comes as the odd thunderstorm. **Fall** is cloudier, with rain about 30% of the time. **Winter** only snows (about 45% of the time): there is no rain and no thunder in winter, and snow never falls in any other season. A new season draws new weather on its first day; after that a spell lasts 20 to 45 seconds of game time. When winter starts, any rain stops at once; when spring starts, the snow melts away, so rain and snow never fall together. A new or loaded game opens with 12 to 25 seconds of clear sky. Overcast dims the scene and hides sun shadows and cloud shade. Thunderstorms flash (at most every 5 seconds) and thunder rolls in a moment later; heavy storms make some homes light their lamps by day. Birds stay home at night and in rain or snow.
-* **Renderer** (*Settings*: Renderer). *Classic (2D)*, the default, or *WebGL (beta)*, which draws the same city with the graphics card (much faster zoomed out over a big map) and shows nearly every building as a 3D model (the service, religious, entertainment, government, military and harbour buildings, the monuments at every stage and homes at five levels, and the four raw producers: the clay pit, timber yard, iron mine and marble quarry, each with its store showing in thirds and its lantern lit at night while staffed, and the eight workshops: the potter, carpenter, oil press, winery, weaponsmith, fletcher, linen weaver and clothing maker, each a plastered shed on a tufa footing under a tiled roof with a yard in front, open to the street while it is staffed (its people at their trade, the lantern lit at night, the potter's kiln and the smith's forge smoking) and boarded up when it is not, its raw material and its product each showing in thirds of what it can hold), with the people in them, the walkers, soldiers and ships: they stand in the 3D ground's sunlight and cast real shadows on it (Ground High), and while you place one its ghost is the model itself. It also zooms in closer than Classic: past 2x the wheel (or `+`) goes on to 3x, 4x and 6x, close enough to see the rope on the well's pulley and the wares on a market stall; Classic keeps its five steps (0.5x to 2x), so switching to it from a closer zoom, or loading a game saved at one, opens at 2x on the same spot. The fountain's look follows its neighbourhood, by the desirability of its tile: a plain basin of grey lava slabs (below 8), a limestone one with a carved head (8 to 19), a moulded marble basin with a bronze lion spout (20 to 36), a small fountain house with columns and a statue (37 and up); it changes only once the neighbourhood has clearly risen or fallen past the line, so it does not flicker. Its water runs when it has water and workers, stands still in a full basin without workers, and leaves a dry basin and a lime stain without water; in a hard frost icicles hang from a running fountain's lip. This is looks only: every fountain works the same. The market, the forum and the warehouse are models too. The **market** is a Roman macellum: a round pavilion over a water basin in the middle (the fish is laid on its marble counters), eight stalls round the court under striped awnings; each good it holds stands at a stall in three steps of fullness (a third, two thirds, more of what it can hold: sacks of grain, baskets of vegetables and fruit, hanging joints, jars of oil and wine, red tableware, furniture, cloth, marble), the stalls the camera sees best taken first; without workers its awnings are rolled up. The **forum** is the town's tax office: while it is staffed its doors stand open, a clerk counts coin at the table, a citizen pays and the strongbox is open; idle, all is shut and bare. The **warehouse** is a Republican horreum round a court of eight bays: tufa ashlar plinth, plastered walls framed in timber, a gate between two tufa piers with a painted plaque of the owners' names over it and a small tiled hood, antefixes along the eaves toward the street; every 100 units it holds (or part of 100) is one load standing in the court, so 32 loads is full, each the good it is (slender wine amphorae, round oil jars, logs, iron bars, marble blocks, clay, sacks, baskets of produce, flax, linen, clothes, pottery in straw, furniture, shields, arrows); the bays fill from the back, where the walls hide least, so how full it is reads at a glance; its gate is open while it is staffed. The **prefecture** is a watch house after the pattern of the vigiles, Rome's night watch and firemen: plastered rubble over a tufa footing with a red dado, VIGILES over a studded door, a rack of pitched rope buckets, a shrine in a red niche, a bench with folded blankets for smothering flames, the ladder, the long fire hook and the axes along its side wall, a force pump standing in its water tank. Staffed, its doors stand open, one man keeps the door and another works the pump; while any of its men are out at a fire, the buckets, the ladder, the hook, the axes and the blankets are gone with them and one man is left at the door; with no workers it is shut and nobody is there. In a hard frost the pump's water freezes. The **engineer's post** is a builders' yard: a half-timbered workshop with a bench and a rack of tools (set square, level, plumb bob, compass, adze, saw, mallet) under a sign, shear legs with a windlass lifting a stone block in iron tongs, squared timbers, a mortar trough, a heap of volcanic sand, a stack of sun-dried mud The **Emporium** (Trade Dock) is a terrace of tufa ashlar one step above the street with a plastered shed open to the quay on the west, where the goods it holds lie in bays and on the quay (a load for every 100 units, at most twelve loads, each good together); a stone quay with a crane of shear legs and its windlass; a timber jetty on piles with a gangplank stowed on its deck and bollards along its edge; a customs table and standard on the east. The merchant ship lies alongside its front, which is kept clear. Staffed, dockers carry loads between the quay and the ship's side, a man turns the crane's windlass with a crate on its hook, the clerk counts the dues and the lanterns are lit at night; idle, all is still. The **Fabrica Navalis** (Shipyard) has a small building slip with a frame of posts and beams over it and a windlass at its head; the fishing boat on it as the work goes on (the keel and posts, the frames and the lower strakes, planked, finished and painted blue; none while a finished boat waits afloat in front of the yard), its timber as a load for every 100 it holds (two at most), a pitch kettle over a fire (smoking while staffed), and a mast and oars seasoning on a deck on piles. A shipwright works at the boat, a man turns the windlass and another stirs the pitch. The **Piscatoria** (Fishing Wharf) has a timber deck on piles with a basket of the catch for every 25 fish it holds, a gutting table and a tub, a smoke house on the shore that smokes while the wharf is staffed, two frames of nets drying, and a fisherman seated on a cask mending one; its boat lies alongside its front. In a hard frost the foam round their piles goes too. bricks and of cut stone, and a surveyor's groma by the street, its four plumb lines hanging. Working, the block is hoisted, a man turns the windlass and the surveyor sights along the groma; idle, the block rests on rollers, the saw and mallet are back on the rack and nobody is there. At night their lamps are lit while they are staffed (the warehouse's lantern at its gate, the prefecture's by its door, the engineer's post's at its workshop's corner). The **town walls** are 3D too, in the stone of the province, as Rome walled its towns: polygonal limestone blocks fitted dry in the hills of Etruria, Latium, Picenum and Samnium (Cosa, Alatri, Norba), squared tufa round Puteoli, Volsinii and in Campania (the Servian Wall), squared limestone at Paestum and in Spain, Gaul and the desert, brick on the Po's plain (Turin). A wall stands about two storeys to its wall-walk, on a footing, with a parapet and merlons on each face; its tiles join up as you drag them, at every turn of the view. Square towers under tiled roofs rise at corners whose runs go on (not on a wall dragged on a slant, a staircase of corners), where walls meet, and every eight tiles along a run, never crowding a gate; a gate is a gatehouse across the road, an arched passage under a gallery with arched windows and crenels, studded doors that stand open to the townsfolk and are shut while an enemy (raiders, Caesar's legions, wolves, villagers on the attack) is within 14 tiles, torches either side of the arch at night, and round towers on the wall either side of it. A wall that runs into a Turris runs into its stone. Battered under half its hit points, a wall loses merlons, cracks and drops stones at its foot (a gate's door hangs from one hinge); under a quarter it is broken down to two metres in a notch with rubble heaped against it; broken through, it leaves rubble, and built again it rises out of the ground new. A dragged wall's ghost shows the pieces it would build, towers and all. The **watchtower** (Turris) is a stone tower after Hadrian's Wall's turrets and the towers on Trajan's Column: a studded door at its foot, a timber gallery on beams round its upper storey, a ladder up to it, a hipped roof of tiles, a crib of logs for the beacon and a rick of hay beside it; manned, two archers in green with conical helmets and bows keep watch on the gallery and a torch burns out of its window at night. Walls, gates and towers hide the people behind them, and a click on a wall's tile or on the tower picks it as before. The fleet's three buildings are models too, their back row on the shore and their two front rows out over the water on piles and piers, the water round them: the **Navalia** (naval dockyard) has an open building slip running down into the sea with a windlass at its head, a tiled ship shed on stone pillars beside it (spare mast and yard, racked oars) and a stock yard where its timber, iron and linen lie, a load for every 100 it holds (up to six of timber, two each of iron and linen); the liburnian it builds shows on the slip as the work goes on: the keel laid with its stem and sternpost (under a quarter), the planks rising strake by strake with the first frames inside (under half), planked to the rail with benches in (under three quarters), then finished with its oar box, bronze ram, painted eye and red paint; while it is staffed shipwrights work at the hull and a man stands at the windlass. The **Statio** (naval station) stands on a stone terrace with its headquarters (CLASSIS over the door, the squadron's red standard by it) and a store of oars and sails, two harbour moles of coursed ashlar out into the water, the west one run on as a timber jetty on piles, with bollards along them, the station's boat in the basin between, and a beacon tower on one mole whose fire burns while the station is staffed; its liburnians tie up past the moles' ends. The **Portus** (training harbour) has a rowing frame on the shore, a ship's benches on dry land as the Romans first trained their crews, a quay, a pier, a stone mole with a boarding bridge (the corvus) on its pole, and an old practice hulk moored in the basin; while a new ship's crew trains there (its ship moored at the Portus, the Portus fully staffed) twelve rowers pull at the frame in time to the hortator's mallet, marines spar on the hulk and stand guard on the bridge, which is down on its deck; otherwise the oars are back on their racks and the bridge is raised. In a hard frost the foam round their piles goes, as the water's edges freeze. The farms and the granary are models too, with the 3D ground on (with the flat ground a farm keeps its sprite, which draws its field). Every farm has a stone farmhouse with a tiled roof, a loft and a shrine by the door, and what its kind needs: a wheat farm's threshing floor and straw stack (biggest just after the harvest, sheaves stooked when the field is ripe), a vegetable garden's wattle fence and well with a sweep, an orchard's rows of apple, pear and fig trees, an olive grove's old olives and its oil mill, a vineyard's vines on stakes and a pole with a treading vat, a flax farm's retting pond and drying racks, a pig farm's sty with its pigs rooting in the pen (more as the litter grows), a horse ranch's stable and its herd in the paddock (one horse for each breeding mare). Trees and vines follow the season (bare in winter, blossom in spring, autumn colours), fruit and grapes grow and ripen with the farm's progress, and at the harvest ladders, baskets and cloths come out. Resting for an Insane winter the tools are put away and half the animals stay in; with no workers, doors and shutters are shut and weeds come in. A granary shows how full it is: its open platform holds twenty places, each a cart's load, filled in turn round all four sides, so the side you see shows its share whichever way the view is turned: sacks of wheat, baskets of vegetables and of fruit, hams on a rack with salting tubs, baskets of fish with amphorae; empty, the platform is bare. A lantern burns by its door at night while it is staffed. Console: `farms` builds one farm of every kind and a stocked granary beside the city. With the 3D ground on, the **trees and rocks** are 3D too, the trees of the province: Italian cypresses here and there, stone pines with their flat umbrellas and holm oaks on dry ground, downy oaks and sweet chestnuts inland, poplars, pollarded willows and planes along rivers and lakes, wild olive, laurel and myrtle in the undergrowth, wild cherries and almonds, date palms round a desert's oases (a province's own mix: no stone pine on the Po's plain, more holm oak in Spain); woods grow in stands of one kind. They sway in the wind and follow the year: the oaks turn russet and keep their dead leaves through the winter, chestnuts and poplars go gold and bare, the almond flowers on bare wood in February and March, the cherry in April, the myrtle in June; snow lies on their branches, rain darkens their bark. Rocks are limestone outcrops in their beds, boulders and scree with lichen and moss, and dark lava boulders where the province is volcanic (Puteoli, Volsinii). Trees and rocks hide walkers behind them as before; a click on a forest tile picks the tile; a building placed over a wood or a cleared tile clears its trees at once. Zoomed out each tree is drawn as a picture of itself, so whole forests cost little. Console: `flora` (what is drawn; `flora off` shows the flat trees, to compare). Where the browser has no WebGL, the Classic renderer draws and Settings says why.
-* **The people of the 3D buildings** (WebGL renderer; looks only, the sim never sees them): every building with people in it (temples and shrines, schools and libraries, the forum and the senate, the governor's houses, the prefecture and the engineer's post, the barber, physician, baths and hospital, the forts, barracks, military academy and watchtowers, the fleet's buildings and the gardeners' yard) is peopled with Romans who move: weight shifting from leg to leg, breathing, looking about, talking with their hands, walking a few steps and back, each at his own pace so no two move in step, unless they keep time together (a crew rowing to its hortator's beat, two walking side by side). What they do follows the building's state as its doors and fires do: a kept temple's priest, his head veiled, walks from the steps (where he prays with his hands raised) to the altar and pours from his dish over the fire while his boy holds the incense box; in its god's festival month a flute player plays, the victimarius stands with his axe and a crowd in wreaths cheers and prays on the paving and the steps; an unstaffed temple is empty. The school's boys write on their tablets and read their rolls while the master teaches from his chair and a slave waits at the gate; the forum's clerk counts coin as a citizen pays; the senate in session has senators talking on the steps and in the porch, a magistrate in the purple-bordered toga at the door and his lictors with the fasces, and soldiers of the guard on the alert; the prefecture's fireman rocks the pump's beam while another keeps the door. In the library readers unroll their books and the librarian walks along the cupboards taking rolls down; at the academy the master teaches in the exedra, a young man declaims and two philosophers walk the covered walk. The barber shaves his client under a linen cloth; the physician's assistant grinds at the mortar; bathers sit at the pool and the stoker rakes the furnace; the hospital's sick lie abed while orderlies come and go. The governor's household sweeps and carries, his guests recline at dinner in the villa, and soldiers come to the door when trouble nears. At the engineer's post a man turns the windlass's crank and the surveyor sights along his groma. Sentries pace the forts' walls and stand guard at the ends, archers draw and loose over the breastwork and from the watchtower's gallery, recruits strike at the post with sword and shield (the cavalry fort's troopers are as many as its horses in the stalls). At the Portus a new ship's crew rows at the frame in time to the hortator's mallet, and at the gardeners' yard a gardener clips the box hedge. They wear Roman dress (tunics with their stripes, the toga, the stola and palla, the Greek mantle, a soldier's mail and helmet, a child's bulla), snow settles on their heads and shoulders in winter and rain darkens their wool. They are drawn in more detail the closer you zoom (faces, hands and folds from 3x). Statues stay still: they are stone and bronze.
-* **The walkers in 3D** (WebGL renderer, while it draws the buildings as models; looks only, the sim never sees them): every walker but the ships is a dressed, moving person: prefects in red with their buckets (running to a fire, throwing water at it), engineers with the surveyor's rod and a tool case, priests with the toga over their heads and their god's colour on its border, teachers and scholars with rolls and tablets, the librarian's book box, barbers' and physicians' cases, the bath attendant's towel and oil flask, actors with their masks, gladiators with helmet, shield and sword, charioteers on their chariots in their faction's colour, gardeners' shears, the tax collector's purse, market women with baskets on their heads and buyers with a basket at the hip, cart pushers with handcarts showing their load (the warehouse's own goods), farm wagons behind their ox, drovers leading horses, work crews with a timber, newcomers and leavers with their bundles and families (or a mule), recruits in mail, traders with pack mules, villagers, protesters with a placard, thieves with their sack, rioters with a torch. Each keeps his look for good. They stand where the walker is, face where he goes and turn smoothly at a corner; their legs step with the ground covered, so they never slide at any speed and stand still when the game is paused. Family and mules follow along the road behind. A walker drawn in 3D hides behind a building in front of him like any model; a click on him, or on his cart, wagon or team, opens his panel. Ships are drawn as models of their own (below); with the Classic renderer everyone keeps his sprite.
-* **The soldiers, raiders and wolves in 3D** (WebGL renderer, while it draws the buildings as models; looks only, the sim never sees them): every land unit is a moving figure. Your legionaries march in step behind their signifer, form the line behind their shields when a foe comes within about 8 tiles, throw their pila as he closes and fight with the gladius; archers loose, cavalry gallop when they charge. Raiders are dressed by their people (Gauls, Ligurians, Carthaginians and Numidians, Lusitanians, the Cimbri and Teutones, the generic band), Caesar's men wear plate under the eagle and the flag, rebel gladiators fight as murmillo, thraex and retiarius, a village's men carry spears, pitchforks and clubs, and wolves trot when they move on, lope when they hunt and lie down at rest. A blow is drawn on the tick it lands, a man hurt flinches, and the dead fall and lie for about 40 seconds of game time before they fade into the ground; paused, all of it stands still. A click on a figure picks it as a click on its picture did; its health bar and its fort's ring are drawn over it. Ships keep their pictures.
-* **The ships and boats in 3D** (WebGL renderer, while it draws the buildings as models; looks only, the sim never sees them): every vessel is a model with its crew, where the game has it, facing the way it sails. A **merchant ship** is a corbita, the Roman merchantman: a round, deep hull, its sternpost curling into a swan's neck over the master's cabin, a square mainsail with two stripes in its trading partner's colour, the small artemon raked over the bow, a steering oar on each quarter and amphorae in the hold; the ships of Massilia and Cirta are smaller coasters. Two hands haul on the sheets and the master watches the sail; moored, the hands carry sacks and the master tallies the cargo. A **fishing boat** sails out and home with its two fishermen at the oars; at the grounds its sail is brailed up and its net lies out on the water in a ring of cork floats, one man casting and one hauling; home with a basket of the catch. A **liburnian** is the very ship the Navalia builds: fourteen rowers pull together to the hortator's mallet, their oars dipping and lifting, three marines stand on the bow's deck with spears and shields (bows drawn when it fights), the sail set on passage and furled to fight. **Raider ships** are their people's own craft: the Gauls', the Boii's and the Cimbri's high-ended oak ships with sails of hide, Carthage's black galleys with a ram and a horse's head on the stem, everyone else's light open galleys; their warriors stand on the decks while they are aboard, and one swings a fire pot at the bow as it throws. Sails fill with the wind (the same wind the trees sway in) and are braced round to it; hulls heave, pitch and roll on the swell, heel a little under sail and throw a bow wave and a wake; ships turn in a curve. A moored merchant ship or fishing boat lies alongside its quay, a liburnian stern-to its station with the rest of its squadron, a squadron holding the water lies bows out round its flag, a raider waiting offshore swings its bow into the wind. A damaged warship rides lower and lists; one that is sunk settles by the stern, rolls over and goes down, its planks and spars floating a while. At night a lantern burns at every stern. A click anywhere on a hull opens its panel; the selected ship's ring is round its hull.
-* **The aqueducts and the reservoir** are 3D models too in the WebGL renderer (looks only: the water works as before). An **aqueduct** is an arcade of squared stone (tufa in the volcanic country, limestone in the hills and the provinces, brick in the Po plain, as your town's walls), an arch to a tile, carrying an open channel lined with pink signinum: while it carries water you see it running along the top, the piers dark under the leaking joints; dry, the channel holds silt. Where it turns, branches or ends it stands on a solid pier pierced by narrow arches; over a road it takes one wide arch of dressed travertine with a blank tablet over it, high enough for any cart; beside a reservoir it steps down in a stair of little falls to the reservoir's inlet. The **reservoir** is a castellum aquae: a lined tank on a paved podium, a little distribution house over its back wall (three outlets behind bronze grilles, three lead pipes with stopcocks out of its back), two water towers with lead tanks at its back corners, and an overflow on each side running into a trough. Full, its tank is deep green water, the aqueducts pour into it and its overflows run; dry, it is empty but for silt and a puddle. A reservoir on a shore draws its water through a grilled culvert on the water's side. In a hard frost the margins of running water freeze. A walker under or behind an arch is drawn and clicked as before; a click on an aqueduct still shows its tile. Dragging an aqueduct shows the pieces it will build, see-through.
-* **The forts, the barracks and the military academy** are 3D models too in the WebGL renderer (looks only: they work as before). All three forts are camps of the Republic, earth and timber, nothing like the stone town wall: a ditch outside, a turf-faced earth bank about 1.2 m high and on it a palisade of sharpened stakes, with a watch platform on posts at each corner and a timber gate tower with a roof over the passage (about 4.8 m, the town wall's towers are 7). The **legion fort** has a palisade about 2.5 m high, the gate tower under LEGIO I, two barrack blocks, the headquarters at the back with the eagle, the signa, the red vexillum and a painted portrait shield before it, a bread oven and a water tank. The **archer fort** has a lower palisade (about 1.9 m), leather tents, a thatched shrine with the green standards, straw butts with arrows in them and a rack of bows. The **cavalry fort** has a stable along one side where a remount stands in a stall for each trooper the fort has (out with them while the fort is deployed), the decurion's house, a trough, a hay rick, saddles on a rack and the cavalry's dragon standard; its palisade is lower on the right and at the back, where its troopers stand near it. Your soldiers at rest stand in the yard as before, over the model, and a click still picks them; the palisades are kept low where they stand near a side, so you see them from every side. While a fort is deployed (or its men are away at a distant battle) its standards are out with them and the base stands empty; with nobody in it its gate is shut. Sentries pace the bank behind the stakes and the deck over the gate while the men are home, and the gate's lanterns burn at night. The **barracks** has an armoury whose rack fills with a set of arms (shield, pila, helmet, sword) for every 50 weapons it holds, a rack of arrows filling 50 at a time, and a horse line with a horse for every horse it holds (up to four); while a recruit is in training (not one trained and waiting for a fort with room or for arms) he strikes at a post with shield and sword under his instructor's eye, and a clerk writes at the table while it is staffed. The **military academy** is a training ground: a hall painted with trophies of arms behind a colonnade, the drill master's tribunal and standard, posts, butts and a riding ring; while men train there five strike at the posts, two archers shoot at the butts and a trooper holds the horse in the ring, the drill master calling from his tribunal. In a hard frost the forts' water freezes.
-* **The school, the library and the academy** are 3D models too in the WebGL renderer (looks only: they work as before). The **school** is a Roman schoolmaster's portico open to the street: a tiled roof on red-and-white columns with LVDVS on a board under its beam, the master in his high round-backed wicker chair on a little dais under a striped awning, ARMA VIRVMQVE CANO (the Aeneid's first words, which Pompeii's schoolboys scratched on its walls) painted on a whitened board on an easel, a counting board with its pebbles, boys on benches round the court with wax tablets on their knees or rolls held open and their book boxes beside them, one reciting before the master and a slave waiting at the gate. The **library** is a book hall on a stone podium behind four marble columns, BIBLIOTHECA cut over them, its painted walls lined with wooden cupboards full of rolls with their coloured tags; before its steps Minerva stands on her pedestal with spear and shield, herms of Homer, Ennius, Plato and Cicero line the court, a reader sits on a marble bench, a scribe copies at his desk, laurels grow in pots and a gate of bronze grilles opens to the street. The **academy** is a garden of gravel walks and grass edged in clipped box: at its back a half-round exedra with a stone bench where the master sits among his pupils, cypresses either side, two lecture rooms, a covered walk with benches along one side, a sundial's stone bowl on its column, a herm of Plato, a platform where a pupil declaims to his listeners, ACADEMIA over its gate. While staffed their people are at work, the doors, cupboards and gates stand open, the school's awning is out and their lanterns burn at night; with no workers they are shut up and empty. Console: `learning` builds a library and an academy beside the city.
-* **Gardens, statues, the gardeners' yard and the triumphal arch** are 3D models too in the WebGL renderer (looks only: they work as before). A **garden** is a Roman garden plot after those excavated at Pompeii: clipped box round beds of roses, oleander, myrtle, acanthus and Madonna lilies, gravel walks to the middle of each side, and at its middle a marble basin, a sundial, a pool with a little winged boy, or a pergola of vines hung with marble discs (oscilla); each plot is one of four designs turned four ways, so a row of them is not a pattern. Gardens side by side drop the hedges between them and become one garden, their walks running through. They follow the month: bare vines and roses pruned to canes in winter, young leaves in spring, roses and lilies in May and June, oleanders and green grapes in high summer, the vintage and the vine's red leaves in autumn. A **statue** is one of a few designs by where it stands: a herm, a portrait bust or a gilt Victory on a globe for the small one; the Augustus of Prima Porta (its cloak still painted), a patron in his toga or a bronze general on an inscribed base in a little paved square for the statue; a gilded horseman after Marcus Aurelius or an emperor enthroned, colossal, behind a bronze railing with two lampstands for the grand statue. **Neglect shows**: from the point where the sprite turns dull (60% of its bonus or less), a garden's box grows ragged and brown, weeds come up in its walks and its basin runs dry; a statue's marble greys with lichen and black streaks, its bronze goes green, birds leave their mark and its wreath lies fallen on the step, and the grand statue's lamps go out. The **gardeners' yard** shows its shed, its pots of seedlings, the tools, a compost heap and a gardener clipping box into a cone while it is staffed. The **triumphal arch**, after the Arch of Titus, stands across its road (whichever way the road runs), the road going on under its bay, SENATVS POPVLVSQVE ROMANVS on its attic in gilt letters and a gilt four-horse chariot on top.
-* **The barber, the physician, the baths and the hospital** are 3D models too in the WebGL renderer (looks only: they work as before). The **barber** (tonstrina) is a shop open to the street between two piers, TONSOR painted over the lintel: the client sits on a stool under a linen cloth, his head tipped back, while the barber at his side shaves him, a basin on its stand, a man waiting on the bench and another talking; inside, a bronze mirror, pots and razors, towels on a rail. With no staff its boards go across the front. The **physician** (medicus) is an ochre room under a pediment, MEDICVS over the door: the doctor talks with a patient sitting on the couch, his assistant grinds a remedy in the mortar at the table of instruments, coals glow in a brazier, a mother and her son wait on the bench outside by the herbs in pots and the staff of Asclepius. The **baths** (balneum) show their water and their staff: with piped water and workers the furnace is lit (its coals glow, smoke rises from the terracotta flue over the boilers and from the round room's smoke hole), bathers stand in the pool and sit on its rim, talk and rest on the exercise ground, the attendant minds the clothes, the stoker rakes the furnace, the bronze spout runs; with water but no workers the pool lies still, the doors shut, the furnace cold; with no piped water the pool is empty, dust and leaves on its floor. In a hard frost (snow 2 or 3) the pool freezes and working baths steam from the round room's smoke hole, the warm room's window and the flue, the snow melted off the round room's warm roof. (The baths are as a town of about 300 BC had them: the Greek bathhouse, a round tholos of hip-baths under a conical tiled roof, a warm room under a timber roof with a shuttered window, bronze boilers over a furnace, braziers for warmth; no hypocaust, vault or glass yet.) The **hospital** (valetudinarium) is built on the plan of the army's hospitals: wards round a court, a bed seen through each door, a corridor of red-and-white columns round a garden of herb beds and a well-head, the sick lying abed under their blankets, a convalescent on a couch in the sun talking with the physician, a soldier and an orderly walking in from the gate, an orderly carrying a dish along the corridor, the operating hall at the back with the surgeon at the table, the altar of Asclepius and Hygieia, VALETVDINARIVM over the gate. Their lanterns light at night while they work (the baths' only while their fire is in, and the warm room's window glows with firelight).
-* **The senate house and the governor's residences** are 3D models too in the WebGL renderer (looks only: they work as before). The **senate house** (curia) is a plain hall of tufa on a low podium, as the Republic's council houses were (the Curia Hostilia, the colonies' halls): its walls stuccoed cream over a red dado and scored as blocks, a porch of four plain Tuscan columns under a low tiled gable whose eaves and edges are hung with painted terracotta plaques, a painted disc on the ridge, timber doors studded with bronze under a tablet cut S·P·Q·R, honorary statues in the toga at the foot of the steps. In session (staffed) the doors stand open, senators in the toga with the purple stripe come up the steps and talk in the porch, two sit on its bench, a magistrate in the purple-bordered toga stands at the door and his lictors wait below with the fasces; idle, the doors are shut and nobody is there. The **governor's house** (Praetorium) is a Pompeian atrium house: a white front with a red dado, a porch on two columns over the door, HAVE in the threshold, benches for clients, lanterns and the governor's standard; inside, the atrium's roof falls inward on four columns to the pool under it, and behind it a garden of clipped box and flowers round a cistern's mouth inside red-and-white columns, the walls painted in red and black panels, the household's shrine in the back wall. The **villa** (Praetorium Maius) is bigger: a porch on marble Ionic columns, SALVE in the threshold, a long pool with a marble basin whose jet plays, four marble statues, lemon trees in pots, and the dining room under its own pediment, open on the garden, where the governor dines with two guests on the couches round the table. The **palace** (Regia) is the city's showpiece: on a platform, up a flight between gilt statues and the governor's standards, a gate of four Corinthian columns cut REGIA; a court open to the street over a marble parapet, porticoes of marble Ionic columns down its sides, two fountains, box parterres, statues and cypresses; across it the hall up three steps behind six Corinthian columns with gilt capitals, LEGATVS AVG PR PR (the governor's title, the emperor's legate) on its frieze, a gilt eagle and a gilded ridge. Lived in (staffed), the doors and shutters are open, the household is about, a guard stands at the door, the fountains play and the lamps are lit at night; with no servants a residence is shut up and dark. When rioters are making for it (a mob goes for the residence first and the senate next) or an enemy is near, the doors are barred, the household goes in and more soldiers stand at the door. In a hard frost the pools freeze and the fountains stop.
-* **The temples, the oracle and the mission post** are 3D models too in the WebGL renderer (looks only: they work as before). A **small temple** (aedes) is a Roman podium temple in small, after the Temple of Portunus in Rome, the Maison Carree at Nimes and the Temple of Hercules at Cori: a high podium with steps up the front only, a porch of four columns and one either side behind, the cella with its bronze doors and pilasters, the frieze painted in the god's colours and cut with the dedication in gilt letters (CERERI, NEPTVNO, MERCVRIO, MARTI VLTORI, VENERI GENETRICI), the god's emblems in the painted pediment and on the gable, a tiled roof; the altar stands in front of the steps (the Romans sacrificed outside, at the altar, in the god's sight through the open doors). Each god's temple is its own: **Ceres** in the Tuscan way of her old temple on the Aventine (stuccoed Tuscan columns, a red-ochre pediment with a gilt sheaf between torches, terracotta palmettes, sheaves at the altar, a plough and baskets of grain); **Neptune** Ionic in sea blue (a trident between dolphins, a running wave on the frieze, dolphins on the gable's corners, an anchor given by a ship's crew, the god enthroned with his trident); **Mercury** Corinthian in green and gold (the caduceus between roosters, winged hats on the corners, a herm at the corner, the young god with his purse); **Mars** after Augustus's Mars Ultor, crimson (a trophy of arms, a crested helmet on the gable, shields on the corners and gilded shields of the spoils on the walls, a bronze trophy by the steps, the god in his cuirass and helmet); **Venus** after Caesar's Venus Genetrix, pale blue and rose (a scallop shell between doves, doves on the ridge, myrtles and roses in pots). A **grand temple** (templum) is the same god's temple larger and in marble, after Mars Ultor in the Forum of Augustus and Apollo's at Pompeii: six columns across the front and four down each side, a solid back wall, a big altar in a court ringed by porticoes of Tuscan columns, the precinct's walls painted red inside. At work (staffed) the doors stand open on the cult statue, the fire burns on the altar with a thin smoke and the priest offers at it, his toga drawn over his head, his boy beside him with the incense box; in the month of the god's festival there are garlands between the columns and on the altar, a bigger fire, a crowd in wreaths, a flute player and the victim led to the altar; unstaffed, the doors are shut and the altar holds cold ash. While a god is **angry** (from its wrath until its mood recovers) the smoke over its altars is black and heavy: an ill omen you can read across the city. The **oracle** is a round shrine (tholos) after the one below Delphi and the round temple at Tivoli: ten Corinthian columns on three steps, garlands and ox skulls on its frieze, a conical tiled roof with a gilt tripod on top; beside it the rock's cleft breathes vapour over a spring running into a stone basin (frozen in a hard frost), Apollo's laurel and cypresses grow by it, two bronze tripods burn at the approach and inside stand the tripod over the omphalos and a statue of Fortuna. The **mission post** (Sacellum Pacis) is a walled yard: a gate under a tiled canopy (PAX in its threshold), at the back a little shrine of Peace with her statue, an altar before it, the envoys' lodging down one side, gifts for the villages (wine, cloth, pottery), an olive tree and a white standard topped with the herald's caduceus; staffed, the gate is open, the fire lit, the envoy talks with a villager come to trade; unstaffed, the gate is shut and the standard taken in. At night the altar fires and the porch's lampstands light the temples while they are staffed; the oracle's tripods always burn.
-* **The actor troupe, the gladiator school, the menagerie and the chariot stable** are 3D models too in the WebGL renderer (looks only: they train and send their performers as before). The **actor troupe** (Grex) is a company's house whose painted front is the wall of a practice stage of boards, with three doors and masks hung on it; the players rehearse on the stage in tragic and comic masks to the double pipes while the manager directs from his stool, costumes air on a rail and the touring cart stands loaded in the yard. The **gladiator school** (Ludus Gladiatorius) has cells round a sanded court behind a red and white portico, racks of helmets, shields, nets and tridents, a little oval practice ring and two posts: a murmillo and a thraex trade blows, a retiarius presses his opponent, recruits strike the posts with wooden swords under their trainer. The **menagerie** (Vivarium) keeps a lion, a lioness and a leopard in cages of stone and iron and a bear in its yard; the lion paces and roars, the bear rises on its hind feet, keepers carry meat to the bars. The **chariot stable** (Factio) belongs to one of the four colours of the circus (red, white, blue or green, painted on its board between palms of victory): horses at their mangers, a team trotting round a turning post with its driver, another standing harnessed with its grooms. While a building's performer is on the road to a venue it shows it: the troupe's cart is gone on tour, a pair of gladiators is gone, the leopard's cage stands open and the cage cart is away, a harnessed team has left for the races. With no staff the gates are shut and nobody is at work (the beasts and the horses stay in their cages and stalls).
-* **The theatre, the amphitheatre, the Great Arena and the hippodrome** are 3D models too in the WebGL renderer (looks only: they work as before). A venue shows a show while it is staffed and has a show booked (the same rule that sends its entertainers out); staffed with nothing booked, its gates stand open and attendants rake the sand; unstaffed, its gates are shut. The **theatre** is a half circle of stone seats round the orchestra, the decurions' chairs on its broad step, the stage before a wall of coloured marble columns in two storeys, three doors and statues, an awning spread on masts on a play day; actors in masks declaim and a piper plays. The **amphitheatre** (after Pompeii's) and the **Great Arena** (the earliest kind of stone amphitheatre: an earth bank held by a rubble wall, the top tier of timber, two double stairs up the outside, an awning of sailcloth) seat their crowds round the sand: gladiators fight in pairs (a murmillo against a thraex, a retiarius against a secutor) while a referee watches, and at the Arena a hunter fights a lion; an amphitheatre with actors booked too sets up a stage at one end for a play. The **hippodrome** shows its race in all three of its sections: four chariots of the factions (red, white, green, blue) racing round the spina, its eggs taken down and its dolphins turned one a lap. The crowd fills as many seats as the city can: the city's people over the seats of all its working venues of that kind (a theatre seats 400, an amphitheatre 900, an Arena 2,000), a fifth at a time; citizens in white togas sit in the front rows, the poor and the women at the top, as Augustus ruled. The torches and lamps are lit at night while a show runs. Console: `shows` builds an Arena, an amphitheatre and a Circus beside the city if it has none and books every show.
-* **The Great Baths and the Caravanserai** are 3D models too in the WebGL renderer (looks only: they work as before). A site shows the stage under way, its walls rising a quarter of the stage at a time as the work goes on (the Great Baths: the trenches and rubble footings with the pool dug, then the tufa walls of the tub hall and the two round rooms, then the hall's timber trusses and the round rooms' cones of rafters, then the tiles and the stucco with the exercise court's colonnade; the Caravanserai: the court paved, then the ground storey and the colonnade, then the upper rooms, the gallery and the roofs), with scaffolds, cranes and stacks of goods; while a work camp's crew is on the site its men work and the treadwheel turns, a halted site stands still with nobody on it. Finished, the **Great Baths**, a Greek-style bath of about 300 BC (an exercise court with its colonnade and running track, an open pool, a long tub hall and two round rooms under conical roofs, a furnace yard behind), at work show bathers in the pool, ball games, a weightlifter and a runner on the track, the oil seller, the stoker and the smoke of the flue and the roofs' smoke holes (steam from the windows and the smoke holes in a hard frost); without timber in its store the furnaces are dark and nobody bathes, without piped water the pools are empty, unstaffed it is shut. The woodstore's stacks show while it holds timber. The **Caravanserai** staffed and fed shows its stabled mules and horses, a mule train coming in at the gate, an ox wagon unloading, travellers at the tavern's tables and the innkeeper, the kitchen's smoke; staffed with an empty larder its beasts stand stabled and its tables are empty; unstaffed its gate is shut. Either one sacked by raiders shows rubble, soot and broken work (a burnt-in roof, thrown-down columns, a gate torn off) until it is repaired. Console: `monument thermae` or `monument mansio_magna` lays one out beside the city (`done` finishes it).
-An **Insula** (2 x 2) is a taller, richer one: three storeys over a tufa footing, shops along the street, balconies or an outside timber stair, washing and pots, a light well and a tiled roof in several pitches. A **Villa** (2 x 2) is a well-off family's town house: a blank street front with a studded door and a porter's window, two storeys round a colonnaded court, a roof that falls to an open square over the atrium, a small kitchen garden and a fig behind. A **Garden Villa** (2 x 2) makes the garden of it: the house along one side with a loggia, a walled garden of box-edged beds, a fountain, a herm, a sundial, a vine pergola, cypresses and a gate. * **Homes** at every level are 3D models too in the WebGL renderer (looks only: they house, grow and fall as before; the other levels keep their sprites), so a new city is not a field of flat sprites among 3D buildings. A **Tent** is a settler's tent of undyed wool or hide over a ridge pole on crossed poles, guy ropes to pegs, its flap tied back while the family is in and hanging shut when it is empty, a ring of stones for the cooking fire before it with a pot on a tripod, a basket, a bundle or a jar beside; some are patched and sag between their poles. A **Family Tent** is a larger tent in two bays with a hide awning stretched out in front on two poles as a porch, a rush mat under it, a water jar, a second fire, and in one look washing on a line from a pole to a stake. A **Lean-to** is poles leant against a ridge beam on two forked posts, roofed with reed or with sods, a wattle wall closing one end, a low doorway with a hide curtain over a footing of dry stone or turf, a woodpile and a hearth, and in one look a wattle pen with a pig in it. The four 3 x 3 homes, a **Peristyle Villa**, a **Marble Villa**, a **Mansion** and a **Palatium**, are the atrium house with a colonnaded garden behind it: a plain street front with a porter's door and shops, the atrium and the tablinum, and a peristyle of columns round a garden with a basin; the Marble Villa has marble doorframe, columns and statue, the Mansion a second storey over its shops, a loggia, a long pool and a tower for dining, and the Palatium a columned porch with a pediment, a tall atrium, a pavilion and fountain. . A **Hut** is a one-room house of rubble or mud brick on a stone footing under thatch (or a few crude tiles), a plank door, a bench and a jar by it, a clay pot on the ridge for the hearth's smoke. A **Cottage** is a small plastered house, a red band along its foot, a shuttered window, a tiled roof, in a tiny walled yard with a fig, a vine on a trellis or an arbor, and a well-head. A **Townhouse** is a narrow two-storey house with a shop open to the street below (its counter and wares, and the boards that shut it) and the family's rooms above, a balcony or shuttered windows. A **Stone Cottage** is a one-storey house of tufa, bare ashlar or rubble, or plaster over a bare stone footing, under a tiled gable with terracotta antefixes and a loft vent, with one shuttered window, a studded door, a bench by it and, in one look, a vine on a trellis over the door. A **Merchant House** is a townhouse with a real shop: a wide mouth with a masonry counter (jars, cloth, baskets, bread), the shutter boards stacked in the jamb while people live there and across it when it stands empty, a sign, a red dado on plastered walls, the family's rooms above behind a timber balcony or under a pergola over the shop, a tiled roof with a clay smoke vent on the ridge. A **Domus** is the atrium house of the early Republic: a tall blank front of ashlar or plaster with a narrow door between two small shops or two high slit windows, a small gable over the door with a painted terracotta plaque, and behind it a roof that slopes inward to the open compluvium over the impluvium basin. An **Apartment House** is three plastered storeys, some over a ground floor of bare tufa rubble, with a shop, a stair door and balconies on timber beams. A **Tenement** (2 x 2) is an insula of four plastered storeys round a small light court, shops along the street, balconies, rows of windows. An **Insula** (2 x 2) is a taller, richer one: three storeys over a tufa footing, shops along the street, balconies or an outside timber stair, washing and pots, a light well and a tiled roof in several pitches. A **Villa** (2 x 2) is a well-off family's town house: a blank street front with a studded door and a porter's window, two storeys round a colonnaded court, a roof that falls to an open square over the atrium, a small kitchen garden and a fig behind. A **Garden Villa** (2 x 2) makes the garden of it: the house along one side with a loggia, a walled garden of box-edged beds, a fountain, a herm, a sundial, a vine pergola, cypresses and a gate. Each level comes in four looks (the colour of the plaster or the brick, the shape of the roof, shutters, awnings, washing on a line, pots, the shop's goods), picked by the home, so a street of the same level is not one pattern; a home faces its road. A home with people in it has its shutters back and its doors open, and at the closest zooms a woman sweeps or spins at the door, a shopkeeper counts at his counter, a customer talks, a woman leans on a balcony; an empty home is shut up (shutters closed, the shop boarded, nobody), and at night a lit window here and there marks the homes with people. The console's `homes` sets the demo city's homes to these levels to see them together. the **Grand Palatium** has a long plastered street front of three shops and two doors (the great door with HAVE in tesserae on its threshold), two atria behind it under their own roofs (one with four columns round its basin), the tablinum between them opening onto a mosaic floor and the garden, a first peristyle round a basin with a bronze faun, a second and larger one with a long pool, figs and cypresses, and a two-storey range behind with a loggia on its upper floor; the **Imperial Palatium** is the same plan as the governor's own house, with a porch of four Ionic columns on the street under a pediment, bronze lampstands, a forecourt with a marble fountain and statues, a belvedere tower at one corner, two peristyles of marble columns with long basins, a summer dining pavilion with three couches in the great garden, and a garden gate on the side street.
-* **Ground** (*Settings*: Ground, with the WebGL renderer). The WebGL renderer draws the ground in 3D, lit by the sun: pasture, the fertile meadows (lusher, yellower, with flowers), dry scrub far from water, the forest floor, rocky ground, sand, beaches; the streets of the town paved in basalt between limestone kerbs (a road with a building beside it), gravel country roads, plazas of flagstones, the trodden earth of yards round buildings and along walls and aqueducts, rubble, and a burned building's ash and charred beams (glowing while it burns); water that deepens from its edge, with ripples, surf on the sea's shore and the sky in it. A farm's field is drawn by the ground too: wheat, vegetables and flax sprout in rows, grow and ripen with the farm's progress (wheat turns gold, flax flowers blue), stand as stubble while a farm rests for the winter and go to weeds when no one works them; orchards, olive groves and vineyards are hoed round their trees and vines, a pig pen is mud and straw. The season colours the grass day by day (flowers in spring, fallen leaves under the trees in autumn), snow settles and melts smoothly (roads stay trodden, a field's rows show through it, a fire melts it), rain darkens the ground and leaves puddles, and the well casts its real shadow. *Auto* picks *3D, low quality* on phones, tablets and graphics built into the processor, as most laptops have (the ground's picture is kept while nothing moves, and its water is still), and *Flat* on computers without any graphics chip, where the 3D ground would be slow; it also drops from high to low quality once if frames stay slow at the lowest render scale. *Flat* is the ground as the Classic renderer draws it. Nothing about the city changes: tiles, building and picking are as before.
-* **Render scale** (*Settings*: Render scale, with the WebGL renderer). How many of the screen's pixels the 3D city is drawn with: *100%*, *75%*, *50%*, or *Auto* (the default), which lowers it only while frames run slow on the graphics chip, the 3D ground first (it shows least: a soft surface under sharp buildings), then the rest, and raises it again once there is room, never flickering between two. The menus, the top bar, text, signs and outlines always stay sharp. On a laptop with graphics in the processor *Auto* starts with the ground at about one pixel per point of the screen. Console: `scale`.
-* **Fullscreen** (*Settings*: Fullscreen when a game starts, on by default). Starting a mission or a sandbox, *Continue* and *Load* fill the screen. **Esc** leaves fullscreen (that Esc does nothing else); the ⛶ button in the top bar, or *Fullscreen* in the game menu, goes back in. Where the page may not go fullscreen (inside some web pages) nothing happens and the button is hidden.
-* **Performance readout** (**F3**, or *Settings*: Show the performance readout). Frames a second, how long frames take and where the time goes (the simulation, working out what to draw, drawing, the graphics chip's own time with WebGL), the screen size and pixel ratio, the render scale, and the graphics chip the browser draws with. On a laptop with two graphics chips the browser often uses the slower one built into the processor: the readout then says so, and how to give the browser the graphics card (Windows Settings > System > Display > Graphics, pick the browser, *High performance*, then restart the browser).
-* **Reduced motion.** When the system asks for reduced motion, decorative motion stops: no swaying trees, glints, falling rain or snow, lightning flashes, fling or zoom animation. Colors, lights, snow on the ground and flags (held still) remain.
-* **Debug console:** `weather rain` (clear, cloudy, rain, storm, snow) changes the weather now (in winter rain and storms fall as snow, and snow turns to rain in the other seasons); `snow 3` sets the snow lying on the ground (0 to 3; it melts again by itself); `sky 0.8` freezes the time of day (0.3 noon, 0.67 sunset, 0.8 night) and `sky off` lets it run again.
+* **Day and night** (*Settings*: Day and night).
+  One day and night takes 5 minutes at 1x (under 40 seconds at 8x) and stops while the game is paused.
+  Daylight lasts a bit over half of it; sunset and dawn get warm colors.
+  From dusk, homes light their windows one by one (about half their windows, more in bigger homes), temples, forts, towers, gates, docks and venues light torches, one walker in three carries a lantern,
+  raiders carry torches, and fires light up their surroundings.
+  Closed buildings (no staff) and farms, workshops and storehouses stay dark.
+  Tool previews, radius overlays and selection outlines are drawn after the lighting, so they are always bright.
+  Info overlays turn the tint off.
+* **Seasons** (*Settings*: Seasons).
+  Four seasons follow the calendar: **Winter** is December to Februarius, **Spring** Martius to Maius, **Summer** Iunius to Augustus and **Fall** September to November (a season is 80 seconds at 1x).
+  A new game starts in Ianuarius, mid-winter.
+  The top bar shows the season next to the date (❄️ Winter, 🌱 Spring, ☀️ Summer, 🍂 Fall; hover it for the full date and the weather).
+  The month sets the colors: December to Februarius are full winter (snow only ever falls on winter scenery), Aprilis full spring, Iunius and Iulius full summer and October full fall; Martius, Maius,
+  Augustus, September and November blend two looks.
+  Winter: grey-green grass and a third of the round trees bare.
+  Spring: fresh green, meadows full of flowers, blossoms on some trees.
+  Fall: olive-gold grass and orange, gold and red leaves.
+  Cypresses never change.
+  With *Seasons* off the colors stay summer's, and so does the weather (no snow).
+  The calendar's seasons (`sim/time.js`) also drive the Insane farm winter, whether or not *Seasons* is on: resting fields keep their crop at the height it reached, dry and dull, fruit trees and vines
+  stand bare and most pigs stay in the sty.
+* **Snow cover** (*Settings*: Weather and Seasons).
+  Snow settles while it falls: a dusting after about 2 days of snowfall, deep snow after about 6.
+  The ground, trees, rocks, roofs and fields turn white; roads, plazas and water stay clear.
+  It melts slowly in dry winter weather (about 25 game days from deep snow) and within about 5 days once spring comes (faster in the rain).
+  The white look is baked into the sprites, so it costs nothing per frame; a new snow level (or a new month) is prepared in the background and swapped in whole.
+* **Weather** (*Settings*: Weather).
+  Each season has its own weather.
+  **Spring** is the rainy season: rain about 45% of the time, three times as much as summer.
+  **Summer** is mostly clear (about three quarters of the time) and its rain comes as the odd thunderstorm.
+  **Fall** is cloudier, with rain about 30% of the time.
+  **Winter** only snows (about 45% of the time): there is no rain and no thunder in winter, and snow never falls in any other season.
+  A new season draws new weather on its first day; after that a spell lasts 20 to 45 seconds of game time.
+  When winter starts, any rain stops at once; when spring starts, the snow melts away, so rain and snow never fall together.
+  A new or loaded game opens with 12 to 25 seconds of clear sky.
+  Overcast dims the scene and hides sun shadows and cloud shade.
+  Thunderstorms flash (at most every 5 seconds) and thunder rolls in a moment later; heavy storms make some homes light their lamps by day.
+  Birds stay home at night and in rain or snow.
+* **Renderer** (*Settings*: Renderer).
+  *Classic (2D)*, the default, or *WebGL (beta)*, which draws the same city with the graphics card (much faster zoomed out over a big map) and shows nearly every building as a 3D model (the service,
+  religious, entertainment, government, military and harbour buildings, the monuments at every stage and homes at five levels, and the four raw producers: the clay pit, timber yard, iron mine and marble
+  quarry, each with its store showing in thirds and its lantern lit at night while staffed, and the eight workshops: the potter, carpenter, oil press, winery, weaponsmith, fletcher, linen weaver and
+  clothing maker, each a plastered shed on a tufa footing under a tiled roof with a yard in front, open to the street while it is staffed (its people at their trade, the lantern lit at night, the
+  potter's kiln and the smith's forge smoking) and boarded up when it is not, its raw material and its product each showing in thirds of what it can hold), with the people in them, the walkers, soldiers
+  and ships: they stand in the 3D ground's sunlight and cast real shadows on it (Ground High), and while you place one its ghost is the model itself.
+  It also zooms in closer than Classic: past 2x the wheel (or `+`) goes on to 3x, 4x and 6x, close enough to see the rope on the well's pulley and the wares on a market stall; Classic keeps its five
+  steps (0.5x to 2x), so switching to it from a closer zoom, or loading a game saved at one, opens at 2x on the same spot.
+  The fountain's look follows its neighbourhood, by the desirability of its tile: a plain basin of grey lava slabs (below 8), a limestone one with a carved head (8 to 19), a moulded marble basin with a
+  bronze lion spout (20 to 36), a small fountain house with columns and a statue (37 and up); it changes only once the neighbourhood has clearly risen or fallen past the line, so it does not flicker.
+  Its water runs when it has water and workers, stands still in a full basin without workers, and leaves a dry basin and a lime stain without water; in a hard frost icicles hang from a running
+  fountain's lip.
+  This is looks only: every fountain works the same.
+  The market, the forum and the warehouse are models too.
+  The **market** is a Roman macellum: a round pavilion over a water basin in the middle (the fish is laid on its marble counters), eight stalls round the court under striped awnings; each good it holds
+  stands at a stall in three steps of fullness (a third, two thirds, more of what it can hold: sacks of grain, baskets of vegetables and fruit, hanging joints, jars of oil and wine, red tableware,
+  furniture, cloth, marble), the stalls the camera sees best taken first; without workers its awnings are rolled up.
+  The **forum** is the town's tax office: while it is staffed its doors stand open, a clerk counts coin at the table, a citizen pays and the strongbox is open; idle, all is shut and bare.
+  The **warehouse** is a Republican horreum round a court of eight bays: tufa ashlar plinth, plastered walls framed in timber, a gate between two tufa piers with a painted plaque of the owners' names
+  over it and a small tiled hood, antefixes along the eaves toward the street; every 100 units it holds (or part of 100) is one load standing in the court, so 32 loads is full, each the good it is
+  (slender wine amphorae, round oil jars, logs, iron bars, marble blocks, clay, sacks, baskets of produce, flax, linen, clothes, pottery in straw, furniture, shields, arrows); the bays fill from the
+  back, where the walls hide least, so how full it is reads at a glance; its gate is open while it is staffed.
+  The **prefecture** is a watch house after the pattern of the vigiles, Rome's night watch and firemen: plastered rubble over a tufa footing with a red dado, VIGILES over a studded door, a rack of
+  pitched rope buckets, a shrine in a red niche, a bench with folded blankets for smothering flames, the ladder, the long fire hook and the axes along its side wall, a force pump standing in its water
+  tank.
+  Staffed, its doors stand open, one man keeps the door and another works the pump; while any of its men are out at a fire, the buckets, the ladder, the hook, the axes and the blankets are gone with
+  them and one man is left at the door; with no workers it is shut and nobody is there.
+  In a hard frost the pump's water freezes.
+  The **engineer's post** is a builders' yard: a half-timbered workshop with a bench and a rack of tools (set square, level, plumb bob, compass, adze, saw, mallet) under a sign, shear legs with a
+  windlass lifting a stone block in iron tongs, squared timbers, a mortar trough, a heap of volcanic sand, a stack of sun-dried mud The **Emporium** (Trade Dock) is a terrace of tufa ashlar one step
+  above the street with a plastered shed open to the quay on the west, where the goods it holds lie in bays and on the quay (a load for every 100 units, at most twelve loads, each good together); a
+  stone quay with a crane of shear legs and its windlass; a timber jetty on piles with a gangplank stowed on its deck and bollards along its edge; a customs table and standard on the east.
+  The merchant ship lies alongside its front, which is kept clear.
+  Staffed, dockers carry loads between the quay and the ship's side, a man turns the crane's windlass with a crate on its hook, the clerk counts the dues and the lanterns are lit at night; idle, all is
+  still.
+  The **Fabrica Navalis** (Shipyard) has a small building slip with a frame of posts and beams over it and a windlass at its head; the fishing boat on it as the work goes on (the keel and posts, the
+  frames and the lower strakes, planked, finished and painted blue; none while a finished boat waits afloat in front of the yard), its timber as a load for every 100 it holds (two at most), a pitch
+  kettle over a fire (smoking while staffed), and a mast and oars seasoning on a deck on piles.
+  A shipwright works at the boat, a man turns the windlass and another stirs the pitch.
+  The **Piscatoria** (Fishing Wharf) has a timber deck on piles with a basket of the catch for every 25 fish it holds, a gutting table and a tub, a smoke house on the shore that smokes while the wharf
+  is staffed, two frames of nets drying, and a fisherman seated on a cask mending one; its boat lies alongside its front.
+  In a hard frost the foam round their piles goes too.
+  bricks and of cut stone, and a surveyor's groma by the street, its four plumb lines hanging.
+  Working, the block is hoisted, a man turns the windlass and the surveyor sights along the groma; idle, the block rests on rollers, the saw and mallet are back on the rack and nobody is there.
+  At night their lamps are lit while they are staffed (the warehouse's lantern at its gate, the prefecture's by its door, the engineer's post's at its workshop's corner).
+  The **town walls** are 3D too, in the stone of the province, as Rome walled its towns: polygonal limestone blocks fitted dry in the hills of Etruria, Latium, Picenum and Samnium (Cosa, Alatri, Norba),
+  squared tufa round Puteoli, Volsinii and in Campania (the Servian Wall), squared limestone at Paestum and in Spain, Gaul and the desert, brick on the Po's plain (Turin).
+  A wall stands about two storeys to its wall-walk, on a footing, with a parapet and merlons on each face; its tiles join up as you drag them, at every turn of the view.
+  Square towers under tiled roofs rise at corners whose runs go on (not on a wall dragged on a slant, a staircase of corners), where walls meet, and every eight tiles along a run, never crowding a gate;
+  a gate is a gatehouse across the road, an arched passage under a gallery with arched windows and crenels, studded doors that stand open to the townsfolk and are shut while an enemy (raiders, Caesar's
+  legions, wolves, villagers on the attack) is within 14 tiles, torches either side of the arch at night, and round towers on the wall either side of it.
+  A wall that runs into a Turris runs into its stone.
+  Battered under half its hit points, a wall loses merlons, cracks and drops stones at its foot (a gate's door hangs from one hinge); under a quarter it is broken down to two metres in a notch with
+  rubble heaped against it; broken through, it leaves rubble, and built again it rises out of the ground new.
+  A dragged wall's ghost shows the pieces it would build, towers and all.
+  The **watchtower** (Turris) is a stone tower after Hadrian's Wall's turrets and the towers on Trajan's Column: a studded door at its foot, a timber gallery on beams round its upper storey, a ladder up
+  to it, a hipped roof of tiles, a crib of logs for the beacon and a rick of hay beside it; manned, two archers in green with conical helmets and bows keep watch on the gallery and a torch burns out of
+  its window at night.
+  Walls, gates and towers hide the people behind them, and a click on a wall's tile or on the tower picks it as before.
+  The fleet's three buildings are models too, their back row on the shore and their two front rows out over the water on piles and piers, the water round them: the **Navalia** (naval dockyard) has an
+  open building slip running down into the sea with a windlass at its head, a tiled ship shed on stone pillars beside it (spare mast and yard, racked oars) and a stock yard where its timber, iron and
+  linen lie, a load for every 100 it holds (up to six of timber, two each of iron and linen); the liburnian it builds shows on the slip as the work goes on: the keel laid with its stem and sternpost
+  (under a quarter), the planks rising strake by strake with the first frames inside (under half), planked to the rail with benches in (under three quarters), then finished with its oar box, bronze ram,
+  painted eye and red paint; while it is staffed shipwrights work at the hull and a man stands at the windlass.
+  The **Statio** (naval station) stands on a stone terrace with its headquarters (CLASSIS over the door, the squadron's red standard by it) and a store of oars and sails, two harbour moles of coursed
+  ashlar out into the water, the west one run on as a timber jetty on piles, with bollards along them, the station's boat in the basin between, and a beacon tower on one mole whose fire burns while the
+  station is staffed; its liburnians tie up past the moles' ends.
+  The **Portus** (training harbour) has a rowing frame on the shore, a ship's benches on dry land as the Romans first trained their crews, a quay, a pier, a stone mole with a boarding bridge (the
+  corvus) on its pole, and an old practice hulk moored in the basin; while a new ship's crew trains there (its ship moored at the Portus, the Portus fully staffed) twelve rowers pull at the frame in
+  time to the hortator's mallet, marines spar on the hulk and stand guard on the bridge, which is down on its deck; otherwise the oars are back on their racks and the bridge is raised.
+  In a hard frost the foam round their piles goes, as the water's edges freeze.
+  The farms and the granary are models too, with the 3D ground on (with the flat ground a farm keeps its sprite, which draws its field).
+  Every farm has a stone farmhouse with a tiled roof, a loft and a shrine by the door, and what its kind needs: a wheat farm's threshing floor and straw stack (biggest just after the harvest, sheaves
+  stooked when the field is ripe), a vegetable garden's wattle fence and well with a sweep, an orchard's rows of apple, pear and fig trees, an olive grove's old olives and its oil mill, a vineyard's
+  vines on stakes and a pole with a treading vat, a flax farm's retting pond and drying racks, a pig farm's sty with its pigs rooting in the pen (more as the litter grows), a horse ranch's stable and
+  its herd in the paddock (one horse for each breeding mare).
+  Trees and vines follow the season (bare in winter, blossom in spring, autumn colours), fruit and grapes grow and ripen with the farm's progress, and at the harvest ladders, baskets and cloths come
+  out.
+  Resting for an Insane winter the tools are put away and half the animals stay in; with no workers, doors and shutters are shut and weeds come in.
+  A granary shows how full it is: its open platform holds twenty places, each a cart's load, filled in turn round all four sides, so the side you see shows its share whichever way the view is turned:
+  sacks of wheat, baskets of vegetables and of fruit, hams on a rack with salting tubs, baskets of fish with amphorae; empty, the platform is bare.
+  A lantern burns by its door at night while it is staffed.
+  Console: `farms` builds one farm of every kind and a stocked granary beside the city.
+  With the 3D ground on, the **trees and rocks** are 3D too, the trees of the province: Italian cypresses here and there, stone pines with their flat umbrellas and holm oaks on dry ground, downy oaks
+  and sweet chestnuts inland, poplars, pollarded willows and planes along rivers and lakes, wild olive, laurel and myrtle in the undergrowth, wild cherries and almonds, date palms round a desert's oases
+  (a province's own mix: no stone pine on the Po's plain, more holm oak in Spain); woods grow in stands of one kind.
+  They sway in the wind and follow the year: the oaks turn russet and keep their dead leaves through the winter, chestnuts and poplars go gold and bare, the almond flowers on bare wood in February and
+  March, the cherry in April, the myrtle in June; snow lies on their branches, rain darkens their bark.
+  Rocks are limestone outcrops in their beds, boulders and scree with lichen and moss, and dark lava boulders where the province is volcanic (Puteoli, Volsinii).
+  Trees and rocks hide walkers behind them as before; a click on a forest tile picks the tile; a building placed over a wood or a cleared tile clears its trees at once.
+  Zoomed out each tree is drawn as a picture of itself, so whole forests cost little.
+  Console: `flora` (what is drawn; `flora off` shows the flat trees, to compare).
+  Where the browser has no WebGL, the Classic renderer draws and Settings says why.
+* **The people of the 3D buildings** (WebGL renderer; looks only, the sim never sees them): every building with people in it (temples and shrines, schools and libraries, the forum and the senate, the
+  governor's houses, the prefecture and the engineer's post, the barber, physician, baths and hospital, the forts, barracks, military academy and watchtowers, the fleet's buildings and the gardeners'
+  yard) is peopled with Romans who move: weight shifting from leg to leg, breathing, looking about, talking with their hands, walking a few steps and back, each at his own pace so no two move in step,
+  unless they keep time together (a crew rowing to its hortator's beat, two walking side by side).
+  What they do follows the building's state as its doors and fires do: a kept temple's priest, his head veiled, walks from the steps (where he prays with his hands raised) to the altar and pours from
+  his dish over the fire while his boy holds the incense box; in its god's festival month a flute player plays, the victimarius stands with his axe and a crowd in wreaths cheers and prays on the paving
+  and the steps; an unstaffed temple is empty.
+  The school's boys write on their tablets and read their rolls while the master teaches from his chair and a slave waits at the gate; the forum's clerk counts coin as a citizen pays; the senate in
+  session has senators talking on the steps and in the porch, a magistrate in the purple-bordered toga at the door and his lictors with the fasces, and soldiers of the guard on the alert; the
+  prefecture's fireman rocks the pump's beam while another keeps the door.
+  In the library readers unroll their books and the librarian walks along the cupboards taking rolls down; at the academy the master teaches in the exedra, a young man declaims and two philosophers walk
+  the covered walk.
+  The barber shaves his client under a linen cloth; the physician's assistant grinds at the mortar; bathers sit at the pool and the stoker rakes the furnace; the hospital's sick lie abed while orderlies
+  come and go.
+  The governor's household sweeps and carries, his guests recline at dinner in the villa, and soldiers come to the door when trouble nears.
+  At the engineer's post a man turns the windlass's crank and the surveyor sights along his groma.
+  Sentries pace the forts' walls and stand guard at the ends, archers draw and loose over the breastwork and from the watchtower's gallery, recruits strike at the post with sword and shield (the cavalry
+  fort's troopers are as many as its horses in the stalls).
+  At the Portus a new ship's crew rows at the frame in time to the hortator's mallet, and at the gardeners' yard a gardener clips the box hedge.
+  They wear Roman dress (tunics with their stripes, the toga, the stola and palla, the Greek mantle, a soldier's mail and helmet, a child's bulla), snow settles on their heads and shoulders in winter
+  and rain darkens their wool.
+  They are drawn in more detail the closer you zoom (faces, hands and folds from 3x).
+  Statues stay still: they are stone and bronze.
+* **The walkers in 3D** (WebGL renderer, while it draws the buildings as models; looks only, the sim never sees them): every walker but the ships is a dressed, moving person: prefects in red with their
+  buckets (running to a fire, throwing water at it), engineers with the surveyor's rod and a tool case, priests with the toga over their heads and their god's colour on its border, teachers and scholars
+  with rolls and tablets, the librarian's book box, barbers' and physicians' cases, the bath attendant's towel and oil flask, actors with their masks, gladiators with helmet, shield and sword,
+  charioteers on their chariots in their faction's colour, gardeners' shears, the tax collector's purse, market women with baskets on their heads and buyers with a basket at the hip, cart pushers with
+  handcarts showing their load (the warehouse's own goods), farm wagons behind their ox, drovers leading horses, work crews with a timber, newcomers and leavers with their bundles and families (or a
+  mule), recruits in mail, traders with pack mules, villagers, protesters with a placard, thieves with their sack, rioters with a torch.
+  Each keeps his look for good.
+  They stand where the walker is, face where he goes and turn smoothly at a corner; their legs step with the ground covered, so they never slide at any speed and stand still when the game is paused.
+  Family and mules follow along the road behind.
+  A walker drawn in 3D hides behind a building in front of him like any model; a click on him, or on his cart, wagon or team, opens his panel.
+  Ships are drawn as models of their own (below); with the Classic renderer everyone keeps his sprite.
+* **The soldiers, raiders and wolves in 3D** (WebGL renderer, while it draws the buildings as models; looks only, the sim never sees them): every land unit is a moving figure.
+  Your legionaries march in step behind their signifer, form the line behind their shields when a foe comes within about 8 tiles, throw their pila as he closes and fight with the gladius; archers loose,
+  cavalry gallop when they charge.
+  Raiders are dressed by their people (Gauls, Ligurians, Carthaginians and Numidians, Lusitanians, the Cimbri and Teutones, the generic band), Caesar's men wear plate under the eagle and the flag, rebel
+  gladiators fight as murmillo, thraex and retiarius, a village's men carry spears, pitchforks and clubs, and wolves trot when they move on, lope when they hunt and lie down at rest.
+  A blow is drawn on the tick it lands, a man hurt flinches, and the dead fall and lie for about 40 seconds of game time before they fade into the ground; paused, all of it stands still.
+  A click on a figure picks it as a click on its picture did; its health bar and its fort's ring are drawn over it.
+  Ships keep their pictures.
+* **The ships and boats in 3D** (WebGL renderer, while it draws the buildings as models; looks only, the sim never sees them): every vessel is a model with its crew, where the game has it, facing the
+  way it sails.
+  A **merchant ship** is a corbita, the Roman merchantman: a round, deep hull, its sternpost curling into a swan's neck over the master's cabin, a square mainsail with two stripes in its trading
+  partner's colour, the small artemon raked over the bow, a steering oar on each quarter and amphorae in the hold; the ships of Massilia and Cirta are smaller coasters.
+  Two hands haul on the sheets and the master watches the sail; moored, the hands carry sacks and the master tallies the cargo.
+  A **fishing boat** sails out and home with its two fishermen at the oars; at the grounds its sail is brailed up and its net lies out on the water in a ring of cork floats, one man casting and one
+  hauling; home with a basket of the catch.
+  A **liburnian** is the very ship the Navalia builds: fourteen rowers pull together to the hortator's mallet, their oars dipping and lifting, three marines stand on the bow's deck with spears and
+  shields (bows drawn when it fights), the sail set on passage and furled to fight.
+  **Raider ships** are their people's own craft: the Gauls', the Boii's and the Cimbri's high-ended oak ships with sails of hide, Carthage's black galleys with a ram and a horse's head on the stem,
+  everyone else's light open galleys; their warriors stand on the decks while they are aboard, and one swings a fire pot at the bow as it throws.
+  Sails fill with the wind (the same wind the trees sway in) and are braced round to it; hulls heave, pitch and roll on the swell, heel a little under sail and throw a bow wave and a wake; ships turn in
+  a curve.
+  A moored merchant ship or fishing boat lies alongside its quay, a liburnian stern-to its station with the rest of its squadron, a squadron holding the water lies bows out round its flag, a raider
+  waiting offshore swings its bow into the wind.
+  A damaged warship rides lower and lists; one that is sunk settles by the stern, rolls over and goes down, its planks and spars floating a while.
+  At night a lantern burns at every stern.
+  A click anywhere on a hull opens its panel; the selected ship's ring is round its hull.
+* **The aqueducts and the reservoir** are 3D models too in the WebGL renderer (looks only: the water works as before).
+  An **aqueduct** is an arcade of squared stone (tufa in the volcanic country, limestone in the hills and the provinces, brick in the Po plain, as your town's walls), an arch to a tile, carrying an open
+  channel lined with pink signinum: while it carries water you see it running along the top, the piers dark under the leaking joints; dry, the channel holds silt.
+  Where it turns, branches or ends it stands on a solid pier pierced by narrow arches; over a road it takes one wide arch of dressed travertine with a blank tablet over it, high enough for any cart;
+  beside a reservoir it steps down in a stair of little falls to the reservoir's inlet.
+  The **reservoir** is a castellum aquae: a lined tank on a paved podium, a little distribution house over its back wall (three outlets behind bronze grilles, three lead pipes with stopcocks out of its
+  back), two water towers with lead tanks at its back corners, and an overflow on each side running into a trough.
+  Full, its tank is deep green water, the aqueducts pour into it and its overflows run; dry, it is empty but for silt and a puddle.
+  A reservoir on a shore draws its water through a grilled culvert on the water's side.
+  In a hard frost the margins of running water freeze.
+  A walker under or behind an arch is drawn and clicked as before; a click on an aqueduct still shows its tile.
+  Dragging an aqueduct shows the pieces it will build, see-through.
+* **The forts, the barracks and the military academy** are 3D models too in the WebGL renderer (looks only: they work as before).
+  All three forts are camps of the Republic, earth and timber, nothing like the stone town wall: a ditch outside, a turf-faced earth bank about 1.2 m high and on it a palisade of sharpened stakes, with
+  a watch platform on posts at each corner and a timber gate tower with a roof over the passage (about 4.8 m, the town wall's towers are 7).
+  The **legion fort** has a palisade about 2.5 m high, the gate tower under LEGIO I, two barrack blocks, the headquarters at the back with the eagle, the signa, the red vexillum and a painted portrait
+  shield before it, a bread oven and a water tank.
+  The **archer fort** has a lower palisade (about 1.9 m), leather tents, a thatched shrine with the green standards, straw butts with arrows in them and a rack of bows.
+  The **cavalry fort** has a stable along one side where a remount stands in a stall for each trooper the fort has (out with them while the fort is deployed), the decurion's house, a trough, a hay rick,
+  saddles on a rack and the cavalry's dragon standard; its palisade is lower on the right and at the back, where its troopers stand near it.
+  Your soldiers at rest stand in the yard as before, over the model, and a click still picks them; the palisades are kept low where they stand near a side, so you see them from every side.
+  While a fort is deployed (or its men are away at a distant battle) its standards are out with them and the base stands empty; with nobody in it its gate is shut.
+  Sentries pace the bank behind the stakes and the deck over the gate while the men are home, and the gate's lanterns burn at night.
+  The **barracks** has an armoury whose rack fills with a set of arms (shield, pila, helmet, sword) for every 50 weapons it holds, a rack of arrows filling 50 at a time, and a horse line with a horse
+  for every horse it holds (up to four); while a recruit is in training (not one trained and waiting for a fort with room or for arms) he strikes at a post with shield and sword under his instructor's
+  eye, and a clerk writes at the table while it is staffed.
+  The **military academy** is a training ground: a hall painted with trophies of arms behind a colonnade, the drill master's tribunal and standard, posts, butts and a riding ring; while men train there
+  five strike at the posts, two archers shoot at the butts and a trooper holds the horse in the ring, the drill master calling from his tribunal.
+  In a hard frost the forts' water freezes.
+* **The school, the library and the academy** are 3D models too in the WebGL renderer (looks only: they work as before).
+  The **school** is a Roman schoolmaster's portico open to the street: a tiled roof on red-and-white columns with LVDVS on a board under its beam, the master in his high round-backed wicker chair on a
+  little dais under a striped awning, ARMA VIRVMQVE CANO (the Aeneid's first words, which Pompeii's schoolboys scratched on its walls) painted on a whitened board on an easel, a counting board with its
+  pebbles, boys on benches round the court with wax tablets on their knees or rolls held open and their book boxes beside them, one reciting before the master and a slave waiting at the gate.
+  The **library** is a book hall on a stone podium behind four marble columns, BIBLIOTHECA cut over them, its painted walls lined with wooden cupboards full of rolls with their coloured tags; before its
+  steps Minerva stands on her pedestal with spear and shield, herms of Homer, Ennius, Plato and Cicero line the court, a reader sits on a marble bench, a scribe copies at his desk, laurels grow in pots
+  and a gate of bronze grilles opens to the street.
+  The **academy** is a garden of gravel walks and grass edged in clipped box: at its back a half-round exedra with a stone bench where the master sits among his pupils, cypresses either side, two
+  lecture rooms, a covered walk with benches along one side, a sundial's stone bowl on its column, a herm of Plato, a platform where a pupil declaims to his listeners, ACADEMIA over its gate.
+  While staffed their people are at work, the doors, cupboards and gates stand open, the school's awning is out and their lanterns burn at night; with no workers they are shut up and empty.
+  Console: `learning` builds a library and an academy beside the city.
+* **Gardens, statues, the gardeners' yard and the triumphal arch** are 3D models too in the WebGL renderer (looks only: they work as before).
+  A **garden** is a Roman garden plot after those excavated at Pompeii: clipped box round beds of roses, oleander, myrtle, acanthus and Madonna lilies, gravel walks to the middle of each side, and at
+  its middle a marble basin, a sundial, a pool with a little winged boy, or a pergola of vines hung with marble discs (oscilla); each plot is one of four designs turned four ways, so a row of them is
+  not a pattern.
+  Gardens side by side drop the hedges between them and become one garden, their walks running through.
+  They follow the month: bare vines and roses pruned to canes in winter, young leaves in spring, roses and lilies in May and June, oleanders and green grapes in high summer, the vintage and the vine's
+  red leaves in autumn.
+  A **statue** is one of a few designs by where it stands: a herm, a portrait bust or a gilt Victory on a globe for the small one; the Augustus of Prima Porta (its cloak still painted), a patron in his
+  toga or a bronze general on an inscribed base in a little paved square for the statue; a gilded horseman after Marcus Aurelius or an emperor enthroned, colossal, behind a bronze railing with two
+  lampstands for the grand statue.
+  **Neglect shows**: from the point where the sprite turns dull (60% of its bonus or less), a garden's box grows ragged and brown, weeds come up in its walks and its basin runs dry; a statue's marble
+  greys with lichen and black streaks, its bronze goes green, birds leave their mark and its wreath lies fallen on the step, and the grand statue's lamps go out.
+  The **gardeners' yard** shows its shed, its pots of seedlings, the tools, a compost heap and a gardener clipping box into a cone while it is staffed.
+  The **triumphal arch**, after the Arch of Titus, stands across its road (whichever way the road runs), the road going on under its bay, SENATVS POPVLVSQVE ROMANVS on its attic in gilt letters and a
+  gilt four-horse chariot on top.
+* **The barber, the physician, the baths and the hospital** are 3D models too in the WebGL renderer (looks only: they work as before).
+  The **barber** (tonstrina) is a shop open to the street between two piers, TONSOR painted over the lintel: the client sits on a stool under a linen cloth, his head tipped back, while the barber at his
+  side shaves him, a basin on its stand, a man waiting on the bench and another talking; inside, a bronze mirror, pots and razors, towels on a rail.
+  With no staff its boards go across the front.
+  The **physician** (medicus) is an ochre room under a pediment, MEDICVS over the door: the doctor talks with a patient sitting on the couch, his assistant grinds a remedy in the mortar at the table of
+  instruments, coals glow in a brazier, a mother and her son wait on the bench outside by the herbs in pots and the staff of Asclepius.
+  The **baths** (balneum) show their water and their staff: with piped water and workers the furnace is lit (its coals glow, smoke rises from the terracotta flue over the boilers and from the round
+  room's smoke hole), bathers stand in the pool and sit on its rim, talk and rest on the exercise ground, the attendant minds the clothes, the stoker rakes the furnace, the bronze spout runs; with water
+  but no workers the pool lies still, the doors shut, the furnace cold; with no piped water the pool is empty, dust and leaves on its floor.
+  In a hard frost (snow 2 or 3) the pool freezes and working baths steam from the round room's smoke hole, the warm room's window and the flue, the snow melted off the round room's warm roof.
+  (The baths are as a town of about 300 BC had them: the Greek bathhouse, a round tholos of hip-baths under a conical tiled roof, a warm room under a timber roof with a shuttered window, bronze boilers
+  over a furnace, braziers for warmth; no hypocaust, vault or glass yet.)
+  The **hospital** (valetudinarium) is built on the plan of the army's hospitals: wards round a court, a bed seen through each door, a corridor of red-and-white columns round a garden of herb beds and a
+  well-head, the sick lying abed under their blankets, a convalescent on a couch in the sun talking with the physician, a soldier and an orderly walking in from the gate, an orderly carrying a dish
+  along the corridor, the operating hall at the back with the surgeon at the table, the altar of Asclepius and Hygieia, VALETVDINARIVM over the gate.
+  Their lanterns light at night while they work (the baths' only while their fire is in, and the warm room's window glows with firelight).
+* **The senate house and the governor's residences** are 3D models too in the WebGL renderer (looks only: they work as before).
+  The **senate house** (curia) is a plain hall of tufa on a low podium, as the Republic's council houses were (the Curia Hostilia, the colonies' halls): its walls stuccoed cream over a red dado and
+  scored as blocks, a porch of four plain Tuscan columns under a low tiled gable whose eaves and edges are hung with painted terracotta plaques, a painted disc on the ridge, timber doors studded with
+  bronze under a tablet cut S·P·Q·R, honorary statues in the toga at the foot of the steps.
+  In session (staffed) the doors stand open, senators in the toga with the purple stripe come up the steps and talk in the porch, two sit on its bench, a magistrate in the purple-bordered toga stands at
+  the door and his lictors wait below with the fasces; idle, the doors are shut and nobody is there.
+  The **governor's house** (Praetorium) is a Pompeian atrium house: a white front with a red dado, a porch on two columns over the door, HAVE in the threshold, benches for clients, lanterns and the
+  governor's standard; inside, the atrium's roof falls inward on four columns to the pool under it, and behind it a garden of clipped box and flowers round a cistern's mouth inside red-and-white
+  columns, the walls painted in red and black panels, the household's shrine in the back wall.
+  The **villa** (Praetorium Maius) is bigger: a porch on marble Ionic columns, SALVE in the threshold, a long pool with a marble basin whose jet plays, four marble statues, lemon trees in pots, and the
+  dining room under its own pediment, open on the garden, where the governor dines with two guests on the couches round the table.
+  The **palace** (Regia) is the city's showpiece: on a platform, up a flight between gilt statues and the governor's standards, a gate of four Corinthian columns cut REGIA; a court open to the street
+  over a marble parapet, porticoes of marble Ionic columns down its sides, two fountains, box parterres, statues and cypresses; across it the hall up three steps behind six Corinthian columns with gilt
+  capitals, LEGATVS AVG PR PR (the governor's title, the emperor's legate) on its frieze, a gilt eagle and a gilded ridge.
+  Lived in (staffed), the doors and shutters are open, the household is about, a guard stands at the door, the fountains play and the lamps are lit at night; with no servants a residence is shut up and
+  dark.
+  When rioters are making for it (a mob goes for the residence first and the senate next) or an enemy is near, the doors are barred, the household goes in and more soldiers stand at the door.
+  In a hard frost the pools freeze and the fountains stop.
+* **The temples, the oracle and the mission post** are 3D models too in the WebGL renderer (looks only: they work as before).
+  A **small temple** (aedes) is a Roman podium temple in small, after the Temple of Portunus in Rome, the Maison Carree at Nimes and the Temple of Hercules at Cori: a high podium with steps up the front
+  only, a porch of four columns and one either side behind, the cella with its bronze doors and pilasters, the frieze painted in the god's colours and cut with the dedication in gilt letters (CERERI,
+  NEPTVNO, MERCVRIO, MARTI VLTORI, VENERI GENETRICI), the god's emblems in the painted pediment and on the gable, a tiled roof; the altar stands in front of the steps (the Romans sacrificed outside, at
+  the altar, in the god's sight through the open doors).
+  Each god's temple is its own: **Ceres** in the Tuscan way of her old temple on the Aventine (stuccoed Tuscan columns, a red-ochre pediment with a gilt sheaf between torches, terracotta palmettes,
+  sheaves at the altar, a plough and baskets of grain); **Neptune** Ionic in sea blue (a trident between dolphins, a running wave on the frieze, dolphins on the gable's corners, an anchor given by a
+  ship's crew, the god enthroned with his trident); **Mercury** Corinthian in green and gold (the caduceus between roosters, winged hats on the corners, a herm at the corner, the young god with his
+  purse); **Mars** after Augustus's Mars Ultor, crimson (a trophy of arms, a crested helmet on the gable, shields on the corners and gilded shields of the spoils on the walls, a bronze trophy by the
+  steps, the god in his cuirass and helmet); **Venus** after Caesar's Venus Genetrix, pale blue and rose (a scallop shell between doves, doves on the ridge, myrtles and roses in pots).
+  A **grand temple** (templum) is the same god's temple larger and in marble, after Mars Ultor in the Forum of Augustus and Apollo's at Pompeii: six columns across the front and four down each side, a
+  solid back wall, a big altar in a court ringed by porticoes of Tuscan columns, the precinct's walls painted red inside.
+  At work (staffed) the doors stand open on the cult statue, the fire burns on the altar with a thin smoke and the priest offers at it, his toga drawn over his head, his boy beside him with the incense
+  box; in the month of the god's festival there are garlands between the columns and on the altar, a bigger fire, a crowd in wreaths, a flute player and the victim led to the altar; unstaffed, the doors
+  are shut and the altar holds cold ash.
+  While a god is **angry** (from its wrath until its mood recovers) the smoke over its altars is black and heavy: an ill omen you can read across the city.
+  The **oracle** is a round shrine (tholos) after the one below Delphi and the round temple at Tivoli: ten Corinthian columns on three steps, garlands and ox skulls on its frieze, a conical tiled roof
+  with a gilt tripod on top; beside it the rock's cleft breathes vapour over a spring running into a stone basin (frozen in a hard frost), Apollo's laurel and cypresses grow by it, two bronze tripods
+  burn at the approach and inside stand the tripod over the omphalos and a statue of Fortuna.
+  The **mission post** (Sacellum Pacis) is a walled yard: a gate under a tiled canopy (PAX in its threshold), at the back a little shrine of Peace with her statue, an altar before it, the envoys'
+  lodging down one side, gifts for the villages (wine, cloth, pottery), an olive tree and a white standard topped with the herald's caduceus; staffed, the gate is open, the fire lit, the envoy talks
+  with a villager come to trade; unstaffed, the gate is shut and the standard taken in.
+  At night the altar fires and the porch's lampstands light the temples while they are staffed; the oracle's tripods always burn.
+* **The actor troupe, the gladiator school, the menagerie and the chariot stable** are 3D models too in the WebGL renderer (looks only: they train and send their performers as before).
+  The **actor troupe** (Grex) is a company's house whose painted front is the wall of a practice stage of boards, with three doors and masks hung on it; the players rehearse on the stage in tragic and
+  comic masks to the double pipes while the manager directs from his stool, costumes air on a rail and the touring cart stands loaded in the yard.
+  The **gladiator school** (Ludus Gladiatorius) has cells round a sanded court behind a red and white portico, racks of helmets, shields, nets and tridents, a little oval practice ring and two posts: a
+  murmillo and a thraex trade blows, a retiarius presses his opponent, recruits strike the posts with wooden swords under their trainer.
+  The **menagerie** (Vivarium) keeps a lion, a lioness and a leopard in cages of stone and iron and a bear in its yard; the lion paces and roars, the bear rises on its hind feet, keepers carry meat to
+  the bars.
+  The **chariot stable** (Factio) belongs to one of the four colours of the circus (red, white, blue or green, painted on its board between palms of victory): horses at their mangers, a team trotting
+  round a turning post with its driver, another standing harnessed with its grooms.
+  While a building's performer is on the road to a venue it shows it: the troupe's cart is gone on tour, a pair of gladiators is gone, the leopard's cage stands open and the cage cart is away, a
+  harnessed team has left for the races.
+  With no staff the gates are shut and nobody is at work (the beasts and the horses stay in their cages and stalls).
+* **The theatre, the amphitheatre, the Great Arena and the hippodrome** are 3D models too in the WebGL renderer (looks only: they work as before).
+  A venue shows a show while it is staffed and has a show booked (the same rule that sends its entertainers out); staffed with nothing booked, its gates stand open and attendants rake the sand;
+  unstaffed, its gates are shut.
+  The **theatre** is a half circle of stone seats round the orchestra, the decurions' chairs on its broad step, the stage before a wall of coloured marble columns in two storeys, three doors and
+  statues, an awning spread on masts on a play day; actors in masks declaim and a piper plays.
+  The **amphitheatre** (after Pompeii's) and the **Great Arena** (the earliest kind of stone amphitheatre: an earth bank held by a rubble wall, the top tier of timber, two double stairs up the outside,
+  an awning of sailcloth) seat their crowds round the sand: gladiators fight in pairs (a murmillo against a thraex, a retiarius against a secutor) while a referee watches, and at the Arena a hunter
+  fights a lion; an amphitheatre with actors booked too sets up a stage at one end for a play.
+  The **hippodrome** shows its race in all three of its sections: four chariots of the factions (red, white, green, blue) racing round the spina, its eggs taken down and its dolphins turned one a lap.
+  The crowd fills as many seats as the city can: the city's people over the seats of all its working venues of that kind (a theatre seats 400, an amphitheatre 900, an Arena 2,000), a fifth at a time;
+  citizens in white togas sit in the front rows, the poor and the women at the top, as Augustus ruled.
+  The torches and lamps are lit at night while a show runs.
+  Console: `shows` builds an Arena, an amphitheatre and a Circus beside the city if it has none and books every show.
+* **The Great Baths and the Caravanserai** are 3D models too in the WebGL renderer (looks only: they work as before).
+  A site shows the stage under way, its walls rising a quarter of the stage at a time as the work goes on (the Great Baths: the trenches and rubble footings with the pool dug, then the tufa walls of the
+  tub hall and the two round rooms, then the hall's timber trusses and the round rooms' cones of rafters, then the tiles and the stucco with the exercise court's colonnade; the Caravanserai: the court
+  paved, then the ground storey and the colonnade, then the upper rooms, the gallery and the roofs), with scaffolds, cranes and stacks of goods; while a work camp's crew is on the site its men work and
+  the treadwheel turns, a halted site stands still with nobody on it.
+  Finished, the **Great Baths**, a Greek-style bath of about 300 BC (an exercise court with its colonnade and running track, an open pool, a long tub hall and two round rooms under conical roofs, a
+  furnace yard behind), at work show bathers in the pool, ball games, a weightlifter and a runner on the track, the oil seller, the stoker and the smoke of the flue and the roofs' smoke holes (steam
+  from the windows and the smoke holes in a hard frost); without timber in its store the furnaces are dark and nobody bathes, without piped water the pools are empty, unstaffed it is shut.
+  The woodstore's stacks show while it holds timber.
+  The **Caravanserai** staffed and fed shows its stabled mules and horses, a mule train coming in at the gate, an ox wagon unloading, travellers at the tavern's tables and the innkeeper, the kitchen's
+  smoke; staffed with an empty larder its beasts stand stabled and its tables are empty; unstaffed its gate is shut.
+  Either one sacked by raiders shows rubble, soot and broken work (a burnt-in roof, thrown-down columns, a gate torn off) until it is repaired.
+  Console: `monument thermae` or `monument mansio_magna` lays one out beside the city (`done` finishes it).
+An **Insula** (2 x 2) is a taller, richer one: three storeys over a tufa footing, shops along the street, balconies or an outside timber stair, washing and pots, a light well and a tiled roof in
+several pitches.
+A **Villa** (2 x 2) is a well-off family's town house: a blank street front with a studded door and a porter's window, two storeys round a colonnaded court, a roof that falls to an open square over
+the atrium, a small kitchen garden and a fig behind.
+A **Garden Villa** (2 x 2) makes the garden of it: the house along one side with a loggia, a walled garden of box-edged beds, a fountain, a herm, a sundial, a vine pergola, cypresses and a gate. *
+**Homes** at every level are 3D models too in the WebGL renderer (looks only: they house, grow and fall as before; the other levels keep their sprites), so a new city is not a field of flat sprites
+among 3D buildings.
+A **Tent** is a settler's tent of undyed wool or hide over a ridge pole on crossed poles, guy ropes to pegs, its flap tied back while the family is in and hanging shut when it is empty, a ring of
+stones for the cooking fire before it with a pot on a tripod, a basket, a bundle or a jar beside; some are patched and sag between their poles.
+A **Family Tent** is a larger tent in two bays with a hide awning stretched out in front on two poles as a porch, a rush mat under it, a water jar, a second fire, and in one look washing on a line
+from a pole to a stake.
+A **Lean-to** is poles leant against a ridge beam on two forked posts, roofed with reed or with sods, a wattle wall closing one end, a low doorway with a hide curtain over a footing of dry stone or
+turf, a woodpile and a hearth, and in one look a wattle pen with a pig in it.
+The four 3 x 3 homes, a **Peristyle Villa**, a **Marble Villa**, a **Mansion** and a **Palatium**, are the atrium house with a colonnaded garden behind it: a plain street front with a porter's door
+and shops, the atrium and the tablinum, and a peristyle of columns round a garden with a basin; the Marble Villa has marble doorframe, columns and statue, the Mansion a second storey over its shops, a
+loggia, a long pool and a tower for dining, and the Palatium a columned porch with a pediment, a tall atrium, a pavilion and fountain.
+.
+A **Hut** is a one-room house of rubble or mud brick on a stone footing under thatch (or a few crude tiles), a plank door, a bench and a jar by it, a clay pot on the ridge for the hearth's smoke.
+A **Cottage** is a small plastered house, a red band along its foot, a shuttered window, a tiled roof, in a tiny walled yard with a fig, a vine on a trellis or an arbor, and a well-head.
+A **Townhouse** is a narrow two-storey house with a shop open to the street below (its counter and wares, and the boards that shut it) and the family's rooms above, a balcony or shuttered windows.
+A **Stone Cottage** is a one-storey house of tufa, bare ashlar or rubble, or plaster over a bare stone footing, under a tiled gable with terracotta antefixes and a loft vent, with one shuttered
+window, a studded door, a bench by it and, in one look, a vine on a trellis over the door.
+A **Merchant House** is a townhouse with a real shop: a wide mouth with a masonry counter (jars, cloth, baskets, bread), the shutter boards stacked in the jamb while people live there and across it
+when it stands empty, a sign, a red dado on plastered walls, the family's rooms above behind a timber balcony or under a pergola over the shop, a tiled roof with a clay smoke vent on the ridge.
+A **Domus** is the atrium house of the early Republic: a tall blank front of ashlar or plaster with a narrow door between two small shops or two high slit windows, a small gable over the door with a
+painted terracotta plaque, and behind it a roof that slopes inward to the open compluvium over the impluvium basin.
+An **Apartment House** is three plastered storeys, some over a ground floor of bare tufa rubble, with a shop, a stair door and balconies on timber beams.
+A **Tenement** (2 x 2) is an insula of four plastered storeys round a small light court, shops along the street, balconies, rows of windows.
+An **Insula** (2 x 2) is a taller, richer one: three storeys over a tufa footing, shops along the street, balconies or an outside timber stair, washing and pots, a light well and a tiled roof in
+several pitches.
+A **Villa** (2 x 2) is a well-off family's town house: a blank street front with a studded door and a porter's window, two storeys round a colonnaded court, a roof that falls to an open square over
+the atrium, a small kitchen garden and a fig behind.
+A **Garden Villa** (2 x 2) makes the garden of it: the house along one side with a loggia, a walled garden of box-edged beds, a fountain, a herm, a sundial, a vine pergola, cypresses and a gate.
+Each level comes in four looks (the colour of the plaster or the brick, the shape of the roof, shutters, awnings, washing on a line, pots, the shop's goods), picked by the home, so a street of the
+same level is not one pattern; a home faces its road.
+A home with people in it has its shutters back and its doors open, and at the closest zooms a woman sweeps or spins at the door, a shopkeeper counts at his counter, a customer talks, a woman leans on
+a balcony; an empty home is shut up (shutters closed, the shop boarded, nobody), and at night a lit window here and there marks the homes with people.
+The console's `homes` sets the demo city's homes to these levels to see them together.
+the **Grand Palatium** has a long plastered street front of three shops and two doors (the great door with HAVE in tesserae on its threshold), two atria behind it under their own roofs (one with four
+columns round its basin), the tablinum between them opening onto a mosaic floor and the garden, a first peristyle round a basin with a bronze faun, a second and larger one with a long pool, figs and
+cypresses, and a two-storey range behind with a loggia on its upper floor; the **Imperial Palatium** is the same plan as the governor's own house, with a porch of four Ionic columns on the street
+under a pediment, bronze lampstands, a forecourt with a marble fountain and statues, a belvedere tower at one corner, two peristyles of marble columns with long basins, a summer dining pavilion with
+three couches in the great garden, and a garden gate on the side street.
+* **Ground** (*Settings*: Ground, with the WebGL renderer).
+  The WebGL renderer draws the ground in 3D, lit by the sun: pasture, the fertile meadows (lusher, yellower, with flowers), dry scrub far from water, the forest floor, rocky ground, sand, beaches; the
+  streets of the town paved in basalt between limestone kerbs (a road with a building beside it), gravel country roads, plazas of flagstones, the trodden earth of yards round buildings and along walls
+  and aqueducts, rubble, and a burned building's ash and charred beams (glowing while it burns); water that deepens from its edge, with ripples, surf on the sea's shore and the sky in it.
+  A farm's field is drawn by the ground too: wheat, vegetables and flax sprout in rows, grow and ripen with the farm's progress (wheat turns gold, flax flowers blue), stand as stubble while a farm rests
+  for the winter and go to weeds when no one works them; orchards, olive groves and vineyards are hoed round their trees and vines, a pig pen is mud and straw.
+  The season colours the grass day by day (flowers in spring, fallen leaves under the trees in autumn), snow settles and melts smoothly (roads stay trodden, a field's rows show through it, a fire melts
+  it), rain darkens the ground and leaves puddles, and the well casts its real shadow.
+  *Auto* picks *3D, low quality* on phones, tablets and graphics built into the processor, as most laptops have (the ground's picture is kept while nothing moves, and its water is still), and *Flat* on
+  computers without any graphics chip, where the 3D ground would be slow; it also drops from high to low quality once if frames stay slow at the lowest render scale.
+  *Flat* is the ground as the Classic renderer draws it.
+  Nothing about the city changes: tiles, building and picking are as before.
+* **Render scale** (*Settings*: Render scale, with the WebGL renderer).
+  How many of the screen's pixels the 3D city is drawn with: *100%*, *75%*, *50%*, or *Auto* (the default), which lowers it only while frames run slow on the graphics chip, the 3D ground first (it shows
+  least: a soft surface under sharp buildings), then the rest, and raises it again once there is room, never flickering between two.
+  The menus, the top bar, text, signs and outlines always stay sharp.
+  On a laptop with graphics in the processor *Auto* starts with the ground at about one pixel per point of the screen.
+  Console: `scale`.
+* **Fullscreen** (*Settings*: Fullscreen when a game starts, on by default).
+  Starting a mission or a sandbox, *Continue* and *Load* fill the screen.
+  **Esc** leaves fullscreen (that Esc does nothing else); the ⛶ button in the top bar, or *Fullscreen* in the game menu, goes back in.
+  Where the page may not go fullscreen (inside some web pages) nothing happens and the button is hidden.
+* **Performance readout** (**F3**, or *Settings*: Show the performance readout).
+  Frames a second, how long frames take and where the time goes (the simulation, working out what to draw, drawing, the graphics chip's own time with WebGL), the screen size and pixel ratio, the render
+  scale, and the graphics chip the browser draws with.
+  On a laptop with two graphics chips the browser often uses the slower one built into the processor: the readout then says so, and how to give the browser the graphics card (Windows Settings > System >
+  Display > Graphics, pick the browser, *High performance*, then restart the browser).
+* **Reduced motion.** When the system asks for reduced motion, decorative motion stops: no swaying trees, glints, falling rain or snow, lightning flashes, fling or zoom animation.
+  Colors, lights, snow on the ground and flags (held still) remain.
+* **Debug console:** `weather rain` (clear, cloudy, rain, storm, snow) changes the weather now (in winter rain and storms fall as snow, and snow turns to rain in the other seasons); `snow 3` sets the
+  snow lying on the ground (0 to 3; it melts again by itself); `sky 0.8` freezes the time of day (0.3 noon, 0.67 sunset, 0.8 night) and `sky off` lets it run again.
 
 ## Music
 
-Original music, written by the game's own composer and played live by synthesized instruments (nothing is recorded). It starts on the title screen: at once where the browser allows autoplay, otherwise with the first click, tap or key press on *Click, tap or press a key to begin* (browsers hold sound back until then; that first gesture never presses a menu button). With the music off or muted there is no title screen. Then it follows the city:
+Original music, written by the game's own composer and played live by synthesized instruments (nothing is recorded).
+It starts on the title screen: at once where the browser allows autoplay, otherwise with the first click, tap or key press on *Click, tap or press a key to begin* (browsers hold sound back until then;
+that first gesture never presses a menu button).
+With the music off or muted there is no title screen.
+Then it follows the city:
 
 | Mood | When | Plays |
 |---|---|---|
@@ -879,6 +2326,14 @@ Original music, written by the game's own composer and played live by synthesize
 | Festival | For a while after a festival, and on victory | A new bright lydian or mixolydian dance with jingles each time |
 | Danger | While raiders are on the map | New fast phrygian war music, drums and horn calls, one piece after another |
 
-The ten tracks each run 3 to 5 minutes and always sound the same: each has its own key, tempo, meter, pipes and tune, and its own way in (the lyre alone, a drone and a pipe call, the drums building up, the pipe alone, a slow swell, or the whole band). They come in random order, never one of the last three. A piece is built from an opening, rounds of sections (the theme, a higher answer, a calmer contrast on the other pipe, a passage for the lyre alone) and an ending; festival and battle pieces are built the same way and run about 3 minutes.
+The ten tracks each run 3 to 5 minutes and always sound the same: each has its own key, tempo, meter, pipes and tune, and its own way in (the lyre alone, a drone and a pipe call, the drums building
+up, the pipe alone, a slow swell, or the whole band).
+They come in random order, never one of the last three.
+A piece is built from an opening, rounds of sections (the theme, a higher answer, a calmer contrast on the other pipe, a passage for the lyre alone) and an ending; festival and battle pieces are built
+the same way and run about 3 minutes.
 
-Raiders and festivals take over at once: the old piece fades out in a second and a half. Between calm moods a track is never cut off: if it plays in the new mood too it carries on, otherwise it finishes its phrase and plays its ending before the next one starts. *Settings* has a music switch and its own volume (separate from sound effects); **M** switches it too; *Mute all sounds* silences everything. Console: `music` (status, with the track playing), `music next`, `music tracks`, `music play prima lux` (or a number), `music mood danger` (or `auto`), `music check` (render and measure every mood), `music wav day 60` (download a WAV).
+Raiders and festivals take over at once: the old piece fades out in a second and a half.
+Between calm moods a track is never cut off: if it plays in the new mood too it carries on, otherwise it finishes its phrase and plays its ending before the next one starts.
+*Settings* has a music switch and its own volume (separate from sound effects); **M** switches it too; *Mute all sounds* silences everything.
+Console: `music` (status, with the track playing), `music next`, `music tracks`, `music play prima lux` (or a number), `music mood danger` (or `auto`), `music check` (render and measure every mood),
+`music wav day 60` (download a WAV).
