@@ -3,6 +3,14 @@
 Every release, newest first: what changed and why, with what was measured.
 The plan, the open lists and the decisions live in [ROADMAP.md](ROADMAP.md); the parity numbers (#n) there point at these entries.
 
+## v0.30.19
+
+* **Classic catches up with the models.** The 2D sprites of the senate house, the warehouse, the baths, the Hall of Justice (every stage), the Great Baths (every stage), the Great Arena, the three forts, the prefecture and the engineer's post are redrawn to the designs their 3D models took in v0.30.9 to v0.30.18: the Tuscan-porch hall, the court storehouse on its tufa plinth, the tholos under a cone, the ashlar basilica without an apse, the two tholoi and the tub hall, the earth-bank arena with its outer stairs, the palisade camps, plaster over tufa. The homes' and industry's sprites stay as drawn: they are the originals the models were fresh designs of, and Classic is slated to retire.
+* **The docs reflowed** (audit item 13): one sentence per line in README, ARCHITECTURE, GAMEPLAY, CHANGELOG and ROADMAP, whitespace only (the non-whitespace text and the block structure are proved identical), so a change no longer rewrites a 40,000-character line and merges stop colliding. Table rows stay one per line.
+* **The dev pages' import map** also maps the `three/` directory, so `three/examples` imports load unbundled.
+* **Declined, audit item 14** (splitting the 5,881-line smoke test into per-step files with `waitForFunction` in place of its fixed sleeps): the two checks that actually failed on a loaded machine were each made honest on their own (the fire message by tile, v0.30.11; the audio unlock waited for, v0.30.16), every run since passes 290/290, and a rewrite of the whole file is days of work for no change a player sees. It stays on the roadmap's test list for when the file next needs real surgery.
+* 1479 unit tests
+
 ## v0.30.18
 
 * **Four of the audit's graphics findings** (under WebGL unless said).
